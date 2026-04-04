@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    serverActions: {
+      /** Photos de carte (onboarding / nouveau restaurant) envoyées en FormData. */
+      bodySizeLimit: "16mb",
+    },
+  },
 };
 
 export default nextConfig;

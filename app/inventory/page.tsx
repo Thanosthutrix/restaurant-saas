@@ -59,7 +59,7 @@ export default async function InventoryPage() {
       <CreateInventoryItemForm restaurantId={restaurant.id} />
 
       <p>
-        <Link href="/categories" className={uiBackLink}>
+        <Link href="/account#rubriques" className={uiBackLink}>
           Rubriques (carte & stock) →
         </Link>
       </p>

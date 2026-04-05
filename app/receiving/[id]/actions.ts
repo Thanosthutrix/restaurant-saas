@@ -275,6 +275,7 @@ export async function validateReceptionAction(deliveryNoteId: string, restaurant
     .eq("id", deliveryNoteId);
 
   revalidatePath(`/receiving/${deliveryNoteId}`);
+  revalidatePath("/livraison");
   revalidatePath("/inventory");
 }
 

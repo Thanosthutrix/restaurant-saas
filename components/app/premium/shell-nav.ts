@@ -13,7 +13,7 @@ import {
   UserRound,
   Armchair,
   Wallet,
-  FolderTree,
+  PackageOpen,
 } from "lucide-react";
 
 export type ShellNavItem = {
@@ -37,12 +37,6 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
   },
   { href: "/dishes", label: "Plats", icon: UtensilsCrossed, match: (p) => p === "/dishes" || p.startsWith("/dishes/") },
   {
-    href: "/categories",
-    label: "Rubriques",
-    icon: FolderTree,
-    match: (p) => p === "/categories" || p.startsWith("/categories/"),
-  },
-  {
     href: "/inventory",
     label: "Stock",
     icon: Package,
@@ -54,6 +48,12 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     label: "Calendrier",
     icon: CalendarDays,
     match: (p) => p.startsWith("/insights"),
+  },
+  {
+    href: "/livraison",
+    label: "Livraison",
+    icon: PackageOpen,
+    match: (p) => p === "/livraison" || p.startsWith("/livraison/"),
   },
   {
     href: "/suppliers",
@@ -74,7 +74,12 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     match: (p) =>
       p === "/orders" || (p.startsWith("/orders/") && !p.startsWith("/orders/suggestions")),
   },
-  { href: "/account", label: "Compte", icon: UserRound, match: (p) => p === "/account" },
+  {
+    href: "/account",
+    label: "Compte",
+    icon: UserRound,
+    match: (p) => p === "/account" || p.startsWith("/account/"),
+  },
 ];
 
 export function isBareShellPath(pathname: string | null): boolean {

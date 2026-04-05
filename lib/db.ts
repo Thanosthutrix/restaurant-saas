@@ -1038,6 +1038,40 @@ export async function getDeliveryNotesBySupplier(
   return { data: result, error: null };
 }
 
+/** Réceptions récentes du restaurant (tous fournisseurs), pour l’écran Livraison. */
+export async function getRecentDeliveryNotesForRestaurant(
+  restaurantId: string,
+  limit = 30
+): Promise<{ data: DeliveryNoteForList[] | null; error: Error | null }> {
+  const { data: notes, error } = await supabaseServer
+    .from("delivery_notes")
+    .select(
+      "id, restaurant_id, supplier_id, purchase_order_id, number, delivery_date, source, file_path, file_name, file_url, status, created_at, updated_at"
+    )
+    .eq("restaurant_id", restaurantId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) return { data: null, error: new Error(error.message) };
+  const list = (notes ?? []) as DeliveryNote[];
+  if (list.length === 0) return { data: [], error: null };
+
+  const noteIds = list.map((n) => n.id);
+  const { data: linesData } = await supabaseServer
+    .from("delivery_note_lines")
+    .select("delivery_note_id")
+    .in("delivery_note_id", noteIds);
+  const countByNoteId: Record<string, number> = {};
+  for (const row of linesData ?? []) {
+    const id = (row as { delivery_note_id: string }).delivery_note_id;
+    countByNoteId[id] = (countByNoteId[id] ?? 0) + 1;
+  }
+  const result: DeliveryNoteForList[] = list.map((n) => ({
+    ...n,
+    lines_count: countByNoteId[n.id] ?? 0,
+  }));
+  return { data: result, error: null };
+}
+
 export async function createDeliveryNoteFromUpload(params: {
   restaurantId: string;
   supplierId: string;

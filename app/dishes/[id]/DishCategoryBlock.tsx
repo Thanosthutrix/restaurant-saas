@@ -62,7 +62,7 @@ export function DishCategoryBlock({
       <h2 className="mb-1 text-sm font-semibold text-slate-900">Rubrique carte</h2>
       <p className={`mb-3 text-xs ${uiLead}`}>
         Classez ce plat dans votre arborescence (ex. Entrées, Vins…).{" "}
-        <Link href="/categories" className="font-semibold text-indigo-600 hover:text-indigo-500">
+        <Link href="/account#rubriques" className="font-semibold text-indigo-600 hover:text-indigo-500">
           Gérer les rubriques
         </Link>
       </p>

@@ -13,13 +13,23 @@ type Props = {
   /** 0 = racine ; indentation pour les sous-rubriques. */
   depth: number;
   children: React.ReactNode;
+  /** État initial (défaut : replié pour depth 0). */
+  defaultOpen?: boolean;
 };
 
 /**
  * Une tuile de rubrique repliable (utilisée seule ou imbriquée sous une autre tuile).
  */
-export function CategoryTileShell({ tileKey, title, subtitle, panelId, depth, children }: Props) {
-  const [open, setOpen] = useState(false);
+export function CategoryTileShell({
+  tileKey,
+  title,
+  subtitle,
+  panelId,
+  depth,
+  children,
+  defaultOpen = false,
+}: Props) {
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <div

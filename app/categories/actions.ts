@@ -103,7 +103,7 @@ export async function deleteRestaurantCategory(params: {
 }
 
 function revalidateCategories() {
-  revalidatePath("/categories");
+  revalidatePath("/account");
   revalidatePath("/dishes");
   revalidatePath("/inventory");
 }

@@ -12,7 +12,10 @@ import { getSupplierInvoiceIdForDeliveryNote } from "@/lib/stock/stockMovements"
 import { ReceivingClient } from "./ReceivingClient";
 import { BlUploadSection } from "./BlUploadSection";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ analysisError?: string }>;
+};
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Brouillon",
@@ -20,11 +23,13 @@ const STATUS_LABELS: Record<string, string> = {
   validated: "Validé",
 };
 
-export default async function ReceivingPage({ params }: Props) {
+export default async function ReceivingPage({ params, searchParams }: Props) {
   const restaurant = await getCurrentRestaurant();
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;
+  const sp = await searchParams;
+  const analysisError = sp.analysisError ? decodeURIComponent(sp.analysisError) : null;
   const [noteRes, itemsRes] = await Promise.all([
     getDeliveryNoteWithLines(id),
     getInventoryItems(restaurant.id),
@@ -45,14 +50,23 @@ export default async function ReceivingPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-4">
+        <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1">
           <Link
             href={`/suppliers/${note.supplier_id}`}
             className="text-slate-600 underline decoration-slate-400 underline-offset-2"
           >
-            ← Retour fournisseur
+            ← Fournisseur
+          </Link>
+          <Link href="/livraison" className="text-slate-600 underline decoration-slate-400 underline-offset-2">
+            ← Livraison
           </Link>
         </div>
+
+        {analysisError ? (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            Analyse automatique du BL : {analysisError}. Vérifiez les lignes ou saisissez-les manuellement.
+          </p>
+        ) : null}
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">

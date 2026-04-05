@@ -99,7 +99,7 @@ export default async function DishesPage({ searchParams }: Props) {
         <Link href="/dishes/import-menu" className={uiBackLink}>
           Importer des plats depuis une photo de carte →
         </Link>
-        <Link href="/categories" className={uiBackLink}>
+        <Link href="/account#rubriques" className={uiBackLink}>
           Rubriques (carte & stock) →
         </Link>
       </p>

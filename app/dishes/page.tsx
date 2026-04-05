@@ -1,11 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getDishes, getDishComponents } from "@/lib/db";
+import {
+  buildCategoryTree,
+  buildDirectItemsByCategoryId,
+  filterCategoryTreeByIds,
+  listRestaurantCategories,
+  pruneCategoryTreeWithItems,
+  visibleCategoryIdsWithAncestors,
+} from "@/lib/catalog/restaurantCategories";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
 import { getCurrentRestaurant } from "@/lib/auth";
 import { getTemplateSuggestions } from "@/app/restaurants/actions";
 import { CreateDishForm } from "./CreateDishForm";
-import { DishListRow } from "./DishListRow";
+import { DishesNestedCategoryTiles } from "./DishesNestedCategoryTiles";
 import { DishTemplateSuggestionsBlock } from "./DishTemplateSuggestionsBlock";
 import { uiBackLink, uiError, uiLead, uiPageTitle } from "@/components/ui/premium";
 
@@ -18,9 +26,10 @@ export default async function DishesPage({ searchParams }: Props) {
   const returnTo = typeof params.returnTo === "string" ? params.returnTo : "";
   if (!restaurant) redirect("/onboarding");
 
-  const [{ data: dishes, error }, { suggestions }] = await Promise.all([
+  const [{ data: dishes, error }, { suggestions }, catRes] = await Promise.all([
     getDishes(restaurant.id),
     getTemplateSuggestions(restaurant.id),
+    listRestaurantCategories(restaurant.id),
   ]);
 
   if (error) {
@@ -34,12 +43,38 @@ export default async function DishesPage({ searchParams }: Props) {
     );
   }
 
-  const dishIds = (dishes ?? []).map((d) => d.id);
+  const flatCats = catRes.data ?? [];
+  const list = dishes ?? [];
+
+  const dishIds = list.map((d) => d.id);
   const componentCounts = new Map<string, number>();
   await Promise.all(
     dishIds.map(async (dishId) => {
       const { data: comps } = await getDishComponents(dishId);
       componentCounts.set(dishId, (comps ?? []).length);
+    })
+  );
+
+  const directMap = buildDirectItemsByCategoryId(list);
+  const assignedIds = [...new Set(list.map((d) => d.category_id).filter(Boolean) as string[])];
+  const visible = visibleCategoryIdsWithAncestors(flatCats, assignedIds);
+  const tree = buildCategoryTree(flatCats);
+  const filtered = filterCategoryTreeByIds(tree, visible);
+  const prunedRoots = pruneCategoryTreeWithItems(filtered, directMap);
+  const uncategorized = list.filter((d) => !d.category_id);
+
+  const dishExtras = new Map(
+    list.map((d) => {
+      const compCount = componentCounts.get(d.id) ?? 0;
+      return [
+        d.id,
+        {
+          compCount,
+          suggestionAvailable:
+            (d.recipe_status === "missing" || compCount === 0) &&
+            findRecipeSuggestionForDish(d.name) != null,
+        },
+      ] as const;
     })
   );
 
@@ -60,9 +95,12 @@ export default async function DishesPage({ searchParams }: Props) {
 
       <CreateDishForm initialName={initialDishName} returnTo={returnTo} />
 
-      <p>
+      <p className="flex flex-wrap gap-x-4 gap-y-2">
         <Link href="/dishes/import-menu" className={uiBackLink}>
           Importer des plats depuis une photo de carte →
+        </Link>
+        <Link href="/categories" className={uiBackLink}>
+          Rubriques (carte & stock) →
         </Link>
       </p>
 
@@ -73,23 +111,12 @@ export default async function DishesPage({ searchParams }: Props) {
           Aucun plat. Créez-en depuis un service (ligne inconnue → + Nouveau plat) ou ajoutez une page de création si besoin.
         </p>
       ) : (
-        <ul className="space-y-2">
-          {(dishes ?? []).map((dish) => {
-            const compCount = componentCounts.get(dish.id) ?? 0;
-            const suggestionAvailable =
-              (dish.recipe_status === "missing" || compCount === 0) &&
-              findRecipeSuggestionForDish(dish.name) != null;
-            return (
-              <li key={dish.id}>
-                <DishListRow
-                  dish={dish}
-                  compCount={compCount}
-                  suggestionAvailable={suggestionAvailable}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <DishesNestedCategoryTiles
+          roots={prunedRoots}
+          directMap={directMap}
+          dishExtras={dishExtras}
+          uncategorized={uncategorized}
+        />
       )}
     </div>
   );

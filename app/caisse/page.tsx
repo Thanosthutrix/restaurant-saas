@@ -2,13 +2,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentRestaurant } from "@/lib/auth";
 import {
+  buildCategoryTree,
+  buildDirectItemsByCategoryId,
+  filterCategoryTreeByIds,
+  listRestaurantCategories,
+  pruneCategoryTreeWithItems,
+  visibleCategoryIdsWithAncestors,
+} from "@/lib/catalog/restaurantCategories";
+import {
   listOpenOrdersForCaisse,
   listSettledOrdersToday,
   type SettledOrderSummary,
 } from "@/lib/dining/diningDb";
+import { getDishes } from "@/lib/db";
 import { toNumber } from "@/lib/utils/safeNumeric";
-import { uiBackLink, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
-import { CaisseNewTicketForm } from "./CaisseNewTicketForm";
+import { uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
+import { CaisseDishPicker } from "./CaisseDishPicker";
 
 function fmtEur(n: number) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
@@ -55,43 +64,56 @@ export default async function CaissePage() {
   const restaurant = await getCurrentRestaurant();
   if (!restaurant) redirect("/onboarding");
 
-  const [{ data: openRows, error: openErr }, { data: settledRows, error: settledErr }] =
-    await Promise.all([
-      listOpenOrdersForCaisse(restaurant.id),
-      listSettledOrdersToday(restaurant.id),
-    ]);
+  const [
+    { data: openRows, error: openErr },
+    { data: settledRows, error: settledErr },
+    { data: dishesList, error: dishesErr },
+    { data: flatCats, error: catErr },
+  ] = await Promise.all([
+    listOpenOrdersForCaisse(restaurant.id),
+    listSettledOrdersToday(restaurant.id),
+    getDishes(restaurant.id),
+    listRestaurantCategories(restaurant.id),
+  ]);
 
-  if (openErr || settledErr) {
+  if (openErr || settledErr || dishesErr || catErr) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {openErr?.message ?? settledErr?.message ?? "Erreur de chargement."}
+          {openErr?.message ??
+            settledErr?.message ??
+            dishesErr?.message ??
+            catErr?.message ??
+            "Erreur de chargement."}
         </p>
       </div>
     );
   }
 
+  const dishes = dishesList ?? [];
+  const cats = flatCats ?? [];
+  const directMap = buildDirectItemsByCategoryId(dishes);
+  const assignedIds = [...new Set(dishes.map((d) => d.category_id).filter(Boolean) as string[])];
+  const visible = visibleCategoryIdsWithAncestors(cats, assignedIds);
+  const tree = buildCategoryTree(cats);
+  const filtered = filterCategoryTreeByIds(tree, visible);
+  const prunedRoots = pruneCategoryTreeWithItems(filtered, directMap);
+  const uncategorized = dishes.filter((d) => !d.category_id);
+  const directByCategoryId = Object.fromEntries(directMap);
+
   const open = openRows ?? [];
-  const list = settledRows ?? [];
-  const totals = totalsByPayment(list);
+  const settledList = settledRows ?? [];
+  const totals = totalsByPayment(settledList);
   const grandTotal = [...totals.values()].reduce((a, b) => a + b, 0);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-      </div>
-
-      <div>
-        <h1 className={uiPageTitle}>Caisse</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Commandes en cours (salle et comptoir), nouveaux tickets, puis encaissements du jour (Paris).
-        </p>
-      </div>
-
-      <CaisseNewTicketForm restaurantId={restaurant.id} />
+    <div className="mx-auto max-w-3xl space-y-8 px-4 py-4">
+      <CaisseDishPicker
+        restaurantId={restaurant.id}
+        roots={prunedRoots}
+        directByCategoryId={directByCategoryId}
+        uncategorized={uncategorized}
+      />
 
       <section className="space-y-3">
         <h2 className={uiSectionTitleSm}>En cours</h2>
@@ -109,24 +131,19 @@ export default async function CaissePage() {
         ) : (
           <ul className="space-y-2">
             {open.map((row) => (
-              <li key={row.orderId} className={uiCard}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {row.kind === "counter" ? "Comptoir · " : "Table "}
-                      {row.label}
-                    </p>
-                    <p className={`mt-0.5 text-sm ${uiLead}`}>
-                      {row.lineCount} ligne{row.lineCount !== 1 ? "s" : ""} · {fmtEur(row.totalTtc)}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/salle/commande/${row.orderId}?from=caisse`}
-                    className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
-                  >
-                    Ouvrir / encaisser
-                  </Link>
-                </div>
+              <li key={row.orderId}>
+                <Link
+                  href={`/salle/commande/${row.orderId}?from=caisse`}
+                  className={`${uiCard} block transition hover:border-indigo-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500`}
+                >
+                  <p className="font-medium text-slate-900">
+                    {row.kind === "counter" ? "Comptoir · " : "Table "}
+                    {row.label}
+                  </p>
+                  <p className={`mt-0.5 text-sm ${uiLead}`}>
+                    {row.lineCount} ligne{row.lineCount !== 1 ? "s" : ""} · {fmtEur(row.totalTtc)}
+                  </p>
+                </Link>
               </li>
             ))}
           </ul>
@@ -135,7 +152,7 @@ export default async function CaissePage() {
 
       <section className="space-y-3">
         <h2 className={uiSectionTitleSm}>Encaissements du jour</h2>
-        {list.length === 0 ? (
+        {settledList.length === 0 ? (
           <div className={uiCard}>
             <p className={uiLead}>Aucun encaissement aujourd’hui.</p>
           </div>
@@ -162,7 +179,7 @@ export default async function CaissePage() {
             <div>
               <p className={`mb-2 text-sm font-semibold text-slate-700`}>Détail</p>
               <ul className="space-y-2">
-                {list.map(({ order, table_label: displayLabel, payment }) => (
+                {settledList.map(({ order, table_label: displayLabel, payment }) => (
                   <li key={order.id} className="space-y-2">
                     <Link
                       href={`/salle/commande/${order.id}?from=caisse`}

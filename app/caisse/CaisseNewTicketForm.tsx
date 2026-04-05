@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createCounterDiningOrder } from "./actions";
-import { uiBtnPrimary, uiBtnSecondary, uiCard, uiError, uiInput, uiLabel } from "@/components/ui/premium";
+import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "./caisseQuickStorage";
+import { uiBtnPrimary, uiError, uiInput } from "@/components/ui/premium";
 
 type Props = { restaurantId: string };
 
@@ -20,6 +21,11 @@ export function CaisseNewTicketForm({ restaurantId }: Props) {
   const openNamed = () => {
     setError(null);
     startTransition(async () => {
+      try {
+        sessionStorage.removeItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
       const res = await createCounterDiningOrder({ restaurantId, ticketLabel: name });
       if (!res.ok) {
         setError(res.error);
@@ -30,43 +36,22 @@ export function CaisseNewTicketForm({ restaurantId }: Props) {
     });
   };
 
-  const openQuick = () => {
-    setError(null);
-    startTransition(async () => {
-      const res = await createCounterDiningOrder({ restaurantId, quick: true });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      goToOrder(res.data!.orderId);
-    });
-  };
-
   return (
-    <div className={`${uiCard} space-y-3`}>
-      <p className={uiLabel}>Nouveau ticket comptoir</p>
-      <p className="text-sm text-slate-500">
-        Ouvrir une commande à un nom (à emporter, bar…) ou une vente rapide sans saisie.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <input
-          className={`${uiInput} min-w-[12rem] flex-1`}
-          placeholder="Nom ou repère du ticket"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={pending}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") openNamed();
-          }}
-        />
-        <button type="button" className={uiBtnPrimary} disabled={pending} onClick={openNamed}>
-          Ouvrir au nom
-        </button>
-        <button type="button" className={uiBtnSecondary} disabled={pending} onClick={openQuick}>
-          Vente rapide
-        </button>
-      </div>
-      {error ? <p className={uiError}>{error}</p> : null}
+    <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
+      <input
+        className={`${uiInput} min-w-[10rem] flex-1 py-2 text-sm`}
+        placeholder="Ticket à un nom…"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        disabled={pending}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") openNamed();
+        }}
+      />
+      <button type="button" className={`${uiBtnPrimary} shrink-0 px-3 py-2 text-sm`} disabled={pending} onClick={openNamed}>
+        Ouvrir
+      </button>
+      {error ? <p className={`${uiError} w-full text-xs`}>{error}</p> : null}
     </div>
   );
 }

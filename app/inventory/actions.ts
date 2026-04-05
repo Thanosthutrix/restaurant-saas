@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertCategoryAssignable } from "@/app/categories/actions";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getCurrentUser } from "@/lib/auth";
 import { getInventoryItemComponents, getInventoryItems } from "@/lib/db";
@@ -348,6 +349,28 @@ export async function updateInventoryItem(params: {
   revalidatePath("/orders/suggestions", "page");
   revalidatePath("/dashboard", "page");
   revalidatePath("/margins", "page");
+  return { ok: true };
+}
+
+export async function updateInventoryItemCategory(params: {
+  itemId: string;
+  restaurantId: string;
+  categoryId: string | null;
+}): Promise<ActionResult> {
+  const { itemId, restaurantId, categoryId } = params;
+  const check = await assertCategoryAssignable(categoryId, restaurantId, "inventory");
+  if (!check.ok) return { ok: false, error: check.error };
+
+  const { error } = await supabaseServer
+    .from("inventory_items")
+    .update({ category_id: categoryId })
+    .eq("id", itemId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inventory");
+  revalidatePath(`/inventory/${itemId}`);
+  revalidatePath("/orders/suggestions", "page");
   return { ok: true };
 }
 

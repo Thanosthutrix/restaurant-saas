@@ -30,6 +30,8 @@ export type Dish = {
   name_normalized?: string | null;
   production_mode?: "prepared" | "resale" | null;
   recipe_status?: RecipeStatus | null;
+  /** Rubrique carte (arborescence restaurant_categories). */
+  category_id?: string | null;
   /** € TTC carte (portion) — saisie principale. */
   selling_price_ttc?: number | null;
   /** Taux TVA % (ex. 10, 20) pour déduire le HT. */
@@ -240,6 +242,8 @@ export type InventoryItem = {
   name: string;
   unit: string;
   item_type: "ingredient" | "prep" | "resale";
+  /** Rubrique stock (arborescence restaurant_categories). */
+  category_id?: string | null;
   current_stock_qty: number;
   min_stock_qty?: number | null;
   recipe_status?: RecipeStatus | null;
@@ -295,7 +299,7 @@ export async function getDishes(restaurantId: string): Promise<{ data: Dish[] | 
   const { data, error } = await supabaseServer
     .from("dishes")
     .select(
-      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, selling_price_ht, selling_price_ttc, selling_vat_rate_pct"
+      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, category_id, selling_price_ht, selling_price_ttc, selling_vat_rate_pct"
     )
     .eq("restaurant_id", restaurantId)
     .order("name");
@@ -309,7 +313,7 @@ export async function getDish(dishId: string): Promise<{ data: Dish | null; erro
   const { data, error } = await supabaseServer
     .from("dishes")
     .select(
-      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, selling_price_ht, selling_price_ttc, selling_vat_rate_pct"
+      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, category_id, selling_price_ht, selling_price_ttc, selling_vat_rate_pct"
     )
     .eq("id", dishId)
     .single();
@@ -575,7 +579,7 @@ export async function createDishAlias(
 // --- Inventory & recipe (recettes / stock) ---
 
 const INVENTORY_ITEM_SELECT =
-  "id, restaurant_id, name, unit, item_type, current_stock_qty, min_stock_qty, recipe_status, created_at, supplier_id, supplier_sku, purchase_unit, units_per_purchase, min_order_quantity, order_multiple, target_stock_qty, reference_purchase_unit_cost_ht";
+  "id, restaurant_id, name, unit, item_type, category_id, current_stock_qty, min_stock_qty, recipe_status, created_at, supplier_id, supplier_sku, purchase_unit, units_per_purchase, min_order_quantity, order_multiple, target_stock_qty, reference_purchase_unit_cost_ht";
 
 /** Liste des composants stockables du restaurant. */
 export async function getInventoryItems(

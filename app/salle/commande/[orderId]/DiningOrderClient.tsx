@@ -2,42 +2,76 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { Dish } from "@/lib/db";
-import type { ServiceType } from "@/lib/constants";
-import { SERVICE_TYPES } from "@/lib/constants";
+import type { CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
 import {
   addDishToDiningOrder,
+  cancelOpenDiningOrder,
   removeDiningOrderLine,
   setDiningOrderLineQty,
   settleDiningOrder,
 } from "@/app/salle/actions";
 import {
   DINING_PAYMENT_LABEL_FR,
-  DINING_PAYMENT_METHODS,
   parseDiningPaymentMethod,
   type DiningPaymentMethod,
 } from "@/lib/dining/diningPaymentMethods";
-import { CancelOpenDiningOrderButton } from "@/app/salle/CancelOpenDiningOrderButton";
 import { ReopenSettledDiningOrderButton } from "@/app/salle/ReopenSettledDiningOrderButton";
 import { DiningLineDiscountModal } from "@/app/salle/DiningLineDiscountModal";
 import type { DiningLineClient } from "../diningOrderTypes";
+import { DishCatalogTileButton, DishCatalogTiles } from "@/components/dining/DishCatalogTiles";
 import {
-  uiBtnOutlineSm,
-  uiBtnPrimary,
-  uiCard,
-  uiError,
-  uiLabel,
-  uiLead,
-  uiSelect,
-  uiSectionTitleSm,
-  uiSuccess,
-} from "@/components/ui/premium";
+  DiningOrderTicketCard,
+  DiningOrderTicketEmptyLines,
+  DiningOrderTicketFooterBar,
+  DiningOrderTicketLineRow,
+  DiningOrderTicketLinesScroll,
+  fmtEur,
+} from "@/components/dining/DiningOrderTicketUi";
+import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "@/app/caisse/caisseQuickStorage";
+import { uiCard, uiError, uiLead, uiSuccess } from "@/components/ui/premium";
 
-const SERVICE_LABEL_FR: Record<ServiceType, string> = {
-  lunch: "Midi",
-  dinner: "Soir",
-};
+const DEFAULT_SERVICE = "lunch" as const;
+
+function OrderDishTapButton({
+  dish,
+  restaurantId,
+  orderId,
+  onAdded,
+}: {
+  dish: Dish;
+  restaurantId: string;
+  orderId: string;
+  onAdded: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const tap = () => {
+    setError(null);
+    startTransition(async () => {
+      const res = await addDishToDiningOrder({
+        restaurantId,
+        orderId,
+        dishId: dish.id,
+        qty: 1,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      onAdded();
+    });
+  };
+
+  return (
+    <div className="space-y-1">
+      <DishCatalogTileButton dish={dish} disabled={pending} onClick={tap} />
+      {error ? <p className={`${uiError} text-xs`}>{error}</p> : null}
+    </div>
+  );
+}
 
 type Props = {
   restaurantId: string;
@@ -49,7 +83,9 @@ type Props = {
   settledPaymentMethod?: string | null;
   lines: DiningLineClient[];
   totalTtc: number;
-  dishes: Dish[];
+  catalogRoots: CategoryTreeNode[];
+  directByCategoryId: Record<string, Dish[]>;
+  uncategorized: Dish[];
 };
 
 export function DiningOrderClient({
@@ -62,30 +98,24 @@ export function DiningOrderClient({
   settledPaymentMethod,
   lines,
   totalTtc,
-  dishes,
+  catalogRoots,
+  directByCategoryId,
+  uncategorized,
 }: Props) {
   const router = useRouter();
-  const [dishToAdd, setDishToAdd] = useState(dishes[0]?.id ?? "");
-  const [serviceType, setServiceType] = useState<ServiceType>("lunch");
   const [paymentMethod, setPaymentMethod] = useState<DiningPaymentMethod>("card");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
 
+  const totalPlats = useMemo(() => {
+    const n = Object.values(directByCategoryId).reduce((s, arr) => s + arr.length, 0);
+    return n + uncategorized.length;
+  }, [directByCategoryId, uncategorized]);
+
   const syncFromServer = () => {
     router.refresh();
-  };
-
-  const fmt = (n: number) =>
-    new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
-
-  const discountBadge = (l: DiningLineClient) => {
-    if (l.discountKind === "none") return null;
-    if (l.discountKind === "free") return "Offert";
-    if (l.discountKind === "percent" && l.discountValue != null) return `−${l.discountValue}%`;
-    if (l.discountKind === "amount" && l.discountValue != null) return `−${fmt(l.discountValue)}`;
-    return "Remise";
   };
 
   const adjustLine = (lineId: string, delta: number) => {
@@ -116,24 +146,6 @@ export function DiningOrderClient({
     });
   };
 
-  const addDish = () => {
-    if (!dishToAdd) return;
-    setError(null);
-    startTransition(async () => {
-      const res = await addDishToDiningOrder({
-        restaurantId,
-        orderId,
-        dishId: dishToAdd,
-        qty: 1,
-      });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      syncFromServer();
-    });
-  };
-
   const handleSettle = () => {
     setError(null);
     setSuccess(null);
@@ -141,46 +153,87 @@ export function DiningOrderClient({
       const res = await settleDiningOrder({
         restaurantId,
         orderId,
-        serviceType,
+        serviceType: DEFAULT_SERVICE,
         paymentMethod,
       });
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      setSuccess(`Encaissement enregistré (${fmt(res.data?.totalTtc ?? 0)}).`);
+      setSuccess(`Encaissement enregistré (${fmtEur(res.data?.totalTtc ?? 0)}).`);
       syncFromServer();
+    });
+  };
+
+  const handleSaveAndReturn = () => {
+    try {
+      sessionStorage.removeItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    router.push(cancelRedirectHref);
+    router.refresh();
+  };
+
+  const saveReturnTitle =
+    cancelRedirectHref === "/caisse"
+      ? "Conserver la commande ouverte et revenir à la caisse"
+      : "Conserver la commande ouverte et revenir à la salle";
+
+  const handleCancel = () => {
+    const n = lines.length;
+    const msg =
+      n === 0
+        ? `Annuler la commande (${placeDescription}) ? Aucune vente ne sera enregistrée.`
+        : `Annuler la commande (${placeDescription}) ? Les ${n} ligne${n > 1 ? "s" : ""} seront supprimées.`;
+    if (!window.confirm(msg)) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await cancelOpenDiningOrder({ restaurantId, orderId });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      router.push(cancelRedirectHref);
+      router.refresh();
     });
   };
 
   if (status === "settled") {
     return (
-      <div className="space-y-6">
-        <div className={`${uiCard} space-y-4`}>
-          <p className={uiLead}>Cette commande ({placeDescription}) a été encaissée.</p>
-          <p className="text-lg font-semibold text-slate-900">Total TTC : {fmt(totalTtc)}</p>
-          <p className="text-sm text-slate-700">
-            Paiement :{" "}
-            <span className="font-semibold text-slate-900">
-              {DINING_PAYMENT_LABEL_FR[parseDiningPaymentMethod(settledPaymentMethod)]}
-            </span>
-          </p>
-          {serviceId ? (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-slate-200/90 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-2 py-1.5">
+            <p className="text-xs font-semibold text-emerald-800">Encaissée</p>
+            <p className="truncate text-[11px] text-slate-600">{placeDescription}</p>
+          </div>
+          <div className="space-y-2 px-2 py-2 text-sm text-slate-800">
             <p>
-              <Link
-                href={`/service/${serviceId}`}
-                className="text-sm font-semibold text-indigo-600 hover:text-indigo-500"
-              >
-                Voir le service et le stock →
-              </Link>
+              <span className="text-slate-600">Total TTC : </span>
+              <span className="font-bold tabular-nums">{fmtEur(totalTtc)}</span>
             </p>
-          ) : null}
+            <p>
+              <span className="text-slate-600">Paiement : </span>
+              <span className="font-semibold">
+                {DINING_PAYMENT_LABEL_FR[parseDiningPaymentMethod(settledPaymentMethod)]}
+              </span>
+            </p>
+            {serviceId ? (
+              <p>
+                <Link
+                  href={`/service/${serviceId}`}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                >
+                  Voir le service et le stock →
+                </Link>
+              </p>
+            ) : null}
+          </div>
         </div>
-        <div className={`${uiCard} space-y-2`}>
-          <p className={`text-xs ${uiLead}`}>
-            Pour modifier les lignes, le moyen de paiement ou le total, dévalidez l’encaissement : le
-            stock et le service seront annulés, puis vous pourrez encaisser à nouveau avec le bon
-            paiement.
+        <div className="rounded-lg border border-slate-200/90 bg-slate-50/80 px-2 py-2">
+          <p className={`mb-2 text-[11px] leading-snug ${uiLead}`}>
+            Pour modifier les lignes ou le paiement, dévalidez l’encaissement (le stock et le service
+            seront annulés).
           </p>
           <ReopenSettledDiningOrderButton restaurantId={restaurantId} orderId={orderId} />
         </div>
@@ -188,185 +241,91 @@ export function DiningOrderClient({
     );
   }
 
+  const header = (
+    <div className="border-b border-slate-100 px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+          <span className="text-indigo-600">Commande ·</span> {placeDescription}
+        </p>
+        <button
+          type="button"
+          className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+          disabled={pending}
+          title={saveReturnTitle}
+          onClick={handleSaveAndReturn}
+        >
+          Enregistrer
+        </button>
+      </div>
+      <p className={`mt-0.5 text-[10px] ${uiLead}`}>Touchez une ligne pour une remise (%, montant ou offert).</p>
+    </div>
+  );
+
+  const linesContent = (
+    <DiningOrderTicketLinesScroll>
+      {lines.length === 0 ? (
+        <DiningOrderTicketEmptyLines message="Ajoutez des plats depuis la carte ci‑dessous." />
+      ) : (
+        <ul className="space-y-1">
+          {lines.map((l) => (
+            <DiningOrderTicketLineRow
+              key={l.id}
+              line={l}
+              pending={pending}
+              onAdjust={(id, d) => adjustLine(id, d)}
+              onRemove={removeLine}
+              onDiscount={setDiscountLine}
+            />
+          ))}
+        </ul>
+      )}
+    </DiningOrderTicketLinesScroll>
+  );
+
+  const footer = (
+    <DiningOrderTicketFooterBar
+      totalTtc={totalTtc}
+      paymentMethod={paymentMethod}
+      onPaymentMethod={setPaymentMethod}
+      pending={pending}
+      linesCount={lines.length}
+      onSettle={handleSettle}
+      onCancel={handleCancel}
+    />
+  );
+
   return (
-    <div className="space-y-6">
-      {error ? <p className={uiError}>{error}</p> : null}
+    <div className="space-y-3">
       {success ? <p className={uiSuccess}>{success}</p> : null}
 
-      <div className={`${uiCard} space-y-3`}>
-        <p className={uiSectionTitleSm}>Ajouter un plat</p>
-        <div className="flex flex-wrap gap-2">
-          <select
-            className={uiSelect}
-            value={dishToAdd}
-            onChange={(e) => setDishToAdd(e.target.value)}
-            disabled={pending || dishes.length === 0}
-          >
-            {dishes.length === 0 ? (
-              <option value="">Aucun plat</option>
-            ) : (
-              dishes.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                  {d.selling_price_ttc != null
-                    ? ` — ${fmt(Number(d.selling_price_ttc))}`
-                    : ""}
-                </option>
-              ))
-            )}
-          </select>
-          <button type="button" className={uiBtnPrimary} disabled={pending || !dishToAdd} onClick={addDish}>
-            Ajouter
-          </button>
-        </div>
-        {dishes.length === 0 ? (
+      <DiningOrderTicketCard header={header} error={error} linesContent={linesContent} footer={footer} />
+
+      {totalPlats === 0 ? (
+        <div className={uiCard}>
           <p className={uiLead}>
+            Aucun plat avec prix dans la carte.{" "}
             <Link href="/dishes" className="font-semibold text-indigo-600">
               Créer des plats
             </Link>{" "}
-            pour prendre des commandes.
+            dans « Plats vendus ».
           </p>
-        ) : null}
-      </div>
-
-      <div className="space-y-2">
-        <div>
-          <p className={uiSectionTitleSm}>Lignes</p>
-          <p className={`mt-1 text-xs ${uiLead}`}>Touchez une ligne pour appliquer une remise (%, montant ou offert).</p>
         </div>
-        {lines.length === 0 ? (
-          <p className={uiLead}>Aucune ligne pour l’instant.</p>
-        ) : (
-          <ul className="space-y-2">
-            {lines.map((l) => (
-              <li
-                key={l.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm"
-              >
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 rounded-xl px-0 py-0 text-left transition hover:bg-slate-50/90"
-                  disabled={pending}
-                  onClick={() => setDiscountLine(l)}
-                >
-                  <p className="font-medium text-slate-900">{l.dishName}</p>
-                  <p className="text-sm text-slate-500">
-                    {l.lineGrossTtc > l.lineTotalTtc + 0.001 ? (
-                      <>
-                        <span className="text-slate-400 line-through">{fmt(l.lineGrossTtc)}</span>
-                        <span className="text-slate-400"> → </span>
-                      </>
-                    ) : null}
-                    <span className="font-medium text-slate-800">{fmt(l.lineTotalTtc)}</span>
-                    <span> · Qté {l.qty}</span>
-                  </p>
-                  {l.discountKind !== "none" ? (
-                    <p className="mt-1 text-xs font-semibold text-amber-800">{discountBadge(l)}</p>
-                  ) : null}
-                </button>
-                <div className="flex flex-shrink-0 flex-wrap items-center gap-1">
-                  <button
-                    type="button"
-                    className={uiBtnOutlineSm}
-                    disabled={pending}
-                    onClick={() => adjustLine(l.id, -1)}
-                  >
-                    −
-                  </button>
-                  <button
-                    type="button"
-                    className={uiBtnOutlineSm}
-                    disabled={pending}
-                    onClick={() => adjustLine(l.id, 1)}
-                  >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    className={uiBtnOutlineSm}
-                    disabled={pending}
-                    onClick={() => removeLine(l.id)}
-                  >
-                    Retirer
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 px-4 py-3">
-        <p className="text-lg font-semibold text-slate-900">Total TTC : {fmt(totalTtc)}</p>
-      </div>
-
-      <div className={`${uiCard} space-y-4`}>
-        <p className={uiSectionTitleSm}>Encaisser</p>
-        <div>
-          <p className={uiLabel}>Service</p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {SERVICE_TYPES.map((st) => (
-              <button
-                key={st}
-                type="button"
-                disabled={pending}
-                onClick={() => setServiceType(st)}
-                className={
-                  serviceType === st
-                    ? "rounded-xl bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm"
-                    : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                }
-              >
-                {SERVICE_LABEL_FR[st]}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className={uiLabel}>Paiement</p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {DINING_PAYMENT_METHODS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                disabled={pending}
-                onClick={() => setPaymentMethod(m)}
-                className={
-                  paymentMethod === m
-                    ? "rounded-xl bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm"
-                    : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                }
-              >
-                {DINING_PAYMENT_LABEL_FR[m]}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button
-          type="button"
-          className={uiBtnPrimary}
-          disabled={pending || lines.length === 0 || totalTtc < 0}
-          onClick={handleSettle}
-        >
-          Valider l’encaissement
-        </button>
-        <p className={`text-xs ${uiLead}`}>
-          Un service est créé, les ventes et le stock sont mis à jour comme pour un relevé manuel.
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-rose-100 bg-rose-50/30 px-4 py-4">
-        <p className={`mb-2 text-xs ${uiLead}`}>
-          Client parti sans commander, ou commande à annuler ? Aucune vente ni mouvement de stock.
-        </p>
-        <CancelOpenDiningOrderButton
-          restaurantId={restaurantId}
-          orderId={orderId}
-          redirectHref={cancelRedirectHref}
-          linesCount={lines.length}
-          contextLabel={placeDescription}
+      ) : (
+        <DishCatalogTiles
+          tileKeyPrefix="commande"
+          roots={catalogRoots}
+          directByCategoryId={directByCategoryId}
+          uncategorized={uncategorized}
+          renderDish={(dish) => (
+            <OrderDishTapButton
+              dish={dish}
+              restaurantId={restaurantId}
+              orderId={orderId}
+              onAdded={syncFromServer}
+            />
+          )}
         />
-      </div>
+      )}
 
       <DiningLineDiscountModal
         restaurantId={restaurantId}

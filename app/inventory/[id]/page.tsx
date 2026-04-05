@@ -8,7 +8,14 @@ import { getPurchasePriceStatsForItem } from "@/lib/stock/purchasePriceHistory";
 import { getCalculatedStockForSingleItem } from "@/lib/stock/stockMovements";
 import { findRecipeSuggestionForPrep } from "@/lib/recipes/findRecipeSuggestionForPrep";
 import { getCurrentRestaurant } from "@/lib/auth";
+import {
+  buildCategoryTree,
+  categoryPathLabel,
+  flattenCategoryOptionsForSelect,
+  listRestaurantCategories,
+} from "@/lib/catalog/restaurantCategories";
 import { EditInventoryItemBlock } from "./EditInventoryItemBlock";
+import { InventoryCategoryBlock } from "./InventoryCategoryBlock";
 import { FifoStockBlock } from "./FifoStockBlock";
 import { PurchasePriceSection } from "./PurchasePriceSection";
 import { InventoryItemSupplierBlock } from "./InventoryItemSupplierBlock";
@@ -37,7 +44,7 @@ export default async function InventoryItemDetailPage({ params }: Props) {
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;
-  const [itemRes, componentsRes, allItemsRes, suppliersRes, calcRes, fifoRes, priceStatsRes] =
+  const [itemRes, componentsRes, allItemsRes, suppliersRes, calcRes, fifoRes, priceStatsRes, catRes] =
     await Promise.all([
       getInventoryItem(id),
       getInventoryItemComponents(id),
@@ -46,6 +53,7 @@ export default async function InventoryItemDetailPage({ params }: Props) {
       getCalculatedStockForSingleItem(restaurant.id, id),
       getFifoSummaryForInventoryItem(restaurant.id, id),
       getPurchasePriceStatsForItem(restaurant.id, id),
+      listRestaurantCategories(restaurant.id),
     ]);
 
   if (itemRes.error || !itemRes.data) notFound();
@@ -70,6 +78,11 @@ export default async function InventoryItemDetailPage({ params }: Props) {
     isPrep && components.length > 0
       ? await computePrepFoodCostHt(restaurant.id, item.id)
       : null;
+
+  const flatCats = catRes.data ?? [];
+  const invCatTree = buildCategoryTree(flatCats);
+  const invCatOptions = flattenCategoryOptionsForSelect(invCatTree, "inventory");
+  const invCategoryPath = categoryPathLabel(item.category_id, flatCats);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
@@ -104,6 +117,14 @@ export default async function InventoryItemDetailPage({ params }: Props) {
           {statusLabel != null && ` · Recette : ${statusLabel}`}
         </p>
       </div>
+
+      <InventoryCategoryBlock
+        restaurantId={restaurant.id}
+        itemId={item.id}
+        options={invCatOptions}
+        initialCategoryId={item.category_id ?? null}
+        categoryPath={invCategoryPath}
+      />
 
       <EditInventoryItemBlock
         item={item}

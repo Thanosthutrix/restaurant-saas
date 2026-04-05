@@ -5,6 +5,12 @@ import { computeDishFoodCostHt } from "@/lib/margins/dishMarginAnalysis";
 import { explodeDishComponents } from "@/lib/recipes/explodeDishComponents";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
 import { getCurrentRestaurant } from "@/lib/auth";
+import {
+  buildCategoryTree,
+  categoryPathLabel,
+  flattenCategoryOptionsForSelect,
+  listRestaurantCategories,
+} from "@/lib/catalog/restaurantCategories";
 import { normalizeVatRatePct } from "@/lib/tax/frenchSellingVat";
 import { RecipeFoodCostSection } from "@/components/margins/RecipeFoodCostSection";
 import { DishSellingPriceBlock } from "./DishSellingPriceBlock";
@@ -12,6 +18,7 @@ import { DishComponentsBlock } from "./DishComponentsBlock";
 import { RecipeSuggestionBlock } from "./RecipeSuggestionBlock";
 import { ValidateRecipeButton } from "./ValidateRecipeButton";
 import { DeleteDishButton } from "./DeleteDishButton";
+import { DishCategoryBlock } from "./DishCategoryBlock";
 import { uiBackLink, uiCard, uiLead, uiMuted } from "@/components/ui/premium";
 
 type Props = { params: Promise<{ id: string }> };
@@ -21,10 +28,11 @@ export default async function DishDetailPage({ params }: Props) {
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;
-  const [dishRes, componentsRes, itemsRes] = await Promise.all([
+  const [dishRes, componentsRes, itemsRes, catRes] = await Promise.all([
     getDish(id),
     getDishComponents(id),
     getInventoryItems(restaurant.id),
+    listRestaurantCategories(restaurant.id),
   ]);
 
   if (dishRes.error || !dishRes.data) notFound();
@@ -58,6 +66,11 @@ export default async function DishDetailPage({ params }: Props) {
   const statusLabel =
     status === "validated" ? "Validée" : status === "draft" ? "Brouillon" : "Sans recette";
 
+  const flatCats = catRes.data ?? [];
+  const dishCatTree = buildCategoryTree(flatCats);
+  const dishCatOptions = flattenCategoryOptionsForSelect(dishCatTree, "dish");
+  const dishCategoryPath = categoryPathLabel(dish.category_id, flatCats);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
       <div>
@@ -74,6 +87,14 @@ export default async function DishDetailPage({ params }: Props) {
           Recette : {statusLabel}
         </p>
       </div>
+
+      <DishCategoryBlock
+        restaurantId={restaurant.id}
+        dishId={dish.id}
+        options={dishCatOptions}
+        initialCategoryId={dish.category_id ?? null}
+        categoryPath={dishCategoryPath}
+      />
 
       <DishSellingPriceBlock
         dishId={dish.id}

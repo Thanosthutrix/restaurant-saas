@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { InventoryItemWithCalculatedStock } from "@/lib/db";
-import { uiLead, uiListRow } from "@/components/ui/premium";
+import { uiListRow } from "@/components/ui/premium";
 
 const QTY_EPS = 1e-5;
 
@@ -86,67 +86,55 @@ function StockLevelBar({ stock, minQty, targetQty }: BarProps) {
   );
 }
 
-export function InventoryItemList({ items }: { items: InventoryItemWithCalculatedStock[] }) {
-  if (items.length === 0) {
-    return <p className={uiLead}>Aucun composant. Créez-en un ci-dessus.</p>;
-  }
+export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedStock }) {
+  const sheet = item.current_stock_qty ?? 0;
+  const stock = item.stock_qty_from_movements ?? 0;
+  const mismatch = Math.abs(sheet - stock) > QTY_EPS;
+  const minRaw = item.min_stock_qty;
+  const minN =
+    minRaw != null && typeof minRaw === "number" && Number.isFinite(minRaw) && minRaw > 0
+      ? minRaw
+      : null;
+  const targetRaw = item.target_stock_qty;
+  const targetN =
+    targetRaw != null && typeof targetRaw === "number" && Number.isFinite(targetRaw) && targetRaw > 0
+      ? targetRaw
+      : null;
+
+  const typeInfo = TYPE_DOT[item.item_type] ?? {
+    dotClass: "bg-slate-400",
+    label: item.item_type,
+  };
+
+  const qtyTitle = mismatch
+    ? `Stock (mouvements) : ${formatQty(stock)} — fiche : ${formatQty(sheet)} (écart)`
+    : undefined;
 
   return (
-    <ul className="space-y-2">
-      {items.map((item) => {
-        const sheet = item.current_stock_qty ?? 0;
-        const stock = item.stock_qty_from_movements ?? 0;
-        const mismatch = Math.abs(sheet - stock) > QTY_EPS;
-        const minRaw = item.min_stock_qty;
-        const minN =
-          minRaw != null && typeof minRaw === "number" && Number.isFinite(minRaw) && minRaw > 0
-            ? minRaw
-            : null;
-        const targetRaw = item.target_stock_qty;
-        const targetN =
-          targetRaw != null && typeof targetRaw === "number" && Number.isFinite(targetRaw) && targetRaw > 0
-            ? targetRaw
-            : null;
+    <li>
+      <Link href={`/inventory/${item.id}`} className={`${uiListRow} items-center gap-3`}>
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span
+            className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white ${typeInfo.dotClass}`}
+            title={typeInfo.label}
+            aria-label={typeInfo.label}
+            role="img"
+          />
+          <span className="truncate font-semibold text-slate-900">{item.name}</span>
+        </div>
 
-        const typeInfo = TYPE_DOT[item.item_type] ?? {
-          dotClass: "bg-slate-400",
-          label: item.item_type,
-        };
-
-        const qtyTitle = mismatch
-          ? `Stock (mouvements) : ${formatQty(stock)} — fiche : ${formatQty(sheet)} (écart)`
-          : undefined;
-
-        return (
-          <li key={item.id}>
-            <Link
-              href={`/inventory/${item.id}`}
-              className={`${uiListRow} items-center gap-3`}
-            >
-              <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                <span
-                  className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white ${typeInfo.dotClass}`}
-                  title={typeInfo.label}
-                  aria-label={typeInfo.label}
-                  role="img"
-                />
-                <span className="truncate font-semibold text-slate-900">{item.name}</span>
-              </div>
-
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
-                <StockLevelBar stock={stock} minQty={minN} targetQty={targetN} />
-                <span
-                  className={`whitespace-nowrap text-sm tabular-nums ${mismatch ? "text-amber-800" : "text-slate-700"}`}
-                  title={qtyTitle}
-                >
-                  {formatQty(stock)}
-                  <span className="ml-1 text-slate-500">{item.unit}</span>
-                </span>
-              </div>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+          <StockLevelBar stock={stock} minQty={minN} targetQty={targetN} />
+          <span
+            className={`whitespace-nowrap text-sm tabular-nums ${mismatch ? "text-amber-800" : "text-slate-700"}`}
+            title={qtyTitle}
+          >
+            {formatQty(stock)}
+            <span className="ml-1 text-slate-500">{item.unit}</span>
+          </span>
+        </div>
+      </Link>
+    </li>
   );
 }
+

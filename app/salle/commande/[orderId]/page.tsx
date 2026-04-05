@@ -1,5 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import {
+  buildCategoryTree,
+  buildDirectItemsByCategoryId,
+  filterCategoryTreeByIds,
+  listRestaurantCategories,
+  pruneCategoryTreeWithItems,
+  visibleCategoryIdsWithAncestors,
+} from "@/lib/catalog/restaurantCategories";
 import { getDishes } from "@/lib/db";
 import { getCurrentRestaurant } from "@/lib/auth";
 import {
@@ -31,9 +39,14 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
   const backHref = fromCaisse ? "/caisse" : "/salle";
   const backLabel = fromCaisse ? "← Caisse" : "← Salle";
 
-  const [{ data: order, error: oErr }, { data: dishes, error: dErr }] = await Promise.all([
+  const [
+    { data: order, error: oErr },
+    { data: dishes, error: dErr },
+    { data: flatCats, error: catErr },
+  ] = await Promise.all([
     getDiningOrder(orderId, restaurant.id),
     getDishes(restaurant.id),
+    listRestaurantCategories(restaurant.id),
   ]);
 
   if (oErr) {
@@ -65,15 +78,26 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
       ? await getDiningTable(order.dining_table_id, restaurant.id)
       : { data: null };
 
-  if (dErr) {
+  if (dErr || catErr) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {dErr?.message ?? "Impossible de charger les plats."}
+          {dErr?.message ?? catErr?.message ?? "Impossible de charger la carte."}
         </p>
       </div>
     );
   }
+
+  const cats = flatCats ?? [];
+  const dishList = dishes ?? [];
+  const directMap = buildDirectItemsByCategoryId(dishList);
+  const assignedIds = [...new Set(dishList.map((d) => d.category_id).filter(Boolean) as string[])];
+  const visible = visibleCategoryIdsWithAncestors(cats, assignedIds);
+  const tree = buildCategoryTree(cats);
+  const filtered = filterCategoryTreeByIds(tree, visible);
+  const prunedRoots = pruneCategoryTreeWithItems(filtered, directMap);
+  const uncategorized = dishList.filter((d) => !d.category_id);
+  const directByCategoryId = Object.fromEntries(directMap);
 
   const lineClients: DiningLineClient[] = (lines ?? []).map((l) => {
     const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
@@ -107,19 +131,19 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
     : `Table ${table?.label ?? "—"}`;
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 px-4 py-6">
-      <div>
+    <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <Link href={backHref} className={uiBackLink}>
           {backLabel}
         </Link>
+        {order.status === "settled" ? (
+          <span className="text-xs font-medium text-emerald-700">Encaissée</span>
+        ) : null}
       </div>
 
       <div>
         <h1 className={uiPageTitle}>Commande</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          {placeDescription}
-          {order.status === "settled" ? " · Encaissée" : ""}
-        </p>
+        <p className={`mt-1 text-sm ${uiLead}`}>{placeDescription}</p>
       </div>
 
       <DiningOrderClient
@@ -132,7 +156,9 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
         settledPaymentMethod={settledPaymentMethod}
         lines={lineClients}
         totalTtc={totalTtc}
-        dishes={dishes ?? []}
+        catalogRoots={prunedRoots}
+        directByCategoryId={directByCategoryId}
+        uncategorized={uncategorized}
       />
     </div>
   );

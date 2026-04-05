@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import type { Dish } from "@/lib/db";
+import { CategoryPictogram } from "@/components/catalog/CategoryPictogram";
+import { leafSegmentFromCategoryPath } from "@/lib/catalog/restaurantCategories";
 import { applySuggestedRecipeToDish, deleteDish } from "./[id]/actions";
 import { uiBadgeAmber, uiBadgeSlate, uiBtnPrimarySm, uiListRow } from "@/components/ui/premium";
 
@@ -18,10 +20,15 @@ export function DishListRow({
   dish,
   compCount,
   suggestionAvailable,
+  categoryPath,
+  showCategoryInRow = true,
 }: {
   dish: Dish;
   compCount: number;
   suggestionAvailable: boolean;
+  categoryPath?: string | null;
+  /** Si la liste est déjà groupée par rubrique, masquer le chemin sur la ligne. */
+  showCategoryInRow?: boolean;
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -74,6 +81,20 @@ export function DishListRow({
         <span className="truncate">{dish.name}</span>
       </Link>
       <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+        {showCategoryInRow && categoryPath ? (
+          <span
+            className="flex max-w-[15rem] items-center gap-1.5 truncate text-xs text-slate-500"
+            title={categoryPath}
+          >
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-50 ring-1 ring-indigo-100/90">
+              <CategoryPictogram
+                title={leafSegmentFromCategoryPath(categoryPath) ?? categoryPath}
+                depth={1}
+              />
+            </span>
+            <span className="truncate">{categoryPath}</span>
+          </span>
+        ) : null}
         {recipeBadge}
         {ttc != null && ttc > 0 && (
           <span className="tabular-nums text-slate-700">

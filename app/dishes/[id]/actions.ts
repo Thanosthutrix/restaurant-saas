@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertCategoryAssignable } from "@/app/categories/actions";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getDish, getDishComponents, getInventoryItems } from "@/lib/db";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
@@ -124,6 +125,29 @@ export async function updateDishSellingPrice(params: {
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/dishes/${dishId}`, "page");
   revalidatePath("/margins", "page");
+  return { ok: true };
+}
+
+export async function updateDishCategory(params: {
+  dishId: string;
+  restaurantId: string;
+  categoryId: string | null;
+}): Promise<ActionResult> {
+  const { dishId, restaurantId, categoryId } = params;
+  const check = await assertCategoryAssignable(categoryId, restaurantId, "dish");
+  if (!check.ok) return { ok: false, error: check.error };
+
+  const { error } = await supabaseServer
+    .from("dishes")
+    .update({ category_id: categoryId })
+    .eq("id", dishId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/dishes/${dishId}`, "page");
+  revalidatePath("/dishes");
+  revalidatePath("/salle");
+  revalidatePath("/caisse");
   return { ok: true };
 }
 

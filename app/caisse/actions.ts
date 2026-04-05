@@ -1,8 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createOpenCounterTicketOrder } from "@/lib/dining/diningDb";
+import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
+import { addDishToDiningOrder } from "@/app/salle/actions";
 import type { ActionResult } from "@/app/salle/actions";
+import {
+  createOpenCounterTicketOrder,
+  getDiningOrder,
+  getDiningOrderLines,
+  lineGrossTtc,
+  lineTtc,
+  orderTotalTtc,
+} from "@/lib/dining/diningDb";
+import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
 
 function quickCounterLabel(): string {
   const time = new Intl.DateTimeFormat("fr-FR", {
@@ -41,4 +51,98 @@ export async function createCounterDiningOrder(params: {
   revalidatePath("/caisse");
   revalidatePath("/salle");
   return { ok: true, data: { orderId } };
+}
+
+function isOpenCounterOrder(row: {
+  status: string;
+  dining_table_id: string | null;
+  counter_ticket_label: string | null;
+}): boolean {
+  return (
+    row.status === "open" &&
+    row.dining_table_id == null &&
+    (row.counter_ticket_label ?? "").trim().length > 0
+  );
+}
+
+/**
+ * Ajoute un plat au ticket comptoir « rapide » : réutilise `existingOrderId` s’il est encore ouvert
+ * (comptoir), sinon crée un nouveau ticket rapide puis ajoute la ligne.
+ */
+export async function addDishToQuickCounterOrReuse(params: {
+  restaurantId: string;
+  dishId: string;
+  /** Dernier ticket rapide (session navigateur), optionnel. */
+  existingOrderId?: string | null;
+}): Promise<ActionResult<{ orderId: string }>> {
+  const { restaurantId, dishId } = params;
+  const existing = params.existingOrderId?.trim() ?? "";
+
+  if (existing) {
+    const ord = await getDiningOrder(existing, restaurantId);
+    if (!ord.error && ord.data && isOpenCounterOrder(ord.data)) {
+      const add = await addDishToDiningOrder({ restaurantId, orderId: existing, dishId });
+      if (add.ok) return { ok: true, data: { orderId: existing } };
+    }
+  }
+
+  const created = await createCounterDiningOrder({ restaurantId, quick: true });
+  if (!created.ok) return created;
+  const newId = created.data?.orderId;
+  if (!newId) return { ok: false, error: "Création du ticket impossible." };
+
+  const add = await addDishToDiningOrder({ restaurantId, orderId: newId, dishId });
+  if (!add.ok) return { ok: false, error: add.error };
+
+  return { ok: true, data: { orderId: newId } };
+}
+
+export type QuickCounterSnapshot = {
+  ticketLabel: string;
+  lines: DiningLineClient[];
+  totalTtc: number;
+};
+
+/**
+ * État du ticket comptoir pour le panneau vente rapide (lignes + total).
+ */
+export async function getQuickCounterOrderSnapshot(
+  restaurantId: string,
+  orderId: string
+): Promise<{ ok: true; data: QuickCounterSnapshot } | { ok: false; error: string }> {
+  const orderRes = await getDiningOrder(orderId, restaurantId);
+  if (orderRes.error || !orderRes.data) {
+    return { ok: false, error: "Commande introuvable." };
+  }
+  const order = orderRes.data;
+  if (order.status !== "open") {
+    return { ok: false, error: "Commande déjà encaissée." };
+  }
+  if (!isOpenCounterOrder(order)) {
+    return { ok: false, error: "Pas un ticket comptoir." };
+  }
+
+  const { data: lines, error: lErr } = await getDiningOrderLines(orderId, restaurantId);
+  if (lErr) return { ok: false, error: lErr.message };
+
+  const lineClients: DiningLineClient[] = (lines ?? []).map((l) => {
+    const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
+    const dv = l.discount_value;
+    const discountValue = dv == null || dv === "" ? null : Number(dv);
+    return {
+      id: l.id,
+      dishId: l.dish_id,
+      dishName: d?.name ?? "Plat",
+      qty: Number(l.qty),
+      lineGrossTtc: lineGrossTtc(l),
+      lineTotalTtc: lineTtc(l),
+      discountKind: parseDiningDiscountKind(l.discount_kind),
+      discountValue: discountValue != null && Number.isFinite(discountValue) ? discountValue : null,
+    };
+  });
+
+  const totalTtc = orderTotalTtc(lines ?? []);
+  const ticketLabel = (order.counter_ticket_label ?? "").trim() || "Comptoir";
+
+  return { ok: true, data: { ticketLabel, lines: lineClients, totalTtc } };
 }

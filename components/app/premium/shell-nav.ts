@@ -13,6 +13,7 @@ import {
   UserRound,
   Armchair,
   Wallet,
+  FolderTree,
 } from "lucide-react";
 
 export type ShellNavItem = {
@@ -35,6 +36,12 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
       p.startsWith("/services") || (p.startsWith("/service/") && p !== "/service/new"),
   },
   { href: "/dishes", label: "Plats", icon: UtensilsCrossed, match: (p) => p === "/dishes" || p.startsWith("/dishes/") },
+  {
+    href: "/categories",
+    label: "Rubriques",
+    icon: FolderTree,
+    match: (p) => p === "/categories" || p.startsWith("/categories/"),
+  },
   {
     href: "/inventory",
     label: "Stock",

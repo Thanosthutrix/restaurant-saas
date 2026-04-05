@@ -5,10 +5,13 @@ import { getCurrentRestaurant } from "@/lib/auth";
 import {
   getDiningOrder,
   getDiningOrderLines,
+  getDiningOrderPayment,
   getDiningTable,
+  lineGrossTtc,
   lineTtc,
   orderTotalTtc,
 } from "@/lib/dining/diningDb";
+import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { DiningOrderClient } from "./DiningOrderClient";
 import type { DiningLineClient } from "../diningOrderTypes";
@@ -74,16 +77,29 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
 
   const lineClients: DiningLineClient[] = (lines ?? []).map((l) => {
     const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
+    const dv = l.discount_value;
+    const discountValue = dv == null || dv === "" ? null : Number(dv);
     return {
       id: l.id,
       dishId: l.dish_id,
       dishName: d?.name ?? "Plat",
       qty: Number(l.qty),
+      lineGrossTtc: lineGrossTtc(l),
       lineTotalTtc: lineTtc(l),
+      discountKind: parseDiningDiscountKind(l.discount_kind),
+      discountValue: discountValue != null && Number.isFinite(discountValue) ? discountValue : null,
     };
   });
 
   const totalTtc = orderTotalTtc(lines ?? []);
+
+  let settledPaymentMethod: string | null = null;
+  if (order.status === "settled") {
+    const payRes = await getDiningOrderPayment(orderId, restaurant.id);
+    if (!payRes.error) {
+      settledPaymentMethod = payRes.data?.payment_method ?? null;
+    }
+  }
 
   const counterName = order.counter_ticket_label?.trim();
   const placeDescription = counterName
@@ -112,6 +128,8 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
         status={order.status as "open" | "settled"}
         serviceId={order.service_id}
         placeDescription={placeDescription}
+        cancelRedirectHref={backHref}
+        settledPaymentMethod={settledPaymentMethod}
         lines={lineClients}
         totalTtc={totalTtc}
         dishes={dishes ?? []}

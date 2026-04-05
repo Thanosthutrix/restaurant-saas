@@ -1,5 +1,12 @@
 import { supabaseServer } from "@/lib/supabaseServer";
 import { toNumber } from "@/lib/utils/safeNumeric";
+import {
+  lineGrossFromUnit,
+  lineNetAfterDiscount,
+  parseDiningDiscountKind,
+} from "@/lib/dining/lineDiscount";
+
+export type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
 
 export type DiningTableRow = {
   id: string;
@@ -28,6 +35,8 @@ export type DiningOrderLineRow = {
   dining_order_id: string;
   dish_id: string;
   qty: unknown;
+  discount_kind?: string;
+  discount_value?: unknown;
 };
 
 export async function listDiningTables(
@@ -247,7 +256,9 @@ export async function getDiningOrderLines(
 ): Promise<{ data: LineWithDish[]; error: Error | null }> {
   const { data, error } = await supabaseServer
     .from("dining_order_lines")
-    .select("id, dining_order_id, dish_id, qty, dishes(name, selling_price_ttc, selling_vat_rate_pct)")
+    .select(
+      "id, dining_order_id, dish_id, qty, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+    )
     .eq("dining_order_id", orderId)
     .eq("restaurant_id", restaurantId)
     .order("created_at", { ascending: true });
@@ -257,13 +268,41 @@ export async function getDiningOrderLines(
   return { data: rows, error: null };
 }
 
-export function lineTtc(line: LineWithDish): number {
+export async function getDiningOrderLineById(
+  lineId: string,
+  restaurantId: string
+): Promise<{ data: LineWithDish | null; error: Error | null }> {
+  const { data, error } = await supabaseServer
+    .from("dining_order_lines")
+    .select(
+      "id, dining_order_id, dish_id, qty, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+    )
+    .eq("id", lineId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (error) return { data: null, error: new Error(error.message) };
+  return { data: (data ?? null) as LineWithDish | null, error: null };
+}
+
+/** TTC ligne avant remise (prix catalogue × qté). */
+export function lineGrossTtc(line: LineWithDish): number {
   const dish = dishFromJoin(line);
   const q = toNumber(line.qty);
   const raw = dish?.selling_price_ttc;
   const ttc = raw == null || raw === "" ? NaN : Number(raw);
   if (!Number.isFinite(ttc) || ttc <= 0 || !Number.isFinite(q)) return 0;
-  return Math.round(q * ttc * 100) / 100;
+  return lineGrossFromUnit(q, ttc);
+}
+
+/** TTC ligne après remise (utilisé pour totaux et encaissement). */
+export function lineTtc(line: LineWithDish): number {
+  const gross = lineGrossTtc(line);
+  const kind = parseDiningDiscountKind(line.discount_kind);
+  const raw = line.discount_value;
+  const val = raw == null || raw === "" ? null : Number(raw);
+  const discountValue = val != null && Number.isFinite(val) ? val : null;
+  return lineNetAfterDiscount(gross, kind, discountValue);
 }
 
 export function orderTotalTtc(lines: LineWithDish[]): number {
@@ -285,6 +324,21 @@ export type SettledOrderSummary = {
   table_label: string;
   payment: SettledPaymentRow | null;
 };
+
+export async function getDiningOrderPayment(
+  orderId: string,
+  restaurantId: string
+): Promise<{ data: SettledPaymentRow | null; error: Error | null }> {
+  const { data, error } = await supabaseServer
+    .from("dining_order_payments")
+    .select("id, dining_order_id, payment_method, amount_ttc, created_at")
+    .eq("dining_order_id", orderId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (error) return { data: null, error: new Error(error.message) };
+  return { data: data as SettledPaymentRow | null, error: null };
+}
 
 function parisCalendarYmd(iso: string | null): string | null {
   if (!iso) return null;

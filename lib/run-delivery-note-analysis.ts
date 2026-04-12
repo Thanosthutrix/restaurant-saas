@@ -5,6 +5,8 @@ import {
 } from "@/lib/delivery-note-openai";
 import { getDeliveryNoteFileUrl } from "@/lib/db";
 import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
+import { matchInventoryItemForLabel } from "@/lib/matching/findInventoryMatchCandidates";
+import { fetchDeliveryLabelAliasMap } from "@/lib/inventoryDeliveryLabelAliases";
 
 type ParsedLine = {
   label: string;
@@ -20,10 +22,95 @@ function asString(v: unknown): string | null {
   return s.length ? s : null;
 }
 
-function asNumber(v: unknown): number | null {
+/** Parse quantités / montants (nombre JSON, ou chaîne FR : 1 234,56 / 12,5 / 1.234,56). */
+export function parseNumericField(v: unknown): number | null {
   if (v == null || v === "") return null;
-  const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  let s = String(v).trim();
+  if (!s) return null;
+  s = s.replace(/\u202f|\u00a0/g, " ").replace(/\s/g, "");
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma !== -1 && lastComma > lastDot) {
+    const intPart = s.slice(0, lastComma).replace(/\./g, "");
+    const decPart = s.slice(lastComma + 1);
+    const n = Number(`${intPart}.${decPart}`);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number(s.replace(/,/g, ""));
   return Number.isFinite(n) ? n : null;
+}
+
+function firstString(o: Record<string, unknown>, keys: string[]): string | null {
+  for (const k of keys) {
+    const v = asString(o[k]);
+    if (v) return v;
+  }
+  return null;
+}
+
+function firstNumber(o: Record<string, unknown>, keys: string[]): number | null {
+  for (const k of keys) {
+    const v = parseNumericField(o[k]);
+    if (v != null && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+/** Exclut surtout les lignes de totaux globaux, pas les articles. */
+function looksLikeNonProductLine(label: string): boolean {
+  const n = normalizeInventoryItemName(label);
+  if (!n || n.length < 2) return true;
+  if (
+    /^(total|sous-total|sous total|total ht|total ttc|total hors|montant total|tva|t\.v\.a)(\s|$)/i.test(n)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Alerte si PU×Qté et montant HT ligne divergent trop (erreur de lecture fréquente). */
+function coherenceNoteForLines(lines: ParsedLine[]): string | null {
+  const snippets: string[] = [];
+  for (const line of lines) {
+    const q = line.quantity;
+    const pu = line.blUnitPriceStockHt;
+    const tot = line.blLineTotalHt;
+    if (q > 0 && pu != null && pu > 0 && tot != null && tot > 0) {
+      const expected = q * pu;
+      const diff = Math.abs(expected - tot);
+      const tol = Math.max(0.03 * tot, 0.05);
+      if (diff > tol) {
+        const short = line.label.length > 52 ? `${line.label.slice(0, 52)}…` : line.label;
+        snippets.push(`${short} (PU×Qté ≈ ${expected.toFixed(2)} ≠ ${tot.toFixed(2)} HT)`);
+      }
+    }
+  }
+  if (snippets.length === 0) return null;
+  const head = snippets.slice(0, 2).join(" ; ");
+  const extra = snippets.length > 2 ? ` ; +${snippets.length - 2} autre(s)` : "";
+  return `Contrôle auto : vérifiez PU / quantité / montant HT — ${head}${extra}.`;
+}
+
+function parseExtractionConfidence(v: unknown): "high" | "low" | "unreadable" {
+  if (v === "high" || v === "low" || v === "unreadable") return v;
+  return "unreadable";
+}
+
+function labelDedupKey(label: string): string {
+  return label.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Même libellé répété sur 3+ lignes : très suspect (ex. phrase inventée du type « danone liquide… » sur toutes les lignes).
+ * Un vrai BL liste en général des désignations différentes.
+ */
+function looksLikeRepeatedLabelHallucination(lines: ParsedLine[]): boolean {
+  if (lines.length < 3) return false;
+  const keys = lines.map((l) => labelDedupKey(l.label));
+  const first = keys[0];
+  if (!first) return false;
+  return keys.every((k) => k === first);
 }
 
 function parseLinesFromJson(json: Record<string, unknown>): ParsedLine[] {
@@ -33,39 +120,46 @@ function parseLinesFromJson(json: Record<string, unknown>): ParsedLine[] {
   for (const row of raw) {
     if (!row || typeof row !== "object") continue;
     const o = row as Record<string, unknown>;
-    const label = asString(o.label);
-    if (!label) continue;
-    const qty = asNumber(o.quantity) ?? 0;
-    const unit = asString(o.unit);
-    const unitPrice = asNumber(o.unit_price_ht);
-    const lineTotal = asNumber(o.line_total_ht);
+    const label = firstString(o, [
+      "label",
+      "designation",
+      "libelle",
+      "libellé",
+      "article",
+      "produit",
+      "description",
+    ]);
+    if (!label || looksLikeNonProductLine(label)) continue;
+
+    const qty =
+      firstNumber(o, ["quantity", "qty", "quantite", "quantité", "qte", "qté"]) ?? 0;
+    const unit = firstString(o, ["unit", "unite", "unité", "unite_commande"]);
+    const unitPrice = firstNumber(o, [
+      "unit_price_ht",
+      "prix_unitaire_ht",
+      "pu_ht",
+      "prix_u_ht",
+      "prix_ht",
+      "unit_price",
+    ]);
+    const lineTotal = firstNumber(o, [
+      "line_total_ht",
+      "montant_ht",
+      "montant_ligne_ht",
+      "total_ht",
+      "total_ligne",
+      "montant",
+    ]);
+
     out.push({
       label,
-      quantity: qty > 0 ? qty : 0,
+      quantity: qty >= 0 ? qty : 0,
       unit,
       blLineTotalHt: lineTotal != null && lineTotal > 0 ? lineTotal : null,
       blUnitPriceStockHt: unitPrice != null && unitPrice > 0 ? unitPrice : null,
     });
   }
   return out;
-}
-
-/** Correspondance libellé BL → article stock (exact puis inclusion). */
-export function matchInventoryItemForLabel(
-  label: string,
-  items: { id: string; name: string }[]
-): string | null {
-  const raw = normalizeInventoryItemName(label);
-  if (!raw) return null;
-  for (const i of items) {
-    if (normalizeInventoryItemName(i.name) === raw) return i.id;
-  }
-  for (const i of items) {
-    const inv = normalizeInventoryItemName(i.name);
-    if (!inv || inv.length < 2) continue;
-    if (raw.includes(inv) || inv.includes(raw)) return i.id;
-  }
-  return null;
 }
 
 /**
@@ -90,6 +184,7 @@ export async function runDeliveryNoteAnalysis(
 
   const row = note as {
     status: string;
+    supplier_id: string;
     file_path: string | null;
     file_url: string | null;
     file_name: string | null;
@@ -145,6 +240,8 @@ export async function runDeliveryNoteAnalysis(
   }
 
   const json = outcome.result.json;
+  const confidence = parseExtractionConfidence(json.extraction_confidence);
+  const extractionNotes = asString(json.extraction_notes);
   const supplierNameOnDoc = asString(json.supplier_name_on_document);
   const blNumber = asString(json.bl_number);
   const deliveryDate = asString(json.delivery_date);
@@ -158,12 +255,29 @@ export async function runDeliveryNoteAnalysis(
 
   const invItems = (invRows ?? []) as { id: string; name: string }[];
 
+  const aliasMap = await fetchDeliveryLabelAliasMap(restaurantId, row.supplier_id);
+
+  const repeatedLabelHallucination = looksLikeRepeatedLabelHallucination(parsedLines);
+
+  const coherence = coherenceNoteForLines(parsedLines);
+  const baseNote = supplierNameOnDoc
+    ? `Fournisseur sur le document : ${supplierNameOnDoc}. Analyse v${DELIVERY_NOTE_ANALYSIS_VERSION}.`
+    : `Analyse BL v${DELIVERY_NOTE_ANALYSIS_VERSION}.`;
+
+  const confidenceNote =
+    confidence === "high" && repeatedLabelHallucination
+      ? "Analyse non enregistrée : tous les libellés extraits sont identiques (erreur fréquente du modèle). Saisie manuelle des lignes."
+      : confidence === "high"
+        ? null
+        : confidence === "low"
+          ? `Confiance IA : partielle — lignes non enregistrées automatiquement (saisie manuelle).${extractionNotes ? ` ${extractionNotes}` : ""}`
+          : `Confiance IA : lecture impossible — aucune ligne enregistrée.${extractionNotes ? ` ${extractionNotes}` : ""}`;
+
+  const notesParts = [baseNote, confidenceNote, coherence].filter(Boolean) as string[];
   const notePatch: Record<string, unknown> = {
     raw_text: rawText,
     updated_at: now,
-    notes: supplierNameOnDoc
-      ? `Fournisseur sur le document : ${supplierNameOnDoc}. Analyse v${DELIVERY_NOTE_ANALYSIS_VERSION}.`
-      : `Analyse BL v${DELIVERY_NOTE_ANALYSIS_VERSION}.`,
+    notes: notesParts.join(" "),
   };
   if (blNumber) notePatch.number = blNumber;
   if (deliveryDate) notePatch.delivery_date = deliveryDate;
@@ -174,12 +288,13 @@ export async function runDeliveryNoteAnalysis(
     .eq("id", deliveryNoteId)
     .eq("restaurant_id", restaurantId);
 
-  if (parsedLines.length === 0) {
+  /** Insérer uniquement si confiance haute et pas de libellé unique répété sur toutes les lignes (hallucination). */
+  if (confidence !== "high" || parsedLines.length === 0 || repeatedLabelHallucination) {
     return { ok: true };
   }
 
   const rows = parsedLines.map((l, index) => {
-    const inventoryItemId = matchInventoryItemForLabel(l.label, invItems);
+    const inventoryItemId = matchInventoryItemForLabel(l.label, invItems, { aliasMap });
     const qtyD = l.quantity;
     const qtyR = qtyD;
     return {

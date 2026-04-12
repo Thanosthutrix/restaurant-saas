@@ -35,9 +35,18 @@ export default async function LivraisonPage() {
         </Link>
         <h1 className={`mt-4 ${uiPageTitle}`}>Livraison</h1>
         <p className={`mt-2 ${uiLead}`}>
-          Photographiez un bon de livraison (même si la commande n’a pas été passée dans l’application). Les lignes
-          sont préremplies par analyse de l’image lorsque c’est possible, puis rattachées à vos articles stock pour la
-          validation — même logique que pour une réception issue d’une commande.
+          Enregistrez le fichier du bon de livraison (même si la commande n’a pas été passée dans l’application). Sur la
+          fiche réception, vous pouvez lancer la <strong>lecture automatique</strong> du BL (photo) ou saisir les lignes à
+          la main.
+        </p>
+        <p className="mt-2 text-sm">
+          <Link
+            href="/receiving/registre"
+            className="font-medium text-indigo-700 underline decoration-indigo-300 underline-offset-2"
+          >
+            Registre photos traçabilité
+          </Link>
+          <span className={`${uiLead} ml-1`}>— lots, DLC et photos par type.</span>
         </p>
       </div>
 

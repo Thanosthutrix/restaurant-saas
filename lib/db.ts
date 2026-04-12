@@ -212,6 +212,24 @@ export type DeliveryNoteLine = {
   purchase_to_stock_ratio?: number;
   /** Unité de stock (inventory_items.unit). */
   stock_unit?: string | null;
+  /** Température à la réception (°C), suivi hygiène ; optionnel. */
+  received_temperature_celsius?: number | null;
+  /** Numéro de lot (traçabilité). */
+  lot_number?: string | null;
+  /** Date limite de consommation / péremption (DLC), format date ISO (YYYY-MM-DD). */
+  expiry_date?: string | null;
+  /** Horodatage du contrôle physique (ligne validée par l’opérateur). */
+  reception_line_verified_at?: string | null;
+};
+
+/** Photo de traçabilité liée à une ligne de réception. */
+export type ReceptionTraceabilityPhoto = {
+  id: string;
+  delivery_note_line_id: string;
+  storage_path: string;
+  file_url: string | null;
+  element_type: string;
+  created_at: string;
 };
 
 /** Facture fournisseur (supplier_invoices). */
@@ -1114,7 +1132,25 @@ export function getDeliveryNoteFileUrl(filePath: string | null): string | null {
 export type DeliveryNoteWithLines = DeliveryNote & {
   lines: (DeliveryNoteLine & {
     inventory_items: { name: string } | null;
+    traceability_photos?: ReceptionTraceabilityPhoto[];
   })[];
+};
+
+/** Ligne du registre photos traçabilité (filtres date / type / lot). */
+export type ReceptionTraceabilityRegisterRow = {
+  id: string;
+  created_at: string;
+  storage_path: string;
+  file_url: string | null;
+  element_type: string;
+  delivery_note_id: string;
+  delivery_date: string | null;
+  bl_number: string | null;
+  supplier_name: string | null;
+  line_label: string;
+  lot_number: string | null;
+  expiry_date: string | null;
+  product_name: string | null;
 };
 
 /** Lignes extraites d’une facture (liste pour liaison BL). */
@@ -1191,7 +1227,7 @@ export async function getDeliveryNoteWithLines(
   const { data: linesData, error: linesErr } = await supabaseServer
     .from("delivery_note_lines")
     .select(
-      "id, delivery_note_id, purchase_order_line_id, inventory_item_id, label, qty_ordered, qty_delivered, qty_received, unit, sort_order, created_at, updated_at, bl_line_total_ht, bl_unit_price_stock_ht, manual_unit_price_stock_ht, supplier_invoice_extracted_line_id, inventory_items(name, unit), purchase_order_lines(purchase_to_stock_ratio)"
+      "id, delivery_note_id, purchase_order_line_id, inventory_item_id, label, qty_ordered, qty_delivered, qty_received, unit, sort_order, created_at, updated_at, bl_line_total_ht, bl_unit_price_stock_ht, manual_unit_price_stock_ht, supplier_invoice_extracted_line_id, received_temperature_celsius, lot_number, expiry_date, reception_line_verified_at, inventory_items(name, unit), purchase_order_lines(purchase_to_stock_ratio)"
     )
     .eq("delivery_note_id", id)
     .order("sort_order", { ascending: true });
@@ -1243,6 +1279,24 @@ export async function getDeliveryNoteWithLines(
         l.supplier_invoice_extracted_line_id == null || l.supplier_invoice_extracted_line_id === ""
           ? null
           : String(l.supplier_invoice_extracted_line_id),
+      received_temperature_celsius: (() => {
+        if (l.received_temperature_celsius == null || l.received_temperature_celsius === "") return null;
+        const n = Number(l.received_temperature_celsius);
+        return Number.isFinite(n) ? n : null;
+      })(),
+      lot_number:
+        l.lot_number == null || String(l.lot_number).trim() === ""
+          ? null
+          : String(l.lot_number).trim(),
+      expiry_date: (() => {
+        if (l.expiry_date == null || l.expiry_date === "") return null;
+        const s = String(l.expiry_date);
+        return s.length >= 10 ? s.slice(0, 10) : s;
+      })(),
+      reception_line_verified_at:
+        l.reception_line_verified_at == null || l.reception_line_verified_at === ""
+          ? null
+          : String(l.reception_line_verified_at),
       purchase_to_stock_ratio: ratio,
       stock_unit: inv?.unit ?? null,
       inventory_items: inv ? { name: inv.name } : null,
@@ -1251,13 +1305,156 @@ export async function getDeliveryNoteWithLines(
     inventory_items: { name: string } | null;
   })[];
 
+  const lineIds = lines.map((row) => row.id);
+  const photosByLine = new Map<string, ReceptionTraceabilityPhoto[]>();
+  if (lineIds.length > 0) {
+    const { data: photoRows, error: photosErr } = await supabaseServer
+      .from("reception_traceability_photos")
+      .select("id, delivery_note_line_id, storage_path, element_type, created_at")
+      .in("delivery_note_line_id", lineIds)
+      .order("created_at", { ascending: true });
+    if (photosErr) return { data: null, error: new Error(photosErr.message) };
+    for (const p of photoRows ?? []) {
+      const pr = p as {
+        id: string;
+        delivery_note_line_id: string;
+        storage_path: string;
+        element_type: string;
+        created_at: string;
+      };
+      const photo: ReceptionTraceabilityPhoto = {
+        id: pr.id,
+        delivery_note_line_id: pr.delivery_note_line_id,
+        storage_path: pr.storage_path,
+        file_url: getDeliveryNoteFileUrl(pr.storage_path),
+        element_type: pr.element_type,
+        created_at: pr.created_at,
+      };
+      const list = photosByLine.get(pr.delivery_note_line_id) ?? [];
+      list.push(photo);
+      photosByLine.set(pr.delivery_note_line_id, list);
+    }
+  }
+
+  const linesWithPhotos = lines.map((row) => ({
+    ...row,
+    traceability_photos: photosByLine.get(row.id) ?? [],
+  })) as (DeliveryNoteLine & {
+    inventory_items: { name: string } | null;
+    traceability_photos: ReceptionTraceabilityPhoto[];
+  })[];
+
   return {
     data: {
       ...(note as DeliveryNote),
-      lines,
+      lines: linesWithPhotos,
     },
     error: null,
   };
+}
+
+/** Registre des photos de traçabilité (filtres optionnels). */
+export async function getReceptionTraceabilityRegister(
+  restaurantId: string,
+  opts?: {
+    fromDate?: string;
+    toDate?: string;
+    elementType?: string;
+    lotSearch?: string;
+  }
+): Promise<{ data: ReceptionTraceabilityRegisterRow[]; error: Error | null }> {
+  let q = supabaseServer
+    .from("reception_traceability_photos")
+    .select(
+      `
+      id,
+      delivery_note_id,
+      delivery_note_line_id,
+      storage_path,
+      element_type,
+      created_at,
+      delivery_notes ( delivery_date, number, supplier_id, suppliers ( name ) ),
+      delivery_note_lines ( label, lot_number, expiry_date, inventory_items ( name ) )
+    `
+    )
+    .eq("restaurant_id", restaurantId)
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (opts?.fromDate?.trim()) {
+    q = q.gte("created_at", `${opts.fromDate.trim()}T00:00:00.000Z`);
+  }
+  if (opts?.toDate?.trim()) {
+    q = q.lte("created_at", `${opts.toDate.trim()}T23:59:59.999Z`);
+  }
+  if (opts?.elementType && opts.elementType !== "all" && opts.elementType.trim() !== "") {
+    q = q.eq("element_type", opts.elementType.trim());
+  }
+
+  const { data: rows, error } = await q;
+  if (error) return { data: [], error: new Error(error.message) };
+
+  type NestedName = { name?: string } | { name?: string }[] | null;
+  const unwrapName = (n: NestedName): string | null => {
+    if (n == null) return null;
+    const o = Array.isArray(n) ? n[0] : n;
+    return o && typeof (o as { name?: string }).name === "string"
+      ? String((o as { name: string }).name)
+      : null;
+  };
+
+  const out: ReceptionTraceabilityRegisterRow[] = [];
+  const lotNeedle = opts?.lotSearch?.trim().toLowerCase() ?? "";
+
+  for (const raw of rows ?? []) {
+    const r = raw as Record<string, unknown>;
+    const dn = r.delivery_notes as Record<string, unknown> | Record<string, unknown>[] | null | undefined;
+    const dno = Array.isArray(dn) ? dn[0] : dn;
+    const dnl = r.delivery_note_lines as Record<string, unknown> | Record<string, unknown>[] | null | undefined;
+    const dnlo = Array.isArray(dnl) ? dnl[0] : dnl;
+
+    const suppliersRaw = dno?.suppliers as NestedName;
+    const invRaw = dnlo?.inventory_items as NestedName;
+
+    const lot_number =
+      dnlo?.lot_number == null || String(dnlo.lot_number).trim() === ""
+        ? null
+        : String(dnlo.lot_number).trim();
+    if (lotNeedle && !(lot_number ?? "").toLowerCase().includes(lotNeedle)) {
+      continue;
+    }
+
+    const expiry_raw = dnlo?.expiry_date;
+    const expiry_date =
+      expiry_raw == null || expiry_raw === ""
+        ? null
+        : String(expiry_raw).length >= 10
+          ? String(expiry_raw).slice(0, 10)
+          : String(expiry_raw);
+
+    const storage_path = String(r.storage_path ?? "");
+    out.push({
+      id: String(r.id),
+      created_at: String(r.created_at ?? ""),
+      storage_path,
+      file_url: getDeliveryNoteFileUrl(storage_path),
+      element_type: String(r.element_type ?? "other"),
+      delivery_note_id: String(r.delivery_note_id ?? ""),
+      delivery_date:
+        dno?.delivery_date == null || dno.delivery_date === ""
+          ? null
+          : String(dno.delivery_date).slice(0, 10),
+      bl_number:
+        dno?.number == null || dno.number === "" ? null : String(dno.number),
+      supplier_name: unwrapName(suppliersRaw),
+      line_label: dnlo?.label != null ? String(dnlo.label) : "—",
+      lot_number,
+      expiry_date,
+      product_name: unwrapName(invRaw),
+    });
+  }
+
+  return { data: out, error: null };
 }
 
 /** Retourne la réception existante pour cette commande fournisseur (n'importe quel statut), s'il en existe une. */

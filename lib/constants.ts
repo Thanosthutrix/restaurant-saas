@@ -53,5 +53,16 @@ export function parseAllowedStockUnit(s: string): AllowedUnit | null {
 /** Nom du bucket Storage pour les BL (bons de livraison). Utilisable côté client et serveur. */
 export const DELIVERY_NOTES_BUCKET = "delivery-notes";
 
+/** Types d’élément pour les photos de traçabilité à la réception (registre). */
+export const TRACEABILITY_ELEMENT_TYPES = ["ingredient", "prep", "resale", "other"] as const;
+export type TraceabilityElementType = (typeof TRACEABILITY_ELEMENT_TYPES)[number];
+
+export const TRACEABILITY_ELEMENT_LABEL_FR: Record<TraceabilityElementType, string> = {
+  ingredient: "Ingrédient",
+  prep: "Préparation",
+  resale: "Revente",
+  other: "Autre",
+};
+
 /** Nom du bucket Storage pour les factures fournisseur. */
 export const SUPPLIER_INVOICES_BUCKET = "supplier-invoices";

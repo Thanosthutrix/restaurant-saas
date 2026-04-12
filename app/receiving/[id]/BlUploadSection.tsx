@@ -87,6 +87,13 @@ export function BlUploadSection({
       <h2 className="mb-3 text-sm font-medium text-slate-500">
         Bon de livraison
       </h2>
+      {!readOnly && (
+        <p className="mb-3 text-xs text-slate-500">
+          Pour la lecture automatique : cadrer serré sur le <strong>tableau des articles</strong> (éviter la page entière),
+          bonne lumière, photo nette — en cuisine le <strong>JPEG</strong> du téléphone suffit en général. Si le texte reste
+          flou à l’écran, réessayez en <strong>PNG</strong> ou en zoomant davantage.
+        </p>
+      )}
       {hasFile && displayUrl && (
         <p className="mb-3">
           <a

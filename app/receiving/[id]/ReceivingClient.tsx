@@ -1,13 +1,58 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type {
-  DeliveryNoteWithLines,
-  InventoryItem,
-  InvoiceExtractedLineOption,
-} from "@/lib/db";
-import { updateDeliveryNoteLinesAction, validateReceptionAction, addDeliveryNoteLineAction } from "./actions";
+import type { DeliveryNoteWithLines, InventoryItem, ReceptionTraceabilityPhoto } from "@/lib/db";
+import { supabase } from "@/lib/supabaseClient";
+import { DELIVERY_NOTES_BUCKET, TRACEABILITY_ELEMENT_LABEL_FR, TRACEABILITY_ELEMENT_TYPES } from "@/lib/constants";
+import { Camera, Check, Loader2 } from "lucide-react";
+import {
+  updateDeliveryNoteLinesAction,
+  validateReceptionAction,
+  addDeliveryNoteLineAction,
+  setDeliveryNoteLineInventoryItemAction,
+  saveDeliveryLabelAliasAction,
+  recordTraceabilityPhotoAction,
+  deleteTraceabilityPhotoAction,
+  toggleDeliveryNoteLineVerifiedAction,
+} from "./actions";
+import {
+  findInventoryMatchCandidates,
+  type InventoryCandidate,
+} from "@/lib/matching/findInventoryMatchCandidates";
+import { computeDeliveryLabelCore } from "@/lib/matching/deliveryLabelCore";
+import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
+
+function buildInventorySelectOptions(
+  lineLabel: string,
+  inventoryItems: InventoryItem[],
+  aliasMap?: Map<string, string>
+): { suggested: InventoryCandidate[]; rest: InventoryItem[] } {
+  const { candidates } = findInventoryMatchCandidates(lineLabel, inventoryItems, { aliasMap });
+  const suggestedIds = new Set(candidates.map((c) => c.id));
+  const rest = inventoryItems
+    .filter((i) => !suggestedIds.has(i.id))
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  return { suggested: candidates.slice(0, 10), rest };
+}
+
+function traceabilityTypeLabel(code: string): string {
+  return (TRACEABILITY_ELEMENT_TYPES as readonly string[]).includes(code)
+    ? TRACEABILITY_ELEMENT_LABEL_FR[code as keyof typeof TRACEABILITY_ELEMENT_LABEL_FR]
+    : code;
+}
+
+function lineHasSavedAlias(
+  label: string,
+  inventoryItemId: string | null | undefined,
+  aliasMap: Map<string, string>
+): boolean {
+  if (!inventoryItemId) return false;
+  const full = normalizeInventoryItemName(label);
+  const core = computeDeliveryLabelCore(label);
+  const hit = aliasMap.get(full) ?? aliasMap.get(core);
+  return hit === inventoryItemId;
+}
 
 type Line = DeliveryNoteWithLines["lines"][number];
 
@@ -19,6 +64,9 @@ type EditableLine = Omit<
   | "bl_line_total_ht"
   | "bl_unit_price_stock_ht"
   | "manual_unit_price_stock_ht"
+  | "received_temperature_celsius"
+  | "lot_number"
+  | "expiry_date"
 > & {
   qty_delivered: number | string;
   qty_received: number | string;
@@ -26,6 +74,10 @@ type EditableLine = Omit<
   bl_unit_price_stock_ht?: number | string | null;
   manual_unit_price_stock_ht?: number | string | null;
   supplier_invoice_extracted_line_id?: string | null;
+  received_temperature_celsius?: number | string | null;
+  lot_number?: string | null;
+  expiry_date?: string | null;
+  traceability_photos?: ReceptionTraceabilityPhoto[];
 };
 
 function parseOptionalMoney(raw: unknown): number | null {
@@ -34,9 +86,38 @@ function parseOptionalMoney(raw: unknown): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Température °C à la réception (hygiène) ; plage large pour surgelé / chaud. */
+function parseOptionalTemperature(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(String(raw).replace(",", "."));
+  if (!Number.isFinite(n)) return null;
+  if (n < -60 || n > 100) return null;
+  return Math.round(n * 10) / 10;
+}
+
+function temperatureInputValue(line: EditableLine): string {
+  const v = line.received_temperature_celsius;
+  if (v === undefined || v === null) return "";
+  const s = String(v);
+  return s.trim() === "" ? "" : s;
+}
+
+function lotInputValue(line: EditableLine): string {
+  const v = line.lot_number;
+  if (v === undefined || v === null) return "";
+  return String(v);
+}
+
+function expiryInputValue(line: EditableLine): string {
+  const v = line.expiry_date;
+  if (v === undefined || v === null || v === "") return "";
+  const s = String(v);
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
 function moneyInputValue(
   line: EditableLine,
-  field: "bl_line_total_ht" | "bl_unit_price_stock_ht" | "manual_unit_price_stock_ht"
+  field: "bl_line_total_ht" | "bl_unit_price_stock_ht"
 ): string {
   const v = line[field];
   if (v === undefined || v === null) return "";
@@ -61,15 +142,14 @@ function displayBlMoney(
 type Props = {
   deliveryNote: DeliveryNoteWithLines;
   inventoryItems: InventoryItem[];
-  linkedInvoiceId: string | null;
-  invoiceExtractedLines: InvoiceExtractedLineOption[];
+  /** Libellés mémorisés (clé normalisée → inventory_item_id), pour suggestions et affichage. */
+  deliveryLabelAliases: Record<string, string>;
 };
 
 export function ReceivingClient({
   deliveryNote,
   inventoryItems,
-  linkedInvoiceId,
-  invoiceExtractedLines,
+  deliveryLabelAliases,
 }: Props) {
   const [lines, setLines] = useState<EditableLine[]>(deliveryNote.lines as EditableLine[]);
   const [saving, startSaving] = useTransition();
@@ -78,9 +158,21 @@ export function ReceivingClient({
   const [addingLine, setAddingLine] = useState(false);
   const [addLineError, setAddLineError] = useState<string | null>(null);
   const [validateError, setValidateError] = useState<string | null>(null);
+  const [pendingInventoryLineId, setPendingInventoryLineId] = useState<string | null>(null);
+  const [savingAliasLineId, setSavingAliasLineId] = useState<string | null>(null);
   const router = useRouter();
 
+  const deliveryLabelAliasMap = useMemo(
+    () => new Map<string, string>(Object.entries(deliveryLabelAliases)),
+    [deliveryLabelAliases]
+  );
+
   const readOnly = deliveryNote.status === "validated";
+
+  /** Après lecture BL ou refresh, les nouvelles lignes arrivent en props mais useState gardait l’ancien tableau vide. */
+  useEffect(() => {
+    setLines(deliveryNote.lines as EditableLine[]);
+  }, [deliveryNote.lines]);
 
   const [newLabel, setNewLabel] = useState("");
   const [newInventoryItemId, setNewInventoryItemId] = useState<string>("");
@@ -89,16 +181,15 @@ export function ReceivingClient({
   const [newUnit, setNewUnit] = useState("");
   const [newBlLineTotal, setNewBlLineTotal] = useState("");
   const [newBlUnitPrice, setNewBlUnitPrice] = useState("");
-  const [newManualPrice, setNewManualPrice] = useState("");
-  const [newExtractedLineId, setNewExtractedLineId] = useState<string>("");
-
-  function extractedLineShortLabel(id: string | null | undefined): string {
-    if (!id) return "—";
-    const o = invoiceExtractedLines.find((x) => x.id === id);
-    if (!o) return id.slice(0, 8) + "…";
-    const t = o.label.length > 48 ? `${o.label.slice(0, 48)}…` : o.label;
-    return t;
-  }
+  const [newReceivedTemp, setNewReceivedTemp] = useState("");
+  const [newLotNumber, setNewLotNumber] = useState("");
+  const [newExpiryDate, setNewExpiryDate] = useState("");
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoTargetLineRef = useRef<string | null>(null);
+  const [uploadingPhotoLineId, setUploadingPhotoLineId] = useState<string | null>(null);
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
+  const [tracePhotoError, setTracePhotoError] = useState<string | null>(null);
+  const [togglingVerifiedLineId, setTogglingVerifiedLineId] = useState<string | null>(null);
 
   function getRatio(line: EditableLine): number {
     return line.purchase_to_stock_ratio != null && line.purchase_to_stock_ratio > 0
@@ -129,20 +220,96 @@ export function ReceivingClient({
     );
   }
 
-  function onChangeManualLine(id: string, value: string) {
+  function onChangeReceivedTemperature(id: string, value: string) {
     setLines((prev) =>
-      prev.map((l): EditableLine => (l.id === id ? { ...l, manual_unit_price_stock_ht: value } : l))
+      prev.map((l): EditableLine =>
+        l.id === id ? { ...l, received_temperature_celsius: value } : l
+      )
     );
   }
 
-  function onChangeExtractedLink(id: string, value: string) {
+  function onChangeLotNumber(id: string, value: string) {
     setLines((prev) =>
-      prev.map((l): EditableLine =>
-        l.id === id
-          ? { ...l, supplier_invoice_extracted_line_id: value === "" ? null : value }
-          : l
-      )
+      prev.map((l): EditableLine => (l.id === id ? { ...l, lot_number: value } : l))
     );
+  }
+
+  function onChangeExpiryDate(id: string, value: string) {
+    setLines((prev) =>
+      prev.map((l): EditableLine => (l.id === id ? { ...l, expiry_date: value } : l))
+    );
+  }
+
+  function openPhotoDialog(lineId: string) {
+    photoTargetLineRef.current = lineId;
+    photoInputRef.current?.click();
+  }
+
+  async function onTraceabilityPhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const lineId = photoTargetLineRef.current;
+    photoTargetLineRef.current = null;
+    e.target.value = "";
+    if (!file || !lineId) return;
+    setTracePhotoError(null);
+    setUploadingPhotoLineId(lineId);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${deliveryNote.restaurant_id}/traceability/${lineId}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from(DELIVERY_NOTES_BUCKET).upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+      if (uploadErr) {
+        setTracePhotoError(uploadErr.message);
+        return;
+      }
+      await recordTraceabilityPhotoAction(
+        deliveryNote.restaurant_id,
+        deliveryNote.id,
+        lineId,
+        path
+      );
+      router.refresh();
+    } catch (e: unknown) {
+      setTracePhotoError(e instanceof Error ? e.message : "Enregistrement impossible.");
+    } finally {
+      setUploadingPhotoLineId(null);
+    }
+  }
+
+  async function handleToggleLineVerified(lineId: string, verified: boolean) {
+    setTogglingVerifiedLineId(lineId);
+    try {
+      await toggleDeliveryNoteLineVerifiedAction(
+        deliveryNote.id,
+        deliveryNote.restaurant_id,
+        lineId,
+        verified
+      );
+      router.refresh();
+    } catch {
+      /* ignore */
+    } finally {
+      setTogglingVerifiedLineId(null);
+    }
+  }
+
+  async function handleDeletePhoto(photoId: string) {
+    if (!confirm("Supprimer cette photo du registre ?")) return;
+    setDeletingPhotoId(photoId);
+    try {
+      await deleteTraceabilityPhotoAction(
+        deliveryNote.restaurant_id,
+        deliveryNote.id,
+        photoId
+      );
+      router.refresh();
+    } catch {
+      /* ignore */
+    } finally {
+      setDeletingPhotoId(null);
+    }
   }
 
   function getQty(line: EditableLine, field: "qty_ordered" | "qty_delivered" | "qty_received"): number {
@@ -171,11 +338,52 @@ export function ReceivingClient({
           bl_unit_price_stock_ht: parseOptionalMoney(l.bl_unit_price_stock_ht),
           manual_unit_price_stock_ht: parseOptionalMoney(l.manual_unit_price_stock_ht),
           supplier_invoice_extracted_line_id: l.supplier_invoice_extracted_line_id ?? null,
+          received_temperature_celsius: parseOptionalTemperature(l.received_temperature_celsius),
+          lot_number:
+            l.lot_number == null || String(l.lot_number).trim() === ""
+              ? null
+              : String(l.lot_number).trim(),
+          expiry_date:
+            l.expiry_date == null || String(l.expiry_date).trim() === ""
+              ? null
+              : String(l.expiry_date).trim().slice(0, 10),
         }))
       )
         .then(() => router.refresh())
         .catch(() => {});
     });
+  }
+
+  async function handleInventoryChange(lineId: string, value: string) {
+    setPendingInventoryLineId(lineId);
+    try {
+      await setDeliveryNoteLineInventoryItemAction(
+        deliveryNote.id,
+        deliveryNote.restaurant_id,
+        lineId,
+        value === "" ? null : value
+      );
+      router.refresh();
+    } catch {
+      /* erreur silencieuse : l’état serveur reste cohérent après refresh */
+    } finally {
+      setPendingInventoryLineId(null);
+    }
+  }
+
+  async function handleSaveLabelAlias(lineId: string, label: string, inventoryItemId: string) {
+    setSavingAliasLineId(lineId);
+    try {
+      await saveDeliveryLabelAliasAction(
+        deliveryNote.id,
+        deliveryNote.restaurant_id,
+        label,
+        inventoryItemId
+      );
+      router.refresh();
+    } finally {
+      setSavingAliasLineId(null);
+    }
   }
 
   function handleValidate() {
@@ -205,8 +413,9 @@ export function ReceivingClient({
     setNewUnit("");
     setNewBlLineTotal("");
     setNewBlUnitPrice("");
-    setNewManualPrice("");
-    setNewExtractedLineId("");
+    setNewReceivedTemp("");
+    setNewLotNumber("");
+    setNewExpiryDate("");
   }
 
   function closeAddLineForm() {
@@ -241,8 +450,11 @@ export function ReceivingClient({
         sort_order: lines.length,
         bl_line_total_ht: parseOptionalMoney(newBlLineTotal),
         bl_unit_price_stock_ht: parseOptionalMoney(newBlUnitPrice),
-        manual_unit_price_stock_ht: parseOptionalMoney(newManualPrice),
-        supplier_invoice_extracted_line_id: newExtractedLineId === "" ? null : newExtractedLineId,
+        manual_unit_price_stock_ht: null,
+        supplier_invoice_extracted_line_id: null,
+        received_temperature_celsius: parseOptionalTemperature(newReceivedTemp),
+        lot_number: newLotNumber.trim() || null,
+        expiry_date: newExpiryDate.trim() ? newExpiryDate.trim().slice(0, 10) : null,
       })
         .then(() => {
           closeAddLineForm();
@@ -260,6 +472,27 @@ export function ReceivingClient({
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+        {!readOnly && (
+          <p className="border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+            <strong className="font-medium text-slate-700">Traçabilité</strong> : cochez chaque ligne une fois le
+            produit vérifié physiquement ; température (°C), n° de lot et DLC ; photos en fin de ligne (le type au
+            registre suit le composant stock lié). Optionnel sauf exigence hygiène.
+          </p>
+        )}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          aria-hidden
+          onChange={onTraceabilityPhotoSelected}
+        />
+        {tracePhotoError && (
+          <p className="border-b border-rose-100 bg-rose-50/90 px-3 py-2 text-xs text-rose-800" role="alert">
+            {tracePhotoError}
+          </p>
+        )}
         {emptyLines && !addingLine ? (
           <div className="px-4 py-8 text-center">
             <p className="text-sm text-slate-600">
@@ -277,9 +510,15 @@ export function ReceivingClient({
           </div>
         ) : (
           <>
-            <table className="w-full text-sm">
+            <table className="w-full border-collapse text-sm [&_td]:align-top">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-500">
+                  <th
+                    className="pb-2 pr-2 w-12 text-center"
+                    title="Contrôle physique effectué"
+                  >
+                    OK
+                  </th>
                   <th className="pb-2 pr-2">Produit / libellé</th>
                   <th className="pb-2 pr-2 text-right">Qté commandée (achat)</th>
                   <th className="pb-2 pr-2 text-right">Qté livrée (achat)</th>
@@ -287,12 +526,17 @@ export function ReceivingClient({
                   <th className="pb-2 pr-2">Unité achat</th>
                   <th className="pb-2 pr-2">Unité stock</th>
                   <th
-                    className="pb-2 pr-2 text-right min-w-[6rem]"
-                    title="Prioritaire sur liaison facture et prix BL"
+                    className="pb-2 pr-2 text-right min-w-[4.5rem]"
+                    title="Température à la réception (°C), suivi hygiène"
                   >
-                    Prix manuel (€/u.)
+                    Temp. °C
                   </th>
-                  <th className="pb-2 pr-2 min-w-[10rem]">Ligne facture</th>
+                  <th className="pb-2 pr-2 min-w-[6rem]" title="Numéro de lot fournisseur">
+                    N° lot
+                  </th>
+                  <th className="pb-2 pr-2 min-w-[9rem]" title="Date limite de consommation / péremption">
+                    DLC
+                  </th>
                   <th className="pb-2 pr-2 text-right" title="Total HT de la ligne sur le BL">
                     Total ligne HT (€)
                   </th>
@@ -300,6 +544,9 @@ export function ReceivingClient({
                     Prix u. stock HT (€)
                   </th>
                   <th className="pb-2 pr-2 text-right">Écart (stock)</th>
+                  <th className="pb-2 pr-2 min-w-[8rem]" title="Photos traçabilité (registre)">
+                    Photo
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -308,8 +555,73 @@ export function ReceivingClient({
                   const qtyDeliveredDisplay = getQty(line, "qty_delivered");
                   const qtyReceivedDisplay = getQty(line, "qty_received");
                   const noProduct = !line.inventory_item_id;
+                  const { suggested, rest } = buildInventorySelectOptions(
+                    line.label,
+                    inventoryItems,
+                    deliveryLabelAliasMap
+                  );
+                  const memoized = lineHasSavedAlias(
+                    line.label,
+                    line.inventory_item_id,
+                    deliveryLabelAliasMap
+                  );
+                  const rowVerified = Boolean(line.reception_line_verified_at);
                   return (
-                    <tr key={line.id} className="border-b border-slate-100">
+                    <tr
+                      key={line.id}
+                      className={`border-b transition-colors ${
+                        rowVerified
+                          ? "border-emerald-100 bg-emerald-50/90 hover:bg-emerald-50"
+                          : "border-slate-100 bg-white hover:bg-slate-50/80"
+                      }`}
+                    >
+                      <td className="py-2 pr-2 text-center">
+                        {readOnly ? (
+                          rowVerified ? (
+                            <span
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-200 text-emerald-800"
+                              title="Ligne contrôlée"
+                            >
+                              <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                            </span>
+                          ) : (
+                            <span
+                              className="inline-flex h-9 min-h-9 w-9 items-center justify-center text-slate-300"
+                              title="Non contrôlée"
+                            >
+                              —
+                            </span>
+                          )
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={togglingVerifiedLineId === line.id}
+                            onClick={() =>
+                              void handleToggleLineVerified(line.id, !rowVerified)
+                            }
+                            title={
+                              rowVerified
+                                ? "Annuler la validation du contrôle"
+                                : "Marquer comme contrôlé sur place"
+                            }
+                            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors ${
+                              rowVerified
+                                ? "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                                : "border-slate-300 bg-white text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
+                            } disabled:opacity-50`}
+                            aria-pressed={rowVerified}
+                            aria-label={
+                              rowVerified ? "Annuler la validation du contrôle" : "Valider le contrôle de la ligne"
+                            }
+                          >
+                            {togglingVerifiedLineId === line.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                            ) : (
+                              <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                            )}
+                          </button>
+                        )}
+                      </td>
                       <td className="py-2 pr-2">
                         <div className="font-medium text-slate-900">
                           {line.inventory_items?.name ?? line.label}
@@ -322,13 +634,73 @@ export function ReceivingClient({
                             Sans produit lié (non mis en stock)
                           </span>
                         )}
+                        {!readOnly && (
+                          <div className="mt-2">
+                            <label className="mb-0.5 block text-xs font-medium text-slate-500">
+                              Produit stock
+                            </label>
+                            <select
+                              className="box-border h-9 min-h-9 max-w-[min(100%,22rem)] rounded border border-slate-300 bg-white px-2 py-0 text-xs leading-none"
+                              value={line.inventory_item_id ?? ""}
+                              disabled={pendingInventoryLineId === line.id}
+                              onChange={(e) => {
+                                void handleInventoryChange(line.id, e.target.value);
+                              }}
+                            >
+                              <option value="">— Aucun —</option>
+                              {suggested.length > 0 && (
+                                <optgroup label="Suggestions (libellé BL)">
+                                  {suggested.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              <optgroup label="Tous les articles">
+                                {rest.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            </select>
+                            {line.inventory_item_id && line.label.trim() && !memoized && (
+                              <button
+                                type="button"
+                                disabled={savingAliasLineId === line.id}
+                                onClick={() =>
+                                  void handleSaveLabelAlias(
+                                    line.id,
+                                    line.label,
+                                    line.inventory_item_id as string
+                                  )
+                                }
+                                className="mt-1.5 block text-left text-xs font-medium text-indigo-700 underline decoration-indigo-300 hover:text-indigo-900 disabled:opacity-50"
+                              >
+                                {savingAliasLineId === line.id
+                                  ? "Enregistrement…"
+                                  : "Mémoriser ce libellé BL → ce produit (prochains BL de ce fournisseur)"}
+                              </button>
+                            )}
+                            {memoized && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                Liaison mémorisée pour ce fournisseur.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 pr-2 text-right text-slate-600">
-                        {Number(line.qty_ordered) || 0}
+                        <span className="inline-flex h-9 min-h-9 items-center justify-end tabular-nums">
+                          {Number(line.qty_ordered) || 0}
+                        </span>
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="text-slate-600">{qtyDeliveredDisplay}</span>
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
+                            {qtyDeliveredDisplay}
+                          </span>
                         ) : (
                           <input
                             type="number"
@@ -340,13 +712,15 @@ export function ReceivingClient({
                                 : qtyDeliveredDisplay
                             }
                             onChange={(e) => onChangeLine(line.id, "qty_delivered", e.target.value)}
-                            className="w-20 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                            className="box-border h-9 min-h-9 w-20 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="text-slate-600">{qtyReceivedDisplay}</span>
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
+                            {qtyReceivedDisplay}
+                          </span>
                         ) : (
                           <input
                             type="number"
@@ -358,59 +732,77 @@ export function ReceivingClient({
                                 : qtyReceivedDisplay
                             }
                             onChange={(e) => onChangeLine(line.id, "qty_received", e.target.value)}
-                            className="w-20 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                            className="box-border h-9 min-h-9 w-20 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
-                      <td className="py-2 pr-2 text-slate-600">{line.unit ?? "—"}</td>
                       <td className="py-2 pr-2 text-slate-600">
-                        {line.stock_unit ?? "—"}
+                        <span className="inline-flex h-9 min-h-9 items-center">{line.unit ?? "—"}</span>
+                      </td>
+                      <td className="py-2 pr-2 text-slate-600">
+                        <span className="inline-flex h-9 min-h-9 items-center">{line.stock_unit ?? "—"}</span>
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="text-slate-600">
-                            {displayBlMoney(line.manual_unit_price_stock_ht, 4)}
+                          <span
+                            className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums"
+                            title="Température à la réception"
+                          >
+                            {line.received_temperature_celsius != null &&
+                            Number.isFinite(Number(line.received_temperature_celsius))
+                              ? `${Number(line.received_temperature_celsius)} °C`
+                              : "—"}
                           </span>
                         ) : (
                           <input
-                            type="text"
+                            type="number"
                             inputMode="decimal"
+                            step={0.1}
+                            min={-60}
+                            max={100}
                             placeholder="—"
-                            value={moneyInputValue(line, "manual_unit_price_stock_ht")}
-                            onChange={(e) => onChangeManualLine(line.id, e.target.value)}
-                            className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                            value={temperatureInputValue(line)}
+                            onChange={(e) =>
+                              onChangeReceivedTemperature(line.id, e.target.value)
+                            }
+                            className="box-border h-9 min-h-9 w-[4.5rem] rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2">
                         {readOnly ? (
-                          <span className="text-xs text-slate-600">
-                            {extractedLineShortLabel(line.supplier_invoice_extracted_line_id)}
+                          <span className="inline-flex h-9 min-h-9 items-center text-slate-600">
+                            {lotInputValue(line) || "—"}
                           </span>
                         ) : (
-                          <select
-                            value={line.supplier_invoice_extracted_line_id ?? ""}
-                            onChange={(e) => onChangeExtractedLink(line.id, e.target.value)}
-                            disabled={
-                              !linkedInvoiceId || invoiceExtractedLines.length === 0
-                            }
-                            className="max-w-[12rem] truncate rounded border border-slate-300 px-1 py-1 text-xs disabled:opacity-50"
-                          >
-                            <option value="">—</option>
-                            {invoiceExtractedLines.map((el) => (
-                              <option key={el.id} value={el.id}>
-                                {(el.line_total != null
-                                  ? `${el.line_total.toFixed(2)} € — `
-                                  : "") + el.label.slice(0, 40)}
-                                {el.label.length > 40 ? "…" : ""}
-                              </option>
-                            ))}
-                          </select>
+                          <input
+                            type="text"
+                            placeholder="—"
+                            value={lotInputValue(line)}
+                            onChange={(e) => onChangeLotNumber(line.id, e.target.value)}
+                            className="box-border h-9 min-h-9 w-full min-w-[5rem] max-w-[8rem] rounded border border-slate-300 px-2 py-0 text-sm leading-none"
+                          />
+                        )}
+                      </td>
+                      <td className="py-2 pr-2">
+                        {readOnly ? (
+                          <span className="inline-flex h-9 min-h-9 items-center text-slate-600">
+                            {expiryInputValue(line)
+                              ? new Date(expiryInputValue(line) + "T12:00:00").toLocaleDateString("fr-FR")
+                              : "—"}
+                          </span>
+                        ) : (
+                          <input
+                            type="date"
+                            value={expiryInputValue(line)}
+                            onChange={(e) => onChangeExpiryDate(line.id, e.target.value)}
+                            className="box-border h-9 min-h-9 w-full min-w-[9rem] rounded border border-slate-300 px-2 py-0 text-sm leading-none"
+                          />
                         )}
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="text-slate-600">
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
                             {displayBlMoney(line.bl_line_total_ht, 2)}
                           </span>
                         ) : (
@@ -422,13 +814,13 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeBlLine(line.id, "bl_line_total_ht", e.target.value)
                             }
-                            className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                            className="box-border h-9 min-h-9 w-24 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="text-slate-600">
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
                             {displayBlMoney(line.bl_unit_price_stock_ht, 4)}
                           </span>
                         ) : (
@@ -440,20 +832,75 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeBlLine(line.id, "bl_unit_price_stock_ht", e.target.value)
                             }
-                            className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                            className="box-border h-9 min-h-9 w-24 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2 text-right">
                         <span
-                          className={
-                            diff === 0
-                              ? "text-xs text-emerald-600"
-                              : "text-xs text-amber-700"
-                          }
+                          className={`inline-flex h-9 min-h-9 items-center justify-end tabular-nums text-xs ${
+                            diff === 0 ? "text-emerald-600" : "text-amber-700"
+                          }`}
                         >
                           {diff > 0 ? `+${diff}` : diff}
                         </span>
+                      </td>
+                      <td className="py-2 pr-2">
+                        <div className="flex max-w-[11rem] flex-col gap-1.5">
+                          {!readOnly && (
+                            <button
+                              type="button"
+                              disabled={uploadingPhotoLineId === line.id}
+                              onClick={() => openPhotoDialog(line.id)}
+                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-400 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                              title="Prendre ou ajouter une photo"
+                              aria-label="Prendre une photo"
+                            >
+                              {uploadingPhotoLineId === line.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                              ) : (
+                                <Camera className="h-4 w-4" aria-hidden />
+                              )}
+                            </button>
+                          )}
+                          <div className="flex flex-wrap gap-1">
+                            {(line.traceability_photos ?? []).map((ph) => (
+                              <span key={ph.id} className="relative inline-block">
+                                {ph.file_url ? (
+                                  <a
+                                    href={ph.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block h-12 w-12 overflow-hidden rounded border border-slate-200 bg-slate-100"
+                                    title={`${traceabilityTypeLabel(ph.element_type)} · ${new Date(ph.created_at).toLocaleString("fr-FR")}`}
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={ph.file_url}
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </a>
+                                ) : (
+                                  <span className="flex h-12 w-12 items-center justify-center rounded border border-slate-200 bg-slate-100 text-[10px] text-slate-500">
+                                    ?
+                                  </span>
+                                )}
+                                {!readOnly && (
+                                  <button
+                                    type="button"
+                                    title="Supprimer la photo"
+                                    disabled={deletingPhotoId === ph.id}
+                                    onClick={() => void handleDeletePhoto(ph.id)}
+                                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white hover:bg-rose-700 disabled:opacity-50"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -463,10 +910,8 @@ export function ReceivingClient({
             {!readOnly && (
               <div className="border-t border-slate-200 px-3 py-2">
                 <p className="mb-2 text-xs text-slate-500">
-                  <strong>Ordre du coût unitaire stock (€ HT)</strong> : 1) prix manuel, 2) ligne facture choisie
-                  (facture liée à la réception), 3) total ligne BL ÷ qté reçue ou prix u. BL, 4) rapprochement
-                  automatique par libellé sur la facture, 5) dernier achat connu. Liez une facture à la réception
-                  pour activer la liste « Ligne facture ».
+                  Coût unitaire stock : priorité aux montants saisis sur le BL (total ligne et prix unitaire), puis
+                  dernier achat connu si besoin.
                 </p>
                 <button
                   type="button"
@@ -556,34 +1001,42 @@ export function ReceivingClient({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-500">
-                Prix manuel € / unité stock (prioritaire)
+                Température à la réception (°C)
               </label>
               <input
-                type="text"
+                type="number"
                 inputMode="decimal"
-                value={newManualPrice}
-                onChange={(e) => setNewManualPrice(e.target.value)}
+                step={0.1}
+                min={-60}
+                max={100}
+                value={newReceivedTemp}
+                onChange={(e) => setNewReceivedTemp(e.target.value)}
                 placeholder="optionnel"
                 className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
               />
             </div>
-            <div className="sm:col-span-2">
+            <div>
               <label className="mb-1 block text-xs font-medium text-slate-500">
-                Ligne facture (si facture liée à la réception)
+                N° de lot
               </label>
-              <select
-                value={newExtractedLineId}
-                onChange={(e) => setNewExtractedLineId(e.target.value)}
-                disabled={!linkedInvoiceId || invoiceExtractedLines.length === 0}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50"
-              >
-                <option value="">— Aucune —</option>
-                {invoiceExtractedLines.map((el) => (
-                  <option key={el.id} value={el.id}>
-                    {(el.line_total != null ? `${el.line_total.toFixed(2)} € — ` : "") + el.label}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="text"
+                value={newLotNumber}
+                onChange={(e) => setNewLotNumber(e.target.value)}
+                placeholder="optionnel"
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">
+                DLC (péremption)
+              </label>
+              <input
+                type="date"
+                value={newExpiryDate}
+                onChange={(e) => setNewExpiryDate(e.target.value)}
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-500">

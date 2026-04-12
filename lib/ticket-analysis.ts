@@ -3,14 +3,26 @@ import sharp from "sharp";
 
 export const ANALYSIS_VERSION = "2";
 
+/** Version du cache JSON pour l’analyse BL (même pipeline que le relevé de caisse). */
+export const BL_ANALYSIS_VERSION = "1";
+
 export type TicketItem = { name: string; qty: number };
+
+/** Ligne extraite d’un bon de livraison (même schéma de base que TicketItem + champs optionnels). */
+export type BlDeliveryItem = {
+  name: string;
+  qty: number;
+  unit: string | null;
+  unit_price_ht: number | null;
+  line_total_ht: number | null;
+};
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_SIZE = 1800;
 const JPEG_QUALITY = 80;
 
-function extractJson(text: string): string | null {
+export function extractJson(text: string): string | null {
   const trimmed = text.trim();
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
@@ -55,7 +67,7 @@ function normalizeItems(input: unknown): TicketItem[] {
 }
 
 /** Redimensionne et compresse l'image en JPEG pour réduire coût et tokens. */
-async function preprocessImage(imageUrl: string): Promise<string> {
+export async function preprocessImage(imageUrl: string): Promise<string> {
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`fetch image: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
@@ -96,6 +108,106 @@ Ignore only:
 - ticket number
 - cashier / terminal info
 `;
+
+/** Même structure de prompt que STRICT_PROMPT (relevé), adaptée au bon de livraison. */
+const BL_STRICT_PROMPT = `
+Return only valid JSON, with no other text, in this exact format:
+
+{"items":[{"name":"string","qty":number,"unit":null,"unit_price_ht":null,"line_total_ht":null}]}
+
+You are analyzing a French supplier delivery note (bon de livraison).
+
+Goal:
+Extract ALL product line rows visible in the article / designation table.
+
+Important rules:
+
+- include every visible product row
+- preserve the product label exactly as written on the document (designation / libellé column)
+- qty may be a decimal when shown (e.g. 2.5 for kilograms)
+- if quantity is not explicitly shown, use qty = 1
+- if a line is partially unclear but appears to be a product row, include it anyway
+- it is better to include a doubtful line than to omit one
+
+Optional fields on each item (use null when absent or unreadable):
+- unit: unit of measure as printed (kg, L, PI, etc.)
+- unit_price_ht: unit price excluding VAT
+- line_total_ht: line amount HT
+
+Ignore only:
+- totals, subtotals, VAT summary lines
+- payment lines
+- date / time / document metadata lines that are not product rows
+- header/footer boilerplate
+`;
+
+function parseNumericFieldBl(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  let s = String(v).trim();
+  if (!s) return null;
+  s = s.replace(/\u202f|\u00a0/g, " ").replace(/\s/g, "");
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma !== -1 && lastComma > lastDot) {
+    const intPart = s.slice(0, lastComma).replace(/\./g, "");
+    const decPart = s.slice(lastComma + 1);
+    const n = Number(`${intPart}.${decPart}`);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number(s.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeBlQty(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, value);
+  }
+  if (typeof value === "string") {
+    const cleaned = value.replace(",", ".").trim();
+    const parsed = Number(cleaned);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, parsed);
+    }
+  }
+  return 1;
+}
+
+function normalizeBlItems(input: unknown): BlDeliveryItem[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .filter((x) => x && typeof x === "object")
+    .map((x) => {
+      const item = x as {
+        name?: unknown;
+        qty?: unknown;
+        unit?: unknown;
+        unit_price_ht?: unknown;
+        line_total_ht?: unknown;
+      };
+
+      const name =
+        typeof item.name === "string"
+          ? item.name.trim()
+          : "";
+
+      const qty = normalizeBlQty(item.qty);
+      const unitRaw = typeof item.unit === "string" ? item.unit.trim() : "";
+      const unit = unitRaw.length > 0 ? unitRaw : null;
+      const unit_price_ht = parseNumericFieldBl(item.unit_price_ht);
+      const line_total_ht = parseNumericFieldBl(item.line_total_ht);
+
+      return {
+        name,
+        qty,
+        unit,
+        unit_price_ht: unit_price_ht != null && unit_price_ht > 0 ? unit_price_ht : null,
+        line_total_ht: line_total_ht != null && line_total_ht > 0 ? line_total_ht : null,
+      };
+    })
+    .filter((x) => x.name.length > 0);
+}
 
 export type AnalyzeOptions = {
   cachedResultJson?: string | null;
@@ -174,6 +286,95 @@ export async function analyzeTicketImage(
   } catch (e) {
     const msg = e instanceof Error ? e.message : "analysis failed";
     console.error("[ticket-analysis] error", e);
+    return { items: [], error: msg };
+  }
+}
+
+/**
+ * Analyse d’image de bon de livraison : même pipeline que `analyzeTicketImage`
+ * (prétraitement Sharp, gpt-4o, json_object, contenu utilisateur = image seule).
+ */
+export async function analyzeBlImage(
+  imageUrl: string,
+  options?: AnalyzeOptions
+): Promise<{ items: BlDeliveryItem[]; error?: string }> {
+  if (!process.env.OPENAI_API_KEY) {
+    const msg = "OPENAI_API_KEY missing";
+    console.warn("[bl-analysis]", msg);
+    return { items: [], error: msg };
+  }
+
+  if (
+    options?.cachedResultJson != null &&
+    options?.cachedResultJson !== "" &&
+    options?.cachedVersion === BL_ANALYSIS_VERSION
+  ) {
+    try {
+      const parsed = JSON.parse(options.cachedResultJson) as { items?: unknown };
+      const items = normalizeBlItems(parsed?.items);
+      return { items };
+    } catch {
+      /* fallback to API call */
+    }
+  }
+
+  try {
+    const imageBase64 = await preprocessImage(imageUrl);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      max_tokens: 8192,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: BL_STRICT_PROMPT },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: imageBase64, detail: "high" as const },
+            },
+          ],
+        },
+      ],
+    });
+
+    const finish = response.choices[0]?.finish_reason;
+    if (finish === "length") {
+      console.warn("[bl-analysis] response truncated (length)");
+      return {
+        items: [],
+        error:
+          "Réponse incomplète du modèle (trop de lignes). Réessayez avec une photo plus recadrée sur le tableau.",
+      };
+    }
+
+    const raw = response.choices[0]?.message?.content;
+    if (!raw) {
+      const msg = "empty OpenAI response";
+      console.warn("[bl-analysis]", msg);
+      return { items: [], error: msg };
+    }
+
+    const jsonStr = extractJson(raw) ?? raw;
+    let parsed: { items?: unknown };
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      const msg = `parse failed: ${(e as Error).message}`;
+      console.warn("[bl-analysis]", msg);
+      return { items: [], error: msg };
+    }
+
+    const items = normalizeBlItems(parsed.items);
+
+    console.log("[bl-analysis] raw model output (truncated):", raw.slice(0, 2000));
+    console.log("[bl-analysis] normalized items:", items);
+
+    return { items };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "analysis failed";
+    console.error("[bl-analysis] error", e);
     return { items: [], error: msg };
   }
 }

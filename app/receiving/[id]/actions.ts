@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentRestaurant, getCurrentUser } from "@/lib/auth";
 import { getDeliveryNoteFileUrl } from "@/lib/db";
+import { DELIVERY_NOTES_BUCKET, TRACEABILITY_ELEMENT_TYPES } from "@/lib/constants";
 import { resolveReceptionLineUnitCosts } from "@/lib/stock/receptionUnitCost";
 import {
   getSupplierInvoiceIdForDeliveryNote,
   insertPurchaseMovementsFromReception,
 } from "@/lib/stock/stockMovements";
+import { upsertDeliveryLabelAlias } from "@/lib/inventoryDeliveryLabelAliases";
 
 async function assertExtractedLineAllowedForDeliveryNote(
   deliveryNoteId: string,
@@ -76,6 +78,9 @@ export async function addDeliveryNoteLineAction(
     bl_unit_price_stock_ht?: number | null;
     manual_unit_price_stock_ht?: number | null;
     supplier_invoice_extracted_line_id?: string | null;
+    received_temperature_celsius?: number | null;
+    lot_number?: string | null;
+    expiry_date?: string | null;
   }
 ): Promise<void> {
   const { data: note } = await supabaseServer
@@ -106,8 +111,106 @@ export async function addDeliveryNoteLineAction(
     bl_unit_price_stock_ht: params.bl_unit_price_stock_ht ?? null,
     manual_unit_price_stock_ht: params.manual_unit_price_stock_ht ?? null,
     supplier_invoice_extracted_line_id: params.supplier_invoice_extracted_line_id ?? null,
+    received_temperature_celsius: params.received_temperature_celsius ?? null,
+    lot_number:
+      params.lot_number == null || String(params.lot_number).trim() === ""
+        ? null
+        : String(params.lot_number).trim(),
+    expiry_date:
+      params.expiry_date == null || String(params.expiry_date).trim() === ""
+        ? null
+        : String(params.expiry_date).trim().slice(0, 10),
   });
   if (error) throw new Error(error.message);
+  revalidatePath(`/receiving/${deliveryNoteId}`);
+}
+
+export async function setDeliveryNoteLineInventoryItemAction(
+  deliveryNoteId: string,
+  restaurantId: string,
+  lineId: string,
+  inventoryItemId: string | null
+): Promise<void> {
+  const restaurant = await getCurrentRestaurant();
+  if (!restaurant || restaurant.id !== restaurantId) {
+    throw new Error("Non autorisé.");
+  }
+
+  const { data: note, error: noteErr } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, status")
+    .eq("id", deliveryNoteId)
+    .single();
+  if (noteErr || !note) throw new Error("Réception introuvable.");
+  if ((note as { restaurant_id: string }).restaurant_id !== restaurantId) {
+    throw new Error("Réception non liée à ce restaurant.");
+  }
+  if ((note as { status: string }).status === "validated") {
+    throw new Error("Cette réception est validée. Impossible de modifier le produit lié.");
+  }
+
+  if (inventoryItemId) {
+    const { data: item, error: itemErr } = await supabaseServer
+      .from("inventory_items")
+      .select("id")
+      .eq("id", inventoryItemId)
+      .eq("restaurant_id", restaurantId)
+      .maybeSingle();
+    if (itemErr) throw new Error(itemErr.message);
+    if (!item) throw new Error("Article stock introuvable.");
+  }
+
+  const { error } = await supabaseServer
+    .from("delivery_note_lines")
+    .update({ inventory_item_id: inventoryItemId })
+    .eq("id", lineId)
+    .eq("delivery_note_id", deliveryNoteId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/receiving/${deliveryNoteId}`);
+}
+
+/** Enregistre la liaison libellé BL → article stock pour les prochaines livraisons (ce fournisseur). */
+export async function saveDeliveryLabelAliasAction(
+  deliveryNoteId: string,
+  restaurantId: string,
+  rawLabel: string,
+  inventoryItemId: string
+): Promise<void> {
+  const restaurant = await getCurrentRestaurant();
+  if (!restaurant || restaurant.id !== restaurantId) {
+    throw new Error("Non autorisé.");
+  }
+
+  const { data: note, error: noteErr } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, supplier_id, status")
+    .eq("id", deliveryNoteId)
+    .single();
+  if (noteErr || !note) throw new Error("Réception introuvable.");
+  if ((note as { restaurant_id: string }).restaurant_id !== restaurantId) {
+    throw new Error("Réception non liée à ce restaurant.");
+  }
+  if ((note as { status: string }).status === "validated") {
+    throw new Error("Cette réception est validée.");
+  }
+
+  const { data: item, error: itemErr } = await supabaseServer
+    .from("inventory_items")
+    .select("id")
+    .eq("id", inventoryItemId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+  if (itemErr) throw new Error(itemErr.message);
+  if (!item) throw new Error("Article stock introuvable.");
+
+  const supplierId = (note as { supplier_id: string }).supplier_id;
+  const { error: aliasErr } = await upsertDeliveryLabelAlias(
+    restaurantId,
+    supplierId,
+    rawLabel,
+    inventoryItemId
+  );
+  if (aliasErr) throw new Error(aliasErr);
   revalidatePath(`/receiving/${deliveryNoteId}`);
 }
 
@@ -121,6 +224,9 @@ export async function updateDeliveryNoteLinesAction(
     bl_unit_price_stock_ht?: number | null;
     manual_unit_price_stock_ht?: number | null;
     supplier_invoice_extracted_line_id?: string | null;
+    received_temperature_celsius?: number | null;
+    lot_number?: string | null;
+    expiry_date?: string | null;
   }[]
 ): Promise<void> {
   if (lines.length === 0) return;
@@ -146,11 +252,146 @@ export async function updateDeliveryNoteLinesAction(
         bl_unit_price_stock_ht: line.bl_unit_price_stock_ht ?? null,
         manual_unit_price_stock_ht: line.manual_unit_price_stock_ht ?? null,
         supplier_invoice_extracted_line_id: line.supplier_invoice_extracted_line_id ?? null,
+        received_temperature_celsius: line.received_temperature_celsius ?? null,
+        lot_number:
+          line.lot_number == null || String(line.lot_number).trim() === ""
+            ? null
+            : String(line.lot_number).trim(),
+        expiry_date:
+          line.expiry_date == null || String(line.expiry_date).trim() === ""
+            ? null
+            : String(line.expiry_date).trim().slice(0, 10),
       })
       .eq("id", line.id)
       .eq("delivery_note_id", deliveryNoteId);
   }
   revalidatePath(`/receiving/${deliveryNoteId}`);
+}
+
+/** Déduit le type registre depuis le composant stock lié (ingrédient / prépa / revente), sinon « autre ». */
+async function resolveTraceabilityElementTypeForLine(
+  lineId: string
+): Promise<(typeof TRACEABILITY_ELEMENT_TYPES)[number]> {
+  const { data, error } = await supabaseServer
+    .from("delivery_note_lines")
+    .select("inventory_items(item_type)")
+    .eq("id", lineId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const raw = data as {
+    inventory_items?: { item_type?: string } | { item_type?: string }[] | null;
+  } | null;
+  const inv = raw?.inventory_items;
+  const invRow = Array.isArray(inv) ? inv[0] : inv;
+  const itemType = invRow?.item_type;
+  if (itemType === "ingredient") return "ingredient";
+  if (itemType === "prep") return "prep";
+  if (itemType === "resale") return "resale";
+  return "other";
+}
+
+export async function recordTraceabilityPhotoAction(
+  restaurantId: string,
+  deliveryNoteId: string,
+  lineId: string,
+  storagePath: string
+): Promise<void> {
+  const elementType = await resolveTraceabilityElementTypeForLine(lineId);
+  const { data: line, error: lineErr } = await supabaseServer
+    .from("delivery_note_lines")
+    .select("id, delivery_note_id")
+    .eq("id", lineId)
+    .maybeSingle();
+  if (lineErr) throw new Error(lineErr.message);
+  if (!line || (line as { delivery_note_id: string }).delivery_note_id !== deliveryNoteId) {
+    throw new Error("Ligne introuvable.");
+  }
+  const { data: note, error: noteErr } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, status")
+    .eq("id", deliveryNoteId)
+    .maybeSingle();
+  if (noteErr) throw new Error(noteErr.message);
+  if (!note || (note as { restaurant_id: string }).restaurant_id !== restaurantId) {
+    throw new Error("Réception non autorisée.");
+  }
+  if ((note as { status: string }).status === "validated") {
+    throw new Error("Réception validée : impossible d’ajouter une photo.");
+  }
+  const { error: insErr } = await supabaseServer.from("reception_traceability_photos").insert({
+    restaurant_id: restaurantId,
+    delivery_note_id: deliveryNoteId,
+    delivery_note_line_id: lineId,
+    storage_path: storagePath,
+    element_type: elementType,
+  });
+  if (insErr) throw new Error(insErr.message);
+  revalidatePath(`/receiving/${deliveryNoteId}`);
+  revalidatePath("/receiving/registre");
+}
+
+export async function toggleDeliveryNoteLineVerifiedAction(
+  deliveryNoteId: string,
+  restaurantId: string,
+  lineId: string,
+  verified: boolean
+): Promise<void> {
+  const { data: note, error: noteErr } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, status")
+    .eq("id", deliveryNoteId)
+    .maybeSingle();
+  if (noteErr) throw new Error(noteErr.message);
+  if (!note || (note as { restaurant_id: string }).restaurant_id !== restaurantId) {
+    throw new Error("Réception non autorisée.");
+  }
+  if ((note as { status: string }).status === "validated") {
+    throw new Error("Réception validée : impossible de modifier le contrôle des lignes.");
+  }
+  const { error } = await supabaseServer
+    .from("delivery_note_lines")
+    .update({
+      reception_line_verified_at: verified ? new Date().toISOString() : null,
+    })
+    .eq("id", lineId)
+    .eq("delivery_note_id", deliveryNoteId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/receiving/${deliveryNoteId}`);
+}
+
+export async function deleteTraceabilityPhotoAction(
+  restaurantId: string,
+  deliveryNoteId: string,
+  photoId: string
+): Promise<void> {
+  const { data: row, error: fetchErr } = await supabaseServer
+    .from("reception_traceability_photos")
+    .select("id, restaurant_id, delivery_note_id, storage_path")
+    .eq("id", photoId)
+    .maybeSingle();
+  if (fetchErr) throw new Error(fetchErr.message);
+  if (
+    !row ||
+    (row as { restaurant_id: string }).restaurant_id !== restaurantId ||
+    (row as { delivery_note_id: string }).delivery_note_id !== deliveryNoteId
+  ) {
+    throw new Error("Photo introuvable.");
+  }
+  const { data: note } = await supabaseServer
+    .from("delivery_notes")
+    .select("status")
+    .eq("id", deliveryNoteId)
+    .maybeSingle();
+  if ((note as { status: string } | null)?.status === "validated") {
+    throw new Error("Réception validée : impossible de supprimer une photo.");
+  }
+  const path = (row as { storage_path: string }).storage_path;
+  const { error: rmErr } = await supabaseServer.storage.from(DELIVERY_NOTES_BUCKET).remove([path]);
+  if (rmErr) throw new Error(rmErr.message);
+  const { error: delErr } = await supabaseServer.from("reception_traceability_photos").delete().eq("id", photoId);
+  if (delErr) throw new Error(delErr.message);
+  revalidatePath(`/receiving/${deliveryNoteId}`);
+  revalidatePath("/receiving/registre");
 }
 
 export async function validateReceptionAction(deliveryNoteId: string, restaurantId: string): Promise<void> {
@@ -278,4 +519,3 @@ export async function validateReceptionAction(deliveryNoteId: string, restaurant
   revalidatePath("/livraison");
   revalidatePath("/inventory");
 }
-

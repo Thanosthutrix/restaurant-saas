@@ -3,15 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentRestaurant } from "@/lib/auth";
 import { createDeliveryNote } from "@/lib/db";
-import { runDeliveryNoteAnalysis } from "@/lib/run-delivery-note-analysis";
 
 export type CreateBlReceptionResult =
-  | { ok: true; deliveryNoteId: string; analysisError?: string }
+  | { ok: true; deliveryNoteId: string }
   | { ok: false; error: string };
 
-/**
- * Crée une réception à partir d’une photo de BL (sans commande app), puis lance l’analyse IA des lignes.
- */
+/** Crée une réception avec le fichier BL archivé. Les lignes se saisissent sur la fiche réception. */
 export async function createReceptionFromBlPhotoAction(params: {
   restaurantId: string;
   supplierId: string;
@@ -35,20 +32,10 @@ export async function createReceptionFromBlPhotoAction(params: {
     return { ok: false, error: error?.message ?? "Impossible de créer la réception." };
   }
 
-  const analysis = await runDeliveryNoteAnalysis(data.id, params.restaurantId);
-
   revalidatePath("/livraison");
   revalidatePath("/suppliers");
   revalidatePath("/suppliers/[id]", "page");
   revalidatePath(`/receiving/${data.id}`);
-
-  if (!analysis.ok) {
-    return {
-      ok: true,
-      deliveryNoteId: data.id,
-      analysisError: analysis.error,
-    };
-  }
 
   return { ok: true, deliveryNoteId: data.id };
 }

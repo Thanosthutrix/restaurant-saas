@@ -58,10 +58,7 @@ export function LivraisonBlForm({ restaurantId, suppliers }: Props) {
     }
     setFile(null);
     if (inputRef.current) inputRef.current.value = "";
-    const q = result.analysisError
-      ? `?analysisError=${encodeURIComponent(result.analysisError)}`
-      : "";
-    router.push(`/receiving/${result.deliveryNoteId}${q}`);
+    router.push(`/receiving/${result.deliveryNoteId}`);
     router.refresh();
   }
 
@@ -108,8 +105,8 @@ export function LivraisonBlForm({ restaurantId, suppliers }: Props) {
           className="mt-1 block w-full text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-3 file:py-1 file:text-sm"
         />
         <p className={`mt-1 text-xs ${uiLead}`}>
-          L’analyse automatique des lignes fonctionne surtout avec une <strong className="font-medium">photo</strong>{" "}
-          nette (JPG, PNG). Les PDF s’enregistrent mais ne sont pas encore analysés automatiquement.
+          Le fichier est conservé sur la fiche réception. Les lignes (articles, quantités, prix) se saisissent ensuite
+          sur place.
         </p>
       </div>
       {error ? (
@@ -118,7 +115,7 @@ export function LivraisonBlForm({ restaurantId, suppliers }: Props) {
         </p>
       ) : null}
       <button type="submit" disabled={loading || !file} className={uiBtnPrimary}>
-        {loading ? "Traitement…" : "Créer la réception et analyser le BL"}
+        {loading ? "Enregistrement…" : "Créer la réception"}
       </button>
     </form>
   );

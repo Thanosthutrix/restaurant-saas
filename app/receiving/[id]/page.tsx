@@ -5,16 +5,14 @@ import {
   getDeliveryNoteWithLines,
   getDeliveryNoteFileUrl,
   getInventoryItems,
-  getInvoiceExtractedLinesForInvoice,
-  type InvoiceExtractedLineOption,
 } from "@/lib/db";
-import { getSupplierInvoiceIdForDeliveryNote } from "@/lib/stock/stockMovements";
+import { fetchDeliveryLabelAliasMap } from "@/lib/inventoryDeliveryLabelAliases";
 import { ReceivingClient } from "./ReceivingClient";
+import { BlAnalyzeButton } from "./BlAnalyzeButton";
 import { BlUploadSection } from "./BlUploadSection";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ analysisError?: string }>;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -23,13 +21,11 @@ const STATUS_LABELS: Record<string, string> = {
   validated: "Validé",
 };
 
-export default async function ReceivingPage({ params, searchParams }: Props) {
+export default async function ReceivingPage({ params }: Props) {
   const restaurant = await getCurrentRestaurant();
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;
-  const sp = await searchParams;
-  const analysisError = sp.analysisError ? decodeURIComponent(sp.analysisError) : null;
   const [noteRes, itemsRes] = await Promise.all([
     getDeliveryNoteWithLines(id),
     getInventoryItems(restaurant.id),
@@ -38,14 +34,9 @@ export default async function ReceivingPage({ params, searchParams }: Props) {
   if (error || !note || note.restaurant_id !== restaurant.id) notFound();
   const inventoryItems = itemsRes.data ?? [];
 
-  const linkedInvoiceId = await getSupplierInvoiceIdForDeliveryNote(note.id);
-  let invoiceExtractedLines: InvoiceExtractedLineOption[] = [];
-  if (linkedInvoiceId) {
-    const extractedRes = await getInvoiceExtractedLinesForInvoice(linkedInvoiceId, restaurant.id);
-    if (!extractedRes.error && extractedRes.data) {
-      invoiceExtractedLines = extractedRes.data;
-    }
-  }
+  const deliveryLabelAliases = Object.fromEntries(
+    await fetchDeliveryLabelAliasMap(restaurant.id, note.supplier_id)
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -60,13 +51,13 @@ export default async function ReceivingPage({ params, searchParams }: Props) {
           <Link href="/livraison" className="text-slate-600 underline decoration-slate-400 underline-offset-2">
             ← Livraison
           </Link>
+          <Link
+            href="/receiving/registre"
+            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+          >
+            Registre traçabilité
+          </Link>
         </div>
-
-        {analysisError ? (
-          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            Analyse automatique du BL : {analysisError}. Vérifiez les lignes ou saisissez-les manuellement.
-          </p>
-        ) : null}
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -112,11 +103,18 @@ export default async function ReceivingPage({ params, searchParams }: Props) {
           />
         </div>
 
+        <BlAnalyzeButton
+          deliveryNoteId={note.id}
+          restaurantId={note.restaurant_id}
+          status={note.status}
+          fileName={note.file_name}
+          filePath={note.file_path}
+        />
+
         <ReceivingClient
           deliveryNote={note}
           inventoryItems={inventoryItems}
-          linkedInvoiceId={linkedInvoiceId}
-          invoiceExtractedLines={invoiceExtractedLines}
+          deliveryLabelAliases={deliveryLabelAliases}
         />
       </div>
     </div>

@@ -13,6 +13,7 @@ const protectedPaths = [
   "/ticket-import",
   "/onboarding",
   "/account",
+  "/hygiene",
 ];
 const authPaths = ["/login", "/signup", "/forgot-password", "/auth/update-password"];
 

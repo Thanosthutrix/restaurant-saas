@@ -14,6 +14,7 @@ import {
   Armchair,
   Wallet,
   PackageOpen,
+  Droplets,
 } from "lucide-react";
 
 export type ShellNavItem = {
@@ -54,6 +55,12 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     label: "Livraison",
     icon: PackageOpen,
     match: (p) => p === "/livraison" || p.startsWith("/livraison/"),
+  },
+  {
+    href: "/hygiene",
+    label: "Nettoyage",
+    icon: Droplets,
+    match: (p) => p === "/hygiene" || p.startsWith("/hygiene/"),
   },
   {
     href: "/suppliers",

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, getCurrentRestaurant } from "@/lib/auth";
+import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { ReviewMenuClient } from "./ReviewMenuClient";
 import { uiAuthCard, uiLead, uiPageTitle } from "@/components/ui/premium";
 
@@ -11,7 +11,7 @@ export default async function OnboardingReviewMenuPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   return (

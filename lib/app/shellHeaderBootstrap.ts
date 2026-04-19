@@ -1,4 +1,6 @@
-import { getCurrentUser, getRestaurantHeaderSession } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { getShellAccessContext } from "@/lib/auth/accessContext";
+import type { ShellNavKey } from "@/lib/auth/appRoles";
 import { fetchSevenDayForecast, type DailyWeatherPoint } from "@/lib/calendar/openMeteo";
 import { resolveRestaurantCoordsForWeather } from "@/lib/geo/resolveRestaurantCoordsForWeather";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
@@ -17,6 +19,8 @@ export type AppShellHeaderBootstrap = {
     | { kind: "no_location"; restaurantId: string }
     | { kind: "forecast_unavailable"; restaurantId: string }
     | null;
+  /** Vide si aucun accès restaurant ; sinon filtre le menu latéral. */
+  allowedNavKeys: ShellNavKey[];
 };
 
 /** Données header (établissement + météo) calculées côté serveur — évite le fetch client fragile. */
@@ -24,8 +28,20 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const { restaurants, current } = await getRestaurantHeaderSession(user.id);
-  const rows = restaurants.map((r) => ({ id: r.id, name: r.name }));
+  const access = await getShellAccessContext(user.id);
+  if (!access) {
+    return {
+      restaurants: [],
+      currentRestaurantId: null,
+      establishment: null,
+      weather: null,
+      weatherHint: null,
+      allowedNavKeys: [],
+    };
+  }
+
+  const current = access.currentRestaurant;
+  const rows = access.restaurants;
 
   const establishment = current
     ? { restaurantId: current.id, ...getEstablishmentLabels(current) }
@@ -54,9 +70,10 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
 
   return {
     restaurants: rows,
-    currentRestaurantId: current?.id ?? null,
+    currentRestaurantId: access.currentRestaurantId,
     establishment,
     weather,
     weatherHint,
+    allowedNavKeys: access.allowedNavKeys,
   };
 }

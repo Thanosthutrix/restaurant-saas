@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { assertCategoryAssignable } from "@/app/categories/actions";
+import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getCurrentUser } from "@/lib/auth";
 import { getInventoryItemComponents, getInventoryItems } from "@/lib/db";
@@ -16,6 +17,12 @@ import { roundMoney } from "@/lib/stock/purchasePriceHistory";
 import { roundRecipeQty, stockUnitQtyScaleFactor } from "@/lib/units/stockUnitConversion";
 
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
+
+async function requireInventoryMutate(userId: string, restaurantId: string): Promise<ActionResult> {
+  const g = await assertRestaurantAction(userId, restaurantId, "inventory.mutate");
+  if (!g.ok) return { ok: false, error: g.error };
+  return { ok: true };
+}
 
 const ITEM_TYPES = ["ingredient", "prep", "resale"] as const;
 
@@ -110,6 +117,11 @@ export async function createInventoryItem(params: {
   const minQty = minStockQty == null ? null : Number(minStockQty);
   if (minQty !== null && (!Number.isFinite(minQty) || minQty < 0)) return { ok: false, error: "Seuil minimum invalide (nombre ≥ 0 ou vide)." };
 
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const inv = await requireInventoryMutate(user.id, restaurantId);
+  if (!inv.ok) return inv;
+
   const { data, error } = await supabaseServer
     .from("inventory_items")
     .insert({
@@ -130,7 +142,6 @@ export async function createInventoryItem(params: {
 
   const newId = (data as { id: string }).id;
   if (qty > 0) {
-    const user = await getCurrentUser();
     const adj = await insertAdjustmentMovement({
       restaurantId,
       inventoryItemId: newId,
@@ -204,6 +215,11 @@ export async function updateInventoryItem(params: {
     if (!Number.isFinite(r) || r < 0) return { ok: false, error: "Prix d’achat de référence invalide (nombre ≥ 0 ou vide)." };
   }
 
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
+
   const { data: current } = await supabaseServer
     .from("inventory_items")
     .select(
@@ -265,14 +281,13 @@ export async function updateInventoryItem(params: {
   if (!skipAdjustmentForUnitChange && !calc.error) {
     const delta = effectiveStockQty - calc.qty;
     if (Math.abs(delta) >= 1e-9) {
-      const user = await getCurrentUser();
       const adj = await insertAdjustmentMovement({
         restaurantId,
         inventoryItemId: itemId,
         quantityDelta: delta,
         unit: canonicalUnit,
         referenceLabel: "Correction manuelle (fiche composant)",
-        createdBy: user?.id ?? null,
+        createdBy: user.id,
       });
       if (adj.error) return { ok: false, error: adj.error.message };
     }
@@ -358,6 +373,11 @@ export async function updateInventoryItemCategory(params: {
   categoryId: string | null;
 }): Promise<ActionResult> {
   const { itemId, restaurantId, categoryId } = params;
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
+
   const check = await assertCategoryAssignable(categoryId, restaurantId, "inventory");
   if (!check.ok) return { ok: false, error: check.error };
 
@@ -397,6 +417,11 @@ export async function updateInventoryItemSupplier(params: {
     targetStockQty,
   } = params;
 
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
+
   const { data: current } = await supabaseServer
     .from("inventory_items")
     .select("id")
@@ -434,6 +459,11 @@ export async function deleteInventoryItem(params: {
   restaurantId: string;
 }): Promise<ActionResult> {
   const { itemId, restaurantId } = params;
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
 
   const { data: itemRow, error: itemErr } = await supabaseServer
     .from("inventory_items")
@@ -561,6 +591,11 @@ export async function addInventoryItemComponent(params: {
   if (qty <= 0) return { ok: false, error: "La quantité doit être strictement positive." };
   if (parentItemId === componentItemId) return { ok: false, error: "Un composant ne peut pas être son propre parent." };
 
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
+
   const [parentRes, componentRes] = await Promise.all([
     supabaseServer.from("inventory_items").select("id, restaurant_id, item_type").eq("id", parentItemId).maybeSingle(),
     supabaseServer.from("inventory_items").select("id, restaurant_id").eq("id", componentItemId).maybeSingle(),
@@ -612,6 +647,11 @@ export async function updateInventoryItemComponent(params: {
   const { id, restaurantId, qty } = params;
   if (qty <= 0) return { ok: false, error: "La quantité doit être strictement positive." };
 
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
+
   const { data: row, error: fetchError } = await supabaseServer
     .from("inventory_item_components")
     .select("id, parent_item_id, component_item_id, restaurant_id")
@@ -657,6 +697,11 @@ export async function deleteInventoryItemComponent(params: {
   restaurantId: string;
 }): Promise<ActionResult> {
   const { id, restaurantId } = params;
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
 
   const { data: row, error: fetchError } = await supabaseServer
     .from("inventory_item_components")
@@ -716,6 +761,11 @@ export async function applySuggestedRecipeToPrep(params: {
   if (!components || components.length === 0) {
     return { ok: false, error: "Le brouillon doit contenir au moins un composant." };
   }
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
 
   const { data: item, error: itemError } = await supabaseServer
     .from("inventory_items")
@@ -808,6 +858,11 @@ export async function validatePrepRecipe(params: {
   inventoryItemId: string;
 }): Promise<ActionResult> {
   const { restaurantId, inventoryItemId } = params;
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return invGate;
 
   const { data: item, error: itemError } = await supabaseServer
     .from("inventory_items")

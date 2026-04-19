@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock } from "@/components/ui/premium";
 
-export function SignupForm() {
+export function SignupForm({ nextUrl }: { nextUrl?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +23,7 @@ export function SignupForm() {
       setError(err.message);
       return;
     }
-    router.push("/onboarding");
+    router.push(nextUrl ?? "/onboarding");
     router.refresh();
   }
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { getCurrentRestaurant, getCurrentUser } from "@/lib/auth";
+import { getRestaurantForPage, getCurrentUser } from "@/lib/auth";
 import { getDeliveryNoteFileUrl } from "@/lib/db";
 import { DELIVERY_NOTES_BUCKET, TRACEABILITY_ELEMENT_TYPES } from "@/lib/constants";
 import { resolveReceptionLineUnitCosts } from "@/lib/stock/receptionUnitCost";
@@ -131,7 +131,7 @@ export async function setDeliveryNoteLineInventoryItemAction(
   lineId: string,
   inventoryItemId: string | null
 ): Promise<void> {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant || restaurant.id !== restaurantId) {
     throw new Error("Non autorisé.");
   }
@@ -176,7 +176,7 @@ export async function saveDeliveryLabelAliasAction(
   rawLabel: string,
   inventoryItemId: string
 ): Promise<void> {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant || restaurant.id !== restaurantId) {
     throw new Error("Non autorisé.");
   }

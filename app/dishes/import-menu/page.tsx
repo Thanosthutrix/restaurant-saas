@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { ImportMenuClient } from "./ImportMenuClient";
 
 export default async function ImportMenuPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   return (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getPurchaseOrders, getSuppliers } from "@/lib/db";
 import { uiBackLink, uiBadgeSlate, uiBtnPrimarySm, uiCard, uiLead, uiListRow, uiPageTitle } from "@/components/ui/premium";
 
@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function OrdersPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { data: purchaseOrders } = await getPurchaseOrders(restaurant.id);

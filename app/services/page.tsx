@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getServicesForRestaurant, getServiceSalesAggregate } from "@/lib/db";
 import { uiBackLink, uiError, uiLead, uiListRow, uiPageTitle } from "@/components/ui/premium";
 
@@ -18,7 +18,7 @@ function formatServiceType(type: string) {
 }
 
 export default async function ServicesHistoryPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { data: services, error } = await getServicesForRestaurant(restaurant.id);

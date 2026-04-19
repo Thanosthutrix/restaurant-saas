@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { createService, deleteService, getService } from "@/lib/db";
 import { recordServiceSalesAndApplyStock } from "@/lib/service/recordServiceSalesAndApplyStock";
 import type { ServiceType } from "@/lib/constants";
@@ -460,7 +460,7 @@ export async function settleDiningOrder(params: {
 export async function assertRestaurantContext(): Promise<
   ActionResult<{ restaurantId: string }>
 > {
-  const r = await getCurrentRestaurant();
+  const r = await getRestaurantForPage();
   if (!r) return { ok: false, error: "Restaurant non trouvé." };
   return { ok: true, data: { restaurantId: r.id } };
 }

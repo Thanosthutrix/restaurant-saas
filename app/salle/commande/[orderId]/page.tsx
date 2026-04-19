@@ -9,7 +9,7 @@ import {
   visibleCategoryIdsWithAncestors,
 } from "@/lib/catalog/restaurantCategories";
 import { getDishes } from "@/lib/db";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   getDiningOrder,
   getDiningOrderLines,
@@ -30,7 +30,7 @@ type Props = {
 };
 
 export default async function DiningOrderPage({ params, searchParams }: Props) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { orderId } = await params;

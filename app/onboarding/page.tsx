@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, getCurrentRestaurant } from "@/lib/auth";
+import { getAccessibleRestaurantsForUser, getCurrentUser } from "@/lib/auth";
 import { getRestaurantTemplates } from "@/lib/templates/restaurantTemplates";
 import { OnboardingForm } from "./OnboardingForm";
 import { uiAuthCard, uiLead, uiPageTitle } from "@/components/ui/premium";
@@ -8,8 +8,8 @@ export default async function OnboardingPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const restaurant = await getCurrentRestaurant();
-  if (restaurant) redirect("/dashboard");
+  const owned = await getAccessibleRestaurantsForUser(user.id);
+  if (owned.length > 0) redirect("/dashboard");
 
   const templates = getRestaurantTemplates();
 

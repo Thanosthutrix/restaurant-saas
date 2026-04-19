@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { ensureOpenDiningOrder } from "@/lib/dining/diningDb";
 
 type Props = { params: Promise<{ tableId: string }> };
 
 export default async function OpenTableOrderPage({ params }: Props) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { tableId } = await params;

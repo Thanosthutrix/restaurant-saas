@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getAccessibleRestaurantsForUser, getCurrentRestaurant, getCurrentUser } from "@/lib/auth";
+import { getAccessibleRestaurantsForUser, getRestaurantForPage, getCurrentUser } from "@/lib/auth";
 import { buildCategoryTree, listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
 import { CategoriesTreeClient } from "@/app/categories/CategoriesTreeClient";
 import { AccountRubriquesCollapsible } from "@/components/account/AccountRubriquesCollapsible";
@@ -13,7 +13,7 @@ export default async function AccountPage() {
   if (!user) redirect("/login");
 
   const restaurants = await getAccessibleRestaurantsForUser(user.id);
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
 
   let categoriesSection: ReactNode = null;
   if (restaurant) {

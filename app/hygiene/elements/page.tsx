@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { listHygieneElements, listHygieneRecurrencePresets } from "@/lib/hygiene/hygieneDb";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HygieneElementsClient } from "./HygieneElementsClient";
 
 export default async function HygieneElementsPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const [elements, presets] = await Promise.all([

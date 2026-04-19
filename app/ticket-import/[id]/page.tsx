@@ -3,7 +3,7 @@ import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { getTicketImportForControlPage } from "@/lib/sales";
 import { getDishes } from "@/lib/db";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { TicketImportLinesBlock } from "./TicketImportLinesBlock";
 
 type Props = { params: Promise<{ id: string }> };
@@ -25,7 +25,7 @@ function recipeStatusLabel(status: string | null): string {
 }
 
 export default async function TicketImportControlPage({ params }: Props) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;

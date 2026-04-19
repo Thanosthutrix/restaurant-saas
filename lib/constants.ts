@@ -1,6 +1,6 @@
 /**
  * ID du restaurant en dur (legacy).
- * Pour les nouvelles pages, utiliser getCurrentRestaurant() depuis @/lib/auth
+ * Pour les nouvelles pages, utiliser getRestaurantForPage() depuis @/lib/auth
  * et passer restaurant.id (le restaurant du compte connecté).
  */
 export const RESTAURANT_ID = "11111111-1111-1111-1111-111111111111" as const;

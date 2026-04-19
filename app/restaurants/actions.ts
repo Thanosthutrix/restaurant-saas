@@ -19,6 +19,8 @@ import { analyzeMenuImageFromBuffer } from "@/lib/menu-analysis";
 import { getMenuImageBuffersFromFormData } from "@/lib/getMenuImageBuffersFromFormData";
 import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestions";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
+import { parsePlanningBandPresetsJson } from "@/lib/staff/planningBandPresets";
+import { parseStaffTargetsWeeklyJson, parseTimeBandsArray } from "@/lib/staff/planningResolve";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 an
 
@@ -385,4 +387,292 @@ export async function applyTemplateSuggestions(restaurantId: string): Promise<{
     added: Math.max(0, invAfter - invBefore),
     addedDishes: Math.max(0, dishesAfter - dishesBefore),
   };
+}
+
+/** Objectifs d’effectif par jour de semaine (modèle). Propriétaire uniquement. */
+export async function updateRestaurantStaffTargetsWeeklyAction(
+  restaurantId: string,
+  targets: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) return { ok: false, error: "Accès refusé." };
+
+  const parsed = parseStaffTargetsWeeklyJson(targets);
+  const { error } = await supabaseServer
+    .from("restaurants")
+    .update({ planning_staff_targets_weekly: parsed })
+    .eq("id", restaurantId)
+    .eq("owner_id", user.id);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true };
+}
+
+/** Modèles de plages (fériés / vacances). Propriétaire uniquement. */
+export async function updateRestaurantBandPresetsAction(
+  restaurantId: string,
+  raw: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) return { ok: false, error: "Accès refusé." };
+
+  const parsed = parsePlanningBandPresetsJson(raw);
+  const { error } = await supabaseServer
+    .from("restaurants")
+    .update({ planning_band_presets: parsed })
+    .eq("id", restaurantId)
+    .eq("owner_id", user.id);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true };
+}
+
+export async function upsertPlanningDayOverrideAction(
+  restaurantId: string,
+  payload: {
+    day: string;
+    isClosed: boolean;
+    /** null = reprendre le modèle hebdo pour ce jour de la semaine. */
+    openingBandsOverride: unknown | null;
+    /** null = reprendre l’objectif du modèle hebdo. */
+    staffTargetOverride: number | null;
+    label: string | null;
+    /** null = saisie manuelle ou hors calendrier guidé. */
+    calendarSource?: "public_holiday" | "school_vacation" | null;
+  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) return { ok: false, error: "Accès refusé." };
+
+  const day = payload.day.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    return { ok: false, error: "Date invalide (AAAA-MM-JJ)." };
+  }
+
+  let openingDb: unknown = null;
+  if (!payload.isClosed) {
+    if (payload.openingBandsOverride == null) {
+      openingDb = null;
+    } else {
+      const bands = parseTimeBandsArray(payload.openingBandsOverride);
+      if (bands == null) {
+        return { ok: false, error: "Plages horaires invalides." };
+      }
+      openingDb = bands;
+    }
+  }
+
+  let staffT: number | null = null;
+  if (payload.staffTargetOverride != null) {
+    const n = Number(payload.staffTargetOverride);
+    if (!Number.isFinite(n) || n < 0 || n > 500) {
+      return { ok: false, error: "ETP cible invalide (0 à 500)." };
+    }
+    staffT = Math.round(n * 100) / 100;
+  }
+
+  const { error } = await supabaseServer.from("restaurant_planning_day_overrides").upsert(
+    {
+      restaurant_id: restaurantId,
+      day,
+      is_closed: payload.isClosed,
+      opening_bands_override: payload.isClosed ? null : openingDb,
+      staff_target_override: staffT,
+      label: payload.label?.trim() || null,
+      calendar_source: payload.calendarSource ?? null,
+    },
+    { onConflict: "restaurant_id,day" }
+  );
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true };
+}
+
+/** Jour férié : ouvert (horaires du jour type ou plages) ou fermé. Propriétaire uniquement. */
+export async function savePublicHolidayPlanningDayAction(
+  restaurantId: string,
+  payload: {
+    day: string;
+    open: boolean;
+    holidayName: string;
+    /** Si ouvert : null = horaires du modèle hebdo pour ce jour de semaine ; sinon plages explicites. */
+    openingBandsOverride?: unknown | null;
+    /** Si ouvert : null = ETP du modèle hebdo pour ce jour ; sinon ETP explicite. */
+    staffTargetOverride?: number | null;
+  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const label = `Jour férié — ${payload.holidayName.trim()}`;
+  let opening: unknown | null = null;
+  let staffT: number | null = null;
+  if (payload.open) {
+    if (payload.openingBandsOverride == null) {
+      opening = null;
+    } else {
+      const bands = parseTimeBandsArray(payload.openingBandsOverride);
+      if (bands == null || bands.length === 0) {
+        return { ok: false, error: "Plages horaires invalides pour ce jour férié." };
+      }
+      opening = bands;
+    }
+    if (payload.staffTargetOverride != null) {
+      const n = Number(payload.staffTargetOverride);
+      if (!Number.isFinite(n) || n < 0 || n > 500) {
+        return { ok: false, error: "ETP invalide pour ce jour férié." };
+      }
+      staffT = Math.round(n * 100) / 100;
+    }
+  }
+  return upsertPlanningDayOverrideAction(restaurantId, {
+    day: payload.day,
+    isClosed: !payload.open,
+    openingBandsOverride: payload.open ? opening : null,
+    staffTargetOverride: payload.open ? staffT : null,
+    label,
+    calendarSource: "public_holiday",
+  });
+}
+
+/**
+ * Vacances scolaires : ouvert = soit reprise du modèle hebdo (suppression des lignes vacances),
+ * soit plages explicites identiques chaque jour ; fermé = fermeture chaque jour.
+ */
+export async function saveSchoolVacationPeriodPlanningAction(
+  restaurantId: string,
+  payload: {
+    days: string[];
+    openDuringVacation: boolean;
+    periodName: string;
+    /** Si ouvert : absent ou null = modèle hebdo ; sinon même plage tous les jours. */
+    openingBandsOverride?: unknown | null;
+    /** Si ouvert avec plages : null = ETP du modèle hebdo chaque jour ; sinon même ETP tous les jours. */
+    staffTargetOverride?: number | null;
+  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) return { ok: false, error: "Accès refusé." };
+
+  const days = payload.days.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.trim()));
+  if (days.length === 0) return { ok: false, error: "Aucune date valide." };
+
+  const name = payload.periodName.trim() || "Vacances scolaires";
+
+  if (payload.openDuringVacation) {
+    let bandsForUpsert: ReturnType<typeof parseTimeBandsArray> = null;
+    if (payload.openingBandsOverride != null) {
+      const bands = parseTimeBandsArray(payload.openingBandsOverride);
+      if (bands == null || bands.length === 0) {
+        return { ok: false, error: "Plages horaires invalides pour les vacances." };
+      }
+      bandsForUpsert = bands;
+    }
+
+    if (bandsForUpsert == null) {
+      const chunkSize = 80;
+      for (let i = 0; i < days.length; i += chunkSize) {
+        const chunk = days.slice(i, i + chunkSize);
+        const { error } = await supabaseServer
+          .from("restaurant_planning_day_overrides")
+          .delete()
+          .eq("restaurant_id", restaurantId)
+          .eq("calendar_source", "school_vacation")
+          .in("day", chunk);
+        if (error) return { ok: false, error: error.message };
+      }
+    } else {
+      let staffForUpsert: number | null = null;
+      if (payload.staffTargetOverride != null) {
+        const n = Number(payload.staffTargetOverride);
+        if (!Number.isFinite(n) || n < 0 || n > 500) {
+          return { ok: false, error: "ETP invalide pour les vacances." };
+        }
+        staffForUpsert = Math.round(n * 100) / 100;
+      }
+      const label = `Vacances scolaires — ${name}`;
+      const chunkSize = 80;
+      for (let i = 0; i < days.length; i += chunkSize) {
+        const chunk = days.slice(i, i + chunkSize);
+        const rows = chunk.map((day) => ({
+          restaurant_id: restaurantId,
+          day,
+          is_closed: false,
+          opening_bands_override: bandsForUpsert,
+          staff_target_override: staffForUpsert,
+          label,
+          calendar_source: "school_vacation" as const,
+        }));
+        const { error } = await supabaseServer
+          .from("restaurant_planning_day_overrides")
+          .upsert(rows, { onConflict: "restaurant_id,day" });
+        if (error) return { ok: false, error: error.message };
+      }
+    }
+  } else {
+    const label = `Vacances scolaires — ${name}`;
+    const chunkSize = 80;
+    for (let i = 0; i < days.length; i += chunkSize) {
+      const chunk = days.slice(i, i + chunkSize);
+      const rows = chunk.map((day) => ({
+        restaurant_id: restaurantId,
+        day,
+        is_closed: true,
+        opening_bands_override: null,
+        staff_target_override: null,
+        label,
+        calendar_source: "school_vacation" as const,
+      }));
+      const { error } = await supabaseServer
+        .from("restaurant_planning_day_overrides")
+        .upsert(rows, { onConflict: "restaurant_id,day" });
+      if (error) return { ok: false, error: error.message };
+    }
+  }
+
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true };
+}
+
+export async function deletePlanningDayOverrideAction(
+  restaurantId: string,
+  dayYmd: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) return { ok: false, error: "Accès refusé." };
+
+  const day = dayYmd.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    return { ok: false, error: "Date invalide." };
+  }
+
+  const { error } = await supabaseServer
+    .from("restaurant_planning_day_overrides")
+    .delete()
+    .eq("restaurant_id", restaurantId)
+    .eq("day", day);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true };
 }

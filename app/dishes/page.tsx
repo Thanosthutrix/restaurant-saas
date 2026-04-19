@@ -10,7 +10,7 @@ import {
   visibleCategoryIdsWithAncestors,
 } from "@/lib/catalog/restaurantCategories";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getTemplateSuggestions } from "@/app/restaurants/actions";
 import { CreateDishForm } from "./CreateDishForm";
 import { DishesNestedCategoryTiles } from "./DishesNestedCategoryTiles";
@@ -20,7 +20,7 @@ import { uiBackLink, uiError, uiLead, uiPageTitle } from "@/components/ui/premiu
 type Props = { searchParams: Promise<{ name?: string; returnTo?: string }> };
 
 export default async function DishesPage({ searchParams }: Props) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   const params = await searchParams;
   const initialDishName = typeof params.name === "string" ? params.name : "";
   const returnTo = typeof params.returnTo === "string" ? params.returnTo : "";

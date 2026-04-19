@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getSuppliers } from "@/lib/db";
 import { CreateSupplierForm } from "./CreateSupplierForm";
 
@@ -12,7 +12,7 @@ const ORDER_METHOD_LABELS: Record<string, string> = {
 };
 
 export default async function SuppliersPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { data: suppliers, error } = await getSuppliers(restaurant.id);

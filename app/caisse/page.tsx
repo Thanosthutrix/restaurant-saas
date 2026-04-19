@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   buildCategoryTree,
   buildDirectItemsByCategoryId,
@@ -61,7 +61,7 @@ function totalsByPayment(rows: SettledOrderSummary[]) {
 }
 
 export default async function CaissePage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const [

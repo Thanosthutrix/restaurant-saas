@@ -11,7 +11,7 @@ import {
   createDishAlias,
   deleteService,
 } from "@/lib/db";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { computeSalesConsumption } from "@/lib/recipes/computeSalesConsumption";
 import { revertConsumptionFromStock } from "@/lib/recipes/applyConsumptionToStock";
 import {
@@ -246,7 +246,7 @@ export async function validateAndSaveServiceSales(
 
 /** Supprime le service (si le restaurant courant en est propriétaire), remet le stock à jour, puis redirige vers /services. */
 export async function deleteServiceAction(serviceId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) return { ok: false, error: "Restaurant non reconnu." };
 
   const { data: service, error: fetchErr } = await getService(serviceId);

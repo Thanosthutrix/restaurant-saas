@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { listHygieneRegister, getHygieneProofPublicUrl } from "@/lib/hygiene/hygieneDb";
 import {
   HYGIENE_CATEGORY_LABEL_FR,
@@ -11,7 +11,7 @@ import {
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 
 export default async function HygieneRegistrePage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const rows = await listHygieneRegister(restaurant.id, 200);

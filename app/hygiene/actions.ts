@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -76,6 +77,11 @@ function displayFromUser(user: { id: string; email?: string | null; user_metadat
 }
 
 export async function ensureHygieneTasksAction(restaurantId: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return;
+
   await ensureHygieneTasksForRestaurant(restaurantId, 14);
   revalidatePath("/hygiene");
   revalidatePath("/hygiene/a-faire");
@@ -101,6 +107,11 @@ export async function upsertHygieneElementAction(
     active: boolean;
   }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
+
   const name = payload.name.trim();
   if (!name) return { ok: false, error: "Le nom est obligatoire." };
 
@@ -145,6 +156,11 @@ export async function setHygieneElementActiveAction(
   elementId: string,
   active: boolean
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
+
   const { error } = await supabaseServer
     .from("hygiene_elements")
     .update({ active })
@@ -160,6 +176,11 @@ export async function createManualHygieneTaskAction(
   restaurantId: string,
   elementId: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
+
   const el = await getHygieneElement(restaurantId, elementId);
   if (!el || !el.active) return { ok: false, error: "Élément introuvable." };
 
@@ -197,6 +218,9 @@ export async function logHygieneElementDoneAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
 
   const parsed = parseHygieneCompletionDetails(params.cleaningActionType, params.initials);
   if (!parsed.ok) return parsed;
@@ -243,6 +267,9 @@ export async function completeHygieneTaskAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
 
   const parsed = parseHygieneCompletionDetails(params.cleaningActionType, params.initials);
   if (!parsed.ok) return parsed;
@@ -305,6 +332,9 @@ export async function logColdTemperatureReadingAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
 
   if (!(HYGIENE_COLD_EVENT_KINDS as readonly string[]).includes(params.eventKind)) {
     return { ok: false, error: "Type de relevé invalide (ouverture ou fermeture)." };

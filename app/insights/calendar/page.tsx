@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   buildCalendarInsights,
   defaultCalendarRange,
@@ -30,7 +30,7 @@ export default async function CalendarInsightsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const sp = await searchParams;

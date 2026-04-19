@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getAccessibleRestaurantsForUser, getCurrentRestaurant } from "@/lib/auth";
+import { getCurrentUser, getAccessibleRestaurantsForUser, getRestaurantForPage } from "@/lib/auth";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function GET() {
 
   const [list, current] = await Promise.all([
     getAccessibleRestaurantsForUser(user.id),
-    getCurrentRestaurant(),
+    getRestaurantForPage(),
   ]);
 
   const establishment = current

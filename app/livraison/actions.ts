@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { createDeliveryNote } from "@/lib/db";
 
 export type CreateBlReceptionResult =
@@ -15,7 +15,7 @@ export async function createReceptionFromBlPhotoAction(params: {
   filePath: string;
   fileName: string;
 }): Promise<CreateBlReceptionResult> {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant || restaurant.id !== params.restaurantId) {
     return { ok: false, error: "Non autorisé." };
   }

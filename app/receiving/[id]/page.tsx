@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   getDeliveryNoteWithLines,
   getDeliveryNoteFileUrl,
@@ -22,7 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function ReceivingPage({ params }: Props) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;

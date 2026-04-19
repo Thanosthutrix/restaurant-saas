@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   ensureHygieneTasksForRestaurant,
   listHygieneTasksDue,
@@ -10,7 +10,7 @@ import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HygieneTasksClient } from "./HygieneTasksClient";
 
 export default async function HygieneTasksPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   await ensureHygieneTasksForRestaurant(restaurant.id, 14);

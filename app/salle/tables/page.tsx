@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { listAllDiningTablesForAdmin } from "@/lib/dining/diningDb";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { SalleTablesClient } from "./SalleTablesClient";
 
 export default async function SalleTablesAdminPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { data: tables, error } = await listAllDiningTablesForAdmin(restaurant.id);

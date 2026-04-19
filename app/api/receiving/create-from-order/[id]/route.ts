@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createDeliveryNoteFromPurchaseOrder } from "@/lib/db";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 
 export async function POST(
   _req: Request,
@@ -16,7 +16,7 @@ export async function POST(
     );
   }
 
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) {
     return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
   }

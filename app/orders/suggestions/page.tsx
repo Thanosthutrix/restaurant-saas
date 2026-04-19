@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getInventoryItemsWithCalculatedStock, getSuppliers } from "@/lib/db";
 import { computeOrderSuggestions } from "@/lib/orders/suggestions";
 import { OrderSuggestionsClient } from "./OrderSuggestionsClient";
 
 export default async function OrderSuggestionsPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const [itemsRes, suppliersRes] = await Promise.all([

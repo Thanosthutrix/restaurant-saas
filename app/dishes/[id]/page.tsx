@@ -4,7 +4,7 @@ import { getDish, getDishComponents, getInventoryItems } from "@/lib/db";
 import { computeDishFoodCostHt } from "@/lib/margins/dishMarginAnalysis";
 import { explodeDishComponents } from "@/lib/recipes/explodeDishComponents";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   buildCategoryTree,
   categoryPathLabel,
@@ -24,7 +24,7 @@ import { uiBackLink, uiCard, uiLead, uiMuted } from "@/components/ui/premium";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function DishDetailPage({ params }: Props) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;

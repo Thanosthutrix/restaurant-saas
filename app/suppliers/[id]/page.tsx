@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getSupplier, getPurchaseOrders, getDeliveryNotesBySupplier, getDeliveryNoteFileUrl, getDeliveryNotesByPurchaseOrderIds, getSupplierInvoicesBySupplier } from "@/lib/db";
 import { EditSupplierForm } from "./EditSupplierForm";
 import { CreateReceptionFromPurchaseOrderButton } from "./CreateReceptionFromPurchaseOrderButton";
@@ -18,7 +18,7 @@ export default async function SupplierEditPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;

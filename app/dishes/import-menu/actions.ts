@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getDishes, createDish, getInventoryItems } from "@/lib/db";
 import { normalizeVatRatePct } from "@/lib/tax/frenchSellingVat";
 import { normalizeDishLabel } from "@/lib/normalizeDishLabel";
@@ -118,7 +118,7 @@ function normalizePayloadItem(item: CreateFromMenuPayload): CreateFromMenuPayloa
 export async function createDishesFromMenuSuggestions(
   items: CreateFromMenuPayload[]
 ): Promise<CreateFromMenuResult> {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const normalizedItems = items.map(normalizePayloadItem);

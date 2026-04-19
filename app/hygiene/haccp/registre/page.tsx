@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { listTemperatureLogs, type TemperatureLogFilter } from "@/lib/haccpTemperature/haccpTemperatureDb";
 import {
   TEMPERATURE_LOG_STATUS_LABEL_FR,
@@ -16,7 +16,7 @@ export default async function HaccpRegistrePage({
 }: {
   searchParams: Promise<Search>;
 }) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const sp = await searchParams;

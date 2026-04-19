@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getMarginAnalysisRows } from "@/lib/margins/dishMarginAnalysis";
 import { getRealizedMarginRowsByDish } from "@/lib/margins/realizedDishMargins";
 import {
@@ -47,7 +47,7 @@ export default async function MarginsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const sp = await searchParams;

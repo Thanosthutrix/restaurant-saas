@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { getCurrentUser } from "@/lib/auth";
 import { getTemperaturePoint } from "@/lib/haccpTemperature/haccpTemperatureDb";
 import {
@@ -45,6 +46,9 @@ export async function upsertTemperaturePointAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
 
   const name = payload.name.trim();
   if (!name) return { ok: false, error: "Le nom est obligatoire." };
@@ -96,6 +100,9 @@ export async function setTemperaturePointActiveAction(
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
+
   const { error } = await supabaseServer
     .from("temperature_points")
     .update({ active })
@@ -120,6 +127,9 @@ export async function submitTemperatureLogAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
 
   const { data: taskRow, error: taskErr } = await supabaseServer
     .from("temperature_tasks")

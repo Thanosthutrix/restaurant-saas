@@ -9,6 +9,7 @@ const protectedPaths = [
   "/service",
   "/dishes",
   "/inventory",
+  "/preparations",
   "/sales",
   "/ticket-import",
   "/onboarding",

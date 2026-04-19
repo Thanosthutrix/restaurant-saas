@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { listColdHygieneElements, listColdTemperatureRegister } from "@/lib/hygiene/hygieneDb";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HygieneColdTemperaturesClient } from "./HygieneColdTemperaturesClient";
 
 export default async function HygieneTemperaturesPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const [coldElements, recentReadings] = await Promise.all([

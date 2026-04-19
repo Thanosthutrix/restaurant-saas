@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getRecentDeliveryNotesForRestaurant, getDeliveryNoteFileUrl, getSuppliers } from "@/lib/db";
 import { LivraisonBlForm } from "./LivraisonBlForm";
 import { uiBackLink, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
 
 export default async function LivraisonPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const [{ data: notes, error: notesErr }, { data: suppliers }] = await Promise.all([

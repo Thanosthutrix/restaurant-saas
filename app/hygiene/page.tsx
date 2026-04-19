@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   countHygieneTasksDue,
   ensureHygieneTasksForRestaurant,
@@ -10,7 +10,7 @@ import {
 import { uiBackLink, uiCard, uiCardMuted, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
 
 export default async function HygieneHubPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   await ensureHygieneTasksForRestaurant(restaurant.id, 14);

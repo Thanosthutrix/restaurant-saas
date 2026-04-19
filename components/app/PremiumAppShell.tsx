@@ -36,14 +36,20 @@ export function PremiumAppShell({
   }
 
   function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+    const keys = headerBootstrap?.allowedNavKeys;
+    const items =
+      keys != null && keys.length > 0
+        ? SHELL_NAV_ITEMS.filter((item) => keys.includes(item.navKey))
+        : SHELL_NAV_ITEMS;
+
     return (
       <nav className="flex flex-1 flex-col gap-0.5 p-3" aria-label="Navigation principale">
-        {SHELL_NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = item.match(pathname);
           const Icon = item.icon;
           return (
             <Link
-              key={item.href}
+              key={item.navKey}
               href={item.href}
               onClick={onNavigate}
               className={`${sidebarLinkBase} ${active ? sidebarActive : sidebarIdle}`}
@@ -96,8 +102,11 @@ export function PremiumAppShell({
       {/* Sidebar mobile drawer */}
       <aside
         id="app-mobile-nav"
+        aria-hidden={!mobileNavOpen}
         className={`fixed left-0 top-0 z-50 flex h-full w-64 flex-col border-r border-slate-100 bg-white shadow-xl transition-transform duration-200 ease-out lg:hidden ${
-          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+          mobileNavOpen
+            ? "translate-x-0 pointer-events-auto"
+            : "-translate-x-full pointer-events-none"
         }`}
       >
         <div className="flex h-14 items-center justify-between border-b border-slate-100 px-4">
@@ -131,8 +140,8 @@ export function PremiumAppShell({
         </div>
       </aside>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 border-b border-slate-100/80 bg-white/80 backdrop-blur-md">
+      <div className="min-w-0 lg:pl-64">
+        <header className="sticky top-0 z-[45] border-b border-slate-100/80 bg-white/80 backdrop-blur-md">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
               <button
@@ -174,7 +183,7 @@ export function PremiumAppShell({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        <main className="mx-auto min-w-0 w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
           {children}
         </main>
       </div>

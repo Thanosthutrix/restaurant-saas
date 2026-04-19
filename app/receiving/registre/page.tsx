@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { getReceptionTraceabilityRegister } from "@/lib/db";
 import { TRACEABILITY_ELEMENT_LABEL_FR, TRACEABILITY_ELEMENT_TYPES } from "@/lib/constants";
 
@@ -11,7 +11,7 @@ export default async function ReceptionTraceabilityRegisterPage({
 }: {
   searchParams: Promise<Search>;
 }) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const sp = await searchParams;

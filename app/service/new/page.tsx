@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { getDishes } from "@/lib/db";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { NewServiceForm } from "./NewServiceForm";
 
 export default async function NewServicePage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { data: dishes, error } = await getDishes(restaurant.id);

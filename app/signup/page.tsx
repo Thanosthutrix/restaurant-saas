@@ -4,9 +4,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { SignupForm } from "./SignupForm";
 import { uiAuthCard, uiLead, uiPageTitle, uiTextLink, uiLinkSubtle } from "@/components/ui/premium";
 
-export default async function SignupPage() {
+type Props = { searchParams: Promise<{ next?: string }> };
+
+export default async function SignupPage({ searchParams }: Props) {
   const user = await getCurrentUser();
   if (user) redirect("/dashboard");
+
+  const { next } = await searchParams;
+  const nextUrl = typeof next === "string" && next.startsWith("/") && !next.includes("//") ? next : undefined;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
@@ -18,7 +23,7 @@ export default async function SignupPage() {
           <h1 className={`mt-4 ${uiPageTitle}`}>Créer un compte</h1>
         </div>
         <div className={uiAuthCard}>
-          <SignupForm />
+          <SignupForm nextUrl={nextUrl} />
         </div>
         <p className={`text-center ${uiLead}`}>
           Déjà un compte ?{" "}

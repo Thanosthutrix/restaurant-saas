@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, ArrowUpRight, CalendarDays, Layers, Package, UtensilsCrossed } from "lucide-react";
-import { getCurrentUser, getCurrentRestaurant } from "@/lib/auth";
+import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { getServicesForRestaurant, getServiceSalesAggregate, getInventoryItemsWithCalculatedStock } from "@/lib/db";
 
 function formatDate(iso: string) {
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const [{ data: recentServices }, { data: inventoryItems }] = await Promise.all([

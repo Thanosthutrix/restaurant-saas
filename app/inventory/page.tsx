@@ -9,13 +9,13 @@ import {
   pruneCategoryTreeWithItems,
   visibleCategoryIdsWithAncestors,
 } from "@/lib/catalog/restaurantCategories";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { InventoryCategoryTiles } from "./InventoryCategoryTiles";
 import { CreateInventoryItemForm } from "./CreateInventoryItemForm";
 import { uiBackLink, uiError, uiInfoBanner, uiLead, uiPageTitle, uiSectionTitle } from "@/components/ui/premium";
 
 export default async function InventoryPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const [{ data: items, error }, catRes] = await Promise.all([

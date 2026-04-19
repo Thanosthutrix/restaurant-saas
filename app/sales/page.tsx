@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTicketImports } from "@/lib/sales";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import { uiError, uiLead, uiListRow, uiPageTitle } from "@/components/ui/premium";
 
 function formatDate(iso: string | null): string {
@@ -10,7 +10,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default async function SalesPage() {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { data: imports, error } = await getTicketImports(restaurant.id);

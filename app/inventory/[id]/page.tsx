@@ -7,7 +7,7 @@ import { getFifoSummaryForInventoryItem } from "@/lib/stock/fifo";
 import { getPurchasePriceStatsForItem } from "@/lib/stock/purchasePriceHistory";
 import { getCalculatedStockForSingleItem } from "@/lib/stock/stockMovements";
 import { findRecipeSuggestionForPrep } from "@/lib/recipes/findRecipeSuggestionForPrep";
-import { getCurrentRestaurant } from "@/lib/auth";
+import { getRestaurantForPage } from "@/lib/auth";
 import {
   buildCategoryTree,
   categoryPathLabel,
@@ -40,7 +40,7 @@ const RECIPE_STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function InventoryItemDetailPage({ params }: Props) {
-  const restaurant = await getCurrentRestaurant();
+  const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;

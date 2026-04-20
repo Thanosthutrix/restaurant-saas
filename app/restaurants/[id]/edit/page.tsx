@@ -7,7 +7,7 @@ import { listPublicHolidaysFrMetropole } from "@/lib/franceCalendars/publicHolid
 import { listSchoolVacationPeriods } from "@/lib/franceCalendars/schoolVacations";
 import {
   getRestaurantPlanningBandPresets,
-  getRestaurantPlanningOpeningHours,
+  getRestaurantPlanningHourMaps,
   getRestaurantPlanningStaffTargetsWeekly,
   listPlanningDayOverridesInRange,
 } from "@/lib/staff/staffDb";
@@ -29,8 +29,8 @@ export default async function EditRestaurantPage({ params }: Props) {
   const templates = getRestaurantTemplates();
   const { suggestions } = await getTemplateSuggestions(restaurant.id);
 
-  const [openingHours, staffTargetsWeekly, overrides, bandPresets] = await Promise.all([
-    getRestaurantPlanningOpeningHours(restaurant.id),
+  const [hourMaps, staffTargetsWeekly, overrides, bandPresets] = await Promise.all([
+    getRestaurantPlanningHourMaps(restaurant.id),
     getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
     listPlanningDayOverridesInRange(restaurant.id, "2020-01-01", "2040-01-01"),
     getRestaurantPlanningBandPresets(restaurant.id),
@@ -78,7 +78,8 @@ export default async function EditRestaurantPage({ params }: Props) {
           </p>
           <RestaurantPlanningSection
             restaurantId={restaurant.id}
-            openingHours={openingHours}
+            openingHours={hourMaps.opening}
+            staffExtraBands={hourMaps.staffExtra}
             staffTargetsWeekly={staffTargetsWeekly}
             overrides={overrides}
             effectiveSchoolZone={effectiveSchoolZone}

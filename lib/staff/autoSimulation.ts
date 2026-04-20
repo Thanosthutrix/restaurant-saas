@@ -1,6 +1,6 @@
 import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
 import { minutesFromMidnight, type TimeBand } from "@/lib/staff/planningHoursTypes";
-import { intersectTimeBands, mergedStaffWorkBands } from "@/lib/staff/staffWorkWindows";
+import { intersectTimeBands, mergeTimeBands, mergedStaffWorkBands } from "@/lib/staff/staffWorkWindows";
 import type { StaffMember } from "@/lib/staff/types";
 
 export type GeneratedSimulationShift = {
@@ -54,9 +54,10 @@ export function generateAutoSimulationShifts(params: {
   const out: GeneratedSimulationShift[] = [];
 
   resolvedWeekDays.forEach((wd, dayIndex) => {
-    if (wd.openingBands.length === 0) return;
+    const dayWorkBands = mergeTimeBands([...wd.openingBands, ...(wd.staffExtraBands ?? [])]);
+    if (dayWorkBands.length === 0) return;
 
-    const nBands = wd.openingBands.length;
+    const nBands = dayWorkBands.length;
     const targetRaw = wd.staffTarget;
 
     const dailyDistinctTarget =
@@ -71,7 +72,7 @@ export function generateAutoSimulationShifts(params: {
 
     const scheduledThisCalendarDay = new Set<string>();
 
-    wd.openingBands.forEach((band, bandIdx) => {
+    dayWorkBands.forEach((band, bandIdx) => {
       if (bandDurationMinutes(band) <= 0) return;
 
       type Cand = { member: StaffMember; ob: TimeBand; dur: number };

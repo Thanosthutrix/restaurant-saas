@@ -1,10 +1,5 @@
 import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
-import {
-  minutesFromMidnight,
-  parseOpeningHoursJson,
-  PLANNING_DAY_KEYS,
-  type TimeBand,
-} from "@/lib/staff/planningHoursTypes";
+import { minutesFromMidnight, parseOpeningHoursJson, type TimeBand } from "@/lib/staff/planningHoursTypes";
 import type { StaffMember } from "@/lib/staff/types";
 
 /** Intersection de deux listes de plages (même jour calendaire). */
@@ -58,28 +53,16 @@ export function mergeTimeBands(bands: TimeBand[]): TimeBand[] {
   return out;
 }
 
-export function hasAnyExplicitAvailability(member: StaffMember): boolean {
-  const map = parseOpeningHoursJson(member.availability_json ?? {});
-  for (const k of PLANNING_DAY_KEYS) {
-    const raw = map[k];
-    if (raw && raw.length > 0) return true;
-  }
-  return false;
-}
-
 /**
  * Disponibilité « service client » : intersection avec l’ouverture du jour.
- * Même règle partielle que pour la génération auto (jours vides si profil partiel).
+ * Jour sans plages dans le profil = même défaut que sans disponibilité explicite : toute l’ouverture établissement.
+ * (Sinon un profil « partiel » laissant des jours vides excluait tout le monde et la simulation auto ne plaçait personne.)
  */
 export function effectiveClientServiceBands(member: StaffMember, wd: WeekResolvedDay): TimeBand[] {
   const map = parseOpeningHoursJson(member.availability_json ?? {});
   const raw = map[wd.dayKey];
-  const partial = hasAnyExplicitAvailability(member);
 
   if (!raw || raw.length === 0) {
-    if (partial) {
-      return [];
-    }
     return wd.openingBands.map((b) => ({ ...b }));
   }
   return intersectTimeBands(raw, wd.openingBands);
@@ -95,11 +78,12 @@ export function effectivePrepBands(member: StaffMember, wd: WeekResolvedDay): Ti
   return raw.map((b) => ({ start: b.start, end: b.end }));
 }
 
-/** Fenêtres où le collaborateur peut être planifié (service + prépa). */
+/** Fenêtres où le collaborateur peut être planifié (service + prépa perso + prépa établissement). */
 export function mergedStaffWorkBands(member: StaffMember, wd: WeekResolvedDay): TimeBand[] {
   const a = effectiveClientServiceBands(member, wd);
   const b = effectivePrepBands(member, wd);
-  return mergeTimeBands([...a, ...b]);
+  const c = wd.staffExtraBands?.length ? wd.staffExtraBands.map((x) => ({ start: x.start, end: x.end })) : [];
+  return mergeTimeBands([...a, ...b, ...c]);
 }
 
 /**

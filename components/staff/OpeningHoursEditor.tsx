@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { updateRestaurantOpeningHoursAction } from "@/app/equipe/actions";
+import {
+  updateRestaurantOpeningHoursAction,
+  updateRestaurantStaffExtraBandsAction,
+} from "@/app/equipe/actions";
 import {
   type OpeningHoursMap,
   type PlanningDayKey,
@@ -18,9 +21,11 @@ function emptyBands(): TimeBand[] {
 type Props = {
   restaurantId: string;
   initial: OpeningHoursMap;
+  /** Plages travail sans service client (établissement). */
+  variant?: "opening" | "staffExtra";
 };
 
-export function OpeningHoursEditor({ restaurantId, initial }: Props) {
+export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" }: Props) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -65,21 +70,40 @@ export function OpeningHoursEditor({ restaurantId, initial }: Props) {
     setError(null);
     setOk(null);
     start(async () => {
-      const r = await updateRestaurantOpeningHoursAction(restaurantId, map);
+      const r =
+        variant === "staffExtra"
+          ? await updateRestaurantStaffExtraBandsAction(restaurantId, map)
+          : await updateRestaurantOpeningHoursAction(restaurantId, map);
       if (!r.ok) {
         setError(r.error);
         return;
       }
-      setOk("Horaires d’ouverture enregistrés.");
+      setOk(
+        variant === "staffExtra"
+          ? "Plages travail (hors service client) enregistrées."
+          : "Horaires d’ouverture enregistrés."
+      );
     });
   }
 
-  return (
-    <div className="space-y-4">
+  const intro =
+    variant === "staffExtra" ? (
+      <p className="text-xs text-slate-500">
+        Ajoutez les plages où l’effectif peut être planifié <strong className="font-medium text-slate-700">sans service au public</strong>{" "}
+        (préparation, réception marchandises, nettoyage, etc.). Elles s’affichent en ambre sur la grille et s’ajoutent aux
+        plages « service » pour les alertes et la génération automatique. Les plages par collaborateur (fiche équipe)
+        restent possibles en complément.
+      </p>
+    ) : (
       <p className="text-xs text-slate-500">
         Définissez les plages où l’établissement est ouvert au public (midi, soir, etc.). Elles apparaissent en vert sur la
         grille et servent aux alertes « hors horaires ».
       </p>
+    );
+
+  return (
+    <div className="space-y-4">
+      {intro}
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
       {ok ? <p className="text-sm text-emerald-800">{ok}</p> : null}
 
@@ -133,7 +157,11 @@ export function OpeningHoursEditor({ restaurantId, initial }: Props) {
 
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={pending} className={uiBtnPrimarySm} onClick={save}>
-          {pending ? "Enregistrement…" : "Enregistrer les horaires d’ouverture"}
+          {pending
+            ? "Enregistrement…"
+            : variant === "staffExtra"
+              ? "Enregistrer les plages travail (hors client)"
+              : "Enregistrer les horaires d’ouverture"}
         </button>
         <button
           type="button"
@@ -152,7 +180,7 @@ export function OpeningHoursEditor({ restaurantId, initial }: Props) {
         >
           Réinitialiser
         </button>
-        {!hasAnyBand ? (
+        {!hasAnyBand && variant === "opening" ? (
           <button
             type="button"
             className={uiBtnOutlineSm}
@@ -165,6 +193,21 @@ export function OpeningHoursEditor({ restaurantId, initial }: Props) {
             }}
           >
             Remplir lun–ven (ex. 11:30–14:30)
+          </button>
+        ) : null}
+        {!hasAnyBand && variant === "staffExtra" ? (
+          <button
+            type="button"
+            className={uiBtnOutlineSm}
+            onClick={() => {
+              const o = { ...map };
+              for (const k of ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as PlanningDayKey[]) {
+                o[k] = [{ start: "07:00", end: "10:00" }];
+              }
+              setMap(o);
+            }}
+          >
+            Exemple : prépa 7h–10h (lun–dim, à ajuster)
           </button>
         ) : null}
       </div>

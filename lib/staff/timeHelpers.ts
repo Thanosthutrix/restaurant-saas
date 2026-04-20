@@ -5,6 +5,17 @@ export function plannedDurationMinutes(startsAtIso: string, endsAtIso: string): 
   return Math.round((b - a) / 60000);
 }
 
+/** Durée « utile » (pause déduite) pour comparaison au contrat. */
+export function netPlannedMinutes(
+  startsAtIso: string,
+  endsAtIso: string,
+  breakMinutes: number | null | undefined
+): number {
+  const gross = plannedDurationMinutes(startsAtIso, endsAtIso);
+  const br = breakMinutes != null && Number.isFinite(Number(breakMinutes)) ? Number(breakMinutes) : 0;
+  return Math.max(0, gross - br);
+}
+
 /** Durée pointée (entrée → sortie), ou null si incomplet. */
 export function actualDurationMinutes(
   clockIn: string | null,

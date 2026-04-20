@@ -21,6 +21,8 @@ export type WeekResolvedDay = {
   dayKey: PlanningDayKey;
   date: Date;
   openingBands: TimeBand[];
+  /** Plages établissement : travail possible sans service au public (prépa, livraisons…). */
+  staffExtraBands: TimeBand[];
   staffTarget: number | null;
   exceptionLabel: string | null;
 };
@@ -65,6 +67,7 @@ const ovMap = (overrides: PlanningDayOverrideRow[]) => new Map(overrides.map((r)
 export function resolveWeekPlanningDays(
   monday: Date,
   weeklyOpen: OpeningHoursMap,
+  weeklyStaffExtra: OpeningHoursMap,
   weeklyStaff: Partial<Record<PlanningDayKey, number>>,
   overrides: PlanningDayOverrideRow[]
 ): WeekResolvedDay[] {
@@ -102,7 +105,9 @@ export function resolveWeekPlanningDays(
       staffTarget = wT != null && Number.isFinite(wT) ? wT : null;
     }
 
-    out.push({ ymd, dayKey, date, openingBands, staffTarget, exceptionLabel });
+    const staffExtraBands = [...(weeklyStaffExtra[dayKey] ?? [])].map((b) => ({ ...b }));
+
+    out.push({ ymd, dayKey, date, openingBands, staffExtraBands, staffTarget, exceptionLabel });
   }
   return out;
 }
@@ -111,6 +116,7 @@ export function resolveWeekPlanningDays(
 export function resolveDayPlanning(
   date: Date,
   weeklyOpen: OpeningHoursMap,
+  weeklyStaffExtra: OpeningHoursMap,
   weeklyStaff: Partial<Record<PlanningDayKey, number>>,
   overrides: PlanningDayOverrideRow[]
 ): WeekResolvedDay {
@@ -118,12 +124,13 @@ export function resolveDayPlanning(
   const day = date.getDay();
   const mondayIdx = day === 0 ? 6 : day - 1;
   const monday = addDays(date, -mondayIdx);
-  const week = resolveWeekPlanningDays(monday, weeklyOpen, weeklyStaff, overrides);
+  const week = resolveWeekPlanningDays(monday, weeklyOpen, weeklyStaffExtra, weeklyStaff, overrides);
   return week.find((w) => w.ymd === ymd) ?? {
     ymd,
     dayKey: PLANNING_DAY_KEYS[mondayIdx],
     date,
     openingBands: weeklyOpen[PLANNING_DAY_KEYS[mondayIdx]] ?? [],
+    staffExtraBands: weeklyStaffExtra[PLANNING_DAY_KEYS[mondayIdx]] ?? [],
     staffTarget: weeklyStaff[PLANNING_DAY_KEYS[mondayIdx]] ?? null,
     exceptionLabel: null,
   };

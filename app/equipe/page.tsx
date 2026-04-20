@@ -6,7 +6,7 @@ import { computePlanningAlerts } from "@/lib/staff/planningAlerts";
 import { resolveWeekPlanningDays } from "@/lib/staff/planningResolve";
 import {
   getPlanningWeekSimulation,
-  getRestaurantPlanningOpeningHours,
+  getRestaurantPlanningHourMaps,
   getRestaurantPlanningStaffTargetsWeekly,
   listPlanningDayOverridesInRange,
   listSimulationShiftsWithDetails,
@@ -39,10 +39,10 @@ export default async function EquipePage({ searchParams }: Props) {
   const weekFromYmd = toISODateString(monday);
   const weekToYmdExclusive = toISODateString(weekEndExclusive);
 
-  const [staff, shifts, openingHours, staffTargetsWeekly, overrides, weekSim] = await Promise.all([
+  const [staff, shifts, hourMaps, staffTargetsWeekly, overrides, weekSim] = await Promise.all([
     listStaffMembers(restaurant.id, true),
     listWorkShiftsInRange(restaurant.id, rangeStartIso, rangeEndExclusiveIso),
-    getRestaurantPlanningOpeningHours(restaurant.id),
+    getRestaurantPlanningHourMaps(restaurant.id),
     getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
     listPlanningDayOverridesInRange(restaurant.id, weekFromYmd, weekToYmdExclusive),
     getPlanningWeekSimulation(restaurant.id, weekFromYmd),
@@ -54,7 +54,13 @@ export default async function EquipePage({ searchParams }: Props) {
     simulationId != null
       ? await listSimulationShiftsWithDetails(restaurant.id, simulationId)
       : [];
-  const resolvedWeekDays = resolveWeekPlanningDays(monday, openingHours, staffTargetsWeekly, overrides);
+  const resolvedWeekDays = resolveWeekPlanningDays(
+    monday,
+    hourMaps.opening,
+    hourMaps.staffExtra,
+    staffTargetsWeekly,
+    overrides
+  );
   const planningAlerts = computePlanningAlerts({
     weekStartMonday: monday,
     shifts,

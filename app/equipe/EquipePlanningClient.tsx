@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { StaffPlanningProfileForm } from "@/components/staff/StaffPlanningProfileForm";
+import { ManualWeekPlanner, PlanningHoursRecap } from "@/components/staff/ManualWeekPlanner";
 import { WeekScheduleOverview } from "@/components/staff/WeekScheduleOverview";
 import type { PlanningAlert } from "@/lib/staff/planningAlerts";
 import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
@@ -577,7 +578,7 @@ export function EquipePlanningClient({
             href={`/restaurants/${restaurantId}/edit`}
             className="font-medium text-indigo-700 underline underline-offset-2"
           >
-            Horaires, objectifs d’effectif et exceptions (fériés, vacances)
+            Horaires, prépa hors client (établissement), objectifs et exceptions
           </Link>{" "}
           se règlent dans les infos du restaurant.
         </p>
@@ -588,6 +589,36 @@ export function EquipePlanningClient({
             shifts={displayShifts}
             resolvedWeekDays={resolvedWeekDays}
             alerts={displayAlerts}
+          />
+        </div>
+
+        <div className="mt-8 space-y-6 border-t border-slate-100 pt-8">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Ajuster les créneaux à la main</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Vue par collaborateur : déplacer ou redimensionner les blocs (pas de 15 min), double-clic pour saisir les
+              horaires. Le tableau sous la grille résume les heures, le contrat et le solde reporté.
+            </p>
+          </div>
+          <ManualWeekPlanner
+            restaurantId={restaurantId}
+            weekMondayIso={weekMondayIso}
+            staff={staff}
+            shifts={displayShifts}
+            resolvedWeekDays={resolvedWeekDays}
+            isSimulation={planningMode === "simulation"}
+            simulationId={effectiveSimulationId}
+            pending={pending}
+            onUpdated={refresh}
+          />
+          <PlanningHoursRecap
+            staff={staff}
+            shifts={displayShifts}
+            weekMondayIso={weekMondayIso}
+            restaurantId={restaurantId}
+            pending={pending}
+            showCarryoverActions={planningMode === "real"}
+            onUpdated={refresh}
           />
         </div>
       </section>

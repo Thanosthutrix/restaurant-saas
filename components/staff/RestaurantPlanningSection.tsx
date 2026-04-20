@@ -15,6 +15,8 @@ import { uiCard } from "@/components/ui/premium";
 type Props = {
   restaurantId: string;
   openingHours: OpeningHoursMap;
+  /** Plages travail sans service client (modèle établissement). */
+  staffExtraBands: OpeningHoursMap;
   staffTargetsWeekly: Partial<Record<PlanningDayKey, number>>;
   overrides: PlanningDayOverrideRow[];
   effectiveSchoolZone: "A" | "B" | "C";
@@ -28,6 +30,7 @@ type Props = {
 export function RestaurantPlanningSection({
   restaurantId,
   openingHours,
+  staffExtraBands,
   staffTargetsWeekly,
   overrides,
   effectiveSchoolZone,
@@ -57,6 +60,17 @@ export function RestaurantPlanningSection({
         </p>
         <div className="mt-4">
           <OpeningHoursEditor restaurantId={restaurantId} initial={openingHours} />
+        </div>
+      </section>
+
+      <section className={uiCard}>
+        <h2 className="text-base font-semibold text-slate-900">Travail effectif hors service client (modèle)</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Plages où vous pouvez planifier du personnel alors que le service au public n’est pas ouvert (prépa, livraisons,
+          etc.). Complète les horaires ci-dessus et les plages par collaborateur dans la fiche équipe.
+        </p>
+        <div className="mt-4">
+          <OpeningHoursEditor variant="staffExtra" restaurantId={restaurantId} initial={staffExtraBands} />
         </div>
       </section>
 

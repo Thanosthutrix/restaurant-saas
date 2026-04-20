@@ -26,6 +26,12 @@ function mapStaff(row: Record<string, unknown>): StaffMember {
         ? null
         : String(row.contract_type).trim(),
     target_weekly_hours: target,
+    planning_carryover_minutes: (() => {
+      const c = row.planning_carryover_minutes;
+      if (c == null || c === "") return 0;
+      const n = Number(c);
+      return Number.isFinite(n) ? Math.round(n) : 0;
+    })(),
     planning_notes:
       row.planning_notes == null || String(row.planning_notes).trim() === ""
         ? null
@@ -145,14 +151,31 @@ export async function getWorkShiftById(
   return mapShift(data as Record<string, unknown>);
 }
 
-export async function getRestaurantPlanningOpeningHours(restaurantId: string) {
+export async function getRestaurantPlanningHourMaps(restaurantId: string): Promise<{
+  opening: ReturnType<typeof parseOpeningHoursJson>;
+  staffExtra: ReturnType<typeof parseOpeningHoursJson>;
+}> {
   const { data, error } = await supabaseServer
     .from("restaurants")
-    .select("planning_opening_hours")
+    .select("planning_opening_hours, planning_staff_extra_bands_json")
     .eq("id", restaurantId)
     .maybeSingle();
-  if (error || !data) return parseOpeningHoursJson(null);
-  return parseOpeningHoursJson((data as { planning_opening_hours?: unknown }).planning_opening_hours);
+  if (error || !data) {
+    return { opening: parseOpeningHoursJson(null), staffExtra: parseOpeningHoursJson(null) };
+  }
+  const row = data as {
+    planning_opening_hours?: unknown;
+    planning_staff_extra_bands_json?: unknown;
+  };
+  return {
+    opening: parseOpeningHoursJson(row.planning_opening_hours),
+    staffExtra: parseOpeningHoursJson(row.planning_staff_extra_bands_json),
+  };
+}
+
+export async function getRestaurantPlanningOpeningHours(restaurantId: string) {
+  const m = await getRestaurantPlanningHourMaps(restaurantId);
+  return m.opening;
 }
 
 export async function getRestaurantPlanningStaffTargetsWeekly(restaurantId: string) {

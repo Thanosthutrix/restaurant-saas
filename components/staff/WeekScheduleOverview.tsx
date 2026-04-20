@@ -5,6 +5,7 @@ import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
 import type { StaffMember, WorkShiftWithDetails } from "@/lib/staff/types";
 import { minutesFromMidnight, PLANNING_DAY_KEYS, PLANNING_DAY_LABELS_FR } from "@/lib/staff/planningHoursTypes";
 import type { PlanningAlert } from "@/lib/staff/planningAlerts";
+import { computePlanningWeekTimeRange } from "@/lib/staff/planningGridRange";
 import { addDays, parseISODateLocal } from "@/lib/staff/weekUtils";
 
 const STAFF_LAYER_CLASS = [
@@ -84,41 +85,6 @@ function shiftsForCalendarDay(shifts: WorkShiftWithDetails[], day: Date): WorkSh
   });
 }
 
-function computeTimeRange(
-  shifts: WorkShiftWithDetails[],
-  resolvedWeekDays: WeekResolvedDay[]
-): { minM: number; maxM: number } {
-  let lo = 24 * 60;
-  let hi = 0;
-  let any = false;
-  for (const wd of resolvedWeekDays) {
-    for (const b of wd.openingBands) {
-      const a = minutesFromMidnight(b.start);
-      const e = minutesFromMidnight(b.end);
-      if (a != null && e != null && e > a) {
-        any = true;
-        lo = Math.min(lo, a);
-        hi = Math.max(hi, e);
-      }
-    }
-  }
-  for (const s of shifts) {
-    const st = new Date(s.starts_at);
-    const en = new Date(s.ends_at);
-    if (st.toDateString() !== en.toDateString()) continue;
-    const ds = st.getHours() * 60 + st.getMinutes();
-    const de = en.getHours() * 60 + en.getMinutes();
-    any = true;
-    lo = Math.min(lo, ds);
-    hi = Math.max(hi, de);
-  }
-  if (!any) return { minM: 6 * 60, maxM: 23 * 60 };
-  lo = Math.max(0, lo - 60);
-  hi = Math.min(24 * 60, hi + 60);
-  if (hi <= lo) return { minM: 6 * 60, maxM: 23 * 60 };
-  return { minM: lo, maxM: hi };
-}
-
 function headcountAt(
   shifts: WorkShiftWithDetails[],
   day: Date,
@@ -142,6 +108,64 @@ function headcountAt(
   return out;
 }
 
+/** Minutes depuis minuit pour le début / fin d’un shift ce jour-là (même jour calendaire). */
+function shiftMinuteBoundsOnDay(s: WorkShiftWithDetails, day: Date): { startM: number; endM: number } | null {
+  const st = new Date(s.starts_at);
+  const en = new Date(s.ends_at);
+  if (st.toDateString() !== en.toDateString()) return null;
+  const d0 = dayBoundsLocal(day).start.getTime();
+  if (st.getTime() < d0 || st.getTime() >= d0 + 24 * 60 * 60000) return null;
+  return {
+    startM: st.getHours() * 60 + st.getMinutes(),
+    endM: en.getHours() * 60 + en.getMinutes(),
+  };
+}
+
+/**
+ * Couloirs horizontaux : shifts qui se chevauchent sont répartis côte à côte (lanes).
+ */
+function assignShiftLanes(
+  dayShifts: WorkShiftWithDetails[],
+  day: Date,
+  rangeMinM: number,
+  rangeMaxM: number
+): Map<string, { lane: number; maxLanes: number }> {
+  const items: { id: string; startM: number; endM: number }[] = [];
+  for (const s of dayShifts) {
+    const b = shiftMinuteBoundsOnDay(s, day);
+    if (!b) continue;
+    const t0 = Math.max(b.startM, rangeMinM);
+    const t1 = Math.min(b.endM, rangeMaxM);
+    if (t1 <= t0) continue;
+    items.push({ id: s.id, startM: t0, endM: t1 });
+  }
+  items.sort((a, b) => a.startM - b.startM || a.endM - b.endM);
+
+  const laneEndM: number[] = [];
+  const laneById = new Map<string, number>();
+
+  for (const it of items) {
+    let L = 0;
+    while (L < laneEndM.length && laneEndM[L]! > it.startM) {
+      L++;
+    }
+    if (L === laneEndM.length) {
+      laneEndM.push(it.endM);
+    } else {
+      laneEndM[L] = it.endM;
+    }
+    laneById.set(it.id, L);
+  }
+
+  const maxLanes = Math.max(1, laneEndM.length);
+  const out = new Map<string, { lane: number; maxLanes: number }>();
+  for (const it of items) {
+    const lane = laneById.get(it.id) ?? 0;
+    out.set(it.id, { lane, maxLanes });
+  }
+  return out;
+}
+
 type Props = {
   weekMondayIso: string;
   staff: StaffMember[];
@@ -158,7 +182,7 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
   }, [monday]);
 
   const { minM, maxM } = useMemo(
-    () => computeTimeRange(shifts, resolvedWeekDays),
+    () => computePlanningWeekTimeRange(shifts, resolvedWeekDays),
     [shifts, resolvedWeekDays]
   );
 
@@ -181,7 +205,6 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
 
   const rangeSpan = maxM - minM;
   const colTotalH = 432;
-  const headH = 36;
 
   return (
     <div className="space-y-3">
@@ -248,7 +271,7 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
               className="flex flex-col border-r border-slate-200 bg-slate-50/80"
               style={{ height: colTotalH }}
             >
-              <div className="relative min-h-0 flex-1">
+              <div className="relative min-h-0 h-full">
                 {hourTicks.map((h) => {
                   const minute = h * 60;
                   if (minute < minM || minute > maxM) return null;
@@ -266,12 +289,6 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
                   );
                 })}
               </div>
-              <div
-                className="flex shrink-0 items-center justify-center border-t border-slate-200 bg-white text-[9px] text-slate-500"
-                style={{ height: headH }}
-              >
-                Eff.
-              </div>
             </div>
 
             {PLANNING_DAY_KEYS.map((_, di) => {
@@ -280,7 +297,7 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
               const dayShifts = shiftsForCalendarDay(shifts, day);
               const stepM = Math.max(30, Math.min(90, Math.ceil(rangeSpan / 14)));
               const hc = headcountAt(shifts, day, minM, maxM, stepM);
-              const maxHc = Math.max(1, ...hc);
+              const laneByShift = assignShiftLanes(dayShifts, day, minM, maxM);
 
               return (
                 <div
@@ -290,7 +307,7 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
                   }`}
                   style={{ height: colTotalH }}
                 >
-                  <div className="relative min-h-0 flex-1 overflow-hidden">
+                  <div className="relative min-h-0 h-full overflow-hidden">
                     {hourTicks.map((h) => {
                       const minute = h * 60;
                       if (minute < minM || minute > maxM) return null;
@@ -304,6 +321,19 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
                       );
                     })}
 
+                    {(wd.staffExtraBands ?? []).map((band, bi) => {
+                      const p = openingBandPctInRange(day, band.start, band.end, minM, maxM);
+                      if (!p) return null;
+                      return (
+                        <div
+                          key={`x-${bi}`}
+                          className="pointer-events-none absolute left-0.5 right-0.5 rounded-sm bg-amber-200/55 ring-1 ring-amber-300/40"
+                          style={{ top: `${p.top}%`, height: `${Math.max(p.height, 1)}%` }}
+                          title={`Travail effectif sans service client ${band.start}–${band.end}`}
+                        />
+                      );
+                    })}
+
                     {wd.openingBands.map((band, bi) => {
                       const p = openingBandPctInRange(day, band.start, band.end, minM, maxM);
                       if (!p) return null;
@@ -312,7 +342,7 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
                           key={`o-${bi}`}
                           className="pointer-events-none absolute left-0.5 right-0.5 rounded-sm bg-emerald-200/45 ring-1 ring-emerald-300/35"
                           style={{ top: `${p.top}%`, height: `${Math.max(p.height, 1)}%` }}
-                          title={`Ouverture ${band.start}–${band.end}`}
+                          title={`Ouverture au public ${band.start}–${band.end}`}
                         />
                       );
                     })}
@@ -326,48 +356,53 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
                         maxM
                       );
                       if (!seg) return null;
+                      const laneInfo = laneByShift.get(s.id);
+                      const maxLanes = laneInfo?.maxLanes ?? 1;
+                      const lane = laneInfo?.lane ?? 0;
                       const idx = staffColorIndex.get(s.staff_member_id) ?? 0;
                       const layer = STAFF_LAYER_CLASS[idx % STAFF_LAYER_CLASS.length];
                       const br = s.break_minutes != null ? ` · pause ${s.break_minutes} min` : "";
+                      const gapPx = 2;
+                      const wPct = 100 / maxLanes;
+                      const leftPct = (100 * lane) / maxLanes;
                       return (
                         <div
                           key={s.id}
-                          className={`absolute left-1 right-1 z-10 flex items-center justify-center rounded border border-white/30 ${layer} px-0.5 text-[10px] font-bold leading-none text-white shadow-md`}
+                          className={`absolute z-10 box-border flex items-center justify-center overflow-hidden rounded border border-white/25 ${layer} px-0.5 text-[8px] font-bold leading-tight text-white shadow-sm`}
                           style={{
                             top: `${seg.top}%`,
-                            height: `${Math.max(seg.height, 4)}%`,
-                            minHeight: "18px",
+                            height: `${Math.max(seg.height, 2.5)}%`,
+                            minHeight: "10px",
+                            left: `calc(${leftPct}% + ${gapPx / 2}px)`,
+                            width: `calc(${wPct}% - ${gapPx}px)`,
                           }}
                           title={`${s.staff_display_name} · ${new Date(s.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} – ${new Date(s.ends_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}${br}`}
                         >
-                          {staffInitials(s.staff_display_name)}
+                          <span className="truncate">{staffInitials(s.staff_display_name)}</span>
                         </div>
                       );
                     })}
-                  </div>
 
-                  <div
-                    className="flex w-full shrink-0 items-end gap-px border-t border-slate-200 bg-white/95 px-0.5"
-                    style={{ height: headH }}
-                  >
-                    {hc.map((n, i) => (
-                      <div
-                        key={i}
-                        className="flex h-full min-w-0 flex-1 flex-col justify-end"
-                        title={`${n} présent(s)`}
-                      >
+                    {hc.map((n, i) => {
+                      const topPct = ((i * stepM) / rangeSpan) * 100;
+                      const hPct = (stepM / rangeSpan) * 100;
+                      const tStart = minM + i * stepM;
+                      const tEnd = Math.min(minM + (i + 1) * stepM, maxM);
+                      const labelStart = `${Math.floor(tStart / 60)}h${String(tStart % 60).padStart(2, "0")}`;
+                      const labelEnd = `${Math.floor(tEnd / 60)}h${String(tEnd % 60).padStart(2, "0")}`;
+                      return (
                         <div
-                          className="w-full rounded-t bg-indigo-600/90 text-center text-[8px] font-bold leading-none text-white"
-                          style={{
-                            height: `${(n / maxHc) * 100}%`,
-                            minHeight: n > 0 ? 12 : 2,
-                            opacity: n > 0 ? 1 : 0.2,
-                          }}
+                          key={`hc-${i}`}
+                          className="pointer-events-none absolute left-0 right-0 z-30 flex items-start justify-end pr-0.5 pt-px"
+                          style={{ top: `${topPct}%`, height: `${hPct}%` }}
+                          title={`${labelStart}–${labelEnd} · ${n} présent(s)`}
                         >
-                          {n > 0 ? n : ""}
+                          <span className="rounded bg-white/95 px-0.5 py-px text-[8px] font-bold tabular-nums leading-none text-indigo-800 shadow-sm ring-1 ring-indigo-200/80">
+                            {n}
+                          </span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -383,8 +418,12 @@ export function WeekScheduleOverview({ weekMondayIso, staff, shifts, resolvedWee
             Ouverture au public
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-5 rounded bg-indigo-600/90" />
-            Nombre de personnes présentes (barres proportionnelles, tranches adaptées à la plage affichée)
+            <span className="h-3 w-5 rounded bg-amber-200/90 ring-1 ring-amber-300/50" />
+            Travail effectif sans service client (établissement)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-5 rounded border border-indigo-200 bg-white shadow-sm ring-1 ring-indigo-200/80" />
+            Effectif présent : chiffre à droite de chaque tranche (même découpage que la grille horaire)
           </span>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1">

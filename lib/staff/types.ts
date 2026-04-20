@@ -11,6 +11,8 @@ export type StaffMember = {
   contract_type: string | null;
   /** Volume horaire cible hebdomadaire. */
   target_weekly_hours: number | null;
+  /** Report cumulé (minutes) : contrat − prévu sur les semaines prises en compte. */
+  planning_carryover_minutes: number;
   /** Notes internes planning. */
   planning_notes: string | null;
   /** Horaires habituels / souhaités (même format que l’établissement). */

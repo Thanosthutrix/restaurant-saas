@@ -7,10 +7,11 @@ import { isAppRole } from "@/lib/auth/appRoles";
 import { consumeStaffInvite, createStaffInviteRecord, getStaffInviteByToken } from "@/lib/staff/inviteDb";
 import { generateAutoSimulationShifts } from "@/lib/staff/autoSimulation";
 import { resolveWeekPlanningDays } from "@/lib/staff/planningResolve";
+import { netPlannedMinutes } from "@/lib/staff/timeHelpers";
 import { addDays, parseISODateLocal, toISODateString } from "@/lib/staff/weekUtils";
 import {
   getPlanningWeekSimulation,
-  getRestaurantPlanningOpeningHours,
+  getRestaurantPlanningHourMaps,
   getRestaurantPlanningStaffTargetsWeekly,
   getStaffMemberById,
   getStaffMemberByUserAndRestaurant,
@@ -18,6 +19,7 @@ import {
   listPlanningDayOverridesInRange,
   listSimulationShiftsWithDetails,
   listStaffMembers,
+  listWorkShiftsInRange,
 } from "@/lib/staff/staffDb";
 import {
   CONTRACT_TYPES,
@@ -203,6 +205,27 @@ export async function updateRestaurantOpeningHoursAction(
   return { ok: true };
 }
 
+export async function updateRestaurantStaffExtraBandsAction(
+  restaurantId: string,
+  hours: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  const parsed = parseOpeningHoursJson(hours);
+  const { error } = await supabaseServer
+    .from("restaurants")
+    .update({ planning_staff_extra_bands_json: parsed })
+    .eq("id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true };
+}
+
 export async function updateStaffPlanningProfileAction(
   restaurantId: string,
   staffMemberId: string,
@@ -371,14 +394,20 @@ export async function generateAutoSimulationShiftsAction(
   const weekFromYmd = toISODateString(monday);
   const weekToYmdExclusive = toISODateString(weekEndExclusive);
 
-  const [staff, openingHours, staffTargetsWeekly, overrides] = await Promise.all([
+  const [staff, hourMaps, staffTargetsWeekly, overrides] = await Promise.all([
     listStaffMembers(restaurantId, true),
-    getRestaurantPlanningOpeningHours(restaurantId),
+    getRestaurantPlanningHourMaps(restaurantId),
     getRestaurantPlanningStaffTargetsWeekly(restaurantId),
     listPlanningDayOverridesInRange(restaurantId, weekFromYmd, weekToYmdExclusive),
   ]);
 
-  const resolvedWeekDays = resolveWeekPlanningDays(monday, openingHours, staffTargetsWeekly, overrides);
+  const resolvedWeekDays = resolveWeekPlanningDays(
+    monday,
+    hourMaps.opening,
+    hourMaps.staffExtra,
+    staffTargetsWeekly,
+    overrides
+  );
   const generated = generateAutoSimulationShifts({ resolvedWeekDays, staff });
 
   let sim = await getPlanningWeekSimulation(restaurantId, ymd);
@@ -615,6 +644,189 @@ export async function publishWeekSimulationAction(
   revalidatePath("/equipe");
   revalidatePath("/equipe/mon-planning");
   return { ok: true, publishedCount: draftShifts.length };
+}
+
+export async function updateWorkShiftTimesAction(
+  restaurantId: string,
+  shiftId: string,
+  payload: { startsAtLocal: string; endsAtLocal: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  const existing = await getWorkShiftById(restaurantId, shiftId);
+  if (!existing) return { ok: false, error: "Créneau introuvable." };
+
+  let starts: Date;
+  let ends: Date;
+  try {
+    starts = parseLocalDateTimeInput(payload.startsAtLocal);
+    ends = parseLocalDateTimeInput(payload.endsAtLocal);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Date invalide." };
+  }
+  if (!(ends > starts)) return { ok: false, error: "La fin doit être après le début." };
+
+  const { error } = await supabaseServer
+    .from("work_shifts")
+    .update({
+      starts_at: starts.toISOString(),
+      ends_at: ends.toISOString(),
+    })
+    .eq("id", shiftId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath("/equipe/mon-planning");
+  return { ok: true };
+}
+
+export async function updateSimulationShiftTimesAction(
+  restaurantId: string,
+  simulationShiftId: string,
+  payload: { startsAtLocal: string; endsAtLocal: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  const { data: row, error: e0 } = await supabaseServer
+    .from("planning_simulation_shifts")
+    .select("id, simulation_id")
+    .eq("id", simulationShiftId)
+    .maybeSingle();
+
+  if (e0 || !row) return { ok: false, error: "Créneau introuvable." };
+
+  const simId = String((row as { simulation_id: string }).simulation_id);
+  const { data: sim, error: e1 } = await supabaseServer
+    .from("planning_week_simulations")
+    .select("id, week_monday")
+    .eq("id", simId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (e1 || !sim) return { ok: false, error: "Simulation introuvable." };
+
+  let starts: Date;
+  let ends: Date;
+  try {
+    starts = parseLocalDateTimeInput(payload.startsAtLocal);
+    ends = parseLocalDateTimeInput(payload.endsAtLocal);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Date invalide." };
+  }
+  if (!(ends > starts)) return { ok: false, error: "La fin doit être après le début." };
+
+  const rawWeek = (sim as { week_monday: unknown }).week_monday;
+  const weekYmd =
+    typeof rawWeek === "string"
+      ? rawWeek.slice(0, 10)
+      : rawWeek instanceof Date
+        ? `${rawWeek.getFullYear()}-${String(rawWeek.getMonth() + 1).padStart(2, "0")}-${String(rawWeek.getDate()).padStart(2, "0")}`
+        : String(rawWeek ?? "").slice(0, 10);
+  const range = weekRangeIsoFromMondayYmd(weekYmd);
+  if (range) {
+    const sIso = starts.toISOString();
+    const eIso = ends.toISOString();
+    if (!(sIso < range.endExclusiveIso && eIso > range.startIso)) {
+      return { ok: false, error: "Le créneau doit chevaucher la semaine du brouillon." };
+    }
+  }
+
+  const { error } = await supabaseServer
+    .from("planning_simulation_shifts")
+    .update({
+      starts_at: starts.toISOString(),
+      ends_at: ends.toISOString(),
+    })
+    .eq("id", simulationShiftId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  return { ok: true };
+}
+
+export async function setStaffPlanningCarryoverAction(
+  restaurantId: string,
+  staffMemberId: string,
+  minutes: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  if (!Number.isFinite(minutes) || Math.abs(minutes) > 999 * 60) {
+    return { ok: false, error: "Valeur de solde invalide." };
+  }
+
+  const { error } = await supabaseServer
+    .from("staff_members")
+    .update({ planning_carryover_minutes: Math.round(minutes) })
+    .eq("id", staffMemberId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  return { ok: true };
+}
+
+/**
+ * Ajoute au solde de chaque collaborateur : (contrat h/sem en min) − (prévu net semaine en min).
+ * À utiliser lorsque la semaine est figée ; un second clic ajoute de nouveau l’écart (non idempotent).
+ */
+export async function applyWeekDeltaToCarryoverAction(
+  restaurantId: string,
+  weekMondayYmd: string
+): Promise<{ ok: true; updated: number } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  const monday = parseISODateLocal(weekMondayYmd.trim());
+  if (!monday) return { ok: false, error: "Semaine invalide." };
+  const weekEnd = addDays(monday, 7);
+  const rangeStartIso = monday.toISOString();
+  const rangeEndExclusiveIso = weekEnd.toISOString();
+
+  const [members, shifts] = await Promise.all([
+    listStaffMembers(restaurantId, true),
+    listWorkShiftsInRange(restaurantId, rangeStartIso, rangeEndExclusiveIso),
+  ]);
+
+  let updated = 0;
+  for (const m of members) {
+    const target = m.target_weekly_hours;
+    if (target == null || !Number.isFinite(target) || target <= 0) continue;
+
+    const targetMin = Math.round(target * 60);
+    let plannedNet = 0;
+    for (const s of shifts) {
+      if (s.staff_member_id !== m.id) continue;
+      plannedNet += netPlannedMinutes(s.starts_at, s.ends_at, s.break_minutes);
+    }
+
+    const delta = targetMin - plannedNet;
+    const newCarry = m.planning_carryover_minutes + delta;
+
+    const { error } = await supabaseServer
+      .from("staff_members")
+      .update({ planning_carryover_minutes: newCarry })
+      .eq("id", m.id)
+      .eq("restaurant_id", restaurantId);
+
+    if (error) return { ok: false, error: error.message };
+    updated++;
+  }
+
+  revalidatePath("/equipe");
+  return { ok: true, updated };
 }
 
 export async function deleteWorkShiftAction(

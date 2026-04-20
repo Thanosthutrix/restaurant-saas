@@ -109,14 +109,14 @@ export function computePlanningAlerts(params: {
     if (allowed.length === 0) {
       alerts.push({
         level: "warning",
-        message: `Créneau ${s.staff_display_name} (${formatRange(start, end)}) : aucune plage service / prépa renseignée pour le ${PLANNING_DAY_LABELS[key]}.`,
+        message: `Créneau ${s.staff_display_name} (${formatRange(start, end)}) : aucune plage autorisée (service, prépa établissement ou prépa perso) pour le ${PLANNING_DAY_LABELS[key]}.`,
       });
       continue;
     }
     if (!shiftContainedInTimeBands(start, end, allowed)) {
       alerts.push({
         level: "warning",
-        message: `Créneau ${s.staff_display_name} (${formatRange(start, end)}) : hors des plages service / prépa du ${PLANNING_DAY_LABELS[key]}.`,
+        message: `Créneau ${s.staff_display_name} (${formatRange(start, end)}) : hors des plages autorisées pour le ${PLANNING_DAY_LABELS[key]}.`,
       });
     }
   }

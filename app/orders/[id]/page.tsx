@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getPurchaseOrder, getDeliveryNoteFileUrl } from "@/lib/db";
 import { DeleteOrderButton } from "./DeleteOrderButton";
+import { SupplierOrderSendPanel } from "./SupplierOrderSendPanel";
 
 const STATUS_LABELS: Record<string, string> = {
   generated: "Créée",
@@ -70,6 +71,20 @@ export default async function OrderDetailPage({
             </div>
           </div>
         </div>
+
+        <SupplierOrderSendPanel
+          orderId={order.id}
+          restaurantId={restaurant.id}
+          supplierName={supplierName}
+          supplierEmail={order.supplier?.email ?? null}
+          supplierPhone={order.supplier?.phone ?? null}
+          supplierWhatsapp={order.supplier?.whatsapp_phone ?? null}
+          preferredOrderMethod={order.supplier?.preferred_order_method ?? "EMAIL"}
+          message={order.generated_message ?? ""}
+          sentAt={order.sent_at}
+          sentToEmail={order.sent_to_email}
+          sentChannel={order.sent_channel}
+        />
 
         <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-medium text-slate-500">

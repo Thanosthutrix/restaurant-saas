@@ -7,6 +7,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { explodeDishComponents, explodePrepComponents, type ExplodedItem } from "@/lib/recipes/explodeDishComponents";
 import { getLastKnownPurchaseUnitCostByItemIds, roundMoney } from "@/lib/stock/purchasePriceHistory";
 import { normalizeVatRatePct, sellingPriceHtFromTtc } from "@/lib/tax/frenchSellingVat";
+import { toNumber } from "@/lib/utils/safeNumeric";
 
 async function getUnitCostsForMargin(restaurantId: string, itemIds: string[]): Promise<Map<string, number>> {
   const costMap = await getLastKnownPurchaseUnitCostByItemIds(restaurantId, itemIds);
@@ -60,6 +61,101 @@ async function computeFoodCostFromExploded(
   let complete = true;
   const breakdown: DishFoodCostBreakdownLine[] = [];
 
+  for (const e of exploded) {
+    const uc = costs.get(e.inventoryItemId) ?? null;
+    const lineCost = uc != null ? roundMoney(e.qty * uc) : null;
+    if (uc == null) complete = false;
+    else sum += lineCost!;
+    breakdown.push({
+      inventoryItemId: e.inventoryItemId,
+      name: e.name,
+      unit: e.unit,
+      qty: e.qty,
+      unitCostHt: uc,
+      lineCostHt: lineCost,
+    });
+  }
+
+  return {
+    foodCostHt: roundMoney(sum),
+    costIsComplete: complete,
+    breakdown,
+    errorMessage: null,
+  };
+}
+
+type MarginItemRow = {
+  id: string;
+  name: string;
+  unit: string;
+  item_type: string;
+};
+
+type MarginRecipeGraph = {
+  itemById: Map<string, MarginItemRow>;
+  prepComponentsByParentId: Map<string, { component_item_id: string; qty: number }[]>;
+};
+
+function explodeSeedsFromGraph(
+  graph: MarginRecipeGraph,
+  seeds: { itemId: string; qty: number }[],
+  maxDepth = 10
+): ExplodedItem[] {
+  const aggregated = new Map<string, number>();
+  const path = new Set<string>();
+
+  function addComponent(itemId: string, qty: number, depth: number) {
+    if (path.has(itemId)) {
+      throw new Error(
+        `Boucle de composition détectée dans les données (inventory_item ${itemId} apparaît deux fois dans un même chemin). Vérifiez les compositions des préparations.`
+      );
+    }
+    const item = graph.itemById.get(itemId);
+    if (!item) return;
+
+    if (item.item_type === "prep" && depth < maxDepth) {
+      path.add(itemId);
+      try {
+        for (const row of graph.prepComponentsByParentId.get(itemId) ?? []) {
+          const componentQty = row.qty * qty;
+          if (componentQty > 0) addComponent(row.component_item_id, componentQty, depth + 1);
+        }
+      } finally {
+        path.delete(itemId);
+      }
+      return;
+    }
+
+    aggregated.set(itemId, (aggregated.get(itemId) ?? 0) + qty);
+  }
+
+  for (const seed of seeds) {
+    if (seed.qty > 0) addComponent(seed.itemId, seed.qty, 1);
+  }
+
+  return Array.from(aggregated.entries()).map(([inventoryItemId, qty]) => {
+    const item = graph.itemById.get(inventoryItemId)!;
+    return {
+      inventoryItemId,
+      name: item.name,
+      unit: item.unit,
+      itemType: item.item_type,
+      qty,
+    };
+  });
+}
+
+function computeFoodCostFromExplodedWithCosts(
+  exploded: ExplodedItem[],
+  costs: Map<string, number>
+): DishFoodCostResult {
+  if (exploded.length === 0) {
+    return { foodCostHt: 0, costIsComplete: true, breakdown: [], errorMessage: null };
+  }
+
+  let sum = 0;
+  let complete = true;
+  const breakdown: DishFoodCostBreakdownLine[] = [];
   for (const e of exploded) {
     const uc = costs.get(e.inventoryItemId) ?? null;
     const lineCost = uc != null ? roundMoney(e.qty * uc) : null;
@@ -159,17 +255,64 @@ export async function getMarginAnalysisRows(
   if (!dishes?.length) return { rows: [], error: null };
 
   const dishIds = dishes.map((d) => (d as { id: string }).id);
-  const { data: dcRows } = await supabaseServer
-    .from("dish_components")
-    .select("dish_id")
-    .eq("restaurant_id", restaurantId)
-    .in("dish_id", dishIds);
+  const [dcRes, itemsRes, prepComponentsRes] = await Promise.all([
+    supabaseServer
+      .from("dish_components")
+      .select("dish_id, inventory_item_id, qty")
+      .eq("restaurant_id", restaurantId)
+      .in("dish_id", dishIds),
+    supabaseServer
+      .from("inventory_items")
+      .select("id, name, unit, item_type")
+      .eq("restaurant_id", restaurantId),
+    supabaseServer
+      .from("inventory_item_components")
+      .select("parent_item_id, component_item_id, qty")
+      .eq("restaurant_id", restaurantId),
+  ]);
+
+  const dcRows = dcRes.data ?? [];
 
   const countByDish = new Map<string, number>();
-  for (const r of dcRows ?? []) {
+  const seedsByDish = new Map<string, { itemId: string; qty: number }[]>();
+  for (const r of dcRows) {
     const id = (r as { dish_id: string }).dish_id;
     countByDish.set(id, (countByDish.get(id) ?? 0) + 1);
+    const row = r as { dish_id: string; inventory_item_id: string; qty: unknown };
+    const qty = toNumber(row.qty);
+    if (qty > 0) {
+      const seeds = seedsByDish.get(row.dish_id) ?? [];
+      seeds.push({ itemId: row.inventory_item_id, qty });
+      seedsByDish.set(row.dish_id, seeds);
+    }
   }
+
+  const graph: MarginRecipeGraph = {
+    itemById: new Map(((itemsRes.data ?? []) as MarginItemRow[]).map((i) => [i.id, i])),
+    prepComponentsByParentId: new Map(),
+  };
+  for (const raw of prepComponentsRes.data ?? []) {
+    const row = raw as { parent_item_id: string; component_item_id: string; qty: unknown };
+    const qty = toNumber(row.qty);
+    if (qty <= 0) continue;
+    const list = graph.prepComponentsByParentId.get(row.parent_item_id) ?? [];
+    list.push({ component_item_id: row.component_item_id, qty });
+    graph.prepComponentsByParentId.set(row.parent_item_id, list);
+  }
+
+  const explodedByDish = new Map<string, ExplodedItem[]>();
+  const allExplodedItemIds = new Set<string>();
+  for (const [dishId, seeds] of seedsByDish) {
+    try {
+      const exploded = explodeSeedsFromGraph(graph, seeds, 10);
+      explodedByDish.set(dishId, exploded);
+      for (const e of exploded) allExplodedItemIds.add(e.inventoryItemId);
+    } catch {
+      // L'erreur de boucle sera restituée au moment du traitement de la ligne.
+    }
+  }
+
+  const costMap = await getUnitCostsForMargin(restaurantId, [...allExplodedItemIds]);
 
   const rows: MarginAnalysisRow[] = [];
 
@@ -208,7 +351,18 @@ export async function getMarginAnalysisRows(
       continue;
     }
 
-    const costRes = await computeDishFoodCostHt(restaurantId, id);
+    let costRes: DishFoodCostResult;
+    try {
+      const exploded = explodedByDish.get(id) ?? explodeSeedsFromGraph(graph, seedsByDish.get(id) ?? [], 10);
+      costRes = computeFoodCostFromExplodedWithCosts(exploded, costMap);
+    } catch (e) {
+      costRes = {
+        foodCostHt: 0,
+        costIsComplete: false,
+        breakdown: [],
+        errorMessage: e instanceof Error ? e.message : "Erreur lors du dépliage de la recette.",
+      };
+    }
     if (costRes.errorMessage) {
       rows.push({
         dishId: id,

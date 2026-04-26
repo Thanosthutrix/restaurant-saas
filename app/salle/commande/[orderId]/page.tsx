@@ -10,6 +10,7 @@ import {
 } from "@/lib/catalog/restaurantCategories";
 import { getDishes } from "@/lib/db";
 import { getRestaurantForPage } from "@/lib/auth";
+import { getCustomerById, listRecentCustomersForLookup } from "@/lib/customers/customersDb";
 import {
   getDiningOrder,
   getDiningOrderLines,
@@ -19,6 +20,7 @@ import {
   lineTtc,
   orderTotalTtc,
 } from "@/lib/dining/diningDb";
+import { diningTableTicketTitle } from "@/lib/dining/ticketLabel";
 import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { DiningOrderClient } from "./DiningOrderClient";
@@ -26,7 +28,7 @@ import type { DiningLineClient } from "../diningOrderTypes";
 
 type Props = {
   params: Promise<{ orderId: string }>;
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; clientId?: string }>;
 };
 
 export default async function DiningOrderPage({ params, searchParams }: Props) {
@@ -36,17 +38,33 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
   const { orderId } = await params;
   const sp = await searchParams;
   const fromCaisse = sp.from === "caisse";
-  const backHref = fromCaisse ? "/caisse" : "/salle";
-  const backLabel = fromCaisse ? "← Caisse" : "← Salle";
+  const fromClients = sp.from === "clients";
+  const returnClientId = sp.clientId?.trim() || "";
+  const backHref = fromCaisse
+    ? "/caisse"
+    : fromClients
+      ? returnClientId
+        ? `/clients/${returnClientId}`
+        : "/clients"
+      : "/salle";
+  const backLabel = fromCaisse
+    ? "← Caisse"
+    : fromClients
+      ? returnClientId
+        ? "← Fiche client"
+        : "← Base clients"
+      : "← Salle";
 
   const [
     { data: order, error: oErr },
     { data: dishes, error: dErr },
     { data: flatCats, error: catErr },
+    customerSearchPool,
   ] = await Promise.all([
     getDiningOrder(orderId, restaurant.id),
     getDishes(restaurant.id),
     listRestaurantCategories(restaurant.id),
+    listRecentCustomersForLookup(restaurant.id, 80),
   ]);
 
   if (oErr) {
@@ -108,6 +126,7 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
       dishId: l.dish_id,
       dishName: d?.name ?? "Plat",
       qty: Number(l.qty),
+      isPrepared: Boolean((l as { is_prepared?: boolean }).is_prepared),
       lineGrossTtc: lineGrossTtc(l),
       lineTotalTtc: lineTtc(l),
       discountKind: parseDiningDiscountKind(l.discount_kind),
@@ -126,9 +145,33 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
   }
 
   const counterName = order.counter_ticket_label?.trim();
-  const placeDescription = counterName
-    ? `Ticket comptoir · ${counterName}`
-    : `Table ${table?.label ?? "—"}`;
+  const isCounterOrder = order.dining_table_id == null && Boolean(counterName);
+
+  let linkedCustomer: {
+    id: string;
+    display_name: string;
+    service_memo: string | null;
+    allergens_note: string | null;
+  } | null = null;
+  let linkedCustomerEmail: string | null = null;
+  if (order.customer_id) {
+    const cust = await getCustomerById(restaurant.id, order.customer_id);
+    if (cust) {
+      const em = cust.email?.trim() ?? "";
+      linkedCustomerEmail = em || null;
+      linkedCustomer = {
+        id: cust.id,
+        display_name: cust.display_name,
+        service_memo: cust.service_memo,
+        allergens_note: cust.allergens_note,
+      };
+    }
+  }
+
+  /** Fiche liée = nom affiché (évite « Comptoir · Comptoir 21:28… »). */
+  const placeDescription = isCounterOrder
+    ? (linkedCustomer?.display_name?.trim() || counterName) ?? "Comptoir"
+    : diningTableTicketTitle(table?.label ?? "—", linkedCustomer?.display_name ?? null);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
@@ -159,6 +202,9 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
         catalogRoots={prunedRoots}
         directByCategoryId={directByCategoryId}
         uncategorized={uncategorized}
+        linkedCustomer={linkedCustomer}
+        linkedCustomerEmail={linkedCustomerEmail}
+        customerSearchPool={customerSearchPool}
       />
     </div>
   );

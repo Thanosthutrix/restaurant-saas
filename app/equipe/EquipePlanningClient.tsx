@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { StaffPlanningProfileForm } from "@/components/staff/StaffPlanningProfileForm";
 import { ManualWeekPlanner, PlanningHoursRecap } from "@/components/staff/ManualWeekPlanner";
-import { WeekScheduleOverview } from "@/components/staff/WeekScheduleOverview";
 import type { PlanningAlert } from "@/lib/staff/planningAlerts";
-import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
+import {
+  resolveWeekPlanningDays,
+  type PlanningDayOverrideRow,
+  type WeekResolvedDay,
+} from "@/lib/staff/planningResolve";
+import type { OpeningHoursMap, PlanningDayKey } from "@/lib/staff/planningHoursTypes";
 import type { StaffMember, WorkShiftWithDetails } from "@/lib/staff/types";
 import {
   actualDurationMinutes,
@@ -121,6 +125,11 @@ type Props = {
   simulationId: string | null;
   simulationShifts: WorkShiftWithDetails[];
   resolvedWeekDays: WeekResolvedDay[];
+  /** Même base que la fiche restaurant : recalcul client des plages affichées (évite toute dérive RSC). */
+  planningOpeningHours: OpeningHoursMap;
+  planningStaffExtraBands: OpeningHoursMap;
+  planningStaffTargetsWeekly: Partial<Record<PlanningDayKey, number>>;
+  planningDayOverrides: PlanningDayOverrideRow[];
   planningAlerts: PlanningAlert[];
   simulationAlerts: PlanningAlert[];
 };
@@ -144,6 +153,10 @@ export function EquipePlanningClient({
   simulationId: simulationIdProp,
   simulationShifts,
   resolvedWeekDays,
+  planningOpeningHours,
+  planningStaffExtraBands,
+  planningStaffTargetsWeekly,
+  planningDayOverrides,
   planningAlerts,
   simulationAlerts,
 }: Props) {
@@ -169,6 +182,27 @@ export function EquipePlanningClient({
   const [editOut, setEditOut] = useState("");
 
   const monday = useMemo(() => parseISODateLocal(weekMondayIso), [weekMondayIso]);
+
+  /** Grille : même logique que le serveur mais recalculée ici pour des `openingBands` / `ymd` fiables côté navigateur. */
+  const resolvedWeekDaysForGrid = useMemo(() => {
+    const m = parseISODateLocal(weekMondayIso);
+    if (!m) return resolvedWeekDays;
+    return resolveWeekPlanningDays(
+      m,
+      planningOpeningHours,
+      planningStaffExtraBands,
+      planningStaffTargetsWeekly,
+      planningDayOverrides
+    );
+  }, [
+    weekMondayIso,
+    resolvedWeekDays,
+    planningOpeningHours,
+    planningStaffExtraBands,
+    planningStaffTargetsWeekly,
+    planningDayOverrides,
+  ]);
+
   const prevWeek = monday ? toISODateString(addDays(monday, -7)) : weekMondayIso;
   const nextWeek = monday ? toISODateString(addDays(monday, 7)) : weekMondayIso;
 
@@ -515,7 +549,7 @@ export function EquipePlanningClient({
       )}
 
       <section className={`${uiCard}`}>
-        <h2 className="text-sm font-semibold text-slate-900">Vue semaine & alertes</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Planning & alertes</h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-slate-600">Affichage :</span>
           <button
@@ -569,9 +603,8 @@ export function EquipePlanningClient({
           </p>
         ) : null}
         <p className="mt-1 text-xs text-slate-500">
-          Grille : ouverture (vert) vs créneaux planifiés (bleu). Les alertes listent chevauchements, écarts aux
-          horaires d’ouverture (modèle + exceptions), volumes vs objectif, pauses longues journées, retards de
-          pointage.
+          Grille : créneaux planifiés par collaborateur. Les alertes listent chevauchements, écarts aux horaires
+          d’ouverture (modèle + exceptions), volumes vs objectif, pauses longues journées, retards de pointage.
         </p>
         <p className="mt-2 text-xs text-slate-600">
           <Link
@@ -582,14 +615,32 @@ export function EquipePlanningClient({
           </Link>{" "}
           se règlent dans les infos du restaurant.
         </p>
-        <div className="mt-4">
-          <WeekScheduleOverview
-            weekMondayIso={weekMondayIso}
-            staff={staff}
-            shifts={displayShifts}
-            resolvedWeekDays={resolvedWeekDays}
-            alerts={displayAlerts}
-          />
+        <div className="mt-4 space-y-3">
+          {displayAlerts.length > 0 ? (
+            <ul className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-3 text-sm">
+              {displayAlerts.map((a, i) => (
+                <li
+                  key={i}
+                  className={
+                    a.level === "error"
+                      ? "text-red-900"
+                      : a.level === "warning"
+                        ? "text-amber-950"
+                        : "text-slate-700"
+                  }
+                >
+                  <span className="font-semibold">
+                    {a.level === "error" ? "Erreur" : a.level === "warning" ? "Attention" : "Info"} :{" "}
+                  </span>
+                  {a.message}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-900">
+              Aucune alerte automatique sur cette semaine (chevauchements, plages, volumes…).
+            </p>
+          )}
         </div>
 
         <div className="mt-8 space-y-6 border-t border-slate-100 pt-8">
@@ -605,7 +656,7 @@ export function EquipePlanningClient({
             weekMondayIso={weekMondayIso}
             staff={staff}
             shifts={displayShifts}
-            resolvedWeekDays={resolvedWeekDays}
+            resolvedWeekDays={resolvedWeekDaysForGrid}
             isSimulation={planningMode === "simulation"}
             simulationId={effectiveSimulationId}
             pending={pending}

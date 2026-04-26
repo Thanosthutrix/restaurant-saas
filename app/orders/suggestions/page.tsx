@@ -45,6 +45,12 @@ export default async function OrderSuggestionsPage() {
 
         <p className="mt-6 flex flex-wrap gap-4">
           <Link
+            href="/orders/new"
+            className="text-sm text-slate-600 underline"
+          >
+            Créer une commande manuelle
+          </Link>
+          <Link
             href="/orders"
             className="text-sm text-slate-600 underline"
           >

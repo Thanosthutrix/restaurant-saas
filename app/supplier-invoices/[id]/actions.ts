@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { linkDeliveryNotesToSupplierInvoice, updateSupplierInvoice } from "@/lib/db";
+import { linkDeliveryNotesToSupplierInvoice, updateSupplierInvoice, updateSupplierInvoiceStatus } from "@/lib/db";
 import { runSupplierInvoiceAnalysis } from "@/lib/run-supplier-invoice-analysis";
+import { supabaseServer } from "@/lib/supabaseServer";
+import { resolveReceptionLineUnitCosts } from "@/lib/stock/receptionUnitCost";
 
 export async function linkReceptionsToInvoiceAction(
   invoiceId: string,
@@ -12,6 +14,7 @@ export async function linkReceptionsToInvoiceAction(
   const { error } = await linkDeliveryNotesToSupplierInvoice(invoiceId, deliveryNoteIds, restaurantId);
   if (error) return { error: error.message };
   revalidatePath(`/supplier-invoices/${invoiceId}`);
+  revalidatePath("/supplier-invoices");
   revalidatePath(`/suppliers/[id]`, "page");
   return { error: null };
 }
@@ -53,6 +56,7 @@ export async function updateSupplierInvoiceMetadataAction(
   });
   if (error) return { success: false, error: error.message };
   revalidatePath(`/supplier-invoices/${invoiceId}`);
+  revalidatePath("/supplier-invoices");
   revalidatePath(`/suppliers/${data?.supplier_id ?? ""}`, "page");
   return { success: true };
 }
@@ -69,6 +73,111 @@ export async function rerunInvoiceAnalysisAction(
   const result = await runSupplierInvoiceAnalysis(invoiceId, restaurantId);
   if (!result.ok) return { success: false, error: result.error };
   revalidatePath(`/supplier-invoices/${invoiceId}`);
+  revalidatePath("/supplier-invoices");
+  revalidatePath("/suppliers/[id]", "page");
+  return { success: true };
+}
+
+async function applyInvoiceCostsToValidatedReceptions(invoiceId: string, restaurantId: string): Promise<void> {
+  const { data: pivots, error: pivotErr } = await supabaseServer
+    .from("supplier_invoice_delivery_notes")
+    .select("delivery_note_id")
+    .eq("supplier_invoice_id", invoiceId);
+  if (pivotErr) throw new Error(pivotErr.message);
+
+  const deliveryNoteIds = (pivots ?? []).map((p: { delivery_note_id: string }) => p.delivery_note_id);
+  if (deliveryNoteIds.length === 0) return;
+
+  const { data: notes, error: notesErr } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, status")
+    .in("id", deliveryNoteIds)
+    .eq("restaurant_id", restaurantId);
+  if (notesErr) throw new Error(notesErr.message);
+  const validatedNoteIds = new Set(
+    (notes ?? [])
+      .filter((n: { status: string }) => n.status === "validated" || n.status === "received")
+      .map((n: { id: string }) => n.id)
+  );
+  if (validatedNoteIds.size === 0) return;
+
+  const { data: rawLines, error: linesErr } = await supabaseServer
+    .from("delivery_note_lines")
+    .select(
+      "id, delivery_note_id, inventory_item_id, qty_received, label, purchase_order_line_id, bl_line_total_ht, bl_unit_price_stock_ht, manual_unit_price_stock_ht, supplier_invoice_extracted_line_id"
+    )
+    .in("delivery_note_id", [...validatedNoteIds]);
+  if (linesErr) throw new Error(linesErr.message);
+
+  const lines = (rawLines ?? []).filter((l: { inventory_item_id: string | null }) => l.inventory_item_id);
+  if (lines.length === 0) return;
+
+  const unitCostByLineId = await resolveReceptionLineUnitCosts({
+    restaurantId,
+    supplierInvoiceId: invoiceId,
+    lines: lines.map((l) => {
+      const row = l as {
+        id: string;
+        label?: string | null;
+        inventory_item_id: string;
+        qty_received: unknown;
+        purchase_order_line_id?: string | null;
+        bl_line_total_ht?: unknown;
+        bl_unit_price_stock_ht?: unknown;
+        manual_unit_price_stock_ht?: unknown;
+        supplier_invoice_extracted_line_id?: string | null;
+      };
+      return {
+        id: row.id,
+        label: row.label ?? null,
+        inventory_item_id: row.inventory_item_id,
+        qty_received: Number(row.qty_received) || 0,
+        purchase_order_line_id: row.purchase_order_line_id ?? null,
+        bl_line_total_ht: row.bl_line_total_ht != null ? Number(row.bl_line_total_ht) : null,
+        bl_unit_price_stock_ht: row.bl_unit_price_stock_ht != null ? Number(row.bl_unit_price_stock_ht) : null,
+        manual_unit_price_stock_ht:
+          row.manual_unit_price_stock_ht != null ? Number(row.manual_unit_price_stock_ht) : null,
+        supplier_invoice_extracted_line_id: row.supplier_invoice_extracted_line_id ?? null,
+      };
+    }),
+  });
+
+  for (const line of lines as { id: string }[]) {
+    const unitCost = unitCostByLineId[line.id];
+    if (unitCost == null || !Number.isFinite(unitCost) || unitCost <= 0) continue;
+
+    const { data: movements, error: movErr } = await supabaseServer
+      .from("stock_movements")
+      .update({ unit_cost: unitCost, supplier_invoice_id: invoiceId })
+      .eq("restaurant_id", restaurantId)
+      .eq("delivery_note_line_id", line.id)
+      .select("id");
+    if (movErr) throw new Error(movErr.message);
+
+    const movementIds = (movements ?? []).map((m: { id: string }) => m.id);
+    if (movementIds.length > 0) {
+      const { error: lotsErr } = await supabaseServer
+        .from("inventory_stock_lots")
+        .update({ unit_cost: unitCost })
+        .in("source_stock_movement_id", movementIds);
+      if (lotsErr) throw new Error(lotsErr.message);
+    }
+  }
+}
+
+export async function markSupplierInvoiceReviewedAction(
+  invoiceId: string,
+  restaurantId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await applyInvoiceCostsToValidatedReceptions(invoiceId, restaurantId);
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Impossible d’appliquer les coûts facture." };
+  }
+  const { error } = await updateSupplierInvoiceStatus(invoiceId, restaurantId, "reviewed");
+  if (error) return { success: false, error: error.message };
+  revalidatePath(`/supplier-invoices/${invoiceId}`);
+  revalidatePath("/supplier-invoices");
   revalidatePath("/suppliers/[id]", "page");
   return { success: true };
 }

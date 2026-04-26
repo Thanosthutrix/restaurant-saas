@@ -9,9 +9,12 @@ import {
 } from "@/lib/supplier-invoice-analysis";
 import {
   buildInvoiceReconciliation,
+  buildInvoiceLineComparisons,
+  type InvoiceLineComparison,
   type InvoiceReconciliationSummary,
 } from "@/lib/invoice-reconciliation";
 import { getCalculatedStockByItemForRestaurant } from "@/lib/stock/stockMovements";
+import { getLastKnownPurchaseUnitCostByItemIds } from "@/lib/stock/purchasePriceHistory";
 import { normalizeDishLabel } from "@/lib/normalizeDishLabel";
 import { ensureResaleDishStockBinding } from "@/lib/recipes/ensureResaleDishStockBinding";
 import { toNumber } from "@/lib/utils/safeNumeric";
@@ -150,6 +153,9 @@ export type PurchaseOrder = {
   status: PurchaseOrderStatus;
   generated_message: string | null;
   expected_delivery_date: string | null;
+  sent_at: string | null;
+  sent_to_email: string | null;
+  sent_channel: "email" | "whatsapp" | "sms" | "phone" | "portal" | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -456,17 +462,31 @@ export async function updateServiceStockImpact(
 /** Liste des services d'un restaurant (pour historique), du plus récent au plus ancien. */
 export async function getServicesForRestaurant(
   restaurantId: string,
-  limit = 100
+  limit = 100,
+  options?: { summaryOnly?: boolean }
 ): Promise<{ data: Service[] | null; error: Error | null }> {
+  const select = options?.summaryOnly
+    ? "id,restaurant_id,service_date,service_type,image_url,analysis_status"
+    : "id, restaurant_id, service_date, service_type, image_url, analysis_status, analysis_result_json, analysis_error, analysis_version, stock_impact_json";
   const { data, error } = await supabaseServer
     .from("services")
-    .select("id, restaurant_id, service_date, service_type, image_url, analysis_status, analysis_result_json, analysis_error, analysis_version, stock_impact_json")
+    .select(select)
     .eq("restaurant_id", restaurantId)
     .order("service_date", { ascending: false })
     .order("id", { ascending: false })
     .limit(limit);
   if (error) return { data: null, error: new Error(error.message) };
-  return { data: (data ?? []) as Service[], error: null };
+  const rows =
+    options?.summaryOnly
+      ? ((data ?? []) as unknown as Record<string, unknown>[]).map((row) => ({
+          ...row,
+          analysis_result_json: null,
+          analysis_error: null,
+          analysis_version: null,
+          stock_impact_json: null,
+        }))
+      : (data ?? []);
+  return { data: rows as Service[], error: null };
 }
 
 /** Supprime un service : d'abord les ventes (service_sales), puis le service. service_import_lines en CASCADE si défini. */
@@ -634,6 +654,39 @@ export async function getInventoryItemsWithCalculatedStock(
   return { data: merged, error: null };
 }
 
+export async function getInventoryStockDashboardSummary(
+  restaurantId: string
+): Promise<{ data: { inventoryCount: number; belowMinStockCount: number } | null; error: Error | null }> {
+  const [itemsRes, calcRes] = await Promise.all([
+    supabaseServer
+      .from("inventory_items")
+      .select("id, current_stock_qty, min_stock_qty")
+      .eq("restaurant_id", restaurantId),
+    getCalculatedStockByItemForRestaurant(restaurantId),
+  ]);
+  if (itemsRes.error) return { data: null, error: new Error(itemsRes.error.message) };
+  if (calcRes.error) return { data: null, error: calcRes.error };
+
+  let belowMinStockCount = 0;
+  for (const row of itemsRes.data ?? []) {
+    const item = row as { id: string; current_stock_qty: unknown; min_stock_qty: unknown };
+    const min = item.min_stock_qty != null ? Number(item.min_stock_qty) : null;
+    if (min == null || !Number.isFinite(min)) continue;
+    const calculated = calcRes.data.get(item.id);
+    const current = item.current_stock_qty != null ? Number(item.current_stock_qty) : 0;
+    const stockQty = calculated ?? (Number.isFinite(current) ? current : 0);
+    if (stockQty < min) belowMinStockCount += 1;
+  }
+
+  return {
+    data: {
+      inventoryCount: itemsRes.data?.length ?? 0,
+      belowMinStockCount,
+    },
+    error: null,
+  };
+}
+
 /** Récupère un composant par id. */
 export async function getInventoryItem(
   itemId: string
@@ -676,6 +729,28 @@ export async function getDishComponents(
   const rows = (data ?? []) as (Omit<DishComponent, "qty"> & { qty: unknown })[];
   const normalized = rows.map((r) => ({ ...r, qty: toNumber(r.qty) })) as DishComponent[];
   return { data: normalized, error: null };
+}
+
+export async function getDishComponentCounts(
+  restaurantId: string,
+  dishIds: string[]
+): Promise<{ data: Map<string, number>; error: Error | null }> {
+  const counts = new Map<string, number>();
+  for (const id of dishIds) counts.set(id, 0);
+  if (dishIds.length === 0) return { data: counts, error: null };
+
+  const { data, error } = await supabaseServer
+    .from("dish_components")
+    .select("dish_id")
+    .eq("restaurant_id", restaurantId)
+    .in("dish_id", dishIds);
+  if (error) return { data: counts, error: new Error(error.message) };
+
+  for (const row of data ?? []) {
+    const id = (row as { dish_id: string }).dish_id;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return { data: counts, error: null };
 }
 
 // --- Fournisseurs (suppliers) ---
@@ -884,14 +959,15 @@ export async function updateOrderDraftStatus(
 
 export async function getPurchaseOrders(
   restaurantId: string,
-  options?: { supplierId?: string }
+  options?: { supplierId?: string; limit?: number }
 ): Promise<{ data: PurchaseOrder[] | null; error: Error | null }> {
   let q = supabaseServer
     .from("purchase_orders")
-    .select("id, restaurant_id, supplier_id, status, generated_message, expected_delivery_date, created_at, updated_at")
+    .select("id, restaurant_id, supplier_id, status, generated_message, expected_delivery_date, sent_at, sent_to_email, sent_channel, created_at, updated_at")
     .eq("restaurant_id", restaurantId)
     .order("created_at", { ascending: false });
   if (options?.supplierId) q = q.eq("supplier_id", options.supplierId);
+  if (options?.limit != null) q = q.limit(options.limit);
   const { data, error } = await q;
   if (error) return { data: null, error: new Error(error.message) };
   return { data: data as PurchaseOrder[], error: null };
@@ -908,7 +984,7 @@ export async function getPurchaseOrder(
 ): Promise<{ data: PurchaseOrderWithDetails | null; error: Error | null }> {
   const { data: order, error: orderErr } = await supabaseServer
     .from("purchase_orders")
-    .select("id, restaurant_id, supplier_id, status, generated_message, expected_delivery_date, created_at, updated_at")
+    .select("id, restaurant_id, supplier_id, status, generated_message, expected_delivery_date, sent_at, sent_to_email, sent_channel, created_at, updated_at")
     .eq("id", orderId)
     .single();
   if (orderErr || !order) return { data: null, error: orderErr ? new Error(orderErr.message) : null };
@@ -966,7 +1042,7 @@ export async function createPurchaseOrder(params: {
       expected_delivery_date: expectedDeliveryDate ?? null,
       updated_at: now,
     })
-    .select("id, restaurant_id, supplier_id, status, generated_message, expected_delivery_date, created_at, updated_at")
+    .select("id, restaurant_id, supplier_id, status, generated_message, expected_delivery_date, sent_at, sent_to_email, sent_channel, created_at, updated_at")
     .single();
   if (orderErr || !order) return { data: null, error: orderErr ? new Error(orderErr.message) : null };
 
@@ -1006,6 +1082,27 @@ export async function updatePurchaseOrderStatus(
     .from("purchase_orders")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", orderId);
+  return { error: error ? new Error(error.message) : null };
+}
+
+export async function markPurchaseOrderSent(params: {
+  orderId: string;
+  restaurantId: string;
+  channel: "email" | "whatsapp" | "sms" | "phone" | "portal";
+  toEmail?: string | null;
+}): Promise<{ error: Error | null }> {
+  const now = new Date().toISOString();
+  const { error } = await supabaseServer
+    .from("purchase_orders")
+    .update({
+      status: "expected_delivery",
+      sent_at: now,
+      sent_to_email: params.toEmail?.trim() || null,
+      sent_channel: params.channel,
+      updated_at: now,
+    })
+    .eq("id", params.orderId)
+    .eq("restaurant_id", params.restaurantId);
   return { error: error ? new Error(error.message) : null };
 }
 
@@ -1555,19 +1652,32 @@ export async function createDeliveryNoteFromPurchaseOrder(
   const noteId = (note as DeliveryNote).id ?? null;
   if (!noteId) return { data: null, error: new Error("Impossible de créer la réception (id manquant).") };
 
-  const rows = (lines ?? []).map((l: Record<string, unknown>, index: number) => ({
-    delivery_note_id: noteId,
-    purchase_order_line_id: (l.id as string | null | undefined) ?? null,
-    inventory_item_id: (l.inventory_item_id as string | null | undefined) ?? null,
-    label: (l.item_name_snapshot as string | null | undefined) ?? "Ligne",
-    qty_ordered: Number(l.ordered_qty_purchase_unit) || 0,
-    qty_delivered: Number(l.ordered_qty_purchase_unit) || 0,
-    qty_received:
-      (Number(l.ordered_qty_purchase_unit) || 0) *
-      (l.purchase_to_stock_ratio != null ? Number(l.purchase_to_stock_ratio) : 1),
-    unit: (l.purchase_unit as string | null | undefined) ?? null,
-    sort_order: index,
-  }));
+  const inventoryItemIds = [
+    ...new Set(
+      (lines ?? [])
+        .map((l: Record<string, unknown>) => (l.inventory_item_id as string | null | undefined) ?? null)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const lastCostByItemId = await getLastKnownPurchaseUnitCostByItemIds(restaurantId, inventoryItemIds);
+
+  const rows = (lines ?? []).map((l: Record<string, unknown>, index: number) => {
+    const inventoryItemId = (l.inventory_item_id as string | null | undefined) ?? null;
+    return {
+      delivery_note_id: noteId,
+      purchase_order_line_id: (l.id as string | null | undefined) ?? null,
+      inventory_item_id: inventoryItemId,
+      label: (l.item_name_snapshot as string | null | undefined) ?? "Ligne",
+      qty_ordered: Number(l.ordered_qty_purchase_unit) || 0,
+      qty_delivered: Number(l.ordered_qty_purchase_unit) || 0,
+      qty_received:
+        (Number(l.ordered_qty_purchase_unit) || 0) *
+        (l.purchase_to_stock_ratio != null ? Number(l.purchase_to_stock_ratio) : 1),
+      unit: (l.purchase_unit as string | null | undefined) ?? null,
+      bl_unit_price_stock_ht: inventoryItemId ? (lastCostByItemId.get(inventoryItemId) ?? null) : null,
+      sort_order: index,
+    };
+  });
 
   if (rows.length > 0) {
     const { error: insErr } = await supabaseServer.from("delivery_note_lines").insert(rows);
@@ -1592,19 +1702,40 @@ export async function populateDeliveryNoteLinesFromPurchaseOrder(
     .order("created_at", { ascending: true });
   if (linesErr) return { error: new Error(linesErr.message) };
 
-  const rows = (lines ?? []).map((l: Record<string, unknown>, index: number) => ({
-    delivery_note_id: deliveryNoteId,
-    purchase_order_line_id: (l.id as string | null | undefined) ?? null,
-    inventory_item_id: (l.inventory_item_id as string | null | undefined) ?? null,
-    label: (l.item_name_snapshot as string | null | undefined) ?? "Ligne",
-    qty_ordered: Number(l.ordered_qty_purchase_unit) || 0,
-    qty_delivered: Number(l.ordered_qty_purchase_unit) || 0,
-    qty_received:
-      (Number(l.ordered_qty_purchase_unit) || 0) *
-      (l.purchase_to_stock_ratio != null ? Number(l.purchase_to_stock_ratio) : 1),
-    unit: (l.purchase_unit as string | null | undefined) ?? null,
-    sort_order: index,
-  }));
+  const { data: note } = await supabaseServer
+    .from("delivery_notes")
+    .select("restaurant_id")
+    .eq("id", deliveryNoteId)
+    .maybeSingle();
+  const restaurantId = note ? String((note as { restaurant_id: string }).restaurant_id) : null;
+  const inventoryItemIds = [
+    ...new Set(
+      (lines ?? [])
+        .map((l: Record<string, unknown>) => (l.inventory_item_id as string | null | undefined) ?? null)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const lastCostByItemId = restaurantId
+    ? await getLastKnownPurchaseUnitCostByItemIds(restaurantId, inventoryItemIds)
+    : new Map<string, number>();
+
+  const rows = (lines ?? []).map((l: Record<string, unknown>, index: number) => {
+    const inventoryItemId = (l.inventory_item_id as string | null | undefined) ?? null;
+    return {
+      delivery_note_id: deliveryNoteId,
+      purchase_order_line_id: (l.id as string | null | undefined) ?? null,
+      inventory_item_id: inventoryItemId,
+      label: (l.item_name_snapshot as string | null | undefined) ?? "Ligne",
+      qty_ordered: Number(l.ordered_qty_purchase_unit) || 0,
+      qty_delivered: Number(l.ordered_qty_purchase_unit) || 0,
+      qty_received:
+        (Number(l.ordered_qty_purchase_unit) || 0) *
+        (l.purchase_to_stock_ratio != null ? Number(l.purchase_to_stock_ratio) : 1),
+      unit: (l.purchase_unit as string | null | undefined) ?? null,
+      bl_unit_price_stock_ht: inventoryItemId ? (lastCostByItemId.get(inventoryItemId) ?? null) : null,
+      sort_order: index,
+    };
+  });
 
   if (rows.length > 0) {
     const { error: insErr } = await supabaseServer.from("delivery_note_lines").insert(rows);
@@ -1688,6 +1819,32 @@ export async function getSupplierInvoicesBySupplier(
   return { data: (data ?? []) as SupplierInvoice[], error: null };
 }
 
+export async function getSupplierInvoicesForRestaurant(
+  restaurantId: string,
+  options?: { includeFileFields?: boolean }
+): Promise<{ data: SupplierInvoice[] | null; error: Error | null }> {
+  const select =
+    options?.includeFileFields === false
+      ? "id,restaurant_id,supplier_id,invoice_number,invoice_date,amount_ht,amount_ttc,status,created_at,updated_at"
+      : "id,restaurant_id,supplier_id,invoice_number,invoice_date,file_path,file_name,file_url,amount_ht,amount_ttc,status,created_at,updated_at";
+  const { data, error } = await supabaseServer
+    .from("supplier_invoices")
+    .select(select)
+    .eq("restaurant_id", restaurantId)
+    .order("created_at", { ascending: false });
+  if (error) return { data: null, error: new Error(error.message) };
+  const rows =
+    options?.includeFileFields === false
+      ? ((data ?? []) as unknown as Record<string, unknown>[]).map((row) => ({
+          ...(row as Omit<SupplierInvoice, "file_path" | "file_name" | "file_url">),
+          file_path: null,
+          file_name: null,
+          file_url: null,
+        }))
+      : (data ?? []);
+  return { data: rows as SupplierInvoice[], error: null };
+}
+
 export async function updateSupplierInvoice(
   invoiceId: string,
   restaurantId: string,
@@ -1713,6 +1870,19 @@ export async function updateSupplierInvoice(
     .single();
   if (error) return { data: null, error: new Error(error.message) };
   return { data: data as SupplierInvoice, error: null };
+}
+
+export async function updateSupplierInvoiceStatus(
+  invoiceId: string,
+  restaurantId: string,
+  status: "draft" | "linked" | "reviewed"
+): Promise<{ error: Error | null }> {
+  const { error } = await supabaseServer
+    .from("supplier_invoices")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", invoiceId)
+    .eq("restaurant_id", restaurantId);
+  return { error: error ? new Error(error.message) : null };
 }
 
 export type DeliveryNoteSummary = {
@@ -1743,6 +1913,8 @@ export type SupplierInvoiceWithDeliveryNotes = SupplierInvoice & {
   analysis_view: SupplierInvoiceAnalysisView | null;
   /** Rapprochement V1 : sommes, écarts montants, libellés approximatifs vs réceptions. */
   invoice_reconciliation: InvoiceReconciliationSummary;
+  /** Comparaison détaillée ligne facture ↔ ligne réception. */
+  invoice_line_comparisons: InvoiceLineComparison[];
 };
 
 const SUPPLIER_INVOICE_DETAIL_SELECT =
@@ -1879,8 +2051,17 @@ export async function getSupplierInvoiceWithDeliveryNotes(
     lines_without_product: 0,
     control_state: "none",
   };
-  type ReceptionLineRef = { label: string | null; itemName: string | null };
-  let receptionLineRefs: ReceptionLineRef[] = [];
+  type ReceptionLineRef = {
+    label: string | null;
+    itemName: string | null;
+    qtyDeliveredPurchase: number | null;
+    qtyReceivedStock: number | null;
+    purchaseToStockRatio: number | null;
+    blLineTotalHt: number | null;
+    blUnitPriceStockHt: number | null;
+    manualUnitPriceStockHt: number | null;
+  };
+  const receptionLineRefs: ReceptionLineRef[] = [];
 
   if (noteIds.length > 0) {
     const { data: notes } = await supabaseServer
@@ -1889,7 +2070,7 @@ export async function getSupplierInvoiceWithDeliveryNotes(
       .in("id", noteIds);
     const { data: lines } = await supabaseServer
       .from("delivery_note_lines")
-      .select("delivery_note_id, inventory_item_id, label, inventory_items(name)")
+      .select("delivery_note_id, inventory_item_id, label, qty_delivered, qty_received, bl_line_total_ht, bl_unit_price_stock_ht, manual_unit_price_stock_ht, inventory_items(name), purchase_order_lines(purchase_to_stock_ratio)")
       .in("delivery_note_id", noteIds);
 
     const byNote: Record<
@@ -1904,7 +2085,13 @@ export async function getSupplierInvoiceWithDeliveryNotes(
         delivery_note_id: string;
         inventory_item_id: string | null;
         label?: string | null;
+        qty_delivered?: unknown;
+        qty_received?: unknown;
+        bl_line_total_ht?: unknown;
+        bl_unit_price_stock_ht?: unknown;
+        manual_unit_price_stock_ht?: unknown;
         inventory_items?: { name?: string } | { name?: string }[] | null;
+        purchase_order_lines?: { purchase_to_stock_ratio?: unknown } | { purchase_to_stock_ratio?: unknown }[] | null;
       };
       const nid = r.delivery_note_id;
       const hasProduct = r.inventory_item_id != null;
@@ -1918,9 +2105,17 @@ export async function getSupplierInvoiceWithDeliveryNotes(
         invRaw && typeof (invRaw as { name?: string }).name === "string"
           ? (invRaw as { name: string }).name
           : null;
+      const polRaw = Array.isArray(r.purchase_order_lines) ? r.purchase_order_lines[0] : r.purchase_order_lines;
+      const ratioRaw = polRaw?.purchase_to_stock_ratio;
       receptionLineRefs.push({
         label: r.label == null ? null : String(r.label),
         itemName,
+        qtyDeliveredPurchase: r.qty_delivered == null ? null : Number(r.qty_delivered),
+        qtyReceivedStock: r.qty_received == null ? null : Number(r.qty_received),
+        purchaseToStockRatio: ratioRaw == null ? null : Number(ratioRaw),
+        blLineTotalHt: r.bl_line_total_ht == null ? null : Number(r.bl_line_total_ht),
+        blUnitPriceStockHt: r.bl_unit_price_stock_ht == null ? null : Number(r.bl_unit_price_stock_ht),
+        manualUnitPriceStockHt: r.manual_unit_price_stock_ht == null ? null : Number(r.manual_unit_price_stock_ht),
       });
     }
 
@@ -1959,6 +2154,10 @@ export async function getSupplierInvoiceWithDeliveryNotes(
     amount_ht: invRow.amount_ht,
     amount_ttc: invRow.amount_ttc,
   });
+  const invoice_line_comparisons = buildInvoiceLineComparisons({
+    extractedLines: linesForView,
+    receptionLines: receptionLineRefs,
+  });
 
   return {
     data: {
@@ -1967,6 +2166,7 @@ export async function getSupplierInvoiceWithDeliveryNotes(
       control_summary,
       analysis_view: mergedAnalysisView,
       invoice_reconciliation,
+      invoice_line_comparisons,
     },
     error: null,
   };
@@ -1977,10 +2177,6 @@ export async function getDeliveryNotesBySupplierNotLinked(
   supplierId: string,
   restaurantId: string
 ): Promise<{ data: DeliveryNote[] | null; error: Error | null }> {
-  const { data: linked } = await supabaseServer
-    .from("supplier_invoice_delivery_notes")
-    .select("delivery_note_id");
-  const linkedIds = new Set((linked ?? []).map((r: { delivery_note_id: string }) => r.delivery_note_id));
   const { data: notes, error } = await supabaseServer
     .from("delivery_notes")
     .select("id, restaurant_id, supplier_id, status, created_at, updated_at, purchase_order_id, number, delivery_date, source, file_path, file_name, file_url")
@@ -1988,8 +2184,58 @@ export async function getDeliveryNotesBySupplierNotLinked(
     .eq("restaurant_id", restaurantId)
     .order("created_at", { ascending: false });
   if (error) return { data: null, error: new Error(error.message) };
+
+  const noteIds = (notes ?? []).map((n: { id: string }) => n.id);
+  if (noteIds.length === 0) return { data: [], error: null };
+
+  const { data: linked } = await supabaseServer
+    .from("supplier_invoice_delivery_notes")
+    .select("delivery_note_id")
+    .in("delivery_note_id", noteIds);
+  const linkedIds = new Set((linked ?? []).map((r: { delivery_note_id: string }) => r.delivery_note_id));
+
   const filtered = (notes ?? []).filter((n: { id: string }) => !linkedIds.has(n.id));
   return { data: filtered as DeliveryNote[], error: null };
+}
+
+export async function getValidatedDeliveryNotesAwaitingInvoice(
+  restaurantId: string
+): Promise<{ data: DeliveryNoteForList[] | null; error: Error | null }> {
+  const { data: notes, error } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, supplier_id, purchase_order_id, number, delivery_date, source, file_path, file_name, file_url, status, created_at, updated_at")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "validated")
+    .order("created_at", { ascending: false });
+  if (error) return { data: null, error: new Error(error.message) };
+
+  const allNoteIds = (notes ?? []).map((n: { id: string }) => n.id);
+  if (allNoteIds.length === 0) return { data: [], error: null };
+
+  const { data: linked } = await supabaseServer
+    .from("supplier_invoice_delivery_notes")
+    .select("delivery_note_id")
+    .in("delivery_note_id", allNoteIds);
+  const linkedIds = new Set((linked ?? []).map((r: { delivery_note_id: string }) => r.delivery_note_id));
+
+  const list = ((notes ?? []) as DeliveryNote[]).filter((n) => !linkedIds.has(n.id));
+  if (list.length === 0) return { data: [], error: null };
+
+  const noteIds = list.map((n) => n.id);
+  const { data: linesData } = await supabaseServer
+    .from("delivery_note_lines")
+    .select("delivery_note_id")
+    .in("delivery_note_id", noteIds);
+  const countByNoteId: Record<string, number> = {};
+  for (const row of linesData ?? []) {
+    const id = (row as { delivery_note_id: string }).delivery_note_id;
+    countByNoteId[id] = (countByNoteId[id] ?? 0) + 1;
+  }
+
+  return {
+    data: list.map((n) => ({ ...n, lines_count: countByNoteId[n.id] ?? 0 })),
+    error: null,
+  };
 }
 
 export async function linkDeliveryNotesToSupplierInvoice(

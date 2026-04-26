@@ -5,6 +5,8 @@ export type DiningLineClient = {
   dishId: string;
   dishName: string;
   qty: number;
+  /** Cuisine : ligne marquée comme prête. */
+  isPrepared: boolean;
   /** Prix catalogue × qté (avant remise). */
   lineGrossTtc: number;
   /** TTC ligne après remise. */

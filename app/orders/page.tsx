@@ -16,8 +16,10 @@ export default async function OrdersPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const { data: purchaseOrders } = await getPurchaseOrders(restaurant.id);
-  const { data: suppliers } = await getSuppliers(restaurant.id);
+  const [{ data: purchaseOrders }, { data: suppliers }] = await Promise.all([
+    getPurchaseOrders(restaurant.id),
+    getSuppliers(restaurant.id),
+  ]);
   const supplierById = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
 
   return (
@@ -35,7 +37,10 @@ export default async function OrdersPage() {
         </p>
       </div>
 
-      <div>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/orders/new" className={uiBtnPrimarySm}>
+          Créer une commande
+        </Link>
         <Link href="/orders/suggestions" className={uiBtnPrimarySm}>
           Voir les suggestions de commande
         </Link>

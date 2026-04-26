@@ -1,8 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
-import { fetchSevenDayForecast, type DailyWeatherPoint } from "@/lib/calendar/openMeteo";
-import { resolveRestaurantCoordsForWeather } from "@/lib/geo/resolveRestaurantCoordsForWeather";
+import type { DailyWeatherPoint } from "@/lib/calendar/openMeteo";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
 
 export type AppShellHeaderBootstrap = {
@@ -13,6 +12,7 @@ export type AppShellHeaderBootstrap = {
     activityLabel: string;
     serviceLabel: string;
     avgCovers: number | null;
+    emailSenderLabel: string;
   } | null;
   weather: { days: DailyWeatherPoint[]; restaurantId: string } | null;
   weatherHint:
@@ -23,7 +23,7 @@ export type AppShellHeaderBootstrap = {
   allowedNavKeys: ShellNavKey[];
 };
 
-/** Données header (établissement + météo) calculées côté serveur — évite le fetch client fragile. */
+/** Données header critiques calculées côté serveur. La météo est chargée côté client pour ne pas bloquer les pages. */
 export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstrap | null> {
   const user = await getCurrentUser();
   if (!user) return null;
@@ -47,33 +47,12 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     ? { restaurantId: current.id, ...getEstablishmentLabels(current) }
     : null;
 
-  let weather: { days: DailyWeatherPoint[]; restaurantId: string } | null = null;
-  let weatherHint: AppShellHeaderBootstrap["weatherHint"] = null;
-
-  if (current) {
-    try {
-      const coords = await resolveRestaurantCoordsForWeather(current);
-      if (!coords) {
-        weatherHint = { kind: "no_location", restaurantId: current.id };
-      } else {
-        const days = await fetchSevenDayForecast(coords.latitude, coords.longitude);
-        if (days?.length) {
-          weather = { days, restaurantId: current.id };
-        } else {
-          weatherHint = { kind: "forecast_unavailable", restaurantId: current.id };
-        }
-      }
-    } catch {
-      weatherHint = { kind: "forecast_unavailable", restaurantId: current.id };
-    }
-  }
-
   return {
     restaurants: rows,
     currentRestaurantId: access.currentRestaurantId,
     establishment,
-    weather,
-    weatherHint,
+    weather: null,
+    weatherHint: null,
     allowedNavKeys: access.allowedNavKeys,
   };
 }

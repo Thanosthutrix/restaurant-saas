@@ -32,7 +32,7 @@ function todayIsoInParis(): string {
 async function fetchJson(url: string): Promise<unknown> {
   const res = await fetch(url, {
     headers: { "User-Agent": "RestaurantSaaS/1.0 (calendar insights)" },
-    cache: "no-store",
+    next: { revalidate: 60 * 60 },
   });
   if (!res.ok) return null;
   return res.json();

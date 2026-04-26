@@ -1,36 +1,90 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import type { WorkShiftWithDetails } from "@/lib/staff/types";
-import {
-  actualDurationMinutes,
-  formatMinutesHuman,
-  plannedDurationMinutes,
-  varianceMinutes,
-} from "@/lib/staff/timeHelpers";
+import { useMemo, useState, useTransition } from "react";
+import { PlanningWeekReadOnly } from "@/components/staff/PlanningWeekReadOnly";
+import { findPendingArrival, findPendingClockOut, formatMyShiftLineFr } from "@/lib/staff/dayClock";
+import type { PlanningDayOverrideRow } from "@/lib/staff/planningResolve";
+import { resolveWeekPlanningDays } from "@/lib/staff/planningResolve";
+import type { OpeningHoursMap, PlanningDayKey } from "@/lib/staff/planningHoursTypes";
+import type { StaffMember, WorkShiftWithDetails } from "@/lib/staff/types";
+import { actualDurationMinutes, formatMinutesHuman, netPlannedMinutes } from "@/lib/staff/timeHelpers";
+import { addDays, mondayOfWeekContaining, parseISODateLocal, toISODateString } from "@/lib/staff/weekUtils";
 import { clockInAction, clockOutAction } from "../actions";
 import { uiBtnPrimarySm, uiCard } from "@/components/ui/premium";
 
-function formatDateTimeFr(iso: string): string {
-  return new Date(iso).toLocaleString("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 type Props = {
   restaurantId: string;
-  shifts: WorkShiftWithDetails[];
+  weekMondayIso: string;
+  prevWeekYmd: string;
+  nextWeekYmd: string;
+  allShifts: WorkShiftWithDetails[];
+  myShifts: WorkShiftWithDetails[];
+  staff: StaffMember[];
+  planningOpeningHours: OpeningHoursMap;
+  planningStaffExtraBands: OpeningHoursMap;
+  planningStaffTargetsWeekly: Partial<Record<PlanningDayKey, number>>;
+  planningDayOverrides: PlanningDayOverrideRow[];
 };
 
-export function MonPlanningClient({ restaurantId, shifts }: Props) {
+export function MonPlanningClient({
+  restaurantId,
+  weekMondayIso,
+  prevWeekYmd,
+  nextWeekYmd,
+  allShifts,
+  myShifts,
+  staff,
+  planningOpeningHours,
+  planningStaffExtraBands,
+  planningStaffTargetsWeekly,
+  planningDayOverrides,
+}: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const monday = useMemo(() => parseISODateLocal(weekMondayIso), [weekMondayIso]);
+
+  const resolvedWeekDaysForGrid = useMemo(() => {
+    const m = parseISODateLocal(weekMondayIso);
+    if (!m) return [];
+    return resolveWeekPlanningDays(
+      m,
+      planningOpeningHours,
+      planningStaffExtraBands,
+      planningStaffTargetsWeekly,
+      planningDayOverrides
+    );
+  }, [
+    weekMondayIso,
+    planningOpeningHours,
+    planningStaffExtraBands,
+    planningStaffTargetsWeekly,
+    planningDayOverrides,
+  ]);
+
+  const pendingClockOutShift = useMemo(() => findPendingClockOut(myShifts), [myShifts]);
+
+  const pendingArrivalShift = useMemo(() => {
+    if (pendingClockOutShift) return null;
+    return findPendingArrival(myShifts, new Date());
+  }, [myShifts, pendingClockOutShift]);
+
+  const recap = useMemo(() => {
+    let plannedNet = 0;
+    let recordedNet = 0;
+    for (const s of myShifts) {
+      plannedNet += netPlannedMinutes(s.starts_at, s.ends_at, s.break_minutes);
+      const act = actualDurationMinutes(
+        s.attendance?.clock_in_at ?? null,
+        s.attendance?.clock_out_at ?? null
+      );
+      if (act != null) recordedNet += act;
+    }
+    return { plannedNet, recordedNet };
+  }, [myShifts]);
 
   function refresh() {
     router.refresh();
@@ -60,84 +114,129 @@ export function MonPlanningClient({ restaurantId, shifts }: Props) {
     });
   }
 
+  const weekLabel = monday
+    ? (() => {
+        const sun = addDays(monday, 6);
+        const a = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+        const b = sun.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+        return `${a} – ${b}`;
+      })()
+    : "";
+
+  const showEndOfDayBar = Boolean(pendingClockOutShift);
+
   return (
-    <div className="space-y-4">
+    <div className={`space-y-8 ${showEndOfDayBar ? "pb-28" : ""}`}>
       {error && (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>
       )}
 
-      {shifts.length === 0 ? (
-        <p className="text-sm text-slate-500">Aucun créneau à venir ou récent.</p>
-      ) : (
-        <ul className="space-y-3">
-          {shifts.map((s) => {
-            const planned = plannedDurationMinutes(s.starts_at, s.ends_at);
-            const actual = actualDurationMinutes(
-              s.attendance?.clock_in_at ?? null,
-              s.attendance?.clock_out_at ?? null
-            );
-            const varMin = varianceMinutes(planned, actual);
-            const needIn = !s.attendance?.clock_in_at;
-            const needOut = Boolean(s.attendance?.clock_in_at && !s.attendance?.clock_out_at);
-            const done = Boolean(s.attendance?.clock_in_at && s.attendance?.clock_out_at);
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <p className="text-sm font-medium text-slate-800">Semaine du {weekLabel}</p>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/equipe/mon-planning?week=${encodeURIComponent(prevWeekYmd)}`}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            ← Semaine précédente
+          </Link>
+          <Link
+            href={`/equipe/mon-planning?week=${encodeURIComponent(nextWeekYmd)}`}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Semaine suivante →
+          </Link>
+          <Link
+            href={`/equipe/mon-planning?week=${encodeURIComponent(toISODateString(mondayOfWeekContaining(new Date())))}`}
+            className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-800 hover:bg-indigo-100"
+          >
+            Cette semaine
+          </Link>
+        </div>
+      </div>
 
-            return (
-              <li key={s.id} className={`${uiCard}`}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Créneau</p>
-                <p className="mt-1 font-medium text-slate-900">
-                  {formatDateTimeFr(s.starts_at)} → {formatDateTimeFr(s.ends_at)}
-                </p>
-                {s.notes ? <p className="mt-1 text-xs text-slate-600">{s.notes}</p> : null}
+      {pendingArrivalShift && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/80 p-5 shadow-sm">
+          <p className="text-sm text-slate-700">
+            Créneau prévu :{" "}
+            <span className="font-medium text-slate-900">
+              {formatMyShiftLineFr(pendingArrivalShift.starts_at, pendingArrivalShift.ends_at)}
+            </span>
+          </p>
+          <button
+            type="button"
+            disabled={pending}
+            className={`mt-4 ${uiBtnPrimarySm} px-5 py-2.5 text-base`}
+            onClick={() => clockIn(pendingArrivalShift.id)}
+          >
+            Je démarre ma journée
+          </button>
+        </div>
+      )}
 
-                <div className="mt-3 space-y-1 text-sm text-slate-700">
-                  {s.attendance?.clock_in_at ? (
-                    <p>Entrée : {formatDateTimeFr(s.attendance.clock_in_at)}</p>
-                  ) : (
-                    <p className="text-slate-400">Entrée : non pointée</p>
-                  )}
-                  {s.attendance?.clock_out_at ? (
-                    <p>Sortie : {formatDateTimeFr(s.attendance.clock_out_at)}</p>
-                  ) : (
-                    <p className="text-slate-400">Sortie : non pointée</p>
-                  )}
-                  {varMin != null && (
-                    <p className="text-xs text-slate-600">
-                      Écart (durée) :{" "}
-                      <span className="font-medium">{formatMinutesHuman(varMin)}</span> vs prévu{" "}
-                      {formatMinutesHuman(planned)}
-                    </p>
-                  )}
-                </div>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-900">Planning de l’équipe</h2>
+        {resolvedWeekDaysForGrid.length === 7 ? (
+          <PlanningWeekReadOnly
+            weekMondayIso={weekMondayIso}
+            staff={staff}
+            shifts={allShifts}
+            resolvedWeekDays={resolvedWeekDaysForGrid}
+          />
+        ) : (
+          <p className="text-sm text-slate-500">Chargement de la grille…</p>
+        )}
+      </section>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {needIn && (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      className={uiBtnPrimarySm}
-                      onClick={() => clockIn(s.id)}
-                    >
-                      Pointer l’arrivée
-                    </button>
-                  )}
-                  {needOut && (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      className={uiBtnPrimarySm}
-                      onClick={() => clockOut(s.id)}
-                    >
-                      Pointer la sortie
-                    </button>
-                  )}
-                  {done && (
-                    <span className="text-sm text-emerald-700">Pointage complet pour ce créneau.</span>
-                  )}
-                </div>
+      <section className={`${uiCard} space-y-3`}>
+        <h2 className="text-lg font-semibold text-slate-900">Mon récapitulatif (cette semaine)</h2>
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Prévu (net, pauses déduites)</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-slate-900">
+              {formatMinutesHuman(recap.plannedNet)}
+            </dd>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Temps enregistré (entrée → sortie)</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-slate-900">
+              {recap.recordedNet > 0 ? formatMinutesHuman(recap.recordedNet) : "—"}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-900">Mes créneaux</h2>
+        {myShifts.length === 0 ? (
+          <p className="text-sm text-slate-500">Aucun créneau sur cette semaine.</p>
+        ) : (
+          <ul className="list-none space-y-2 text-sm text-slate-800">
+            {myShifts.map((s) => (
+              <li key={s.id} className="border-b border-slate-100 py-1.5 last:border-0">
+                {formatMyShiftLineFr(s.starts_at, s.ends_at)}
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {pendingClockOutShift && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+          <div className="pointer-events-auto w-full max-w-lg rounded-t-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
+            <p className="text-center text-xs text-slate-600">
+              Journée en cours · {formatMyShiftLineFr(pendingClockOutShift.starts_at, pendingClockOutShift.ends_at)}
+            </p>
+            <button
+              type="button"
+              disabled={pending}
+              className="mt-2 w-full rounded-xl bg-slate-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+              onClick={() => clockOut(pendingClockOutShift.id)}
+            >
+              Je termine ma journée
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

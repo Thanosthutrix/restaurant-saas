@@ -4,6 +4,7 @@ import { parsePlanningBandPresetsJson } from "@/lib/staff/planningBandPresets";
 import { parseStaffTargetsWeeklyJson } from "@/lib/staff/planningResolve";
 import { parseOpeningHoursJson } from "@/lib/staff/planningHoursTypes";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { toPlanningYmdFromUnknown } from "@/lib/staff/weekUtils";
 import type { StaffMember, WorkShift, WorkShiftWithDetails } from "./types";
 
 function mapStaff(row: Record<string, unknown>): StaffMember {
@@ -216,20 +217,31 @@ export async function listPlanningDayOverridesInRange(
     .order("day", { ascending: true });
 
   if (error || !data) return [];
-  return (data as Record<string, unknown>[]).map((row) => ({
-    day: String(row.day).slice(0, 10),
-    is_closed: Boolean(row.is_closed),
-    opening_bands_override: row.opening_bands_override,
-    staff_target_override:
-      row.staff_target_override == null || row.staff_target_override === ""
-        ? null
-        : Number(row.staff_target_override),
-    label: row.label == null || String(row.label).trim() === "" ? null : String(row.label).trim(),
-    calendar_source:
-      row.calendar_source === "public_holiday" || row.calendar_source === "school_vacation"
-        ? row.calendar_source
-        : null,
-  }));
+  const YMD = /^\d{4}-\d{2}-\d{2}$/;
+  return (data as Record<string, unknown>[])
+    .map((row) => {
+      const day =
+        toPlanningYmdFromUnknown(row.day) ??
+        (YMD.test(String(row.day ?? "").trim().slice(0, 10))
+          ? String(row.day).trim().slice(0, 10)
+          : null);
+      if (!day || !YMD.test(day)) return null;
+      return {
+        day,
+        is_closed: Boolean(row.is_closed),
+        opening_bands_override: row.opening_bands_override,
+        staff_target_override:
+          row.staff_target_override == null || row.staff_target_override === ""
+            ? null
+            : Number(row.staff_target_override),
+        label: row.label == null || String(row.label).trim() === "" ? null : String(row.label).trim(),
+        calendar_source:
+          row.calendar_source === "public_holiday" || row.calendar_source === "school_vacation"
+            ? row.calendar_source
+            : null,
+      };
+    })
+    .filter((r): r is PlanningDayOverrideRow => r != null);
 }
 
 export async function listWorkShiftsInRange(

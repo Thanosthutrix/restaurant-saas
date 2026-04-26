@@ -11,6 +11,8 @@ import { LinkReceptionsForm } from "./LinkReceptionsForm";
 import { InvoiceMetadataForm } from "./InvoiceMetadataForm";
 import { InvoiceAnalysisSection } from "./InvoiceAnalysisSection";
 import { RerunInvoiceAnalysisButton } from "./RerunInvoiceAnalysisButton";
+import { MarkInvoiceReviewedButton } from "./MarkInvoiceReviewedButton";
+import { InvoiceLineComparisonTable } from "./InvoiceLineComparisonTable";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -54,6 +56,12 @@ export default async function SupplierInvoicePage({ params }: Props) {
             className="text-slate-600 underline decoration-slate-400 underline-offset-2"
           >
             ← Retour fournisseur
+          </Link>
+          <Link
+            href="/supplier-invoices"
+            className="ml-4 text-slate-600 underline decoration-slate-400 underline-offset-2"
+          >
+            ← Factures
           </Link>
         </div>
 
@@ -182,6 +190,40 @@ export default async function SupplierInvoicePage({ params }: Props) {
             )}
           </div>
         </div>
+
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-medium text-slate-700">
+            Écarts ligne par ligne
+          </h2>
+          <p className="mb-3 text-xs text-slate-500">
+            Comparaison automatique entre les lignes lues sur la facture et les lignes des BL liés. Les prix BL
+            viennent du BL lu par IA ou du dernier prix connu si le BL n’a pas encore été relu.
+          </p>
+          <InvoiceLineComparisonTable rows={invoice.invoice_line_comparisons} />
+        </div>
+
+        {invoice.status !== "reviewed" ? (
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4">
+            <h2 className="mb-2 text-sm font-medium text-emerald-950">Validation comptable</h2>
+            <p className="mb-3 text-sm text-emerald-900">
+              Après rapprochement des BL et contrôle des écarts, marquez la facture comme prête pour transfert comptable.
+            </p>
+            <MarkInvoiceReviewedButton
+              invoiceId={invoice.id}
+              restaurantId={restaurant.id}
+              disabled={invoice.delivery_notes.length === 0}
+            />
+            {invoice.delivery_notes.length === 0 ? (
+              <p className="mt-2 text-xs text-emerald-900">
+                Liez au moins une réception avant de valider cette facture.
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-sm font-semibold text-emerald-900">
+            Facture prête comptable.
+          </div>
+        )}
 
         <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="mb-2 text-sm font-medium text-slate-500">

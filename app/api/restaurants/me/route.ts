@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getAccessibleRestaurantsForUser, getRestaurantForPage } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
 
 export const dynamic = "force-dynamic";
@@ -13,18 +14,24 @@ export async function GET() {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
-  const [list, current] = await Promise.all([
-    getAccessibleRestaurantsForUser(user.id),
-    getRestaurantForPage(),
-  ]);
+  const access = await getShellAccessContext(user.id);
+  if (!access) {
+    return NextResponse.json({
+      restaurants: [],
+      currentRestaurantId: null,
+      establishment: null,
+      allowedNavKeys: [],
+    });
+  }
 
-  const establishment = current
-    ? { restaurantId: current.id, ...getEstablishmentLabels(current) }
+  const establishment = access.currentRestaurant
+    ? { restaurantId: access.currentRestaurant.id, ...getEstablishmentLabels(access.currentRestaurant) }
     : null;
 
   return NextResponse.json({
-    restaurants: list.map((r) => ({ id: r.id, name: r.name })),
-    currentRestaurantId: current?.id ?? null,
+    restaurants: access.restaurants,
+    currentRestaurantId: access.currentRestaurantId,
     establishment,
+    allowedNavKeys: access.allowedNavKeys,
   });
 }

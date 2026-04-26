@@ -18,7 +18,6 @@ export default function CreateReceptionButton({ orderId }: { orderId: string }) 
       if (res.ok && data?.id) {
         router.push(`/receiving/${data.id}`);
       } else {
-        // eslint-disable-next-line no-alert
         alert(data?.error ?? "Erreur lors de la création de la réception");
       }
     });

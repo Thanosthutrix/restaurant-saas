@@ -2,10 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getInventoryItem, deletePurchaseOrder, createDeliveryNoteFromPurchaseOrder } from "@/lib/db";
+import {
+  getInventoryItem,
+  deletePurchaseOrder,
+  createDeliveryNoteFromPurchaseOrder,
+  getPurchaseOrder,
+  markPurchaseOrderSent,
+} from "@/lib/db";
 import { createPurchaseOrder } from "@/lib/db";
+import { sendPurchaseOrderToSupplierEmail } from "@/lib/messaging/purchaseOrderEmails";
 
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
+
+async function ensureReceptionDraftForPurchaseOrder(
+  orderId: string
+): Promise<ActionResult<{ deliveryNoteId: string }>> {
+  const { data, error } = await createDeliveryNoteFromPurchaseOrder(orderId);
+  if (data?.id) {
+    return { ok: true, data: { deliveryNoteId: data.id } };
+  }
+  if (error?.message.includes("existe déjà")) {
+    return { ok: true };
+  }
+  return { ok: false, error: error?.message ?? "Impossible de préparer la réception." };
+}
 
 /**
  * Génère une commande fournisseur à partir d'une suggestion.
@@ -95,4 +115,50 @@ export async function createDeliveryNoteFromPurchaseOrderAction(
   revalidatePath("/orders/[id]", "page");
   revalidatePath("/receiving/[id]", "page");
   return { ok: true, data: { deliveryNoteId: data.id } };
+}
+
+export async function sendPurchaseOrderEmailAction(params: {
+  orderId: string;
+  restaurantId: string;
+}): Promise<ActionResult<{ alreadySent: boolean; deliveryNoteId?: string }>> {
+  const result = await sendPurchaseOrderToSupplierEmail(params);
+  if (!result.ok) return { ok: false, error: result.error };
+  const reception = await ensureReceptionDraftForPurchaseOrder(params.orderId);
+  if (!reception.ok) return reception;
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${params.orderId}`);
+  revalidatePath("/livraison");
+  if (reception.data?.deliveryNoteId) {
+    revalidatePath(`/receiving/${reception.data.deliveryNoteId}`);
+  }
+  return { ok: true, data: { alreadySent: result.alreadySent, deliveryNoteId: reception.data?.deliveryNoteId } };
+}
+
+export async function markPurchaseOrderSentManualAction(params: {
+  orderId: string;
+  restaurantId: string;
+  channel: "whatsapp" | "sms" | "phone" | "portal";
+}): Promise<ActionResult> {
+  const orderRes = await getPurchaseOrder(params.orderId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  const order = orderRes.data;
+  if (!order || order.restaurant_id !== params.restaurantId) {
+    return { ok: false, error: "Commande fournisseur introuvable." };
+  }
+  const mark = await markPurchaseOrderSent({
+    orderId: params.orderId,
+    restaurantId: params.restaurantId,
+    channel: params.channel,
+    toEmail: null,
+  });
+  if (mark.error) return { ok: false, error: mark.error.message };
+  const reception = await ensureReceptionDraftForPurchaseOrder(params.orderId);
+  if (!reception.ok) return reception;
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${params.orderId}`);
+  revalidatePath("/livraison");
+  if (reception.data?.deliveryNoteId) {
+    revalidatePath(`/receiving/${reception.data.deliveryNoteId}`);
+  }
+  return { ok: true };
 }

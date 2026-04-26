@@ -8,16 +8,18 @@
  */
 
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export const ACTIVE_RESTAURANT_COOKIE = "active_restaurant_id" as const;
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 an
 
 export type Restaurant = {
   id: string;
   owner_id: string;
   name: string;
+  /** Libellé « De : » pour les e-mails (Resend) ; si null, le nom du restaurant est utilisé. */
+  messaging_sender_display_name: string | null;
   activity_type: string | null;
   template_slug: string | null;
   avg_covers: number | null;
@@ -35,6 +37,7 @@ type RestaurantRow = {
   id: string;
   owner_id: string;
   name: string;
+  messaging_sender_display_name: string | null;
   activity_type: string | null;
   template_slug: string | null;
   avg_covers: unknown;
@@ -53,6 +56,10 @@ function mapRestaurantFromRow(row: RestaurantRow): Restaurant {
     id: row.id,
     owner_id: row.owner_id,
     name: row.name,
+    messaging_sender_display_name:
+      row.messaging_sender_display_name == null || String(row.messaging_sender_display_name).trim() === ""
+        ? null
+        : String(row.messaging_sender_display_name).trim(),
     activity_type: row.activity_type,
     template_slug: row.template_slug,
     avg_covers: row.avg_covers != null ? Number(row.avg_covers) : null,
@@ -73,44 +80,52 @@ function mapRestaurantFromRow(row: RestaurantRow): Restaurant {
 /**
  * Retourne l'utilisateur connecté (session cookies) ou null.
  */
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async function getCurrentUser() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
-}
+});
 
 /**
  * Liste des restaurants accessibles par l'utilisateur (owner_id = user.id).
  * Ordre : par nom.
  */
-export async function getAccessibleRestaurantsForUser(userId: string): Promise<Restaurant[]> {
+export const getAccessibleRestaurantsForUser = cache(async function getAccessibleRestaurantsForUser(
+  userId: string
+): Promise<Restaurant[]> {
   const { data, error } = await supabaseServer
     .from("restaurants")
-    .select("id, owner_id, name, activity_type, template_slug, avg_covers, service_type, latitude, longitude, school_zone, address_text, school_zone_is_manual, created_at, updated_at")
+    .select(
+      "id, owner_id, name, messaging_sender_display_name, activity_type, template_slug, avg_covers, service_type, latitude, longitude, school_zone, address_text, school_zone_is_manual, created_at, updated_at"
+    )
     .eq("owner_id", userId)
     .order("name");
 
   if (error || !data) return [];
   return (data as RestaurantRow[]).map(mapRestaurantFromRow);
-}
+});
 
 /** Charge un restaurant par id (ex. accès collaborateur). */
-export async function getRestaurantById(restaurantId: string): Promise<Restaurant | null> {
+export const getRestaurantById = cache(async function getRestaurantById(
+  restaurantId: string
+): Promise<Restaurant | null> {
   const { data, error } = await supabaseServer
     .from("restaurants")
     .select(
-      "id, owner_id, name, activity_type, template_slug, avg_covers, service_type, latitude, longitude, school_zone, address_text, school_zone_is_manual, created_at, updated_at"
+      "id, owner_id, name, messaging_sender_display_name, activity_type, template_slug, avg_covers, service_type, latitude, longitude, school_zone, address_text, school_zone_is_manual, created_at, updated_at"
     )
     .eq("id", restaurantId)
     .maybeSingle();
   if (error || !data) return null;
   return mapRestaurantFromRow(data as RestaurantRow);
-}
+});
 
 /**
  * Liste accessible + restaurant actif (cookie), en une lecture liste — pour layout / header.
  */
-export async function getRestaurantHeaderSession(userId: string): Promise<{
+export const getRestaurantHeaderSession = cache(async function getRestaurantHeaderSession(
+  userId: string
+): Promise<{
   restaurants: Restaurant[];
   current: Restaurant | null;
 }> {
@@ -123,7 +138,7 @@ export async function getRestaurantHeaderSession(userId: string): Promise<{
     ? (restaurants.find((r) => r.id === activeId) ?? restaurants[0])
     : restaurants[0];
   return { restaurants, current };
-}
+});
 
 /**
  * Retourne le restaurant actif pour la session :
@@ -131,18 +146,18 @@ export async function getRestaurantHeaderSession(userId: string): Promise<{
  * - sinon le premier restaurant de la liste accessible (sans modifier le cookie)
  * - si aucun restaurant accessible → null (rediriger vers onboarding)
  */
-export async function getCurrentRestaurant(): Promise<Restaurant | null> {
+export const getCurrentRestaurant = cache(async function getCurrentRestaurant(): Promise<Restaurant | null> {
   const user = await getCurrentUser();
   if (!user) return null;
   const { current } = await getRestaurantHeaderSession(user.id);
   return current;
-}
+});
 
 /**
  * Restaurant actif pour les pages et actions : établissement possédé (cookie) ou,
  * pour un collaborateur, celui de la fiche staff liée au compte.
  */
-export async function getRestaurantForPage(): Promise<Restaurant | null> {
+export const getRestaurantForPage = cache(async function getRestaurantForPage(): Promise<Restaurant | null> {
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -163,4 +178,4 @@ export async function getRestaurantForPage(): Promise<Restaurant | null> {
 
   if (!sm) return null;
   return getRestaurantById(String((sm as { restaurant_id: string }).restaurant_id));
-}
+});

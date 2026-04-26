@@ -216,6 +216,8 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
 
 export type UpdateRestaurantPayload = {
   name: string;
+  /** Nom d’affichage expéditeur e-mails (Resend) ; vide = utiliser le nom du restaurant. */
+  messaging_sender_display_name: string | null;
   template_slug: string | null;
   avg_covers: number | null;
   service_type: string;
@@ -271,10 +273,13 @@ export async function updateRestaurant(
     schoolZone = null;
   }
 
+  const displayFrom = payload.messaging_sender_display_name?.trim() || null;
+
   const { error } = await supabaseServer
     .from("restaurants")
     .update({
       name,
+      messaging_sender_display_name: displayFrom,
       template_slug: payload.template_slug?.trim() || null,
       avg_covers: payload.avg_covers != null && Number.isFinite(payload.avg_covers) ? payload.avg_covers : null,
       service_type: payload.service_type || null,

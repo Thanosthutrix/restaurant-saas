@@ -176,7 +176,7 @@ export function findInventoryMatchCandidates(
   }
 
   scored.sort((a, b) => b.score - a.score);
-  let best = scored[0];
+  const best = scored[0];
   const second = scored[1];
   let top = scored.slice(0, 16);
 

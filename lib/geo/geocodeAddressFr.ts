@@ -36,7 +36,7 @@ export async function geocodeAddressFr(query: string): Promise<GeocodeFrResult |
 
   const res = await fetch(url.toString(), {
     headers: { "User-Agent": "RestaurantSaaS/1.0 (geocodage restaurant)" },
-    next: { revalidate: 0 },
+    next: { revalidate: 60 * 60 * 24 * 30 },
   });
 
   if (!res.ok) return null;

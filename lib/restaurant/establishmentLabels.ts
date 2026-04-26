@@ -31,9 +31,12 @@ export function getEstablishmentLabels(r: Restaurant) {
           ? "Déjeuner et dîner"
           : r.service_type ?? "—";
 
+  const emailSenderLabel = r.messaging_sender_display_name?.trim() || r.name;
+
   return {
     activityLabel,
     serviceLabel,
     avgCovers: r.avg_covers,
+    emailSenderLabel,
   };
 }

@@ -30,9 +30,18 @@ type LineRowProps = {
   onAdjust: (lineId: string, delta: number) => void;
   onRemove: (lineId: string) => void;
   onDiscount: (line: DiningLineClient) => void;
+  /** Si renseigné, affiche le bouton Prêt (cuisine). */
+  onToggleLinePrepared?: (lineId: string, next: boolean) => void;
 };
 
-export function DiningOrderTicketLineRow({ line: l, pending, onAdjust, onRemove, onDiscount }: LineRowProps) {
+export function DiningOrderTicketLineRow({
+  line: l,
+  pending,
+  onAdjust,
+  onRemove,
+  onDiscount,
+  onToggleLinePrepared,
+}: LineRowProps) {
   return (
     <li className="flex items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50/90 px-1.5 py-1">
       <button
@@ -49,6 +58,21 @@ export function DiningOrderTicketLineRow({ line: l, pending, onAdjust, onRemove,
           <span className="ml-1 text-[10px] font-semibold text-amber-800">({discountBadge(l)})</span>
         ) : null}
       </button>
+      {onToggleLinePrepared ? (
+        <button
+          type="button"
+          disabled={pending}
+          title="Marquer le plat comme prêt (cuisine)"
+          onClick={() => onToggleLinePrepared(l.id, !l.isPrepared)}
+          className={
+            l.isPrepared
+              ? "shrink-0 rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-emerald-900 transition hover:bg-emerald-200 disabled:opacity-50"
+              : "shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold leading-none text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
+          }
+        >
+          Prêt
+        </button>
+      ) : null}
       <div className="flex shrink-0 items-center gap-0.5">
         <button
           type="button"

@@ -6,13 +6,6 @@ import { EditSupplierForm } from "./EditSupplierForm";
 import { CreateReceptionFromPurchaseOrderButton } from "./CreateReceptionFromPurchaseOrderButton";
 import { InvoiceUpload } from "./InvoiceUpload";
 
-const ORDER_METHOD_LABELS: Record<string, string> = {
-  EMAIL: "Email",
-  WHATSAPP: "WhatsApp",
-  PHONE: "Téléphone",
-  PORTAL: "Portail",
-};
-
 export default async function SupplierEditPage({
   params,
 }: {
@@ -24,7 +17,7 @@ export default async function SupplierEditPage({
   const { id } = await params;
   const [supplierRes, ordersRes, notesRes, invoicesRes] = await Promise.all([
     getSupplier(id),
-    getPurchaseOrders(restaurant.id, { supplierId: id }),
+    getPurchaseOrders(restaurant.id, { supplierId: id, limit: 10 }),
     getDeliveryNotesBySupplier(id),
     getSupplierInvoicesBySupplier(id),
   ]);

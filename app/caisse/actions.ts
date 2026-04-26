@@ -13,6 +13,7 @@ import {
   orderTotalTtc,
 } from "@/lib/dining/diningDb";
 import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
+import { supabaseServer } from "@/lib/supabaseServer";
 
 function quickCounterLabel(): string {
   const time = new Intl.DateTimeFormat("fr-FR", {
@@ -29,6 +30,8 @@ export async function createCounterDiningOrder(params: {
   restaurantId: string;
   /** Ignoré si `quick` est true. */
   ticketLabel?: string;
+  /** Fiche client (Base clients) liée à la commande. */
+  customerId?: string | null;
   /** Libellé auto (horodatage + code court). */
   quick?: boolean;
 }): Promise<ActionResult<{ orderId: string }>> {
@@ -43,7 +46,11 @@ export async function createCounterDiningOrder(params: {
     return { ok: false, error: "Libellé trop long (120 caractères max.)." };
   }
 
-  const { orderId, error } = await createOpenCounterTicketOrder(params.restaurantId, label);
+  const { orderId, error } = await createOpenCounterTicketOrder(
+    params.restaurantId,
+    label,
+    params.customerId ?? null
+  );
   if (error || !orderId) {
     return { ok: false, error: error?.message ?? "Impossible de créer le ticket." };
   }
@@ -101,6 +108,7 @@ export type QuickCounterSnapshot = {
   ticketLabel: string;
   lines: DiningLineClient[];
   totalTtc: number;
+  customerEmail: string | null;
 };
 
 /**
@@ -134,6 +142,7 @@ export async function getQuickCounterOrderSnapshot(
       dishId: l.dish_id,
       dishName: d?.name ?? "Plat",
       qty: Number(l.qty),
+      isPrepared: Boolean((l as { is_prepared?: boolean }).is_prepared),
       lineGrossTtc: lineGrossTtc(l),
       lineTotalTtc: lineTtc(l),
       discountKind: parseDiningDiscountKind(l.discount_kind),
@@ -142,7 +151,25 @@ export async function getQuickCounterOrderSnapshot(
   });
 
   const totalTtc = orderTotalTtc(lines ?? []);
-  const ticketLabel = (order.counter_ticket_label ?? "").trim() || "Comptoir";
 
-  return { ok: true, data: { ticketLabel, lines: lineClients, totalTtc } };
+  let ticketLabel = (order.counter_ticket_label ?? "").trim() || "Comptoir";
+  let customerEmail: string | null = null;
+  if (order.customer_id) {
+    const { data: cRow, error: cErr } = await supabaseServer
+      .from("restaurant_customers")
+      .select("display_name, email")
+      .eq("id", order.customer_id)
+      .eq("restaurant_id", restaurantId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!cErr && cRow) {
+      const r = cRow as { display_name: string; email: string | null };
+      const dn = String(r.display_name ?? "").trim();
+      if (dn) ticketLabel = dn;
+      const em = String(r.email ?? "").trim();
+      customerEmail = em || null;
+    }
+  }
+
+  return { ok: true, data: { ticketLabel, lines: lineClients, totalTtc, customerEmail } };
 }

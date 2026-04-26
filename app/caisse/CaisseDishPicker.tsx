@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import type { Dish } from "@/lib/db";
 import type { CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
+import type { CustomerLookupRow } from "@/lib/customers/customersDb";
 import { DishCatalogTileButton, DishCatalogTiles } from "@/components/dining/DishCatalogTiles";
 import { addDishToQuickCounterOrReuse } from "./actions";
 import { CaisseNewTicketForm } from "./CaisseNewTicketForm";
@@ -67,9 +68,16 @@ type Props = {
   roots: CategoryTreeNode[];
   directByCategoryId: Record<string, Dish[]>;
   uncategorized: Dish[];
+  recentCustomerPool: CustomerLookupRow[];
 };
 
-export function CaisseDishPicker({ restaurantId, roots, directByCategoryId, uncategorized }: Props) {
+export function CaisseDishPicker({
+  restaurantId,
+  roots,
+  directByCategoryId,
+  uncategorized,
+  recentCustomerPool,
+}: Props) {
   const router = useRouter();
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [ticketRefreshTick, setTicketRefreshTick] = useState(0);
@@ -117,7 +125,9 @@ export function CaisseDishPicker({ restaurantId, roots, directByCategoryId, unca
   if (totalPlats === 0) {
     return (
       <section className="space-y-3">
-        {!activeOrderId ? <CaisseNewTicketForm restaurantId={restaurantId} /> : null}
+        {!activeOrderId ? (
+          <CaisseNewTicketForm restaurantId={restaurantId} recentCustomerPool={recentCustomerPool} />
+        ) : null}
         {settledFlash ? (
           <p className={`${uiSuccess} rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-sm`}>
             {settledFlash}
@@ -141,7 +151,9 @@ export function CaisseDishPicker({ restaurantId, roots, directByCategoryId, unca
 
   return (
     <section className="space-y-3">
-      {!activeOrderId ? <CaisseNewTicketForm restaurantId={restaurantId} /> : null}
+      {!activeOrderId ? (
+          <CaisseNewTicketForm restaurantId={restaurantId} recentCustomerPool={recentCustomerPool} />
+        ) : null}
 
       {settledFlash ? (
         <p className={`${uiSuccess} rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-3 py-2 text-sm`}>

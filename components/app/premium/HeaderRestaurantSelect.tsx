@@ -12,6 +12,8 @@ export type EstablishmentPayload = {
   activityLabel: string;
   serviceLabel: string;
   avgCovers: number | null;
+  /** Nom d’expéditeur effectif (personnalisé ou nom de l’établissement). */
+  emailSenderLabel: string;
 };
 
 export type HeaderRestaurantServerPayload = {
@@ -48,13 +50,21 @@ function EstablishmentFlyout({ e }: { e: EstablishmentPayload }) {
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Type de service</dt>
           <dd className="mt-0.5 font-semibold text-slate-900">{e.serviceLabel}</dd>
         </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">E-mails (nom expéditeur)</dt>
+          <dd className="mt-0.5 font-semibold text-slate-900">{e.emailSenderLabel}</dd>
+          <p className="mt-1.5 text-xs leading-snug text-slate-500">
+            Pour le modifier, ouvrez <span className="font-medium text-slate-600">Infos établissement</span> ci-dessous
+            (le champ est sous le nom de l’établissement).
+          </p>
+        </div>
       </dl>
       <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
         <Link
-          href={`/restaurants/${e.restaurantId}/edit`}
+          href={`/restaurants/${e.restaurantId}/edit#messagerie-expediteur`}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-slate-50"
         >
-          Modifier les infos
+          Infos établissement
         </Link>
         <Link
           href="/restaurants/new"

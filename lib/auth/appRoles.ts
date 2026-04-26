@@ -20,6 +20,9 @@ export function isAppRole(s: string | null | undefined): s is AppRole {
 /** Clés alignées sur les entrées du menu (shell-nav). */
 export type ShellNavKey =
   | "dashboard"
+  | "cuisine"
+  | "achats"
+  | "registres"
   | "service_new"
   | "salle"
   | "caisse"
@@ -34,12 +37,18 @@ export type ShellNavKey =
   | "livraison"
   | "hygiene"
   | "suppliers"
+  | "supplier_invoices"
   | "orders_suggestions"
   | "orders"
+  | "clients"
+  | "reservations"
   | "account";
 
 export const ALL_SHELL_NAV_KEYS: ShellNavKey[] = [
   "dashboard",
+  "cuisine",
+  "achats",
+  "registres",
   "service_new",
   "salle",
   "caisse",
@@ -54,8 +63,11 @@ export const ALL_SHELL_NAV_KEYS: ShellNavKey[] = [
   "livraison",
   "hygiene",
   "suppliers",
+  "supplier_invoices",
   "orders_suggestions",
   "orders",
+  "clients",
+  "reservations",
   "account",
 ];
 
@@ -64,16 +76,21 @@ export const NAV_KEYS_BY_APP_ROLE: Record<AppRole, ShellNavKey[]> = {
   manager: [...ALL_SHELL_NAV_KEYS],
   service: [
     "dashboard",
+    "registres",
     "service_new",
     "salle",
     "caisse",
     "services",
     "dishes",
+    "clients",
+    "reservations",
     "equipe_self",
     "account",
   ],
   cuisine: [
     "dashboard",
+    "cuisine",
+    "registres",
     "service_new",
     "services",
     "dishes",
@@ -82,14 +99,18 @@ export const NAV_KEYS_BY_APP_ROLE: Record<AppRole, ShellNavKey[]> = {
     "equipe_self",
     "account",
   ],
-  hygiene: ["dashboard", "hygiene", "equipe_self", "account"],
+  hygiene: ["dashboard", "registres", "hygiene", "equipe_self", "account"],
   achats: [
     "dashboard",
+    "achats",
+    "registres",
     "inventory",
     "livraison",
     "suppliers",
+    "supplier_invoices",
     "orders_suggestions",
     "orders",
+    "clients",
     "equipe_self",
     "account",
   ],

@@ -55,8 +55,9 @@ export function RestaurantPlanningSection({
       <section className={uiCard}>
         <h2 className="text-base font-semibold text-slate-900">Horaires d’ouverture (modèle hebdomadaire)</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Sert de base pour la grille planning et les alertes. Les exceptions (fériés, vacances) sont gérées
-          ci-dessous.
+          Référence pour la grille planning et les alertes. Les exceptions (férié, vacances, tableau plus bas) peuvent
+          remplacer ce modèle pour certaines dates : supprimez l’exception ou choisissez « Reprendre les horaires du jour
+          type » pour réappliquer ces horaires magasin.
         </p>
         <div className="mt-4">
           <OpeningHoursEditor restaurantId={restaurantId} initial={openingHours} />

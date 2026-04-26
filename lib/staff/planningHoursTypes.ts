@@ -57,8 +57,10 @@ export function parseOpeningHoursJson(raw: unknown): OpeningHoursMap {
       if (!item || typeof item !== "object") continue;
       const start = String((item as { start?: unknown }).start ?? "").trim();
       const end = String((item as { end?: unknown }).end ?? "").trim();
-      if (TIME_RE.test(start) && TIME_RE.test(end)) {
-        bands.push({ start, end });
+      const startN = normalizeClockToHhMm(start);
+      const endN = normalizeClockToHhMm(end);
+      if (startN && endN) {
+        bands.push({ start: startN, end: endN });
       }
     }
     if (bands.length > 0) out[k] = bands;
@@ -66,10 +68,25 @@ export function parseOpeningHoursJson(raw: unknown): OpeningHoursMap {
   return out;
 }
 
-const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+/**
+ * Accepte HH:mm, HH:mm:ss (saisie navigateur, JSON, imports) et renvoie HH:mm canonique.
+ * Les secondes sont ignorées (heure « murale » locale).
+ */
+export function normalizeClockToHhMm(s: string): string | null {
+  const t = s.trim();
+  if (!t) return null;
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?(?:\.\d+)?$/.exec(t);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
 
 export function minutesFromMidnight(hhmm: string): number | null {
-  const m = TIME_RE.exec(hhmm.trim());
+  const n = normalizeClockToHhMm(hhmm);
+  if (!n) return null;
+  const m = /^(\d{2}):(\d{2})$/.exec(n);
   if (!m) return null;
   return Number(m[1]) * 60 + Number(m[2]);
 }

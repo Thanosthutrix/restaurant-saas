@@ -28,6 +28,9 @@ export function EditRestaurantForm({
 }) {
   const router = useRouter();
   const [name, setName] = useState(restaurant.name);
+  const [messagingSenderDisplayName, setMessagingSenderDisplayName] = useState(
+    restaurant.messaging_sender_display_name ?? ""
+  );
   const [templateSlug, setTemplateSlug] = useState(restaurant.template_slug ?? "");
   const [avgCovers, setAvgCovers] = useState(restaurant.avg_covers != null ? String(restaurant.avg_covers) : "");
   const [serviceType, setServiceType] = useState(restaurant.service_type || "both");
@@ -42,6 +45,7 @@ export function EditRestaurantForm({
     setLoading(true);
     const result = await updateRestaurant(restaurant.id, {
       name: name.trim(),
+      messaging_sender_display_name: messagingSenderDisplayName.trim() || null,
       template_slug: templateSlug.trim() || null,
       avg_covers: avgCovers ? parseInt(avgCovers, 10) : null,
       service_type: serviceType,
@@ -74,6 +78,27 @@ export function EditRestaurantForm({
           placeholder="Le Bistrot"
           className="w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
         />
+      </div>
+      <div
+        id="messagerie-expediteur"
+        className="scroll-mt-6 rounded-md border border-slate-100 bg-slate-50/80 p-3"
+      >
+        <p className="mb-2 text-sm font-semibold text-slate-800">E-mails clients</p>
+        <label htmlFor="messagingSender" className="mb-1 block text-sm font-medium text-slate-700">
+          Nom d’expéditeur
+        </label>
+        <input
+          id="messagingSender"
+          type="text"
+          value={messagingSenderDisplayName}
+          onChange={(e) => setMessagingSenderDisplayName(e.target.value)}
+          placeholder={name.trim() || "Le Bistrot"}
+          className="w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Libellé affiché dans la boîte du destinataire (ex. « {name.trim() || "Votre restaurant"} » &lt;adresse
+          d’envoi de la plateforme&gt;). Laisser vide pour utiliser le nom du restaurant ci-dessus.
+        </p>
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">

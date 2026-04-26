@@ -26,6 +26,8 @@ export default async function LivraisonPage() {
 
   const supplierList = suppliers ?? [];
   const supplierName = (id: string) => supplierList.find((s) => s.id === id)?.name ?? "—";
+  const awaitingNotes = (notes ?? []).filter((n) => n.status === "draft" && n.source === "from_purchase_order");
+  const recentNotes = (notes ?? []).filter((n) => !(n.status === "draft" && n.source === "from_purchase_order"));
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
@@ -56,13 +58,45 @@ export default async function LivraisonPage() {
       </section>
 
       <section>
+        <h2 className={uiSectionTitleSm}>Commandes en attente de réception</h2>
+        {awaitingNotes.length === 0 ? (
+          <p className={`mt-2 ${uiLead}`}>
+            Aucune commande fournisseur envoyée en attente. Dès qu’une commande est envoyée, les produits attendus
+            apparaissent ici pour pointage.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {awaitingNotes.map((n) => (
+              <li key={n.id}>
+                <Link
+                  href={`/receiving/${n.id}`}
+                  className={`${uiCard} block border-amber-200 bg-amber-50/60 transition hover:border-amber-300 hover:shadow-md`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-slate-900">{supplierName(n.supplier_id)}</p>
+                      <p className="mt-0.5 text-sm text-amber-800">
+                        À pointer · {n.lines_count} produit{n.lines_count !== 1 ? "s" : ""} attendu
+                        {n.purchase_order_id ? " · commande liée" : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-amber-800">Ouvrir la réception →</span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
         <h2 className={uiSectionTitleSm}>Réceptions récentes</h2>
-        {!notes?.length ? (
+        {recentNotes.length === 0 ? (
           <p className={`mt-2 ${uiLead}`}>Aucune réception enregistrée pour l’instant.</p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {notes.map((n) => {
-              const fileUrl = n.file_url ?? getDeliveryNoteFileUrl(n.file_path);
+            {recentNotes.map((n) => {
+              const fileUrl = n.file_url ?? (n.file_path ? getDeliveryNoteFileUrl(n.file_path) : null);
               const statusLabel =
                 n.status === "validated" ? "Validée" : n.status === "draft" ? "Brouillon" : n.status;
               const displayDate = n.delivery_date ?? n.created_at;

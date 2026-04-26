@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getDishes, getDishComponents } from "@/lib/db";
+import { getDishes, getDishComponentCounts } from "@/lib/db";
 import {
   buildCategoryTree,
   buildDirectItemsByCategoryId,
@@ -47,13 +47,7 @@ export default async function DishesPage({ searchParams }: Props) {
   const list = dishes ?? [];
 
   const dishIds = list.map((d) => d.id);
-  const componentCounts = new Map<string, number>();
-  await Promise.all(
-    dishIds.map(async (dishId) => {
-      const { data: comps } = await getDishComponents(dishId);
-      componentCounts.set(dishId, (comps ?? []).length);
-    })
-  );
+  const { data: componentCounts } = await getDishComponentCounts(restaurant.id, dishIds);
 
   const directMap = buildDirectItemsByCategoryId(list);
   const assignedIds = [...new Set(list.map((d) => d.category_id).filter(Boolean) as string[])];

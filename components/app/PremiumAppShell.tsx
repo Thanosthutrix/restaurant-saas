@@ -9,12 +9,85 @@ import { SHELL_NAV_ITEMS, isBareShellPath } from "@/components/app/premium/shell
 import { HeaderRestaurantSelect } from "@/components/app/premium/HeaderRestaurantSelect";
 import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidget";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
+import type { ShellNavKey } from "@/lib/auth/appRoles";
 
 const sidebarLinkBase =
   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150";
 const sidebarIdle =
   "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.99]";
 const sidebarActive = "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100";
+const navGroupOrder = ["Accueil", "Exploitation", "Cuisine", "Achats & stock", "Registres", "Équipe & compte"];
+
+function NavLinks({
+  pathname,
+  headerBootstrap,
+  onNavigate,
+}: {
+  pathname: string | null;
+  headerBootstrap: AppShellHeaderBootstrap | null;
+  onNavigate?: () => void;
+}) {
+  const [clientAllowedKeys, setClientAllowedKeys] = useState<ShellNavKey[] | null>(null);
+  const keys = headerBootstrap?.allowedNavKeys ?? clientAllowedKeys;
+
+  useEffect(() => {
+    if (headerBootstrap?.allowedNavKeys) return;
+
+    let cancelled = false;
+    fetch("/api/restaurants/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((payload: { allowedNavKeys?: ShellNavKey[] } | null) => {
+        if (!cancelled && payload?.allowedNavKeys) {
+          setClientAllowedKeys(payload.allowedNavKeys);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setClientAllowedKeys(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [headerBootstrap?.allowedNavKeys]);
+
+  const items =
+    keys != null && keys.length > 0
+      ? SHELL_NAV_ITEMS.filter((item) => keys.includes(item.navKey))
+      : SHELL_NAV_ITEMS;
+
+  const groupedItems = navGroupOrder
+    .map((group) => ({
+      group,
+      items: items.filter((item) => item.group === group),
+    }))
+    .filter((entry) => entry.items.length > 0);
+
+  return (
+    <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3" aria-label="Navigation principale">
+      {groupedItems.map((entry) => (
+        <div key={entry.group} className="space-y-1">
+          <p className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            {entry.group}
+          </p>
+          {entry.items.map((item) => {
+            const active = item.match(pathname ?? "");
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.navKey}
+                href={item.href}
+                onClick={onNavigate}
+                className={`${sidebarLinkBase} ${active ? sidebarActive : sidebarIdle}`}
+              >
+                <Icon className="h-[1.125rem] w-[1.125rem] shrink-0 opacity-90" aria-hidden />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+}
 
 export function PremiumAppShell({
   children,
@@ -27,40 +100,8 @@ export function PremiumAppShell({
   const bare = isBareShellPath(pathname);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [pathname]);
-
   if (bare) {
     return <>{children}</>;
-  }
-
-  function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-    const keys = headerBootstrap?.allowedNavKeys;
-    const items =
-      keys != null && keys.length > 0
-        ? SHELL_NAV_ITEMS.filter((item) => keys.includes(item.navKey))
-        : SHELL_NAV_ITEMS;
-
-    return (
-      <nav className="flex flex-1 flex-col gap-0.5 p-3" aria-label="Navigation principale">
-        {items.map((item) => {
-          const active = item.match(pathname);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.navKey}
-              href={item.href}
-              onClick={onNavigate}
-              className={`${sidebarLinkBase} ${active ? sidebarActive : sidebarIdle}`}
-            >
-              <Icon className="h-[1.125rem] w-[1.125rem] shrink-0 opacity-90" aria-hidden />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    );
   }
 
   return (
@@ -85,7 +126,7 @@ export function PremiumAppShell({
             Restaurant SaaS
           </Link>
         </div>
-        <NavLinks />
+        <NavLinks pathname={pathname} headerBootstrap={headerBootstrap} />
         <div className="mt-auto border-t border-slate-100 p-3">
           <form action={signOut}>
             <button
@@ -126,7 +167,11 @@ export function PremiumAppShell({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+        <NavLinks
+          pathname={pathname}
+          headerBootstrap={headerBootstrap}
+          onNavigate={() => setMobileNavOpen(false)}
+        />
         <div className="mt-auto border-t border-slate-100 p-3">
           <form action={signOut}>
             <button
@@ -167,7 +212,7 @@ export function PremiumAppShell({
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <HeaderWeatherWidget
-                shellHeaderReady={headerBootstrap != null}
+                shellHeaderReady={false}
                 initialWeather={headerBootstrap?.weather ?? undefined}
                 initialHint={headerBootstrap?.weatherHint ?? undefined}
               />

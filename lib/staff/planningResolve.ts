@@ -3,6 +3,7 @@ import {
   type PlanningDayKey,
   type TimeBand,
   PLANNING_DAY_KEYS,
+  normalizeClockToHhMm,
 } from "@/lib/staff/planningHoursTypes";
 import { addDays, toISODateString } from "@/lib/staff/weekUtils";
 
@@ -27,18 +28,32 @@ export type WeekResolvedDay = {
   exceptionLabel: string | null;
 };
 
-/** Parse un tableau de plages horaires (JSON). */
+function pushBandFromObject(item: object, out: TimeBand[]): void {
+  const start = String((item as { start?: unknown }).start ?? "").trim();
+  const end = String((item as { end?: unknown }).end ?? "").trim();
+  const startN = normalizeClockToHhMm(start);
+  const endN = normalizeClockToHhMm(end);
+  if (startN && endN) {
+    out.push({ start: startN, end: endN });
+  }
+}
+
+/**
+ * Parse des plages d’ouverture JSON : tableau, ou un seul objet `{ start, end }` (jsonb objet).
+ * `null` = non renseigné → l’appelant peut reprendre le modèle magasin.
+ */
 export function parseTimeBandsArray(raw: unknown): TimeBand[] | null {
   if (raw == null) return null;
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    const single: TimeBand[] = [];
+    pushBandFromObject(raw as object, single);
+    return single.length > 0 ? single : [];
+  }
   if (!Array.isArray(raw)) return null;
   const out: TimeBand[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
-    const start = String((item as { start?: unknown }).start ?? "").trim();
-    const end = String((item as { end?: unknown }).end ?? "").trim();
-    if (/^([01]?\d|2[0-3]):([0-5]\d)$/.test(start) && /^([01]?\d|2[0-3]):([0-5]\d)$/.test(end)) {
-      out.push({ start, end });
-    }
+    pushBandFromObject(item, out);
   }
   return out;
 }
@@ -81,7 +96,7 @@ export function resolveWeekPlanningDays(
 
     let openingBands: TimeBand[];
     let staffTarget: number | null;
-    let exceptionLabel: string | null = ov?.label?.trim() || null;
+    const exceptionLabel: string | null = ov?.label?.trim() || null;
 
     if (ov?.is_closed) {
       openingBands = [];
@@ -91,7 +106,9 @@ export function resolveWeekPlanningDays(
           : null;
     } else if (ov) {
       const custom = parseTimeBandsArray(ov.opening_bands_override);
-      openingBands = custom != null ? custom : [...(weeklyOpen[dayKey] ?? [])];
+      /** Plages explicites uniquement si au moins une plage valide ; sinon modèle magasin (`planning_opening_hours`). */
+      openingBands =
+        custom != null && custom.length > 0 ? custom : [...(weeklyOpen[dayKey] ?? [])];
       const wT = weeklyStaff[dayKey];
       staffTarget =
         ov.staff_target_override != null && Number.isFinite(ov.staff_target_override)

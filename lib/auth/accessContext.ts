@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import {
   ACTIVE_RESTAURANT_COOKIE,
   getAccessibleRestaurantsForUser,
@@ -21,7 +22,9 @@ export type ShellAccessContext = {
  * Propriétaire : tous les accès sur ses établissements.
  * Collaborateur (staff_members.user_id) : selon app_role.
  */
-export async function getShellAccessContext(userId: string): Promise<ShellAccessContext | null> {
+export const getShellAccessContext = cache(async function getShellAccessContext(
+  userId: string
+): Promise<ShellAccessContext | null> {
   const owned = await getAccessibleRestaurantsForUser(userId);
   if (owned.length > 0) {
     const cookieStore = await cookies();
@@ -48,4 +51,4 @@ export async function getShellAccessContext(userId: string): Promise<ShellAccess
     allowedNavKeys: navKeysForAppRole(sm.app_role),
     isOwner: false,
   };
-}
+});

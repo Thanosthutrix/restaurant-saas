@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabaseServer";
 import { toNumber } from "@/lib/utils/safeNumeric";
+import { diningTableTicketLineLabel, diningTableTicketTitle } from "@/lib/dining/ticketLabel";
 import {
   lineGrossFromUnit,
   lineNetAfterDiscount,
@@ -23,6 +24,8 @@ export type DiningOrderRow = {
   dining_table_id: string | null;
   /** Libellé ticket comptoir (nom, etc.) ; null si commande table. */
   counter_ticket_label: string | null;
+  /** Fiche client (Base clients), optionnel. */
+  customer_id: string | null;
   status: string;
   service_id: string | null;
   notes: string | null;
@@ -35,9 +38,34 @@ export type DiningOrderLineRow = {
   dining_order_id: string;
   dish_id: string;
   qty: unknown;
+  /** Cuisine : la ligne est prête (plat terminé). */
+  is_prepared?: boolean;
   discount_kind?: string;
   discount_value?: unknown;
 };
+
+/** Noms affichables pour lier un ticket comptoir à la fiche client (sans requête par ligne). */
+export async function mapCustomerDisplayNames(
+  restaurantId: string,
+  customerIds: (string | null | undefined)[]
+): Promise<Map<string, string>> {
+  const ids = [
+    ...new Set(customerIds.filter((id): id is string => typeof id === "string" && id.length > 0)),
+  ];
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabaseServer
+    .from("restaurant_customers")
+    .select("id, display_name")
+    .eq("restaurant_id", restaurantId)
+    .in("id", ids);
+  if (error || !data) return new Map();
+  const m = new Map<string, string>();
+  for (const row of data as { id: string; display_name: string }[]) {
+    const d = String(row.display_name ?? "").trim();
+    if (d) m.set(row.id, d);
+  }
+  return m;
+}
 
 export async function listDiningTables(
   restaurantId: string
@@ -75,13 +103,25 @@ export async function listOpenDiningOrders(
   const { data, error } = await supabaseServer
     .from("dining_orders")
     .select(
-      "id, restaurant_id, dining_table_id, counter_ticket_label, status, service_id, notes, created_at, settled_at"
+      "id, restaurant_id, dining_table_id, counter_ticket_label, customer_id, status, service_id, notes, created_at, settled_at"
     )
     .eq("restaurant_id", restaurantId)
     .eq("status", "open");
 
   if (error) return { data: [], error: new Error(error.message) };
   return { data: (data ?? []) as DiningOrderRow[], error: null };
+}
+
+export async function listOpenDiningOrdersWithCustomerNames(
+  restaurantId: string
+): Promise<{ data: { orders: DiningOrderRow[]; customerNameById: Map<string, string> }; error: Error | null }> {
+  const { data: orders, error } = await listOpenDiningOrders(restaurantId);
+  if (error) return { data: { orders: [], customerNameById: new Map() }, error };
+  const customerNameById = await mapCustomerDisplayNames(
+    restaurantId,
+    orders.map((o) => o.customer_id)
+  );
+  return { data: { orders, customerNameById }, error: null };
 }
 
 export async function ensureOpenDiningOrder(
@@ -115,24 +155,104 @@ export async function ensureOpenDiningOrder(
 
 export async function createOpenCounterTicketOrder(
   restaurantId: string,
-  ticketLabel: string
+  ticketLabel: string,
+  customerId?: string | null
 ): Promise<{ orderId: string | null; error: Error | null }> {
   const label = ticketLabel.trim();
   if (!label) return { orderId: null, error: new Error("Libellé du ticket vide.") };
 
+  let validCustomer: string | null = null;
+  /** Avec fiche client : le ticket affiché = nom officiel de la fiche. */
+  let counterLabel = label;
+  if (customerId) {
+    const { data: cust, error: cErr } = await supabaseServer
+      .from("restaurant_customers")
+      .select("id, display_name")
+      .eq("id", customerId)
+      .eq("restaurant_id", restaurantId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (cErr) return { orderId: null, error: new Error(cErr.message) };
+    if (cust) {
+      validCustomer = (cust as { id: string }).id;
+      const dn = String((cust as { display_name: string }).display_name ?? "").trim();
+      if (dn) counterLabel = dn;
+    }
+  }
+
+  const insert: Record<string, unknown> = {
+    restaurant_id: restaurantId,
+    dining_table_id: null,
+    counter_ticket_label: counterLabel,
+    status: "open",
+  };
+  if (validCustomer) insert.customer_id = validCustomer;
+
   const { data: created, error: insErr } = await supabaseServer
     .from("dining_orders")
-    .insert({
-      restaurant_id: restaurantId,
-      dining_table_id: null,
-      counter_ticket_label: label,
-      status: "open",
-    })
+    .insert(insert)
     .select("id")
     .single();
 
   if (insErr) return { orderId: null, error: new Error(insErr.message) };
   return { orderId: (created as { id: string }).id, error: null };
+}
+
+/**
+ * Associe (ou retire) une fiche client sur une commande ouverte.
+ */
+export async function setDiningOrderCustomerId(
+  restaurantId: string,
+  orderId: string,
+  customerId: string | null
+): Promise<{ error: Error | null }> {
+  const { data: orderRow, error: oErr } = await supabaseServer
+    .from("dining_orders")
+    .select("dining_table_id, counter_ticket_label")
+    .eq("id", orderId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (oErr) return { error: new Error(oErr.message) };
+  if (!orderRow) return { error: new Error("Commande introuvable.") };
+
+  const isCounterTicket =
+    (orderRow as { dining_table_id: string | null }).dining_table_id == null &&
+    String((orderRow as { counter_ticket_label: string | null }).counter_ticket_label ?? "").trim() !== "";
+
+  if (customerId) {
+    const { data: cust, error: cErr } = await supabaseServer
+      .from("restaurant_customers")
+      .select("id, display_name")
+      .eq("id", customerId)
+      .eq("restaurant_id", restaurantId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (cErr) return { error: new Error(cErr.message) };
+    if (!cust) return { error: new Error("Client introuvable ou inactif.") };
+
+    const displayName = String((cust as { display_name: string }).display_name ?? "").trim();
+    const patch: Record<string, unknown> = { customer_id: customerId };
+    if (isCounterTicket && displayName) {
+      patch.counter_ticket_label = displayName;
+    }
+
+    const { error } = await supabaseServer
+      .from("dining_orders")
+      .update(patch)
+      .eq("id", orderId)
+      .eq("restaurant_id", restaurantId);
+    if (error) return { error: new Error(error.message) };
+    return { error: null };
+  }
+
+  const { error } = await supabaseServer
+    .from("dining_orders")
+    .update({ customer_id: null })
+    .eq("id", orderId)
+    .eq("restaurant_id", restaurantId);
+  if (error) return { error: new Error(error.message) };
+  return { error: null };
 }
 
 export type OpenOrderCaisseRow = {
@@ -150,6 +270,7 @@ export async function listOpenOrdersForCaisse(
 ): Promise<{ data: OpenOrderCaisseRow[]; error: Error | null }> {
   const { data: orders, error: oErr } = await listOpenDiningOrders(restaurantId);
   if (oErr) return { data: [], error: oErr };
+  if (orders.length === 0) return { data: [], error: null };
 
   const tableIds = [
     ...new Set(
@@ -171,27 +292,51 @@ export async function listOpenOrdersForCaisse(
     );
   }
 
-  const rows: OpenOrderCaisseRow[] = [];
+  const customerNameById = await mapCustomerDisplayNames(
+    restaurantId,
+    orders.map((o) => o.customer_id)
+  );
 
+  const orderIds = orders.map((o) => o.id);
+  const linesByOrderId = new Map<string, LineWithDish[]>();
+  const { data: rawLines, error: linesErr } = await supabaseServer
+    .from("dining_order_lines")
+    .select(
+      "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+    )
+    .eq("restaurant_id", restaurantId)
+    .in("dining_order_id", orderIds)
+    .order("created_at", { ascending: true });
+  if (linesErr) return { data: [], error: new Error(linesErr.message) };
+  for (const line of (rawLines ?? []) as unknown as LineWithDish[]) {
+    const arr = linesByOrderId.get(line.dining_order_id) ?? [];
+    arr.push(line);
+    linesByOrderId.set(line.dining_order_id, arr);
+  }
+
+  const rows: OpenOrderCaisseRow[] = [];
   for (const o of orders) {
-    const linesRes = await getDiningOrderLines(o.id, restaurantId);
-    if (linesRes.error) return { data: [], error: linesRes.error };
+    const lines = linesByOrderId.get(o.id) ?? [];
 
     const counterLabel = o.counter_ticket_label?.trim();
     const isCounter = Boolean(counterLabel);
     const kind: "table" | "counter" = isCounter ? "counter" : "table";
+    const fromClient =
+      isCounter && o.customer_id ? customerNameById.get(o.customer_id) : undefined;
+    const tableLbl = o.dining_table_id ? labelById.get(o.dining_table_id) ?? "—" : "—";
+    const clientName = o.customer_id ? customerNameById.get(o.customer_id) : undefined;
     const label = isCounter
-      ? counterLabel!
+      ? (fromClient ?? counterLabel) ?? "—"
       : o.dining_table_id
-        ? labelById.get(o.dining_table_id) ?? "—"
+        ? diningTableTicketLineLabel(tableLbl, clientName)
         : "—";
 
     rows.push({
       orderId: o.id,
       kind,
       label,
-      totalTtc: orderTotalTtc(linesRes.data),
-      lineCount: linesRes.data.length,
+      totalTtc: orderTotalTtc(lines),
+      lineCount: lines.length,
       createdAt: o.created_at,
     });
   }
@@ -222,7 +367,7 @@ export async function getDiningOrder(
   const { data, error } = await supabaseServer
     .from("dining_orders")
     .select(
-      "id, restaurant_id, dining_table_id, counter_ticket_label, status, service_id, notes, created_at, settled_at"
+      "id, restaurant_id, dining_table_id, counter_ticket_label, customer_id, status, service_id, notes, created_at, settled_at"
     )
     .eq("id", orderId)
     .eq("restaurant_id", restaurantId)
@@ -243,7 +388,7 @@ export type LineWithDish = DiningOrderLineRow & {
   dishes: DishJoinRow | DishJoinRow[] | null;
 };
 
-function dishFromJoin(line: LineWithDish): DishJoinRow | null {
+export function dishFromJoin(line: LineWithDish): DishJoinRow | null {
   const d = line.dishes;
   if (!d) return null;
   if (Array.isArray(d)) return d[0] ?? null;
@@ -257,7 +402,7 @@ export async function getDiningOrderLines(
   const { data, error } = await supabaseServer
     .from("dining_order_lines")
     .select(
-      "id, dining_order_id, dish_id, qty, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+      "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
     )
     .eq("dining_order_id", orderId)
     .eq("restaurant_id", restaurantId)
@@ -275,7 +420,7 @@ export async function getDiningOrderLineById(
   const { data, error } = await supabaseServer
     .from("dining_order_lines")
     .select(
-      "id, dining_order_id, dish_id, qty, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+      "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
     )
     .eq("id", lineId)
     .eq("restaurant_id", restaurantId)
@@ -340,46 +485,57 @@ export async function getDiningOrderPayment(
   return { data: data as SettledPaymentRow | null, error: null };
 }
 
-function parisCalendarYmd(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Intl.DateTimeFormat("fr-CA", {
+function parisDayUtcBounds(day = new Date()): { startIso: string; endIso: string } {
+  const ymd = new Intl.DateTimeFormat("fr-CA", {
     timeZone: "Europe/Paris",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(d);
+  }).format(day);
+  const noonUtc = new Date(`${ymd}T12:00:00.000Z`);
+  const parisParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(noonUtc);
+  const hour = Number(parisParts.find((p) => p.type === "hour")?.value ?? "12");
+  const minute = Number(parisParts.find((p) => p.type === "minute")?.value ?? "0");
+  const second = Number(parisParts.find((p) => p.type === "second")?.value ?? "0");
+  const offsetMs = ((hour - 12) * 60 * 60 + minute * 60 + second) * 1000;
+  const start = new Date(Date.parse(`${ymd}T00:00:00.000Z`) - offsetMs);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
 }
 
 /** Commandes réglées aujourd’hui (calendrier Europe/Paris) pour la caisse. */
 export async function listSettledOrdersToday(
   restaurantId: string
 ): Promise<{ data: SettledOrderSummary[]; error: Error | null }> {
-  const todayParis = new Intl.DateTimeFormat("fr-CA", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const { startIso, endIso } = parisDayUtcBounds();
 
   const { data: orders, error: oErr } = await supabaseServer
     .from("dining_orders")
     .select(
-      "id, restaurant_id, dining_table_id, counter_ticket_label, status, service_id, notes, created_at, settled_at"
+      "id, restaurant_id, dining_table_id, counter_ticket_label, customer_id, status, service_id, notes, created_at, settled_at"
     )
     .eq("restaurant_id", restaurantId)
     .eq("status", "settled")
-    .not("settled_at", "is", null)
+    .gte("settled_at", startIso)
+    .lt("settled_at", endIso)
     .order("settled_at", { ascending: false })
-    .limit(150);
+    .limit(120);
 
   if (oErr) return { data: [], error: new Error(oErr.message) };
-  const list = (orders ?? []).filter((o) => {
-    const row = o as DiningOrderRow;
-    return parisCalendarYmd(row.settled_at) === todayParis;
-  }) as DiningOrderRow[];
+  const list = (orders ?? []) as DiningOrderRow[];
   if (list.length === 0) return { data: [], error: null };
+
+  const customerNameById = await mapCustomerDisplayNames(
+    restaurantId,
+    list.map((o) => o.customer_id)
+  );
 
   const tableIds = [
     ...new Set(
@@ -409,10 +565,15 @@ export async function listSettledOrdersToday(
 
   const out: SettledOrderSummary[] = list.map((order) => {
     const counter = order.counter_ticket_label?.trim();
+    const fromClient =
+      counter && order.customer_id ? customerNameById.get(order.customer_id) : undefined;
     const tableLabel = counter
-      ? `Comptoir · ${counter}`
+      ? (fromClient ?? counter)
       : order.dining_table_id
-        ? labelById.get(order.dining_table_id) ?? "—"
+        ? diningTableTicketTitle(
+            labelById.get(order.dining_table_id) ?? "—",
+            order.customer_id ? customerNameById.get(order.customer_id) : undefined
+          )
         : "—";
     return {
       order,

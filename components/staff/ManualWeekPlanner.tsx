@@ -1,19 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   applyWeekDeltaToCarryoverAction,
   createSimulationShiftAction,
   createWorkShiftAction,
+  deleteSimulationShiftAction,
+  deleteWorkShiftAction,
   updateSimulationShiftTimesAction,
   updateWorkShiftTimesAction,
 } from "@/app/equipe/actions";
 import { computePlanningWeekTimeRange } from "@/lib/staff/planningGridRange";
-import {
-  minutesFromMidnight,
-  PLANNING_DAY_KEYS,
-  PLANNING_DAY_LABELS_FR,
-} from "@/lib/staff/planningHoursTypes";
+import { PLANNING_DAY_KEYS, PLANNING_DAY_LABELS_FR } from "@/lib/staff/planningHoursTypes";
 import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
 import { snapLocalDateToStep } from "@/lib/staff/planningSnap";
 import { formatMinutesHuman, netPlannedMinutes } from "@/lib/staff/timeHelpers";
@@ -24,6 +22,8 @@ import { uiBtnOutlineSm, uiBtnPrimarySm, uiCard, uiInput, uiLabel } from "@/comp
 const SNAP_MIN = 15;
 /** Même hauteur que la grille « vue semaine ». */
 const COL_H = 432;
+/** Réduit les largeurs min. des colonnes jour d’environ 30 %. */
+const COL_WIDTH_SCALE = 0.7;
 
 const STAFF_LAYER_CLASS = [
   "bg-violet-600",
@@ -76,22 +76,6 @@ function segmentPctInRange(
     top: ((t0 - rangeMinM) / span) * 100,
     height: ((t1 - t0) / span) * 100,
   };
-}
-
-function openingBandPctInRange(
-  day: Date,
-  bandStart: string,
-  bandEnd: string,
-  rangeMinM: number,
-  rangeMaxM: number
-): { top: number; height: number } | null {
-  const a = minutesFromMidnight(bandStart);
-  const b = minutesFromMidnight(bandEnd);
-  if (a == null || b == null || b <= a) return null;
-  const { start: day0 } = dayBounds(day);
-  const s = new Date(day0.getTime() + a * 60000);
-  const e = new Date(day0.getTime() + b * 60000);
-  return segmentPctInRange(s, e, day, rangeMinM, rangeMaxM);
 }
 
 function shiftMinuteBoundsOnDayStrings(
@@ -256,6 +240,64 @@ export function ManualWeekPlanner({
     return ticks;
   }, [minM, maxM]);
 
+  const [hideClosedDays, setHideClosedDays] = useState(false);
+
+  /** Indices des jours affichés (tous, ou seulement jours avec au moins une plage d’ouverture). */
+  const visibleDayIndices = useMemo(() => {
+    if (resolvedWeekDays.length !== 7) return [] as number[];
+    const all = PLANNING_DAY_KEYS.map((_, i) => i);
+    if (!hideClosedDays) return all;
+    return all.filter((i) => resolvedWeekDays[i]!.openingBands.length > 0);
+  }, [hideClosedDays, resolvedWeekDays]);
+
+  /** Largeur relative de chaque jour visible : pic de présence + couloirs (sans l’aperçu drag). */
+  const dayColumnWeights = useMemo(() => {
+    if (weekDays.length !== 7) return [];
+    const stepM = Math.max(30, Math.min(90, Math.ceil(rangeSpan / 14)));
+    return visibleDayIndices.map((di) => {
+      const day = weekDays[di]!;
+      const dayShifts = shiftsForCalendarDay(shifts, day);
+      const hc = headcountAt(shifts, day, minM, maxM, stepM);
+      const peakHc = hc.length ? Math.max(...hc) : 0;
+      const laneMap = assignShiftLanesForDay(
+        dayShifts,
+        day,
+        minM,
+        maxM,
+        (s) => ({ start: s.starts_at, end: s.ends_at })
+      );
+      let maxLanes = 1;
+      for (const v of laneMap.values()) {
+        maxLanes = Math.max(maxLanes, v.maxLanes);
+      }
+      return Math.max(1, peakHc, maxLanes);
+    });
+  }, [weekDays, shifts, minM, maxM, rangeSpan, visibleDayIndices]);
+
+  /**
+   * Colonnes jour : largeur min liée au pic (lisibilité) + parts fr étalées (écart jour calme vs chargé).
+   * min ≈ (72px + pic×40px) × COL_WIDTH_SCALE ; fr ∝ pic^1.35.
+   */
+  const gridColsTemplate = useMemo(() => {
+    if (dayColumnWeights.length === 0) return "3rem";
+    const parts = dayColumnWeights.map((w) => {
+      const minPx = Math.round((72 + w * 40) * COL_WIDTH_SCALE);
+      const fr = Math.pow(Math.max(1, w), 1.35);
+      return `minmax(${minPx}px, ${fr.toFixed(2)}fr)`;
+    });
+    return `3rem ${parts.join(" ")}`;
+  }, [dayColumnWeights]);
+
+  /** Largeur minimale du tableau pour que les minmax ne soient pas écrasés. */
+  const gridMinWidthPx = useMemo(() => {
+    const timeCol = 48;
+    const daysMin = dayColumnWeights.reduce(
+      (acc, w) => acc + Math.round((72 + w * 40) * COL_WIDTH_SCALE),
+      0
+    );
+    return timeCol + daysMin + 16;
+  }, [dayColumnWeights]);
+
   const staffColor = useMemo(() => {
     const sorted = [...staff].sort((a, b) => a.id.localeCompare(b.id));
     const m = new Map<string, number>();
@@ -275,6 +317,8 @@ export function ManualWeekPlanner({
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  /** Menu Demain / Supprimer : ouvert par un clic (sans glisser) sur le bloc « déplacer ». */
+  const [shiftActionsMenu, setShiftActionsMenu] = useState<null | { shiftId: string; x: number; y: number }>(null);
 
   const dragSession = useRef<{
     shiftId: string;
@@ -298,6 +342,24 @@ export function ManualWeekPlanner({
     },
     [preview]
   );
+
+  useEffect(() => {
+    if (!shiftActionsMenu) return;
+    const onDocDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("[data-shift-actions-popover]") || t.closest("[data-manual-shift]")) return;
+      setShiftActionsMenu(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShiftActionsMenu(null);
+    };
+    document.addEventListener("mousedown", onDocDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [shiftActionsMenu]);
 
   const commitTimes = useCallback(
     async (shift: WorkShiftWithDetails, startIso: string, endIso: string): Promise<boolean> => {
@@ -375,7 +437,12 @@ export function ManualWeekPlanner({
         label: formatRangeLabel(initialPreview.start, initialPreview.ends),
       });
 
+      let gestureMoved = false;
+
       const onMove = (ev: PointerEvent) => {
+        if (Math.abs(ev.clientY - e.clientY) > 4 || Math.abs(ev.clientX - e.clientX) > 4) {
+          gestureMoved = true;
+        }
         const d = dragSession.current;
         if (!d) return;
         const deltaMin = ((ev.clientY - d.anchorY) / COL_H) * d.rangeSpan;
@@ -410,10 +477,10 @@ export function ManualWeekPlanner({
         }));
       };
 
-      const onUp = async () => {
+      const onUp = async (ev: PointerEvent) => {
         window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        window.removeEventListener("pointercancel", onUp);
+        window.removeEventListener("pointerup", onUpEvt);
+        window.removeEventListener("pointercancel", onUpEvt);
         setDragHud(null);
         const sess = dragSession.current;
         dragSession.current = null;
@@ -435,19 +502,27 @@ export function ManualWeekPlanner({
             delete n[shift.id];
             return n;
           });
+          if (!gestureMoved && sess.mode === "move") {
+            setShiftActionsMenu({ shiftId: shift.id, x: ev.clientX, y: ev.clientY });
+          }
           return;
         }
+        setShiftActionsMenu(null);
         await commitTimes(sh, lastPreview.start, lastPreview.ends);
       };
 
+      const onUpEvt = (ev: Event) => {
+        void onUp(ev as PointerEvent);
+      };
       window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-      window.addEventListener("pointercancel", onUp);
+      window.addEventListener("pointerup", onUpEvt);
+      window.addEventListener("pointercancel", onUpEvt);
     },
     [pending, getEffectiveTimes, shifts, commitTimes, rangeSpan]
   );
 
   function openEditShift(s: WorkShiftWithDetails) {
+    setShiftActionsMenu(null);
     const eff = getEffectiveTimes(s);
     setFormStart(toDatetimeLocalValue(new Date(eff.start)));
     setFormEnd(toDatetimeLocalValue(new Date(eff.end)));
@@ -505,6 +580,56 @@ export function ManualWeekPlanner({
     if (ok) setSheet(null);
   }
 
+  async function duplicateShiftToNextDay(s: WorkShiftWithDetails) {
+    if (disabled) return;
+    setErr(null);
+    const eff = getEffectiveTimes(s);
+    const ms = 24 * 60 * 60 * 1000;
+    const ns = new Date(new Date(eff.start).getTime() + ms);
+    const ne = new Date(new Date(eff.end).getTime() + ms);
+    if (!(ne > ns)) {
+      setErr("Impossible de dupliquer ce créneau (durée invalide).");
+      return;
+    }
+    const payload = {
+      staffMemberId: s.staff_member_id,
+      startsAtLocal: toDatetimeLocalValue(ns),
+      endsAtLocal: toDatetimeLocalValue(ne),
+      notes: s.notes?.trim() || null,
+      breakMinutes: s.break_minutes,
+    };
+    let r: { ok: true; id: string } | { ok: false; error: string };
+    if (isSimulation) {
+      if (!simulationId) return;
+      r = await createSimulationShiftAction(restaurantId, simulationId, payload);
+    } else {
+      r = await createWorkShiftAction(restaurantId, payload);
+    }
+    if (!r.ok) setErr(r.error);
+    else {
+      setShiftActionsMenu(null);
+      onUpdated();
+    }
+  }
+
+  async function deleteShiftSlot(s: WorkShiftWithDetails) {
+    if (disabled) return;
+    if (!confirm("Supprimer ce créneau ?")) return;
+    setErr(null);
+    const r = s.isSimulationDraft
+      ? await deleteSimulationShiftAction(restaurantId, s.id)
+      : await deleteWorkShiftAction(restaurantId, s.id);
+    if (!r.ok) setErr(r.error);
+    else {
+      setShiftActionsMenu(null);
+      onUpdated();
+    }
+  }
+
+  const shiftForActionsMenu = shiftActionsMenu
+    ? (shifts.find((x) => x.id === shiftActionsMenu.shiftId) ?? null)
+    : null;
+
   if (!monday || weekDays.length === 0) return null;
 
   return (
@@ -513,19 +638,43 @@ export function ManualWeekPlanner({
         <strong className="text-slate-800">Planning manuel</strong> : glisser le bloc pour déplacer, tirer le haut ou le
         bas pour ajuster (pas de 15 min) — les horaires s’affichent sur le bloc et dans une bulle pendant le geste.
         Double-clic pour saisir les horaires. « + Créneau » sous chaque jour : choisir le collaborateur dans la fenêtre.
-        Les créneaux qui se chevauchent sont côte à côte, comme sur la vue semaine.
+        Les créneaux qui se chevauchent sont côte à côte. Colonnes plus fines (~−30 % de largeur min.) ; le pic de
+        présence continue de les pondérer.         Clic sur le bloc (zone déplacement) : menu Demain / Supprimer. Double-clic
+        : éditer.
       </p>
       {err ? <p className="text-sm text-rose-700">{err}</p> : null}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
+          <input
+            type="checkbox"
+            className="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            checked={hideClosedDays}
+            onChange={(e) => setHideClosedDays(e.target.checked)}
+          />
+          Masquer les jours fermés
+        </label>
+      </div>
+
+      {visibleDayIndices.length === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-6 text-center text-sm text-slate-600">
+          Aucun jour ouvert à afficher. Décochez « Masquer les jours fermés » ou vérifiez les horaires du restaurant.
+        </div>
+      ) : (
       <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
-        <div className="min-w-[880px]">
+        <div className="min-w-0" style={{ minWidth: Math.max(620, gridMinWidthPx) }}>
           <div
             className="grid border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600"
-            style={{ gridTemplateColumns: `3rem repeat(7, minmax(0,1fr))` }}
+            style={{ gridTemplateColumns: gridColsTemplate }}
           >
             <div className="px-1 py-2 text-center text-[10px] leading-tight text-slate-500">Heures</div>
-            {resolvedWeekDays.map((wd) => (
-              <div key={wd.ymd} className="border-l border-slate-100 px-1 py-2 text-center">
+            {visibleDayIndices.map((di) => {
+              const wd = resolvedWeekDays[di]!;
+              return (
+              <div
+                key={wd.ymd}
+                className="border-l-2 border-slate-200 bg-slate-50/90 px-1 py-2 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]"
+              >
                 {PLANNING_DAY_LABELS_FR[wd.dayKey]}
                 <div className="font-normal text-[10px] text-slate-400">
                   {wd.date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
@@ -534,12 +683,13 @@ export function ManualWeekPlanner({
                   <div className="text-[10px] font-medium text-rose-700">Fermé</div>
                 ) : null}
               </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="grid" style={{ gridTemplateColumns: `3rem repeat(7, minmax(0,1fr))` }}>
+          <div className="grid" style={{ gridTemplateColumns: gridColsTemplate }}>
             <div
-              className="flex flex-col border-r border-slate-200 bg-slate-50/80"
+              className="flex flex-col border-r-2 border-slate-200 bg-slate-50/80"
               style={{ height: COL_H }}
             >
               <div className="relative min-h-0 h-full">
@@ -562,7 +712,7 @@ export function ManualWeekPlanner({
               </div>
             </div>
 
-            {PLANNING_DAY_KEYS.map((_, di) => {
+            {visibleDayIndices.map((di) => {
               const day = weekDays[di]!;
               const wd = resolvedWeekDays[di]!;
               const dayShifts = shiftsForCalendarDay(shifts, day);
@@ -582,8 +732,8 @@ export function ManualWeekPlanner({
               return (
                 <div
                   key={wd.ymd}
-                  className={`flex flex-col border-l border-slate-100 ${
-                    wd.openingBands.length === 0 ? "bg-rose-50/40" : "bg-slate-50/30"
+                  className={`flex flex-col border-l-2 border-slate-200 ${
+                    wd.openingBands.length === 0 ? "bg-rose-50/50" : "bg-slate-50/40"
                   }`}
                   style={{ height: COL_H }}
                 >
@@ -597,32 +747,6 @@ export function ManualWeekPlanner({
                           key={`g-${h}`}
                           className="pointer-events-none absolute left-0 right-0 border-t border-slate-200/60"
                           style={{ top: `${pct}%` }}
-                        />
-                      );
-                    })}
-
-                    {(wd.staffExtraBands ?? []).map((band, bi) => {
-                      const p = openingBandPctInRange(day, band.start, band.end, minM, maxM);
-                      if (!p) return null;
-                      return (
-                        <div
-                          key={`x-${bi}`}
-                          className="pointer-events-none absolute left-0.5 right-0.5 rounded-sm bg-amber-200/55 ring-1 ring-amber-300/40"
-                          style={{ top: `${p.top}%`, height: `${Math.max(p.height, 1)}%` }}
-                          title={`Travail effectif sans service client ${band.start}–${band.end}`}
-                        />
-                      );
-                    })}
-
-                    {wd.openingBands.map((band, bi) => {
-                      const p = openingBandPctInRange(day, band.start, band.end, minM, maxM);
-                      if (!p) return null;
-                      return (
-                        <div
-                          key={`o-${bi}`}
-                          className="pointer-events-none absolute left-0.5 right-0.5 rounded-sm bg-emerald-200/45 ring-1 ring-emerald-300/35"
-                          style={{ top: `${p.top}%`, height: `${Math.max(p.height, 1)}%` }}
-                          title={`Ouverture au public ${band.start}–${band.end}`}
                         />
                       );
                     })}
@@ -649,8 +773,11 @@ export function ManualWeekPlanner({
                       return (
                         <div
                           key={s.id}
+                          data-manual-shift
                           className={`absolute z-20 box-border flex flex-col items-center justify-center overflow-hidden rounded border border-white/25 ${layer} px-0.5 text-white shadow-sm ${
                             disabled ? "opacity-50" : ""
+                          } ${
+                            shiftActionsMenu?.shiftId === s.id ? "ring-2 ring-white ring-offset-1 ring-offset-black/20" : ""
                           }`}
                           style={{
                             top: `${seg.top}%`,
@@ -659,13 +786,13 @@ export function ManualWeekPlanner({
                             left: `calc(${leftPct}% + ${gapPx / 2}px)`,
                             width: `calc(${wPct}% - ${gapPx}px)`,
                           }}
-                          title={`${s.staff_display_name} · ${formatRangeLabel(eff.start, eff.end)}${br} · double-clic pour éditer`}
+                          title={`${s.staff_display_name} · ${formatRangeLabel(eff.start, eff.end)}${br} · clic : actions · double-clic : éditer`}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
                             if (!disabled) openEditShift(s);
                           }}
                         >
-                          <div className="pointer-events-none flex min-h-0 w-full flex-col items-center justify-center gap-0.5 px-0.5 text-center">
+                          <div className="pointer-events-none flex min-h-0 w-full flex-col items-center justify-center gap-0.5 px-0.5 py-0.5 text-center">
                             <span className="w-full truncate text-[8px] font-bold leading-none drop-shadow-sm">
                               {staffInitials(s.staff_display_name)}
                             </span>
@@ -740,18 +867,9 @@ export function ManualWeekPlanner({
           </div>
         </div>
       </div>
+      )}
 
       <div className="flex flex-col gap-3 text-xs text-slate-600 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-        <div className="flex flex-wrap gap-3">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-5 rounded bg-emerald-200/80 ring-1 ring-emerald-300/50" />
-            Ouverture au public
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-5 rounded bg-amber-200/90 ring-1 ring-amber-300/50" />
-            Travail sans service client
-          </span>
-        </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {staff.map((m) => {
             const idx = staffColor.get(m.id) ?? 0;
@@ -830,6 +948,45 @@ export function ManualWeekPlanner({
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {shiftActionsMenu && shiftForActionsMenu ? (
+        <div
+          data-shift-actions-popover
+          className="fixed z-[250] flex min-w-[11rem] flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+          style={{
+            left: shiftActionsMenu.x,
+            top: shiftActionsMenu.y,
+            transform: "translate(-50%, 10px)",
+          }}
+        >
+          <p className="px-0.5 text-[11px] font-medium text-slate-600">
+            {shiftForActionsMenu.staff_display_name}
+          </p>
+          <button
+            type="button"
+            disabled={disabled}
+            className="min-h-11 w-full touch-manipulation rounded-lg border-2 border-indigo-200/90 bg-white px-3 py-2 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-50 disabled:opacity-40"
+            onClick={() => void duplicateShiftToNextDay(shiftForActionsMenu)}
+          >
+            Demain (copie)
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            className="min-h-11 w-full touch-manipulation rounded-lg border-2 border-rose-200/90 bg-white px-3 py-2 text-sm font-semibold text-rose-900 shadow-sm hover:bg-rose-50 disabled:opacity-40"
+            onClick={() => void deleteShiftSlot(shiftForActionsMenu)}
+          >
+            Supprimer
+          </button>
+          <button
+            type="button"
+            className={`${uiBtnOutlineSm} w-full`}
+            onClick={() => setShiftActionsMenu(null)}
+          >
+            Fermer
+          </button>
         </div>
       ) : null}
 

@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { cancelOpenDiningOrder, removeDiningOrderLine, settleDiningOrder, setDiningOrderLineQty } from "@/app/salle/actions";
+import {
+  cancelOpenDiningOrder,
+  notifyDiningOrderReadyByEmail,
+  removeDiningOrderLine,
+  setDiningOrderLinePrepared,
+  settleDiningOrder,
+  setDiningOrderLineQty,
+} from "@/app/salle/actions";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import { DiningLineDiscountModal } from "@/app/salle/DiningLineDiscountModal";
 import type { DiningPaymentMethod } from "@/lib/dining/diningPaymentMethods";
@@ -17,7 +24,7 @@ import {
 } from "@/components/dining/DiningOrderTicketUi";
 import { getQuickCounterOrderSnapshot } from "./actions";
 import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "./caisseQuickStorage";
-import { uiLead } from "@/components/ui/premium";
+import { uiLead, uiSuccess } from "@/components/ui/premium";
 
 const QUICK_DEFAULT_SERVICE = "lunch" as const;
 
@@ -35,9 +42,11 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
     ticketLabel: string;
     lines: DiningLineClient[];
     totalTtc: number;
+    customerEmail: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [paymentMethod, setPaymentMethod] = useState<DiningPaymentMethod>("card");
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
@@ -52,6 +61,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
     async (silent: boolean) => {
       if (!silent) setLoading(true);
       setError(null);
+      setInfo(null);
       const res = await getQuickCounterOrderSnapshot(restaurantId, orderId);
       if (!silent) setLoading(false);
       if (!res.ok) {
@@ -135,6 +145,42 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
     });
   };
 
+  const toggleLinePrepared = (lineId: string, next: boolean) => {
+    setError(null);
+    setInfo(null);
+    startTransition(async () => {
+      const res = await setDiningOrderLinePrepared({ restaurantId, lineId, isPrepared: next });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (res.data?.orderReadyEmail === "sent") {
+        setInfo("E-mail « commande prête » envoyé.");
+      } else if (res.data?.orderReadyEmail === "already_sent") {
+        setInfo("E-mail déjà envoyé (commande prête).");
+      }
+      sync();
+    });
+  };
+
+  const sendReadyEmailManual = () => {
+    setError(null);
+    setInfo(null);
+    startTransition(async () => {
+      const res = await notifyDiningOrderReadyByEmail({ restaurantId, orderId });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (res.data?.alreadySent) {
+        setInfo("E-mail déjà envoyé pour ce ticket.");
+      } else {
+        setInfo("E-mail « commande prête » envoyé.");
+      }
+      sync();
+    });
+  };
+
   const handleCancel = () => {
     const label = snapshot?.ticketLabel ?? "ticket";
     const n = snapshot?.lines.length ?? 0;
@@ -163,11 +209,12 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
   const lines = snapshot?.lines ?? [];
   const totalTtc = snapshot?.totalTtc ?? 0;
   const ticketLabel = snapshot?.ticketLabel ?? "…";
+  const customerEmail = snapshot?.customerEmail ?? null;
 
   const header = (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-1.5">
-      <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-        <span className="text-indigo-600">Ticket ·</span> {ticketLabel}
+      <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-900" title={ticketLabel}>
+        {ticketLabel}
       </p>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
         <Link
@@ -214,6 +261,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
               onAdjust={(id, d) => adjustLine(id, d)}
               onRemove={removeLine}
               onDiscount={setDiscountLine}
+              onToggleLinePrepared={toggleLinePrepared}
             />
           ))}
         </ul>
@@ -237,7 +285,21 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
   return (
     <>
       <div className="sticky top-0 z-40 -mx-4 mb-2 border-b border-indigo-100 bg-white/95 px-4 pb-2 pt-1 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-3xl space-y-1.5">
+          {info ? <p className={`px-0.5 text-xs ${uiSuccess}`}>{info}</p> : null}
+          {lines.length > 0 && customerEmail ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
+              <p className="min-w-0 flex-1 text-[10px] text-slate-600">E-mail « commande prête » (notification client)</p>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={sendReadyEmailManual}
+                className="shrink-0 rounded-md border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-800 hover:bg-indigo-50 disabled:opacity-50"
+              >
+                Notifier
+              </button>
+            </div>
+          ) : null}
           <DiningOrderTicketCard header={header} error={error} linesContent={linesContent} footer={footer} />
         </div>
       </div>

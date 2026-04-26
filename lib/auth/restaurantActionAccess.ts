@@ -10,7 +10,9 @@ export type RestaurantActionCapability =
   | "dishes.mutate"
   | "staff.manage"
   | "planning.mutate"
-  | "hygiene.mutate";
+  | "hygiene.mutate"
+  | "clients.mutate"
+  | "reservations.mutate";
 
 const CAPABILITY_ROLES: Record<RestaurantActionCapability, readonly AppRole[]> = {
   "inventory.mutate": ["manager", "cuisine", "achats"],
@@ -18,6 +20,8 @@ const CAPABILITY_ROLES: Record<RestaurantActionCapability, readonly AppRole[]> =
   "staff.manage": ["manager"],
   "planning.mutate": ["manager"],
   "hygiene.mutate": ["manager", "hygiene"],
+  "clients.mutate": ["manager", "service", "achats"],
+  "reservations.mutate": ["manager", "service"],
 };
 
 export async function assertRestaurantAction(

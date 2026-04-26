@@ -186,7 +186,9 @@ export async function ensureHygieneTasksForRestaurant(
 ): Promise<void> {
   const { data: elements, error } = await supabaseServer
     .from("hygiene_elements")
-    .select("*")
+    .select(
+      "id, restaurant_id, name, category, area_label, description, risk_level, recurrence_type, recurrence_day_of_week, recurrence_day_of_month, cleaning_protocol, disinfection_protocol, product_used, dosage, contact_time, active, created_at, updated_at"
+    )
     .eq("restaurant_id", restaurantId)
     .eq("active", true);
   if (error || !elements?.length) return;
@@ -196,15 +198,25 @@ export async function ensureHygieneTasksForRestaurant(
   const windowEnd = new Date(windowStart);
   windowEnd.setUTCDate(windowEnd.getUTCDate() + daysAhead);
 
+  const rowsToInsert = [];
   for (const raw of elements) {
     const el = mapElement(raw as Record<string, unknown>);
     const rows = buildTaskInsertsForElement(el, windowStart, windowEnd);
-    for (const row of rows) {
-      const { error: insErr } = await supabaseServer.from("hygiene_tasks").insert(row);
-      if (insErr) {
-        const code = (insErr as { code?: string }).code;
-        if (code === "23505") continue;
-      }
+    rowsToInsert.push(...rows);
+  }
+  if (rowsToInsert.length === 0) return;
+
+  const chunkSize = 500;
+  for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
+    const chunk = rowsToInsert.slice(i, i + chunkSize);
+    const { error: upsertErr } = await supabaseServer
+      .from("hygiene_tasks")
+      .upsert(chunk, {
+        onConflict: "element_id,period_key",
+        ignoreDuplicates: true,
+      });
+    if (upsertErr) {
+      return;
     }
   }
 }

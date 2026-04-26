@@ -21,6 +21,28 @@ export function toISODateString(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Normalise une valeur `date` (Postgres / Supabase) en AAAA-MM-JJ **calendaire local**,
+ * comme `toISODateString`, pour indexer les exceptions avec les mêmes clés que `resolveWeekPlanningDays`.
+ * Évite les clés invalides si le client renvoie un `Date` ou une chaîne non ISO (ex. slice(0,10) sur une Date JS).
+ */
+export function toPlanningYmdFromUnknown(raw: unknown): string | null {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    const head = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+    if (head) return head[1]!;
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return null;
+    return toISODateString(d);
+  }
+  if (raw instanceof Date) {
+    if (Number.isNaN(raw.getTime())) return null;
+    return toISODateString(raw);
+  }
+  return null;
+}
+
 /** Parse AAAA-MM-JJ ; retourne null si invalide. */
 export function parseISODateLocal(ymd: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd.trim())) return null;

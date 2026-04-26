@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { listDiningTables, listOpenDiningOrders } from "@/lib/dining/diningDb";
+import { listDiningTables, listOpenDiningOrdersWithCustomerNames } from "@/lib/dining/diningDb";
+import { diningTableTicketLineLabel } from "@/lib/dining/ticketLabel";
 import { uiBackLink, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
 
 export default async function SallePage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [{ data: tables, error: tErr }, { data: openOrders, error: oErr }] = await Promise.all([
+  const [{ data: tables, error: tErr }, openOrdersRes] = await Promise.all([
     listDiningTables(restaurant.id),
-    listOpenDiningOrders(restaurant.id),
+    listOpenDiningOrdersWithCustomerNames(restaurant.id),
   ]);
+  const oErr = openOrdersRes.error;
 
   if (tErr || oErr) {
     return (
@@ -23,12 +25,16 @@ export default async function SallePage() {
     );
   }
 
+  const orders = openOrdersRes.data.orders;
+  const customerNameById = openOrdersRes.data.customerNameById;
   const openByTable = new Map(
-    openOrders
+    orders
       .filter((o) => o.dining_table_id != null)
-      .map((o) => [o.dining_table_id as string, o.id])
+      .map((o) => [
+        o.dining_table_id as string,
+        { orderId: o.id, customerId: o.customer_id as string | null },
+      ])
   );
-
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <div>
@@ -60,7 +66,13 @@ export default async function SallePage() {
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {tables.map((t) => {
-            const orderId = openByTable.get(t.id);
+            const open = openByTable.get(t.id);
+            const orderId = open?.orderId;
+            const clientName =
+              open?.customerId != null ? customerNameById.get(open.customerId) : undefined;
+            const tableLineLabel = orderId
+              ? diningTableTicketLineLabel(t.label, clientName)
+              : t.label;
             return (
               <li key={t.id}>
                 <Link
@@ -68,8 +80,10 @@ export default async function SallePage() {
                   className={`${uiCard} block transition hover:border-indigo-100 hover:shadow-md`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className={uiSectionTitleSm}>{t.label}</p>
+                    <div className="min-w-0">
+                      <p className={`${uiSectionTitleSm} break-words`} title={tableLineLabel}>
+                        {tableLineLabel}
+                      </p>
                       <p className={`mt-1 ${uiLead}`}>
                         {orderId ? "Commande en cours — reprendre" : "Ouvrir une commande"}
                       </p>

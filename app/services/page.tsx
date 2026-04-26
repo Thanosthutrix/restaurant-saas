@@ -21,7 +21,7 @@ export default async function ServicesHistoryPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const { data: services, error } = await getServicesForRestaurant(restaurant.id);
+  const { data: services, error } = await getServicesForRestaurant(restaurant.id, 50, { summaryOnly: true });
   if (error) {
     return (
       <div className="mx-auto max-w-2xl">

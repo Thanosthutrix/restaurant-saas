@@ -15,7 +15,7 @@ export async function createSupplierAction(formData: FormData): Promise<ActionRe
   const orderDaysRaw = formData.get("orderDays") as string | null;
   const orderDays = orderDaysRaw ? orderDaysRaw.split(",").map((d) => d.trim()).filter(Boolean) : [];
 
-  const { data, error } = await createSupplier({
+  const { error } = await createSupplier({
     restaurant_id: restaurantId,
     name,
     email: (formData.get("email") as string)?.trim() || null,
@@ -138,6 +138,7 @@ export async function createSupplierInvoiceAction(params: {
 
   revalidatePath(`/suppliers/${params.supplierId}`);
   revalidatePath("/suppliers/[id]", "page");
+  revalidatePath("/supplier-invoices");
   revalidatePath("/supplier-invoices/[id]", "page");
   return { ok: true, invoiceId: data.id };
 }

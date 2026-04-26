@@ -46,3 +46,26 @@ export function computePlanningWeekTimeRange(
   if (hi <= lo) return { minM: 6 * 60, maxM: 23 * 60 };
   return { minM: lo, maxM: hi };
 }
+
+/**
+ * Position verticale (% du haut, % de hauteur) d’une plage HH:mm–HH:mm dans [rangeMinM, rangeMaxM],
+ * sans passer par `Date` : même échelle que les repères d’heures et que `computePlanningWeekTimeRange`.
+ */
+export function openingBandPercentInWeekRange(
+  bandStart: string,
+  bandEnd: string,
+  rangeMinM: number,
+  rangeMaxM: number
+): { top: number; height: number } | null {
+  const a = minutesFromMidnight(bandStart);
+  const b = minutesFromMidnight(bandEnd);
+  if (a == null || b == null || b <= a) return null;
+  const span = Math.max(1, rangeMaxM - rangeMinM);
+  const t0 = Math.max(a, rangeMinM);
+  const t1 = Math.min(b, rangeMaxM);
+  if (t1 <= t0) return null;
+  return {
+    top: ((t0 - rangeMinM) / span) * 100,
+    height: ((t1 - t0) / span) * 100,
+  };
+}

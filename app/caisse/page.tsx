@@ -14,6 +14,7 @@ import {
   listSettledOrdersToday,
   type SettledOrderSummary,
 } from "@/lib/dining/diningDb";
+import { listRecentCustomersForLookup } from "@/lib/customers/customersDb";
 import { getDishes } from "@/lib/db";
 import { toNumber } from "@/lib/utils/safeNumeric";
 import { uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
@@ -69,11 +70,13 @@ export default async function CaissePage() {
     { data: settledRows, error: settledErr },
     { data: dishesList, error: dishesErr },
     { data: flatCats, error: catErr },
+    recentCustomerPool,
   ] = await Promise.all([
     listOpenOrdersForCaisse(restaurant.id),
     listSettledOrdersToday(restaurant.id),
     getDishes(restaurant.id),
     listRestaurantCategories(restaurant.id),
+    listRecentCustomersForLookup(restaurant.id, 80),
   ]);
 
   if (openErr || settledErr || dishesErr || catErr) {
@@ -113,6 +116,7 @@ export default async function CaissePage() {
         roots={prunedRoots}
         directByCategoryId={directByCategoryId}
         uncategorized={uncategorized}
+        recentCustomerPool={recentCustomerPool}
       />
 
       <section className="space-y-3">
@@ -137,8 +141,7 @@ export default async function CaissePage() {
                   className={`${uiCard} block transition hover:border-indigo-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500`}
                 >
                   <p className="font-medium text-slate-900">
-                    {row.kind === "counter" ? "Comptoir · " : "Table "}
-                    {row.label}
+                    {row.kind === "counter" ? row.label : `Table ${row.label}`}
                   </p>
                   <p className={`mt-0.5 text-sm ${uiLead}`}>
                     {row.lineCount} ligne{row.lineCount !== 1 ? "s" : ""} · {fmtEur(row.totalTtc)}

@@ -82,14 +82,14 @@ export default async function EquipePage({ searchParams }: Props) {
         </Link>
         <h1 className={`mt-4 ${uiPageTitle}`}>Équipe & planning</h1>
         <p className={`mt-2 ${uiLead}`}>
-          Créneaux planifiés et pointages : le gérant gère l’équipe ; chaque collaborateur dont la fiche est liée au
-          compte peut pointer depuis « Mon planning ».
+          Créneaux planifiés et temps d’équipe : le gérant gère l’équipe ; chaque collaborateur dont la fiche est liée
+          au compte enregistre le début et la fin de journée depuis « Mon planning » ou le tableau de bord.
         </p>
       </div>
 
       <p className="text-sm">
         <Link href="/equipe/mon-planning" className="font-medium text-indigo-700 underline">
-          Mon planning & pointage (collaborateur)
+          Mon planning (collaborateur)
         </Link>
       </p>
 
@@ -103,6 +103,10 @@ export default async function EquipePage({ searchParams }: Props) {
         simulationId={simulationId}
         simulationShifts={simulationShifts}
         resolvedWeekDays={resolvedWeekDays}
+        planningOpeningHours={hourMaps.opening}
+        planningStaffExtraBands={hourMaps.staffExtra}
+        planningStaffTargetsWeekly={staffTargetsWeekly}
+        planningDayOverrides={overrides}
         planningAlerts={planningAlerts}
         simulationAlerts={simulationAlerts}
       />

@@ -8,7 +8,9 @@ import type { CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
 import {
   addDishToDiningOrder,
   cancelOpenDiningOrder,
+  notifyDiningOrderReadyByEmail,
   removeDiningOrderLine,
+  setDiningOrderLinePrepared,
   setDiningOrderLineQty,
   settleDiningOrder,
 } from "@/app/salle/actions";
@@ -30,6 +32,9 @@ import {
   fmtEur,
 } from "@/components/dining/DiningOrderTicketUi";
 import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "@/app/caisse/caisseQuickStorage";
+import type { CustomerLookupRow } from "@/lib/customers/customersDb";
+import { CustomerTicketMemoDialog } from "../CustomerTicketMemoDialog";
+import { DiningOrderCustomerLinkPanel } from "../DiningOrderCustomerLinkPanel";
 import { uiCard, uiError, uiLead, uiSuccess } from "@/components/ui/premium";
 
 const DEFAULT_SERVICE = "lunch" as const;
@@ -86,6 +91,15 @@ type Props = {
   catalogRoots: CategoryTreeNode[];
   directByCategoryId: Record<string, Dish[]>;
   uncategorized: Dish[];
+  linkedCustomer: {
+    id: string;
+    display_name: string;
+    service_memo: string | null;
+    allergens_note: string | null;
+  } | null;
+  /** E-mail fiche client (notif. « commande prête »). */
+  linkedCustomerEmail: string | null;
+  customerSearchPool: CustomerLookupRow[];
 };
 
 export function DiningOrderClient({
@@ -101,6 +115,9 @@ export function DiningOrderClient({
   catalogRoots,
   directByCategoryId,
   uncategorized,
+  linkedCustomer,
+  linkedCustomerEmail,
+  customerSearchPool,
 }: Props) {
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState<DiningPaymentMethod>("card");
@@ -108,6 +125,7 @@ export function DiningOrderClient({
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
+  const [memoOpen, setMemoOpen] = useState(false);
 
   const totalPlats = useMemo(() => {
     const n = Object.values(directByCategoryId).reduce((s, arr) => s + arr.length, 0);
@@ -146,6 +164,42 @@ export function DiningOrderClient({
     });
   };
 
+  const toggleLinePrepared = (lineId: string, next: boolean) => {
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const res = await setDiningOrderLinePrepared({ restaurantId, lineId, isPrepared: next });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (res.data?.orderReadyEmail === "sent") {
+        setSuccess("E-mail « commande prête » envoyé au client.");
+      } else if (res.data?.orderReadyEmail === "already_sent") {
+        setSuccess("Commande prête (e-mail déjà envoyé auparavant).");
+      }
+      syncFromServer();
+    });
+  };
+
+  const sendReadyEmailManual = () => {
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const res = await notifyDiningOrderReadyByEmail({ restaurantId, orderId });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (res.data?.alreadySent) {
+        setSuccess("Cet e-mail a déjà été envoyé pour cette commande.");
+      } else {
+        setSuccess("E-mail « commande prête » envoyé.");
+      }
+      syncFromServer();
+    });
+  };
+
   const handleSettle = () => {
     setError(null);
     setSuccess(null);
@@ -178,7 +232,9 @@ export function DiningOrderClient({
   const saveReturnTitle =
     cancelRedirectHref === "/caisse"
       ? "Conserver la commande ouverte et revenir à la caisse"
-      : "Conserver la commande ouverte et revenir à la salle";
+      : cancelRedirectHref.startsWith("/clients")
+        ? "Conserver la commande ouverte et revenir à la fiche client"
+        : "Conserver la commande ouverte et revenir à la salle";
 
   const handleCancel = () => {
     const n = lines.length;
@@ -228,6 +284,22 @@ export function DiningOrderClient({
                 </Link>
               </p>
             ) : null}
+            {linkedCustomer ? (
+              <p className="text-xs text-slate-600">
+                Client :{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-indigo-600 underline"
+                  onClick={() => setMemoOpen(true)}
+                >
+                  {linkedCustomer.display_name}
+                </button>{" "}
+                <Link href={`/clients/${linkedCustomer.id}`} className="ml-1 text-indigo-600 hover:underline">
+                  (fiche)
+                </Link>{" "}
+                — l’historique de commande a été mis à jour sur la fiche.
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="rounded-lg border border-slate-200/90 bg-slate-50/80 px-2 py-2">
@@ -237,6 +309,13 @@ export function DiningOrderClient({
           </p>
           <ReopenSettledDiningOrderButton restaurantId={restaurantId} orderId={orderId} />
         </div>
+        {linkedCustomer ? (
+          <CustomerTicketMemoDialog
+            open={memoOpen}
+            onClose={() => setMemoOpen(false)}
+            customer={linkedCustomer}
+          />
+        ) : null}
       </div>
     );
   }
@@ -244,8 +323,8 @@ export function DiningOrderClient({
   const header = (
     <div className="border-b border-slate-100 px-2 py-1.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-          <span className="text-indigo-600">Commande ·</span> {placeDescription}
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-900" title={placeDescription}>
+          {placeDescription}
         </p>
         <button
           type="button"
@@ -257,7 +336,10 @@ export function DiningOrderClient({
           Enregistrer
         </button>
       </div>
-      <p className={`mt-0.5 text-[10px] ${uiLead}`}>Touchez une ligne pour une remise (%, montant ou offert).</p>
+      <p className={`mt-0.5 text-[10px] ${uiLead}`}>
+        Touchez une ligne pour une remise (%, montant ou offert). « Prêt » = plat terminé côté cuisine
+        (e-mail client si toutes les lignes sont prêtes et fiche avec e-mail).
+      </p>
     </div>
   );
 
@@ -275,6 +357,7 @@ export function DiningOrderClient({
               onAdjust={(id, d) => adjustLine(id, d)}
               onRemove={removeLine}
               onDiscount={setDiscountLine}
+              onToggleLinePrepared={status === "open" ? toggleLinePrepared : undefined}
             />
           ))}
         </ul>
@@ -297,6 +380,32 @@ export function DiningOrderClient({
   return (
     <div className="space-y-3">
       {success ? <p className={uiSuccess}>{success}</p> : null}
+
+      {status === "open" ? (
+        <div className="space-y-2">
+          <DiningOrderCustomerLinkPanel
+            restaurantId={restaurantId}
+            orderId={orderId}
+            linked={linkedCustomer}
+            recentCustomerPool={customerSearchPool}
+          />
+          {lines.length > 0 && linkedCustomerEmail ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2">
+              <p className="min-w-0 flex-1 text-[11px] text-slate-600">
+                Envoyer l’e-mail « commande prête » (sans attendre toutes les lignes Prêt) :
+              </p>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={sendReadyEmailManual}
+                className="shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-50 disabled:opacity-50"
+              >
+                Notifier (e-mail)
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <DiningOrderTicketCard header={header} error={error} linesContent={linesContent} footer={footer} />
 

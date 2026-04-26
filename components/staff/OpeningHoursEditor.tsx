@@ -11,6 +11,7 @@ import {
   type TimeBand,
   PLANNING_DAY_KEYS,
   PLANNING_DAY_LABELS_FR,
+  normalizeClockToHhMm,
 } from "@/lib/staff/planningHoursTypes";
 import { uiBtnOutlineSm, uiBtnPrimarySm, uiInput, uiLabel } from "@/components/ui/premium";
 
@@ -56,7 +57,8 @@ export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" 
   function updateBand(key: PlanningDayKey, i: number, field: "start" | "end", value: string) {
     const cur = [...(map[key] ?? [])];
     if (!cur[i]) return;
-    cur[i] = { ...cur[i], [field]: value };
+    const normalized = normalizeClockToHhMm(value) ?? value;
+    cur[i] = { ...cur[i], [field]: normalized };
     setDay(key, cur);
   }
 

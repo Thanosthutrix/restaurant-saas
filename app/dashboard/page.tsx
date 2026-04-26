@@ -1,9 +1,26 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, ArrowUpRight, CalendarDays, Layers, Package, UtensilsCrossed } from "lucide-react";
+import {
+  AlertTriangle,
+  Archive,
+  Armchair,
+  ArrowUpRight,
+  CalendarDays,
+  ChefHat,
+  Layers,
+  Package,
+  Truck,
+  UtensilsCrossed,
+  Wallet,
+} from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
-import { getServicesForRestaurant, getServiceSalesAggregate, getInventoryItemsWithCalculatedStock } from "@/lib/db";
+import { getShellAccessContext } from "@/lib/auth/accessContext";
+import { getServicesForRestaurant, getServiceSalesAggregate, getInventoryStockDashboardSummary } from "@/lib/db";
+import { DayClockShell } from "@/components/staff/DayClockShell";
+import { getStaffMemberByUserAndRestaurant, listWorkShiftsInRange } from "@/lib/staff/staffDb";
+import { addDays, mondayOfWeekContaining } from "@/lib/staff/weekUtils";
+import type { ShellNavKey } from "@/lib/auth/appRoles";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -47,6 +64,50 @@ function StatTile({
   );
 }
 
+const quickActions: {
+  label: string;
+  href: string;
+  description: string;
+  icon: LucideIcon;
+  navKey: ShellNavKey;
+}[] = [
+  {
+    label: "Salle",
+    href: "/salle",
+    description: "Tickets ouverts et service en cours",
+    icon: Armchair,
+    navKey: "salle",
+  },
+  {
+    label: "Caisse",
+    href: "/caisse",
+    description: "Encaissements et tickets réglés",
+    icon: Wallet,
+    navKey: "caisse",
+  },
+  {
+    label: "Cuisine",
+    href: "/cuisine",
+    description: "Service, fiches plats, stock et hygiène",
+    icon: ChefHat,
+    navKey: "cuisine",
+  },
+  {
+    label: "Achats & stock",
+    href: "/achats",
+    description: "Commandes, BL, factures fournisseurs",
+    icon: Truck,
+    navKey: "achats",
+  },
+  {
+    label: "Registres",
+    href: "/registres",
+    description: "Historiques et justificatifs",
+    icon: Archive,
+    navKey: "registres",
+  },
+];
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -54,10 +115,21 @@ export default async function DashboardPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [{ data: recentServices }, { data: inventoryItems }] = await Promise.all([
+  const monday = mondayOfWeekContaining(new Date());
+  const weekEndExclusive = addDays(monday, 7);
+
+  const [{ data: recentServices }, { data: stockSummary }, staffForClock, shiftsWeek, accessContext] = await Promise.all([
     getServicesForRestaurant(restaurant.id, 10),
-    getInventoryItemsWithCalculatedStock(restaurant.id),
+    getInventoryStockDashboardSummary(restaurant.id),
+    getStaffMemberByUserAndRestaurant(user.id, restaurant.id),
+    listWorkShiftsInRange(restaurant.id, monday.toISOString(), weekEndExclusive.toISOString()),
+    getShellAccessContext(user.id),
   ]);
+
+  const myShiftsForClock =
+    staffForClock != null
+      ? shiftsWeek.filter((s) => s.staff_member_id === staffForClock.id)
+      : [];
 
   const serviceIds = (recentServices ?? []).map((s) => s.id);
   const { data: aggregates } = await getServiceSalesAggregate(serviceIds);
@@ -71,30 +143,62 @@ export default async function DashboardPage() {
     }
   }
 
-  const belowMinStock = (inventoryItems ?? []).filter(
-    (i) =>
-      i.min_stock_qty != null &&
-      (i.stock_qty_from_movements ?? i.current_stock_qty ?? 0) < i.min_stock_qty
-  );
   const lastFiveServices = (recentServices ?? []).slice(0, 5);
-  const inventoryCount = inventoryItems?.length ?? 0;
+  const inventoryCount = stockSummary?.inventoryCount ?? 0;
+  const belowMinStockCount = stockSummary?.belowMinStockCount ?? 0;
+  const visibleQuickActions = quickActions.filter((action) => accessContext?.allowedNavKeys.includes(action.navKey));
 
   const cardBase = "rounded-2xl border border-slate-100 bg-white shadow-sm";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-          Tableau de bord
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          <span className="font-medium text-slate-700">{restaurant.name}</span>
-          <span className="text-slate-400"> · </span>
-          activité récente
-        </p>
-      </header>
+    <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock}>
+      <div className="mx-auto max-w-6xl space-y-8">
+        <header>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+            Tableau de bord
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            <span className="font-medium text-slate-700">{restaurant.name}</span>
+            <span className="text-slate-400"> · </span>
+            activité récente
+          </p>
+        </header>
 
-      {/* Stats */}
+        <section aria-labelledby="quick-actions-heading">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 id="quick-actions-heading" className="text-sm font-semibold text-slate-900">
+                Où voulez-vous aller ?
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Les accès rapides suivent les grandes zones du restaurant.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {visibleQuickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className="group rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-100 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-700">
+                      <Icon className="h-5 w-5" aria-hidden />
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-slate-300 transition group-hover:text-indigo-500" aria-hidden />
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-slate-900">{action.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{action.description}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Stats */}
       <section aria-label="Indicateurs récents">
         <h2 className="sr-only">Statistiques</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -125,13 +229,13 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {belowMinStock.length > 0 ? (
+      {belowMinStockCount > 0 ? (
         <div
           className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
           role="status"
         >
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden />
-          <span className="font-semibold">{belowMinStock.length} composant(s) sous le seuil.</span>
+          <span className="font-semibold">{belowMinStockCount} composant(s) sous le seuil.</span>
           <Link
             href="/inventory"
             className="ml-auto inline-flex items-center gap-1 font-semibold text-amber-950 underline decoration-amber-400 underline-offset-2 hover:text-amber-800"
@@ -207,6 +311,7 @@ export default async function DashboardPage() {
           </div>
         </section>
       ) : null}
-    </div>
+      </div>
+    </DayClockShell>
   );
 }

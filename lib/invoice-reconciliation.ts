@@ -58,6 +58,168 @@ export type InvoiceReconciliationSummary = {
   hints: string[];
 };
 
+export type InvoiceReceptionLineForComparison = {
+  label: string | null;
+  itemName: string | null;
+  qtyDeliveredPurchase: number | null;
+  qtyReceivedStock: number | null;
+  purchaseToStockRatio: number | null;
+  blLineTotalHt: number | null;
+  blUnitPriceStockHt: number | null;
+  manualUnitPriceStockHt: number | null;
+};
+
+export type InvoiceLineComparison = {
+  status: "ok" | "price_delta" | "qty_delta" | "invoice_only" | "reception_only";
+  invoiceLabel: string | null;
+  invoiceQuantity: number | null;
+  invoiceUnitPrice: number | null;
+  invoiceLineTotal: number | null;
+  receptionLabel: string | null;
+  receptionItemName: string | null;
+  receptionQuantityPurchase: number | null;
+  receptionUnitPricePurchase: number | null;
+  receptionLineTotal: number | null;
+  qtyDelta: number | null;
+  unitPriceDelta: number | null;
+  lineTotalDelta: number | null;
+  hints: string[];
+};
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function unitPricePurchaseFromReceptionLine(line: InvoiceReceptionLineForComparison): number | null {
+  const total = line.blLineTotalHt;
+  const qtyPurchase = line.qtyDeliveredPurchase;
+  if (total != null && Number.isFinite(total) && total > 0 && qtyPurchase != null && qtyPurchase > 0) {
+    return round2(total / qtyPurchase);
+  }
+
+  const stockUnit =
+    line.manualUnitPriceStockHt != null && Number.isFinite(line.manualUnitPriceStockHt) && line.manualUnitPriceStockHt > 0
+      ? line.manualUnitPriceStockHt
+      : line.blUnitPriceStockHt != null && Number.isFinite(line.blUnitPriceStockHt) && line.blUnitPriceStockHt > 0
+        ? line.blUnitPriceStockHt
+        : null;
+  const ratio = line.purchaseToStockRatio;
+  if (stockUnit != null && ratio != null && Number.isFinite(ratio) && ratio > 0) {
+    return round2(stockUnit * ratio);
+  }
+  return null;
+}
+
+function lineTotalFromUnit(qty: number | null, unitPrice: number | null, explicitTotal?: number | null): number | null {
+  if (explicitTotal != null && Number.isFinite(explicitTotal) && explicitTotal > 0) return round2(explicitTotal);
+  if (qty != null && unitPrice != null && Number.isFinite(qty) && Number.isFinite(unitPrice)) return round2(qty * unitPrice);
+  return null;
+}
+
+export function buildInvoiceLineComparisons(input: {
+  extractedLines: SupplierInvoiceAnalysisLine[];
+  receptionLines: InvoiceReceptionLineForComparison[];
+}): InvoiceLineComparison[] {
+  const out: InvoiceLineComparison[] = [];
+  const usedReceptionIndexes = new Set<number>();
+
+  for (const inv of input.extractedLines) {
+    let bestIdx = -1;
+    for (let i = 0; i < input.receptionLines.length; i++) {
+      if (usedReceptionIndexes.has(i)) continue;
+      const rec = input.receptionLines[i];
+      if (labelsRoughlyMatch(inv.label, rec.label, rec.itemName)) {
+        bestIdx = i;
+        break;
+      }
+    }
+
+    if (bestIdx < 0) {
+      out.push({
+        status: "invoice_only",
+        invoiceLabel: inv.label,
+        invoiceQuantity: inv.quantity,
+        invoiceUnitPrice: inv.unit_price,
+        invoiceLineTotal: inv.line_total,
+        receptionLabel: null,
+        receptionItemName: null,
+        receptionQuantityPurchase: null,
+        receptionUnitPricePurchase: null,
+        receptionLineTotal: null,
+        qtyDelta: null,
+        unitPriceDelta: null,
+        lineTotalDelta: null,
+        hints: ["Ligne présente sur la facture, non retrouvée dans les BL liés."],
+      });
+      continue;
+    }
+
+    usedReceptionIndexes.add(bestIdx);
+    const rec = input.receptionLines[bestIdx];
+    const recUnit = unitPricePurchaseFromReceptionLine(rec);
+    const invTotal = lineTotalFromUnit(inv.quantity, inv.unit_price, inv.line_total);
+    const recTotal = lineTotalFromUnit(rec.qtyDeliveredPurchase, recUnit, rec.blLineTotalHt);
+    const qtyDelta =
+      inv.quantity != null && rec.qtyDeliveredPurchase != null ? round2(inv.quantity - rec.qtyDeliveredPurchase) : null;
+    const unitPriceDelta = inv.unit_price != null && recUnit != null ? round2(inv.unit_price - recUnit) : null;
+    const lineTotalDelta = invTotal != null && recTotal != null ? round2(invTotal - recTotal) : null;
+    const hints: string[] = [];
+    let status: InvoiceLineComparison["status"] = "ok";
+
+    if (qtyDelta != null && Math.abs(qtyDelta) > 0.0001) {
+      status = "qty_delta";
+      hints.push(`Écart quantité : facture ${inv.quantity} vs BL ${rec.qtyDeliveredPurchase}.`);
+    }
+    if (unitPriceDelta != null && Math.abs(unitPriceDelta) > AMOUNT_TOLERANCE) {
+      status = status === "qty_delta" ? "qty_delta" : "price_delta";
+      hints.push(`Écart prix unitaire : ${unitPriceDelta > 0 ? "+" : ""}${unitPriceDelta.toLocaleString("fr-FR")} €.`);
+    }
+    if (lineTotalDelta != null && Math.abs(lineTotalDelta) > AMOUNT_TOLERANCE) {
+      hints.push(`Écart total ligne : ${lineTotalDelta > 0 ? "+" : ""}${lineTotalDelta.toLocaleString("fr-FR")} €.`);
+      if (status === "ok") status = "price_delta";
+    }
+
+    out.push({
+      status,
+      invoiceLabel: inv.label,
+      invoiceQuantity: inv.quantity,
+      invoiceUnitPrice: inv.unit_price,
+      invoiceLineTotal: invTotal,
+      receptionLabel: rec.label,
+      receptionItemName: rec.itemName,
+      receptionQuantityPurchase: rec.qtyDeliveredPurchase,
+      receptionUnitPricePurchase: recUnit,
+      receptionLineTotal: recTotal,
+      qtyDelta,
+      unitPriceDelta,
+      lineTotalDelta,
+      hints,
+    });
+  }
+
+  input.receptionLines.forEach((rec, i) => {
+    if (usedReceptionIndexes.has(i)) return;
+    out.push({
+      status: "reception_only",
+      invoiceLabel: null,
+      invoiceQuantity: null,
+      invoiceUnitPrice: null,
+      invoiceLineTotal: null,
+      receptionLabel: rec.label,
+      receptionItemName: rec.itemName,
+      receptionQuantityPurchase: rec.qtyDeliveredPurchase,
+      receptionUnitPricePurchase: unitPricePurchaseFromReceptionLine(rec),
+      receptionLineTotal: lineTotalFromUnit(rec.qtyDeliveredPurchase, unitPricePurchaseFromReceptionLine(rec), rec.blLineTotalHt),
+      qtyDelta: null,
+      unitPriceDelta: null,
+      lineTotalDelta: null,
+      hints: ["Ligne présente dans le BL, non retrouvée sur la facture."],
+    });
+  });
+
+  return out;
+}
+
 export function buildInvoiceReconciliation(input: {
   extractedLines: SupplierInvoiceAnalysisLine[];
   receptionLines: ReceptionLineRef[];

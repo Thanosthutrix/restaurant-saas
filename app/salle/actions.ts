@@ -6,13 +6,17 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { createService, deleteService, getService } from "@/lib/db";
 import { recordServiceSalesAndApplyStock } from "@/lib/service/recordServiceSalesAndApplyStock";
 import type { ServiceType } from "@/lib/constants";
+import { recordOrderSettledForCustomer } from "@/lib/customers/customersDb";
 import {
+  dishFromJoin,
   ensureOpenDiningOrder,
   getDiningOrder,
   getDiningOrderLineById,
   getDiningOrderLines,
+  type LineWithDish,
   lineGrossTtc,
   orderTotalTtc,
+  setDiningOrderCustomerId,
 } from "@/lib/dining/diningDb";
 import type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { lineNetAfterDiscount, parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
@@ -21,6 +25,7 @@ import { mergeSalesByDish } from "@/lib/dining/mergeSalesByDish";
 import { toNumber } from "@/lib/utils/safeNumeric";
 import { computeSalesConsumption } from "@/lib/recipes/computeSalesConsumption";
 import { revertConsumptionFromStock } from "@/lib/recipes/applyConsumptionToStock";
+import { trySendDiningOrderReadyEmail } from "@/lib/messaging/diningOrderReadyEmail";
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
 function todayParisYmd(): string {
@@ -73,7 +78,7 @@ export async function addDishToDiningOrder(params: {
     const newQty = toNumber((line as { qty: unknown }).qty) + qty;
     const { error: upErr } = await supabaseServer
       .from("dining_order_lines")
-      .update({ qty: newQty })
+      .update({ qty: newQty, is_prepared: false })
       .eq("id", (line as { id: string }).id);
     if (upErr) return { ok: false, error: upErr.message };
   } else {
@@ -102,7 +107,7 @@ export async function setDiningOrderLineQty(params: {
 
   const { data: row, error: fErr } = await supabaseServer
     .from("dining_order_lines")
-    .select("id, dining_order_id")
+    .select("id, dining_order_id, qty")
     .eq("id", lineId)
     .eq("restaurant_id", restaurantId)
     .maybeSingle();
@@ -116,7 +121,12 @@ export async function setDiningOrderLineQty(params: {
     return { ok: false, error: "Commande déjà encaissée." };
   }
 
-  const { error: uErr } = await supabaseServer.from("dining_order_lines").update({ qty }).eq("id", lineId);
+  const prevQty = toNumber((row as { qty: unknown }).qty);
+  const resetPrepared = !Number.isFinite(prevQty) || Math.abs(prevQty - qty) > 1e-9;
+  const { error: uErr } = await supabaseServer
+    .from("dining_order_lines")
+    .update(resetPrepared ? { qty, is_prepared: false } : { qty })
+    .eq("id", lineId);
   if (uErr) return { ok: false, error: uErr.message };
 
   const lineAfter = await getDiningOrderLineById(lineId, restaurantId);
@@ -249,6 +259,93 @@ export async function setDiningOrderLineDiscount(params: {
   revalidatePath("/caisse");
   revalidatePath(`/salle/commande/${orderId}`);
   return { ok: true };
+}
+
+/**
+ * Marque une ligne de commande salle comme prête côté cuisine. Si toutes les lignes sont prêtes
+ * et qu’un client avec e-mail est lié, un e-mail « commande prête » est tenté (idempotent).
+ */
+export async function setDiningOrderLinePrepared(params: {
+  restaurantId: string;
+  lineId: string;
+  isPrepared: boolean;
+}): Promise<ActionResult<{ orderReadyEmail: "sent" | "already_sent" | "none" }>> {
+  const { restaurantId, lineId, isPrepared } = params;
+
+  const { data: row, error: fErr } = await supabaseServer
+    .from("dining_order_lines")
+    .select("id, dining_order_id")
+    .eq("id", lineId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (fErr) return { ok: false, error: fErr.message };
+  if (!row) return { ok: false, error: "Ligne introuvable." };
+  const orderId = (row as { dining_order_id: string }).dining_order_id;
+  const ord = await getDiningOrder(orderId, restaurantId);
+  if (ord.error || !ord.data || ord.data.status !== "open") {
+    return { ok: false, error: "Commande déjà encaissée." };
+  }
+
+  const { error: uErr } = await supabaseServer
+    .from("dining_order_lines")
+    .update({ is_prepared: isPrepared })
+    .eq("id", lineId)
+    .eq("restaurant_id", restaurantId);
+  if (uErr) return { ok: false, error: uErr.message };
+
+  revalidatePath("/salle");
+  revalidatePath("/caisse");
+  revalidatePath(`/salle/commande/${orderId}`);
+
+  if (!isPrepared) {
+    return { ok: true, data: { orderReadyEmail: "none" } };
+  }
+
+  const send = await trySendDiningOrderReadyEmail({ restaurantId, orderId, mode: "auto" });
+  if (!send.ok) {
+    return { ok: true, data: { orderReadyEmail: "none" } };
+  }
+  if (send.alreadySent) {
+    return { ok: true, data: { orderReadyEmail: "already_sent" } };
+  }
+  if (send.sent) {
+    return { ok: true, data: { orderReadyEmail: "sent" } };
+  }
+  return { ok: true, data: { orderReadyEmail: "none" } };
+}
+
+/**
+ * Envoie (ou tente) l’e-mail « commande prête » manuellement (sans exiger toutes les lignes prêtes),
+ * dès qu’un client avec e-mail est lié. Idempotent avec l’envoi auto.
+ */
+export async function notifyDiningOrderReadyByEmail(params: {
+  restaurantId: string;
+  orderId: string;
+}): Promise<ActionResult<{ alreadySent: boolean }>> {
+  const { restaurantId, orderId } = params;
+  const orderRes = await getDiningOrder(orderId, restaurantId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  const order = orderRes.data;
+  if (!order || order.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+
+  const r = await trySendDiningOrderReadyEmail({ restaurantId, orderId, mode: "manual" });
+  if (!r.ok) {
+    return { ok: false, error: r.error };
+  }
+  revalidatePath("/salle");
+  revalidatePath("/caisse");
+  revalidatePath(`/salle/commande/${orderId}`);
+
+  if (r.alreadySent) {
+    return { ok: true, data: { alreadySent: true } };
+  }
+  if (r.sent) {
+    return { ok: true, data: { alreadySent: false } };
+  }
+  return { ok: false, error: "L’e-mail n’a pas été envoyé (vérifiez la fiche client et le domaine d’envoi Resend)." };
 }
 
 /** Supprime une commande encore ouverte (client parti sans commander, ou annulation). Aucun service ni stock. */
@@ -445,6 +542,25 @@ export async function settleDiningOrder(params: {
 
   if (ordErr) return { ok: false, error: ordErr.message };
 
+  const customerId = order.customer_id;
+  if (customerId) {
+    const lineSummaries = lines.map((l) => {
+      const d = dishFromJoin(l as LineWithDish);
+      return { dishName: d?.name ?? "Plat", qty: toNumber(l.qty) };
+    });
+    try {
+      await recordOrderSettledForCustomer(
+        restaurantId,
+        customerId,
+        orderId,
+        totalTtc,
+        lineSummaries
+      );
+    } catch {
+      /* Ne bloque pas l’encaissement si l’historique client échoue */
+    }
+  }
+
   revalidatePath("/salle");
   revalidatePath(`/salle/commande/${orderId}`);
   revalidatePath("/caisse");
@@ -452,8 +568,29 @@ export async function settleDiningOrder(params: {
   revalidatePath("/services");
   revalidatePath("/inventory");
   revalidatePath("/margins");
+  revalidatePath("/clients");
 
   return { ok: true, data: { serviceId: service.id, totalTtc } };
+}
+
+export async function setDiningOrderCustomerAction(params: {
+  restaurantId: string;
+  orderId: string;
+  customerId: string | null;
+}): Promise<ActionResult> {
+  const { restaurantId, orderId, customerId } = params;
+  const orderRes = await getDiningOrder(orderId, restaurantId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  if (!orderRes.data || orderRes.data.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+  const { error } = await setDiningOrderCustomerId(restaurantId, orderId, customerId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/salle");
+  revalidatePath(`/salle/commande/${orderId}`);
+  revalidatePath("/caisse");
+  revalidatePath("/clients");
+  return { ok: true };
 }
 
 /** Vérifie que l’utilisateur est sur le bon restaurant (appels internes). */

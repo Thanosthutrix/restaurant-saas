@@ -10,6 +10,10 @@ import {
   type MenuSuggestionRow,
 } from "@/components/menu/MenuSuggestionsEditor";
 import { OptionalMenuPhotosPicker } from "@/components/restaurant/OptionalMenuPhotosPicker";
+import {
+  PENDING_ONBOARDING_RECIPES_KEY,
+  type PendingOnboardingRecipesStored,
+} from "@/lib/onboardingPendingMenuStorage";
 import { RESTAURANT_PROFILE_OTHER, type RestaurantTemplate } from "@/lib/templates/restaurantTemplates";
 
 const SERVICE_TYPES = [
@@ -31,11 +35,13 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
   const [avgCovers, setAvgCovers] = useState("");
   const [serviceType, setServiceType] = useState("both");
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
+  const [recipeFiles, setRecipeFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<Phase>("form");
   const [suggestions, setSuggestions] = useState<MenuSuggestionRow[]>([]);
   const [createPending, setCreatePending] = useState(false);
   const [createResult, setCreateResult] = useState<{
     created: number;
+    updated: number;
     skipped: number;
     draftRecipes: number;
     errors: string[];
@@ -66,6 +72,12 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
     for (const f of menuFiles) {
       fd.append("menu_image", f);
     }
+    if (recipeFiles.length > 0) {
+      fd.append("recipe_image_count", String(recipeFiles.length));
+    }
+    for (const f of recipeFiles) {
+      fd.append("recipe_image", f);
+    }
     const result = await createRestaurantFormData(fd);
     setLoading(false);
     if (result.error) {
@@ -77,7 +89,22 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
       await goDashboard();
       return;
     }
+    if (result.recipeSuggestions) {
+      const payload: PendingOnboardingRecipesStored = { v: 1, items: result.recipeSuggestions };
+      try {
+        sessionStorage.setItem(PENDING_ONBOARDING_RECIPES_KEY, JSON.stringify(payload));
+      } catch {
+        setError(
+          "Impossible de conserver les suggestions de recettes localement. Vous pourrez réimporter les recettes depuis Plats."
+        );
+        return;
+      }
+    }
     if (menuFiles.length === 0) {
+      if (result.recipeSuggestions) {
+        router.replace("/onboarding/review-recipes");
+        return;
+      }
       await goDashboard();
       return;
     }
@@ -121,6 +148,7 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
     }
     setCreateResult({
       created: result.created,
+      updated: result.updated,
       skipped: result.skipped,
       draftRecipes: result.draftRecipes ?? 0,
       errors: result.errors,
@@ -134,7 +162,7 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Valider les plats détectés</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Ajustez prix TTC, TVA, type et ingrédients puis enregistrez, ou passez cette étape.
+            Ajustez rubrique, prix TTC, TVA et type puis enregistrez, ou passez cette étape.
           </p>
         </div>
         <MenuSuggestionsEditor
@@ -245,6 +273,16 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
 
       <OptionalMenuPhotosPicker files={menuFiles} onChange={setMenuFiles} disabled={loading} />
 
+      <OptionalMenuPhotosPicker
+        files={recipeFiles}
+        onChange={setRecipeFiles}
+        disabled={loading}
+        title="Photo(s) de recettes (optionnel)"
+        description="Ajoutez plusieurs fiches recettes ou notes cuisine. L’IA proposera les ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
+        galleryLabel="Fiches recettes depuis la galerie"
+        cameraLabel="Photographier une recette"
+      />
+
       <button
         type="submit"
         disabled={loading}
@@ -253,9 +291,11 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
         {loading
           ? menuFiles.length > 0
             ? "Création et analyse…"
+            : recipeFiles.length > 0
+              ? "Création et analyse des recettes…"
             : "Création…"
-          : menuFiles.length > 0
-            ? "Créer et analyser la carte"
+          : menuFiles.length > 0 || recipeFiles.length > 0
+            ? "Créer et analyser les documents"
             : "Créer le restaurant"}
       </button>
     </form>

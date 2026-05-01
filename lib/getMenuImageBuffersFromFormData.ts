@@ -1,10 +1,10 @@
 /**
- * Extrait les images `menu_image` d’un FormData côté server action.
+ * Extrait les images d’un FormData côté server action.
  * Ne pas utiliser `instanceof File` : sous Node / Next les pièces jointes sont souvent des Blob.
  */
-export async function getMenuImageBuffersFromFormData(formData: FormData): Promise<Buffer[]> {
+export async function getImageBuffersFromFormData(formData: FormData, fieldName: string): Promise<Buffer[]> {
   const buffers: Buffer[] = [];
-  for (const x of formData.getAll("menu_image")) {
+  for (const x of formData.getAll(fieldName)) {
     if (x == null) continue;
     if (typeof x === "string") continue;
     if (typeof x !== "object") continue;
@@ -18,4 +18,8 @@ export async function getMenuImageBuffersFromFormData(formData: FormData): Promi
     }
   }
   return buffers;
+}
+
+export async function getMenuImageBuffersFromFormData(formData: FormData): Promise<Buffer[]> {
+  return getImageBuffersFromFormData(formData, "menu_image");
 }

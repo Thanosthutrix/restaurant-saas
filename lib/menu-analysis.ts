@@ -74,6 +74,12 @@ function normalizeSuggestedIngredients(input: unknown): string[] {
     .filter((s) => s.length > 0);
 }
 
+function normalizeSuggestedCategory(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const s = input.trim().replace(/\s+/g, " ");
+  return s.length > 0 ? s.slice(0, 80) : null;
+}
+
 function normalizeSellingPriceEuro(value: unknown): number | null {
   if (value == null) return null;
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
@@ -145,6 +151,7 @@ function normalizeSuggestions(input: unknown): MenuSuggestionItem[] {
       }
       const normalized_label = raw ? normalizeDishLabel(raw) : "";
       const suggested_ingredients = normalizeSuggestedIngredients(getSuggestedIngredients(item));
+      const suggested_category = normalizeSuggestedCategory(item.suggested_category ?? item.category ?? item.section);
       const selling_price_ttc = normalizeSellingPriceEuro(getSellingPriceTtc(item));
       const selling_vat_rate_pct = normalizeVatRateFromAi(item.selling_vat_rate_pct, suggested_mode);
       return {
@@ -155,6 +162,7 @@ function normalizeSuggestions(input: unknown): MenuSuggestionItem[] {
         selling_price_ttc: selling_price_ttc ?? undefined,
         selling_vat_rate_pct,
         suggested_ingredients,
+        suggested_category,
       };
     })
     .filter((x) => x.raw_label.length > 0);
@@ -179,15 +187,18 @@ Required structure (use these exact keys):
   "items": [
     {
       "dish_name": "Exact name as on menu",
+      "suggested_category": "Menu section or category, e.g. Pizzas, Pâtes, Desserts",
       "suggested_mode": "PREPARED",
       "selling_price_ttc": 15.95,
       "selling_vat_rate_pct": 10,
-      "suggested_ingredients": ["ingredient1", "ingredient2"]
+      "suggested_ingredients": []
     }
   ]
 }
 
 selling_price_ttc: number or null. Unit selling price INCLUDING tax (TTC) in euros, as printed on the menu to the customer (French restaurant menus show TTC). If multiple prices, pick the main one. If unreadable or absent, use null. Do not invent prices.
+
+suggested_category: short customer-facing menu section. Use the printed section title if visible (Pizzas, Pâtes, Desserts, Boissons, Vins, Entrées, Plats, etc.). If no section is visible, infer a simple category from the product family. Do not use ingredients as categories.
 
 selling_vat_rate_pct: optional number, one of 5.5, 10, or 20 when you can infer from category: prepared food / on-premise meal typically 10; alcoholic beverages and many bottled retail items 20; some reduced-rate foods 5.5. If unsure, omit (the app will default: 10 for PREPARED, 20 for RESELL).
 
@@ -196,17 +207,7 @@ suggested_mode: only one of PREPARED, RESELL, IGNORE (uppercase).
 - RESELL: items sold as-is (bottled drinks, wines, sodas).
 - IGNORE: section titles, marketing, addresses, phone, opening hours, generic formulas like "Menu enfant".
 
-suggested_ingredients: array of strings. For PREPARED dishes you MUST list the structural/base components of the recipe, not only garnishes or toppings on top.
-
-RECIPE STRUCTURE (critical):
-- Pizzas: always include first "Pâte à pizza", "Sauce tomate", "Mozzarella", then toppings from the name.
-- Crêpes (sweet or savoury, "galette" style included): always start with "Pâte à crêpe" (or "Pâte à crêpes"), then fillings from the menu name (e.g. sucre, beurre, citron, chocolat, jambon, fromage, champignons). If the name is only a topping (e.g. "Crêpe Nutella"), still include "Pâte à crêpe" first, then "Nutella" or equivalent.
-- Gaufres / waffles / "Brussels waffle": always start with "Pâte à gaufre" (or "Pâte à gaufres"), then toppings (chantilly, chocolat, fruits, etc.).
-- Pancakes / blinis / beignets: include an explicit base line first (e.g. "Pâte à pancake", "Pâte à blini", "Pâte à beignet") when the product is clearly that category, then toppings.
-
-Do not list only the sauce or coulis if the dish is a crêpe or gaufre — the batter base is mandatory in suggested_ingredients.
-
-Only ingredients clearly visible or implied. No quantities. For RESELL or IGNORE use [].
+suggested_ingredients: always return [] for this menu analysis. Recipes and ingredients are handled by the dedicated recipe-photo analysis step, not by the menu/card analysis.
 
 Do not include rows that are only a price without a product name. Return ONLY the JSON object.`;
 
@@ -221,7 +222,7 @@ async function runOpenAiMenuAnalysis(
         {
           role: "system",
           content:
-            "Respond with ONLY valid JSON. No markdown, no backticks, no text before or after. Use keys: items (array), each item: dish_name (string), suggested_mode (PREPARED or RESELL or IGNORE), selling_price_ttc (number or null, euros TTC on menu), selling_vat_rate_pct (optional 5.5, 10 or 20), suggested_ingredients (array of strings). For PREPARED items, suggested_ingredients must include the dish base (e.g. pâte à crêpe, pâte à gaufre, pâte à pizza) before toppings only. Escape double quotes inside strings with backslash. If no items: {\"items\":[]}",
+            "Respond with ONLY valid JSON. No markdown, no backticks, no text before or after. Use keys: items (array), each item: dish_name (string), suggested_category (string or null), suggested_mode (PREPARED or RESELL or IGNORE), selling_price_ttc (number or null, euros TTC on menu), selling_vat_rate_pct (optional 5.5, 10 or 20), suggested_ingredients (always []). Escape double quotes inside strings with backslash. If no items: {\"items\":[]}",
         },
       { role: "user", content: MENU_PROMPT },
       {

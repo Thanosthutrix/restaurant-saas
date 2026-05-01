@@ -35,6 +35,7 @@ export function ImportMenuClient({ restaurantId }: { restaurantId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [createResult, setCreateResult] = useState<{
     created: number;
+    updated: number;
     skipped: number;
     draftRecipes: number;
     errors: string[];
@@ -103,6 +104,7 @@ export function ImportMenuClient({ restaurantId }: { restaurantId: string }) {
     }
     setCreateResult({
       created: result.created,
+      updated: result.updated,
       skipped: result.skipped,
       draftRecipes: result.draftRecipes ?? 0,
       errors: result.errors,
@@ -121,8 +123,8 @@ export function ImportMenuClient({ restaurantId }: { restaurantId: string }) {
       <div>
         <h1 className={uiPageTitle}>Importer depuis une photo de carte</h1>
         <p className={`mt-2 ${uiLead}`}>
-          Uploadez une ou plusieurs photos de votre carte ou menu. L’IA extrait des suggestions de plats, composants et
-          prix TTC et TVA. Vous validez avant création (aucune création automatique).
+          Uploadez une ou plusieurs photos de votre carte ou menu. L’IA extrait les plats, rubriques, prix TTC, TVA
+          et type. Les recettes restent gérées dans l’analyse dédiée.
         </p>
       </div>
 

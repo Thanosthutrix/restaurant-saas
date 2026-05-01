@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDishesFromMenuSuggestions } from "@/app/dishes/import-menu/actions";
 import {
@@ -10,7 +10,11 @@ import {
 } from "@/components/menu/MenuSuggestionsEditor";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
 import {
+  PENDING_ONBOARDING_CATEGORIES_KEY,
+  PENDING_ONBOARDING_EQUIPMENT_KEY,
   PENDING_ONBOARDING_MENU_KEY,
+  PENDING_ONBOARDING_RECIPES_KEY,
+  type PendingOnboardingCategoriesStored,
   type PendingOnboardingMenuStored,
 } from "@/lib/onboardingPendingMenuStorage";
 import {
@@ -33,38 +37,93 @@ function parseStored(raw: string | null): MenuSuggestionItem[] | null {
 
 export function ReviewMenuClient() {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const [missing, setMissing] = useState(false);
+  const initialItems = parseStored(
+    typeof window !== "undefined" ? sessionStorage.getItem(PENDING_ONBOARDING_MENU_KEY) : null
+  );
+  const [missing] = useState(() => initialItems == null);
   /** Analyse terminée mais 0 plat extrait (liste vide valide). */
-  const [emptyExtract, setEmptyExtract] = useState(false);
-  const [suggestions, setSuggestions] = useState<MenuSuggestionRow[]>([]);
+  const [emptyExtract] = useState(() => Boolean(initialItems && initialItems.length === 0));
+  const [suggestions, setSuggestions] = useState<MenuSuggestionRow[]>(() =>
+    initialItems ? menuItemsToEditableRows(initialItems) : []
+  );
   const [createPending, setCreatePending] = useState(false);
   const [createResult, setCreateResult] = useState<{
     created: number;
+    updated: number;
     skipped: number;
     draftRecipes: number;
     errors: string[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const items = parseStored(
-      typeof window !== "undefined" ? sessionStorage.getItem(PENDING_ONBOARDING_MENU_KEY) : null
-    );
-    setReady(true);
-    if (!items) {
-      setMissing(true);
-      return;
+  function hasPendingRecipes(): boolean {
+    try {
+      return Boolean(sessionStorage.getItem(PENDING_ONBOARDING_RECIPES_KEY));
+    } catch {
+      return false;
     }
-    setEmptyExtract(items.length === 0);
-    setSuggestions(menuItemsToEditableRows(items));
-  }, []);
+  }
 
-  async function goDashboard() {
+  function hasPendingCategories(): boolean {
+    try {
+      return Boolean(sessionStorage.getItem(PENDING_ONBOARDING_CATEGORIES_KEY));
+    } catch {
+      return false;
+    }
+  }
+
+  function hasPendingEquipment(): boolean {
+    try {
+      return Boolean(sessionStorage.getItem(PENDING_ONBOARDING_EQUIPMENT_KEY));
+    } catch {
+      return false;
+    }
+  }
+
+  function storePendingCategories() {
+    const assignments = suggestions
+      .filter(
+        (s) =>
+          s.selected &&
+          s.suggested_mode !== "ignore" &&
+          s.raw_label.trim().length > 0 &&
+          (s.suggested_category ?? "").trim().length > 0
+      )
+      .map((s) => ({
+        dish_name: s.raw_label.trim(),
+        normalized_label: s.normalized_label || s.raw_label.trim(),
+        suggested_category: (s.suggested_category ?? "").trim(),
+      }));
+    try {
+      if (assignments.length > 0) {
+        const payload: PendingOnboardingCategoriesStored = { v: 1, assignments };
+        sessionStorage.setItem(PENDING_ONBOARDING_CATEGORIES_KEY, JSON.stringify(payload));
+      } else {
+        sessionStorage.removeItem(PENDING_ONBOARDING_CATEGORIES_KEY);
+      }
+    } catch {
+      /* ignore: les rubriques pourront être gérées depuis Compte */
+    }
+  }
+
+  async function goNextAfterMenu() {
+    storePendingCategories();
     try {
       sessionStorage.removeItem(PENDING_ONBOARDING_MENU_KEY);
     } catch {
       /* ignore */
+    }
+    if (hasPendingRecipes()) {
+      router.push("/onboarding/review-recipes");
+      return;
+    }
+    if (hasPendingCategories()) {
+      router.push("/onboarding/review-categories");
+      return;
+    }
+    if (hasPendingEquipment()) {
+      router.push("/onboarding/review-equipment");
+      return;
     }
     router.push("/dashboard");
     router.refresh();
@@ -80,11 +139,12 @@ export function ReviewMenuClient() {
       suggested_ingredients: (s.suggested_ingredients ?? []).filter(
         (ing) => typeof ing === "string" && ing.trim().length > 0
       ),
+      suggested_category: (s.suggested_category ?? "").trim() || null,
       create_draft_recipe: Boolean(s.create_draft_recipe),
     }));
     const toCreate = payload.filter((p) => p.selected && p.suggested_mode !== "ignore").length;
     if (toCreate === 0) {
-      await goDashboard();
+      await goNextAfterMenu();
       return;
     }
     setCreatePending(true);
@@ -98,15 +158,12 @@ export function ReviewMenuClient() {
     }
     setCreateResult({
       created: result.created,
+      updated: result.updated,
       skipped: result.skipped,
       draftRecipes: result.draftRecipes ?? 0,
       errors: result.errors,
     });
-    await goDashboard();
-  }
-
-  if (!ready) {
-    return <p className={uiMuted}>Chargement…</p>;
+    await goNextAfterMenu();
   }
 
   if (missing) {
@@ -115,8 +172,8 @@ export function ReviewMenuClient() {
         <p className="text-sm text-slate-700">
           Aucune suggestion à valider (session expirée ou étape déjà terminée).
         </p>
-        <button type="button" onClick={() => void goDashboard()} className={uiBtnPrimaryBlock}>
-          Ouvrir le tableau de bord
+        <button type="button" onClick={() => void goNextAfterMenu()} className={uiBtnPrimaryBlock}>
+          Continuer
         </button>
       </div>
     );
@@ -133,8 +190,8 @@ export function ReviewMenuClient() {
       <div>
         <h2 className={uiPageTitle}>Valider les plats détectés</h2>
         <p className={`mt-2 ${uiMuted}`}>
-          Cochez les plats à créer, ajustez prix TTC / TVA et ingrédients, puis enregistrez. Sans validation ici, aucun plat
-          n’est ajouté à votre carte.
+          Cochez les plats à créer ou mettre à jour, ajustez rubrique, prix TTC, TVA et type. Les recettes restent
+          gérées dans l’étape dédiée.
         </p>
       </div>
       <MenuSuggestionsEditor
@@ -147,16 +204,16 @@ export function ReviewMenuClient() {
         allowProceedWithNone
         createButtonLabel={
           suggestions.some((s) => s.selected && s.suggested_mode !== "ignore" && s.raw_label.trim())
-            ? `Créer les plats et ouvrir le tableau de bord`
-            : `Ouvrir le tableau de bord`
+            ? `Créer les plats et continuer`
+            : `Continuer`
         }
       />
       {suggestions.length === 0 ? (
-        <button type="button" onClick={() => void goDashboard()} className={uiBtnPrimaryBlock}>
-          Ouvrir le tableau de bord
+        <button type="button" onClick={() => void goNextAfterMenu()} className={uiBtnPrimaryBlock}>
+          Continuer
         </button>
       ) : (
-        <button type="button" onClick={() => void goDashboard()} className={uiBtnSecondary}>
+        <button type="button" onClick={() => void goNextAfterMenu()} className={uiBtnSecondary}>
           Passer sans créer de plats
         </button>
       )}

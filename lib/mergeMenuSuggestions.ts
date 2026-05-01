@@ -36,6 +36,13 @@ function pickVat(
   return mode === "resale" ? 20 : 10;
 }
 
+function pickCategory(a?: string | null, b?: string | null): string | null {
+  const ca = a?.trim();
+  if (ca) return ca;
+  const cb = b?.trim();
+  return cb || null;
+}
+
 /**
  * Fusionne les suggestions issues de plusieurs photos (même plat sur plusieurs pages).
  */
@@ -63,6 +70,7 @@ export function mergeMenuSuggestionsByNormalizedLabel(items: MenuSuggestionItem[
       normalized_label: key,
       suggested_mode: mergedMode,
       suggested_ingredients: ingredients,
+      suggested_category: pickCategory(existing.suggested_category, row.suggested_category),
       selling_price_ttc: pickTtc(
         existing.selling_price_ttc,
         row.selling_price_ttc,

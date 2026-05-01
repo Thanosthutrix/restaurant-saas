@@ -13,4 +13,6 @@ export type MenuSuggestionItem = {
   selling_price_ht?: number | null;
   /** Ingrédients explicitement mentionnés ou fortement probables (pas de quantités, pas d’invention). */
   suggested_ingredients: string[];
+  /** Rubrique carte suggérée par l'IA (ex. Pizzas, Pâtes, Desserts). */
+  suggested_category?: string | null;
 };

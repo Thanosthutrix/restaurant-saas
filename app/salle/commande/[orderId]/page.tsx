@@ -57,11 +57,13 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
 
   const [
     { data: order, error: oErr },
+    { data: lines, error: lErr },
     { data: dishes, error: dErr },
     { data: flatCats, error: catErr },
     customerSearchPool,
   ] = await Promise.all([
     getDiningOrder(orderId, restaurant.id),
+    getDiningOrderLines(orderId, restaurant.id),
     getDishes(restaurant.id),
     listRestaurantCategories(restaurant.id),
     listRecentCustomersForLookup(restaurant.id, 80),
@@ -79,8 +81,6 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
 
   if (!order) notFound();
 
-  const { data: lines, error: lErr } = await getDiningOrderLines(orderId, restaurant.id);
-
   if (lErr) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
@@ -91,10 +91,15 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
     );
   }
 
-  const { data: table } =
+  const [{ data: table }, payRes, linkedCustomerRaw] = await Promise.all([
     order.dining_table_id != null
-      ? await getDiningTable(order.dining_table_id, restaurant.id)
-      : { data: null };
+      ? getDiningTable(order.dining_table_id, restaurant.id)
+      : Promise.resolve({ data: null }),
+    order.status === "settled"
+      ? getDiningOrderPayment(orderId, restaurant.id)
+      : Promise.resolve({ data: null, error: null }),
+    order.customer_id ? getCustomerById(restaurant.id, order.customer_id) : Promise.resolve(null),
+  ]);
 
   if (dErr || catErr) {
     return (
@@ -137,11 +142,8 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
   const totalTtc = orderTotalTtc(lines ?? []);
 
   let settledPaymentMethod: string | null = null;
-  if (order.status === "settled") {
-    const payRes = await getDiningOrderPayment(orderId, restaurant.id);
-    if (!payRes.error) {
-      settledPaymentMethod = payRes.data?.payment_method ?? null;
-    }
+  if (!payRes.error) {
+    settledPaymentMethod = payRes.data?.payment_method ?? null;
   }
 
   const counterName = order.counter_ticket_label?.trim();
@@ -154,18 +156,15 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
     allergens_note: string | null;
   } | null = null;
   let linkedCustomerEmail: string | null = null;
-  if (order.customer_id) {
-    const cust = await getCustomerById(restaurant.id, order.customer_id);
-    if (cust) {
-      const em = cust.email?.trim() ?? "";
-      linkedCustomerEmail = em || null;
-      linkedCustomer = {
-        id: cust.id,
-        display_name: cust.display_name,
-        service_memo: cust.service_memo,
-        allergens_note: cust.allergens_note,
-      };
-    }
+  if (linkedCustomerRaw) {
+    const em = linkedCustomerRaw.email?.trim() ?? "";
+    linkedCustomerEmail = em || null;
+    linkedCustomer = {
+      id: linkedCustomerRaw.id,
+      display_name: linkedCustomerRaw.display_name,
+      service_memo: linkedCustomerRaw.service_memo,
+      allergens_note: linkedCustomerRaw.allergens_note,
+    };
   }
 
   /** Fiche liée = nom affiché (évite « Comptoir · Comptoir 21:28… »). */

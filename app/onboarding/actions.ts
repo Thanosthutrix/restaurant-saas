@@ -8,15 +8,18 @@ import { resolveRestaurantProfile } from "@/lib/templates/restaurantTemplates";
 import { seedRestaurantTemplateContent } from "@/lib/templates/seedRestaurantTemplateContent";
 import { ACTIVE_RESTAURANT_COOKIE } from "@/lib/auth";
 import { analyzeMenuImageFromBuffer } from "@/lib/menu-analysis";
-import { getMenuImageBuffersFromFormData } from "@/lib/getMenuImageBuffersFromFormData";
+import { getImageBuffersFromFormData, getMenuImageBuffersFromFormData } from "@/lib/getMenuImageBuffersFromFormData";
 import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestions";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
+import { analyzeRecipeImageFromBuffer, type RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
 
 export type SubmitOnboardingFormResult = {
   error: string | null;
   restaurantId?: string | null;
   /** Présent si des images menu ont été envoyées (éventuellement tableau vide après fusion). */
   menuSuggestions?: MenuSuggestionItem[];
+  /** Présent si des photos recettes ont été envoyées (éventuellement tableau vide). */
+  recipeSuggestions?: RecipePhotoSuggestion[];
 };
 
 /**
@@ -40,6 +43,7 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
   const declaredImageCount = declaredCountRaw ? parseInt(declaredCountRaw, 10) : 0;
 
   const menuBuffers = await getMenuImageBuffersFromFormData(formData);
+  const recipeBuffers = await getImageBuffersFromFormData(formData, "recipe_image");
   if (Number.isFinite(declaredImageCount) && declaredImageCount > 0 && menuBuffers.length === 0) {
     return {
       error:
@@ -102,6 +106,25 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
     menuSuggestions = mergeMenuSuggestionsByNormalizedLabel(merged);
   }
 
+  let recipeSuggestions: RecipePhotoSuggestion[] | undefined;
+  if (recipeBuffers.length > 0) {
+    const merged: RecipePhotoSuggestion[] = [];
+    const analyzeErrors: string[] = [];
+    for (const buf of recipeBuffers) {
+      try {
+        const { suggestions, error: aerr } = await analyzeRecipeImageFromBuffer(buf);
+        if (aerr) analyzeErrors.push(aerr);
+        merged.push(...suggestions);
+      } catch (e) {
+        analyzeErrors.push(e instanceof Error ? e.message : "Erreur lecture recette.");
+      }
+    }
+    if (analyzeErrors.length > 0 && merged.length === 0) {
+      return { error: analyzeErrors.join(" "), restaurantId };
+    }
+    recipeSuggestions = merged;
+  }
+
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_RESTAURANT_COOKIE, restaurantId, {
     path: "/",
@@ -112,7 +135,7 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
   });
 
   revalidatePath("/dashboard");
-  return { error: null, restaurantId, menuSuggestions };
+  return { error: null, restaurantId, menuSuggestions, recipeSuggestions };
 }
 
 export type OnboardingPayload = {

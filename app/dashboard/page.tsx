@@ -12,6 +12,7 @@ import {
   Package,
   Truck,
   UtensilsCrossed,
+  WandSparkles,
   Wallet,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
@@ -106,6 +107,13 @@ const quickActions: {
     icon: Archive,
     navKey: "registres",
   },
+  {
+    label: "Assistant IA",
+    href: "/onboarding/imports",
+    description: "Réimporter carte, recettes et rubriques",
+    icon: WandSparkles,
+    navKey: "dashboard",
+  },
 ];
 
 export default async function DashboardPage() {
@@ -175,7 +183,7 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
             {visibleQuickActions.map((action) => {
               const Icon = action.icon;
               return (

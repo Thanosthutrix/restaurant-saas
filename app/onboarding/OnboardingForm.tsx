@@ -6,7 +6,9 @@ import { submitOnboardingFormData } from "./actions";
 import { OptionalMenuPhotosPicker } from "@/components/restaurant/OptionalMenuPhotosPicker";
 import {
   PENDING_ONBOARDING_MENU_KEY,
+  PENDING_ONBOARDING_RECIPES_KEY,
   type PendingOnboardingMenuStored,
+  type PendingOnboardingRecipesStored,
 } from "@/lib/onboardingPendingMenuStorage";
 import { RESTAURANT_PROFILE_OTHER, type RestaurantTemplate } from "@/lib/templates/restaurantTemplates";
 import {
@@ -32,6 +34,7 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
   const [avgCovers, setAvgCovers] = useState("");
   const [serviceType, setServiceType] = useState("both");
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
+  const [recipeFiles, setRecipeFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +60,12 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
     for (const f of menuFiles) {
       fd.append("menu_image", f);
     }
+    if (recipeFiles.length > 0) {
+      fd.append("recipe_image_count", String(recipeFiles.length));
+    }
+    for (const f of recipeFiles) {
+      fd.append("recipe_image", f);
+    }
     const result = await submitOnboardingFormData(fd);
     setLoading(false);
     if (result.error) {
@@ -68,7 +77,22 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
       await goDashboard();
       return;
     }
+    if (result.recipeSuggestions) {
+      const payload: PendingOnboardingRecipesStored = { v: 1, items: result.recipeSuggestions };
+      try {
+        sessionStorage.setItem(PENDING_ONBOARDING_RECIPES_KEY, JSON.stringify(payload));
+      } catch {
+        setError(
+          "Impossible de conserver les suggestions de recettes localement. Vous pourrez réimporter les recettes depuis Plats."
+        );
+        return;
+      }
+    }
     if (menuFiles.length === 0) {
+      if (result.recipeSuggestions) {
+        router.replace("/onboarding/review-recipes");
+        return;
+      }
       await goDashboard();
       return;
     }
@@ -158,13 +182,25 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
 
       <OptionalMenuPhotosPicker files={menuFiles} onChange={setMenuFiles} disabled={loading} />
 
+      <OptionalMenuPhotosPicker
+        files={recipeFiles}
+        onChange={setRecipeFiles}
+        disabled={loading}
+        title="Photo(s) de recettes (optionnel)"
+        description="Ajoutez des fiches recettes, cahiers de cuisine ou notes manuscrites. L’IA proposera ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
+        galleryLabel="Fiches recettes depuis la galerie"
+        cameraLabel="Photographier une recette"
+      />
+
       <button type="submit" disabled={loading} className={uiBtnPrimaryBlock}>
         {loading
           ? menuFiles.length > 0
             ? "Création et analyse…"
+            : recipeFiles.length > 0
+              ? "Création et analyse des recettes…"
             : "Création…"
-          : menuFiles.length > 0
-            ? "Créer et analyser la carte"
+          : menuFiles.length > 0 || recipeFiles.length > 0
+            ? "Créer et analyser les documents"
             : "Créer mon restaurant"}
       </button>
     </form>

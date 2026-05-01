@@ -80,15 +80,17 @@ export function CategoryTileShell({
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <div
-            className={
-              depth > 0
-                ? "border-t border-slate-100/90 bg-white/50 px-1 pb-2 pt-2"
-                : "border-t border-slate-100 bg-slate-50/40 px-3 pb-3 pt-2 sm:px-4"
-            }
-          >
-            {children}
-          </div>
+          {open ? (
+            <div
+              className={
+                depth > 0
+                  ? "border-t border-slate-100/90 bg-white/50 px-1 pb-2 pt-2"
+                  : "border-t border-slate-100 bg-slate-50/40 px-3 pb-3 pt-2 sm:px-4"
+              }
+            >
+              {children}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

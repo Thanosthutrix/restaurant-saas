@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getDishes, getDishComponentCounts } from "@/lib/db";
+import { getDishes, getDishComponentCounts, getInventoryItems } from "@/lib/db";
 import {
   buildCategoryTree,
   buildDirectItemsByCategoryId,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/catalog/restaurantCategories";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getTemplateSuggestions } from "@/app/restaurants/actions";
+import { buildTemplateSuggestionsFromRows } from "@/lib/templates/templateSuggestions";
 import { CreateDishForm } from "./CreateDishForm";
 import { DishesNestedCategoryTiles } from "./DishesNestedCategoryTiles";
 import { DishTemplateSuggestionsBlock } from "./DishTemplateSuggestionsBlock";
@@ -26,9 +26,9 @@ export default async function DishesPage({ searchParams }: Props) {
   const returnTo = typeof params.returnTo === "string" ? params.returnTo : "";
   if (!restaurant) redirect("/onboarding");
 
-  const [{ data: dishes, error }, { suggestions }, catRes] = await Promise.all([
+  const [{ data: dishes, error }, invRes, catRes] = await Promise.all([
     getDishes(restaurant.id),
-    getTemplateSuggestions(restaurant.id),
+    getInventoryItems(restaurant.id),
     listRestaurantCategories(restaurant.id),
   ]);
 
@@ -45,6 +45,11 @@ export default async function DishesPage({ searchParams }: Props) {
 
   const flatCats = catRes.data ?? [];
   const list = dishes ?? [];
+  const suggestions = buildTemplateSuggestionsFromRows({
+    templateSlug: restaurant.template_slug,
+    inventoryItems: invRes.data ?? [],
+    dishes: list,
+  });
 
   const dishIds = list.map((d) => d.id);
   const { data: componentCounts } = await getDishComponentCounts(restaurant.id, dishIds);

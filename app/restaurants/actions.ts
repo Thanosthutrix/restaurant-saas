@@ -11,16 +11,18 @@ import { getInventoryItems, getDishes } from "@/lib/db";
 import {
   getRestaurantTemplateBySlug,
   resolveRestaurantProfile,
-  type RestaurantTemplateComponent,
-  type RestaurantTemplateSuggestedDish,
 } from "@/lib/templates/restaurantTemplates";
 import { seedRestaurantTemplateContent } from "@/lib/templates/seedRestaurantTemplateContent";
 import { analyzeMenuImageFromBuffer } from "@/lib/menu-analysis";
-import { getMenuImageBuffersFromFormData } from "@/lib/getMenuImageBuffersFromFormData";
+import { getImageBuffersFromFormData, getMenuImageBuffersFromFormData } from "@/lib/getMenuImageBuffersFromFormData";
 import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestions";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
+import { analyzeRecipeImageFromBuffer, type RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
 import { parsePlanningBandPresetsJson } from "@/lib/staff/planningBandPresets";
 import { parseStaffTargetsWeeklyJson, parseTimeBandsArray } from "@/lib/staff/planningResolve";
+import { buildTemplateSuggestionsFromRows, type TemplateSuggestions } from "@/lib/templates/templateSuggestions";
+
+export type { TemplateSuggestions } from "@/lib/templates/templateSuggestions";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 an
 
@@ -122,6 +124,7 @@ export type CreateRestaurantFormResult = {
   error: string | null;
   restaurantId?: string | null;
   menuSuggestions?: MenuSuggestionItem[];
+  recipeSuggestions?: RecipePhotoSuggestion[];
 };
 
 /**
@@ -147,6 +150,7 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
   const declaredImageCount = declaredCountRaw ? parseInt(declaredCountRaw, 10) : 0;
 
   const menuBuffers = await getMenuImageBuffersFromFormData(formData);
+  const recipeBuffers = await getImageBuffersFromFormData(formData, "recipe_image");
   if (Number.isFinite(declaredImageCount) && declaredImageCount > 0 && menuBuffers.length === 0) {
     return {
       error:
@@ -201,6 +205,25 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
     menuSuggestions = mergeMenuSuggestionsByNormalizedLabel(merged);
   }
 
+  let recipeSuggestions: RecipePhotoSuggestion[] | undefined;
+  if (recipeBuffers.length > 0) {
+    const merged: RecipePhotoSuggestion[] = [];
+    const analyzeErrors: string[] = [];
+    for (const buf of recipeBuffers) {
+      try {
+        const { suggestions, error: aerr } = await analyzeRecipeImageFromBuffer(buf);
+        if (aerr) analyzeErrors.push(aerr);
+        merged.push(...suggestions);
+      } catch (e) {
+        analyzeErrors.push(e instanceof Error ? e.message : "Erreur lecture recette.");
+      }
+    }
+    if (analyzeErrors.length > 0 && merged.length === 0) {
+      return { error: analyzeErrors.join(" "), restaurantId };
+    }
+    recipeSuggestions = merged;
+  }
+
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_RESTAURANT_COOKIE, restaurantId, {
     path: "/",
@@ -211,7 +234,7 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
   });
 
   revalidatePath("/dashboard");
-  return { error: null, restaurantId, menuSuggestions };
+  return { error: null, restaurantId, menuSuggestions, recipeSuggestions };
 }
 
 export type UpdateRestaurantPayload = {
@@ -301,14 +324,6 @@ export async function updateRestaurant(
   return { error: null };
 }
 
-/** Résultat du calcul des suggestions (composants et plats manquants + liste complète des plats suggérés). */
-export type TemplateSuggestions = {
-  missingComponents: RestaurantTemplateComponent[];
-  missingDishes: RestaurantTemplateSuggestedDish[];
-  /** Liste complète des plats suggérés par le template (pour affichage sur /dishes). */
-  allSuggestedDishes: RestaurantTemplateSuggestedDish[];
-};
-
 /**
  * Compare le template du restaurant à ses inventory_items et dishes existants.
  * Retourne les composants et plats suggérés par le template qui ne sont pas encore créés.
@@ -327,28 +342,19 @@ export async function getTemplateSuggestions(restaurantId: string): Promise<{
   const slug = restaurant.template_slug?.trim();
   if (!slug) return { error: null, suggestions: null };
 
-  const template = getRestaurantTemplateBySlug(slug);
-  if (!template) return { error: null, suggestions: null };
-
   const [invRes, dishesRes] = await Promise.all([
     getInventoryItems(restaurantId),
     getDishes(restaurantId),
   ]);
-  const existingInvNames = new Set((invRes.data ?? []).map((i) => i.name.toLowerCase().trim()));
-  const existingDishNames = new Set((dishesRes.data ?? []).map((d) => d.name.toLowerCase().trim()));
-
-  const missingComponents = template.components.filter((c) => !existingInvNames.has(c.name.trim().toLowerCase()));
-  const missingDishes = template.suggestedDishes.filter(
-    (d) => !existingDishNames.has(d.name.trim().toLowerCase())
-  );
+  const suggestions = buildTemplateSuggestionsFromRows({
+    templateSlug: slug,
+    inventoryItems: invRes.data ?? [],
+    dishes: dishesRes.data ?? [],
+  });
 
   return {
     error: null,
-    suggestions: {
-      missingComponents,
-      missingDishes,
-      allSuggestedDishes: template.suggestedDishes,
-    },
+    suggestions,
   };
 }
 

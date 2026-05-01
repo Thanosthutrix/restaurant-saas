@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
   buildCategoryTree,
@@ -61,33 +62,22 @@ function totalsByPayment(rows: SettledOrderSummary[]) {
   return map;
 }
 
-export default async function CaissePage() {
-  const restaurant = await getRestaurantForPage();
-  if (!restaurant) redirect("/onboarding");
-
+async function CaisseCatalogSection({ restaurantId }: { restaurantId: string }) {
   const [
-    { data: openRows, error: openErr },
-    { data: settledRows, error: settledErr },
     { data: dishesList, error: dishesErr },
     { data: flatCats, error: catErr },
     recentCustomerPool,
   ] = await Promise.all([
-    listOpenOrdersForCaisse(restaurant.id),
-    listSettledOrdersToday(restaurant.id),
-    getDishes(restaurant.id),
-    listRestaurantCategories(restaurant.id),
-    listRecentCustomersForLookup(restaurant.id, 80),
+    getDishes(restaurantId),
+    listRestaurantCategories(restaurantId),
+    listRecentCustomersForLookup(restaurantId, 80),
   ]);
 
-  if (openErr || settledErr || dishesErr || catErr) {
+  if (dishesErr || catErr) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {openErr?.message ??
-            settledErr?.message ??
-            dishesErr?.message ??
-            catErr?.message ??
-            "Erreur de chargement."}
+          {dishesErr?.message ?? catErr?.message ?? "Erreur de chargement."}
         </p>
       </div>
     );
@@ -104,6 +94,55 @@ export default async function CaissePage() {
   const uncategorized = dishes.filter((d) => !d.category_id);
   const directByCategoryId = Object.fromEntries(directMap);
 
+  return (
+    <CaisseDishPicker
+      restaurantId={restaurantId}
+      roots={prunedRoots}
+      directByCategoryId={directByCategoryId}
+      uncategorized={uncategorized}
+      recentCustomerPool={recentCustomerPool}
+    />
+  );
+}
+
+function CaisseCatalogFallback() {
+  return (
+    <section className={`${uiCard} space-y-3`}>
+      <div className="h-5 w-44 animate-pulse rounded-lg bg-slate-200" />
+      <div className="space-y-2">
+        <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100" />
+        <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100" />
+        <div className="h-10 w-2/3 animate-pulse rounded-xl bg-slate-100" />
+      </div>
+      <p className={uiLead}>Chargement rapide de la carte caisse…</p>
+    </section>
+  );
+}
+
+export default async function CaissePage() {
+  const restaurant = await getRestaurantForPage();
+  if (!restaurant) redirect("/onboarding");
+
+  const [
+    { data: openRows, error: openErr },
+    { data: settledRows, error: settledErr },
+  ] = await Promise.all([
+    listOpenOrdersForCaisse(restaurant.id),
+    listSettledOrdersToday(restaurant.id),
+  ]);
+
+  if (openErr || settledErr) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-8">
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          {openErr?.message ??
+            settledErr?.message ??
+            "Erreur de chargement."}
+        </p>
+      </div>
+    );
+  }
+
   const open = openRows ?? [];
   const settledList = settledRows ?? [];
   const totals = totalsByPayment(settledList);
@@ -111,13 +150,9 @@ export default async function CaissePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-4">
-      <CaisseDishPicker
-        restaurantId={restaurant.id}
-        roots={prunedRoots}
-        directByCategoryId={directByCategoryId}
-        uncategorized={uncategorized}
-        recentCustomerPool={recentCustomerPool}
-      />
+      <Suspense fallback={<CaisseCatalogFallback />}>
+        <CaisseCatalogSection restaurantId={restaurant.id} />
+      </Suspense>
 
       <section className="space-y-3">
         <h2 className={uiSectionTitleSm}>En cours</h2>

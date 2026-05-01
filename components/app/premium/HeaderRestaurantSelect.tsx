@@ -82,9 +82,11 @@ function EstablishmentFlyout({ e }: { e: EstablishmentPayload }) {
  */
 export function HeaderRestaurantSelect({
   server,
+  clientFetchEnabled = true,
 }: {
   /** Données issues du layout RSC — évite le fetch `/api/restaurants/me` (cookies / timing). */
   server?: HeaderRestaurantServerPayload | null;
+  clientFetchEnabled?: boolean;
 }) {
   const [rows, setRows] = useState<Row[] | null>(() =>
     server && server.restaurants.length > 0 ? server.restaurants : null
@@ -99,10 +101,10 @@ export function HeaderRestaurantSelect({
 
   useEffect(() => {
     if (server && server.restaurants.length > 0) {
-      setRows(server.restaurants);
-      setCurrentId(server.currentRestaurantId);
-      setEstablishment(server.establishment);
-      setDone(true);
+      return;
+    }
+
+    if (!clientFetchEnabled) {
       return;
     }
 
@@ -129,9 +131,14 @@ export function HeaderRestaurantSelect({
     return () => {
       cancelled = true;
     };
-  }, [server]);
+  }, [clientFetchEnabled, server]);
 
-  if (!done) {
+  const effectiveRows = server && server.restaurants.length > 0 ? server.restaurants : rows;
+  const effectiveCurrentId = server && server.restaurants.length > 0 ? server.currentRestaurantId : currentId;
+  const effectiveEstablishment = server && server.restaurants.length > 0 ? server.establishment : establishment;
+  const effectiveDone = Boolean(server && server.restaurants.length > 0) || done;
+
+  if (!effectiveDone) {
     return (
       <div
         className="h-10 w-44 animate-pulse rounded-xl bg-slate-200/80"
@@ -140,12 +147,12 @@ export function HeaderRestaurantSelect({
     );
   }
 
-  if (!rows?.length) return null;
+  if (!effectiveRows?.length) return null;
 
-  const current = rows.find((r) => r.id === currentId) ?? rows[0];
-  const panel = establishment ? <EstablishmentFlyout e={establishment} /> : null;
+  const current = effectiveRows.find((r) => r.id === effectiveCurrentId) ?? effectiveRows[0];
+  const panel = effectiveEstablishment ? <EstablishmentFlyout e={effectiveEstablishment} /> : null;
 
-  if (rows.length === 1) {
+  if (effectiveRows.length === 1) {
     return (
       <div className="group relative max-w-[min(100vw-8rem,16rem)]">
         <div
@@ -169,7 +176,7 @@ export function HeaderRestaurantSelect({
         />
         <select
           name="restaurantId"
-          defaultValue={currentId ?? current.id}
+          defaultValue={effectiveCurrentId ?? current.id}
           onChange={(e) => {
             e.currentTarget.form?.requestSubmit();
           }}
@@ -177,7 +184,7 @@ export function HeaderRestaurantSelect({
           aria-label="Restaurant actif"
           suppressHydrationWarning
         >
-          {rows.map((r) => (
+          {effectiveRows.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
             </option>

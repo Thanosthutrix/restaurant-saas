@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { LogOut, Menu, X } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 import { SHELL_NAV_ITEMS, isBareShellPath } from "@/components/app/premium/shell-nav";
@@ -11,47 +11,42 @@ import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidge
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
 
+type ShellClientPayload = Pick<
+  AppShellHeaderBootstrap,
+  "restaurants" | "currentRestaurantId" | "establishment" | "allowedNavKeys"
+>;
+
 const sidebarLinkBase =
   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150";
 const sidebarIdle =
   "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.99]";
 const sidebarActive = "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100";
 const navGroupOrder = ["Accueil", "Exploitation", "Cuisine", "Achats & stock", "Registres", "Équipe & compte"];
+const priorityPrefetchKeys = new Set<ShellNavKey>([
+  "dashboard",
+  "salle",
+  "caisse",
+  "cuisine",
+  "achats",
+  "registres",
+  "orders",
+  "livraison",
+  "supplier_invoices",
+  "equipe_manage",
+]);
 
 function NavLinks({
   pathname,
-  headerBootstrap,
+  allowedNavKeys,
   onNavigate,
 }: {
   pathname: string | null;
-  headerBootstrap: AppShellHeaderBootstrap | null;
+  allowedNavKeys?: ShellNavKey[] | null;
   onNavigate?: () => void;
 }) {
-  const [clientAllowedKeys, setClientAllowedKeys] = useState<ShellNavKey[] | null>(null);
-  const keys = headerBootstrap?.allowedNavKeys ?? clientAllowedKeys;
-
-  useEffect(() => {
-    if (headerBootstrap?.allowedNavKeys) return;
-
-    let cancelled = false;
-    fetch("/api/restaurants/me", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((payload: { allowedNavKeys?: ShellNavKey[] } | null) => {
-        if (!cancelled && payload?.allowedNavKeys) {
-          setClientAllowedKeys(payload.allowedNavKeys);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setClientAllowedKeys(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [headerBootstrap?.allowedNavKeys]);
-
   const items =
-    keys != null && keys.length > 0
-      ? SHELL_NAV_ITEMS.filter((item) => keys.includes(item.navKey))
+    allowedNavKeys != null && allowedNavKeys.length > 0
+      ? SHELL_NAV_ITEMS.filter((item) => allowedNavKeys.includes(item.navKey))
       : SHELL_NAV_ITEMS;
 
   const groupedItems = navGroupOrder
@@ -97,8 +92,51 @@ export function PremiumAppShell({
   headerBootstrap: AppShellHeaderBootstrap | null;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const bare = isBareShellPath(pathname);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [clientBootstrap, setClientBootstrap] = useState<ShellClientPayload | null>(null);
+  const prefetchedRef = useRef(false);
+  const shellPayload = headerBootstrap ?? clientBootstrap;
+
+  useEffect(() => {
+    if (bare || headerBootstrap) return;
+
+    let cancelled = false;
+    fetch("/api/restaurants/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((payload: ShellClientPayload | null) => {
+        if (!cancelled && payload) {
+          setClientBootstrap(payload);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setClientBootstrap(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bare, headerBootstrap]);
+
+  useEffect(() => {
+    if (bare || prefetchedRef.current) return;
+    const allowedKeys = shellPayload?.allowedNavKeys;
+    if (!allowedKeys?.length) return;
+
+    prefetchedRef.current = true;
+    const urls = SHELL_NAV_ITEMS.filter(
+      (item) => priorityPrefetchKeys.has(item.navKey) && allowedKeys.includes(item.navKey)
+    ).map((item) => item.href);
+
+    const run = () => {
+      for (const href of urls) {
+        router.prefetch(href);
+      }
+    };
+
+    const timeoutId = window.setTimeout(run, 800);
+    return () => window.clearTimeout(timeoutId);
+  }, [bare, router, shellPayload?.allowedNavKeys]);
 
   if (bare) {
     return <>{children}</>;
@@ -126,7 +164,7 @@ export function PremiumAppShell({
             Restaurant SaaS
           </Link>
         </div>
-        <NavLinks pathname={pathname} headerBootstrap={headerBootstrap} />
+        <NavLinks pathname={pathname} allowedNavKeys={shellPayload?.allowedNavKeys} />
         <div className="mt-auto border-t border-slate-100 p-3">
           <form action={signOut}>
             <button
@@ -169,7 +207,7 @@ export function PremiumAppShell({
         </div>
         <NavLinks
           pathname={pathname}
-          headerBootstrap={headerBootstrap}
+          allowedNavKeys={shellPayload?.allowedNavKeys}
           onNavigate={() => setMobileNavOpen(false)}
         />
         <div className="mt-auto border-t border-slate-100 p-3">
@@ -199,12 +237,13 @@ export function PremiumAppShell({
                 {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
               <HeaderRestaurantSelect
+                clientFetchEnabled={false}
                 server={
-                  headerBootstrap && headerBootstrap.restaurants.length > 0
+                  shellPayload && shellPayload.restaurants.length > 0
                     ? {
-                        restaurants: headerBootstrap.restaurants,
-                        currentRestaurantId: headerBootstrap.currentRestaurantId,
-                        establishment: headerBootstrap.establishment,
+                        restaurants: shellPayload.restaurants,
+                        currentRestaurantId: shellPayload.currentRestaurantId,
+                        establishment: shellPayload.establishment,
                       }
                     : null
                 }

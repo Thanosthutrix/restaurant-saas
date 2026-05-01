@@ -44,17 +44,11 @@ export function emptyMenuSuggestionRow(): MenuSuggestionRow {
 
 /** Copie la ligne (ex. même base, autre goût / variante) — à renommer ensuite. */
 export function duplicateMenuSuggestionRow(row: MenuSuggestionRow): MenuSuggestionRow {
-  const suggested_ingredients = [...(row.suggested_ingredients ?? [])];
-  const mode = row.suggested_mode;
-  const create_draft_recipe =
-    mode === "prepared" &&
-    suggested_ingredients.length > 0 &&
-    Boolean(row.create_draft_recipe);
   return {
     ...row,
     clientRowId: newClientRowId(),
-    suggested_ingredients,
-    create_draft_recipe,
+    suggested_ingredients: [...(row.suggested_ingredients ?? [])],
+    create_draft_recipe: false,
   };
 }
 
@@ -71,10 +65,7 @@ export function menuItemsToEditableRows(items: MenuSuggestionItem[]): MenuSugges
       clientRowId: newClientRowId(),
       suggested_ingredients: Array.isArray(s.suggested_ingredients) ? s.suggested_ingredients : [],
       selected: s.suggested_mode !== "ignore",
-      create_draft_recipe:
-        s.suggested_mode === "prepared" &&
-        Array.isArray(s.suggested_ingredients) &&
-        s.suggested_ingredients.length > 0,
+      create_draft_recipe: false,
     };
   });
 }
@@ -84,6 +75,7 @@ const checkboxClass =
 
 type CreateResult = {
   created: number;
+  updated: number;
   skipped: number;
   draftRecipes: number;
   errors: string[];
@@ -121,6 +113,12 @@ export function MenuSuggestionsEditor({
 
   const setRowRawLabel = (index: number, raw_label: string) => {
     setSuggestions((prev) => prev.map((row, i) => (i === index ? { ...row, raw_label } : row)));
+  };
+
+  const setRowSuggestedCategory = (index: number, suggested_category: string) => {
+    setSuggestions((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, suggested_category } : row))
+    );
   };
 
   const setRowSellingPriceTtc = (index: number, value: string) => {
@@ -161,45 +159,9 @@ export function MenuSuggestionsEditor({
           ...row,
           suggested_mode,
           selling_vat_rate_pct,
-          create_draft_recipe:
-            suggested_mode === "prepared" && row.suggested_ingredients.length > 0
-              ? row.create_draft_recipe
-              : false,
+          create_draft_recipe: false,
         };
       })
-    );
-  };
-
-  const setRowCreateDraftRecipe = (index: number, create_draft_recipe: boolean) => {
-    setSuggestions((prev) => prev.map((row, i) => (i === index ? { ...row, create_draft_recipe } : row)));
-  };
-
-  const removeIngredient = (rowIndex: number, ingIndex: number) => {
-    setSuggestions((prev) =>
-      prev.map((row, i) =>
-        i === rowIndex
-          ? { ...row, suggested_ingredients: row.suggested_ingredients.filter((_, j) => j !== ingIndex) }
-          : row
-      )
-    );
-  };
-
-  const updateIngredient = (rowIndex: number, ingIndex: number, value: string) => {
-    setSuggestions((prev) =>
-      prev.map((row, i) =>
-        i === rowIndex
-          ? {
-              ...row,
-              suggested_ingredients: row.suggested_ingredients.map((ing, j) => (j === ingIndex ? value : ing)),
-            }
-          : row
-      )
-    );
-  };
-
-  const addIngredient = (rowIndex: number) => {
-    setSuggestions((prev) =>
-      prev.map((row, i) => (i === rowIndex ? { ...row, suggested_ingredients: [...row.suggested_ingredients, ""] } : row))
     );
   };
 
@@ -234,12 +196,8 @@ export function MenuSuggestionsEditor({
       {createResult && (
         <div className={uiSuccess}>
           {createResult.created > 0 && <p>{createResult.created} plat(s) créé(s).</p>}
-          {createResult.draftRecipes > 0 && (
-            <p>
-              {createResult.draftRecipes} recette(s) brouillon créée(s) (à finaliser et valider pour le stock).
-            </p>
-          )}
-          {createResult.skipped > 0 && <p>{createResult.skipped} déjà existant(s), ignoré(s).</p>}
+          {createResult.updated > 0 && <p>{createResult.updated} plat(s) mis à jour.</p>}
+          {createResult.skipped > 0 && <p>{createResult.skipped} ligne(s) sans changement.</p>}
           {createResult.errors.length > 0 && (
             <p className="mt-2 font-medium text-amber-800">Erreurs : {createResult.errors.join(" ; ")}</p>
           )}
@@ -250,7 +208,7 @@ export function MenuSuggestionsEditor({
         <h2 className={`mb-1 ${uiSectionTitleSm}`}>Suggestions ({suggestions.length})</h2>
         <p className={`mb-3 ${uiMuted}`}>
           {description ??
-            "Cochez les plats à créer, corrigez le mode, le prix TTC (carte client), la TVA si besoin (10 % restauration, 20 % alcool / certains produits, 5,5 % cas réduits) et les ingrédients. Option « Recette brouillon » : composants qty à affiner plus tard."}
+            "Cochez les plats à créer ou mettre à jour, corrigez la rubrique, le mode, le prix TTC (carte client) et la TVA si besoin. Les recettes se gèrent uniquement dans l’étape dédiée aux recettes."}
         </p>
         <div className="mb-4">
           <button type="button" onClick={addEmptyRow} className={uiBtnOutlineSm}>
@@ -280,6 +238,16 @@ export function MenuSuggestionsEditor({
                     className={`min-w-[120px] flex-1 ${uiInput}`}
                     placeholder="Nom du plat"
                   />
+                  <label className={`flex min-w-[9rem] flex-col gap-0.5 ${uiMuted}`}>
+                    <span className="whitespace-nowrap text-xs">Rubrique IA</span>
+                    <input
+                      type="text"
+                      value={row.suggested_category ?? ""}
+                      onChange={(e) => setRowSuggestedCategory(i, e.target.value)}
+                      className={`${uiInput} py-1.5 text-sm`}
+                      placeholder="ex. Pizzas"
+                    />
+                  </label>
                   <label className={`flex flex-col gap-0.5 ${uiMuted}`}>
                     <span className="whitespace-nowrap text-xs">PV TTC €</span>
                     <input
@@ -344,17 +312,6 @@ export function MenuSuggestionsEditor({
                     <option value="resale">Revente</option>
                     <option value="ignore">Ignorer</option>
                   </select>
-                  {row.suggested_mode === "prepared" && row.suggested_ingredients.length > 0 && (
-                    <label className="flex items-center gap-1.5 text-sm text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={row.create_draft_recipe}
-                        onChange={(e) => setRowCreateDraftRecipe(i, e.target.checked)}
-                        className={checkboxClass}
-                      />
-                      Créer recette brouillon
-                    </label>
-                  )}
                   <div className="flex w-full flex-wrap items-center gap-1 sm:ml-auto sm:w-auto">
                     <button type="button" onClick={() => duplicateRowAt(i)} className={uiBtnOutlineSm}>
                       Dupliquer
@@ -364,40 +321,6 @@ export function MenuSuggestionsEditor({
                     </button>
                   </div>
                 </div>
-                {row.suggested_mode === "prepared" && (
-                  <div className="ml-6 mt-2 border-l-2 border-indigo-100 pl-3">
-                    <span className={uiMuted}>Ingrédients suggérés :</span>
-                    <ul className="mt-1 space-y-1">
-                      {row.suggested_ingredients.map((ing, j) => (
-                        <li key={j} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="text"
-                            value={ing}
-                            onChange={(e) => updateIngredient(i, j, e.target.value)}
-                            className={`max-w-[220px] ${uiInput} py-1.5 text-sm`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeIngredient(i, j)}
-                            className="rounded-lg px-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                            aria-label="Supprimer"
-                          >
-                            ×
-                          </button>
-                        </li>
-                      ))}
-                      <li>
-                        <button
-                          type="button"
-                          onClick={() => addIngredient(i)}
-                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
-                        >
-                          + Ajouter un ingrédient
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -411,7 +334,7 @@ export function MenuSuggestionsEditor({
           >
             {createPending
               ? "Création…"
-              : (createButtonLabel ?? `Créer les ${toCreate} plat(s) sélectionné(s)`)}
+              : (createButtonLabel ?? `Créer / mettre à jour ${toCreate} plat(s)`)}
           </button>
         </div>
       </div>

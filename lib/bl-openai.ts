@@ -47,6 +47,7 @@ export async function analyzeBlDocument(publicUrl: string, fileName: string): Pr
       unit: i.unit,
       unit_price_ht: i.unit_price_ht,
       line_total_ht: i.line_total_ht,
+      packaging_hint: i.packaging_hint,
     })),
   };
 

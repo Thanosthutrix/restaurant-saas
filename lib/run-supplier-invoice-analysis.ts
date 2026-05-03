@@ -4,6 +4,7 @@ import {
   buildMetadataPatchFromAnalysis,
   parseSupplierInvoiceAnalysis,
 } from "@/lib/supplier-invoice-analysis";
+import { applyVendorHintsFromInvoiceAnalysis } from "@/lib/supplier-vendor-from-invoice";
 import {
   analyzeSupplierInvoiceDocument,
   SUPPLIER_INVOICE_ANALYSIS_VERSION,
@@ -18,6 +19,85 @@ function filePublicUrl(filePath: string | null, fileUrl: string | null): string 
   if (!filePath) return null;
   const { data } = supabaseServer.storage.from(SUPPLIER_INVOICES_BUCKET).getPublicUrl(filePath);
   return data.publicUrl;
+}
+
+/** Persiste un JSON d’analyse déjà obtenu (évite un second appel IA). */
+export async function applySupplierInvoiceAnalysisResult(
+  invoiceId: string,
+  restaurantId: string,
+  analysisJson: Record<string, unknown>
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: inv, error: fetchErr } = await supabaseServer
+    .from("supplier_invoices")
+    .select(INVOICE_ANALYSIS_SELECT)
+    .eq("id", invoiceId)
+    .eq("restaurant_id", restaurantId)
+    .single();
+
+  if (fetchErr || !inv) {
+    return { ok: false, error: "Facture introuvable." };
+  }
+
+  const row = inv as {
+    file_path: string | null;
+    file_url: string | null;
+    file_name?: string | null;
+    invoice_number: string | null;
+    invoice_date: string | null;
+    amount_ht: number | null;
+    amount_ttc: number | null;
+  };
+
+  const now = new Date().toISOString();
+
+  await supabaseServer
+    .from("supplier_invoices")
+    .update({
+      analysis_result_json: analysisJson,
+      analysis_status: "done",
+      analysis_error: null,
+      analysis_version: SUPPLIER_INVOICE_ANALYSIS_VERSION,
+      updated_at: now,
+    })
+    .eq("id", invoiceId)
+    .eq("restaurant_id", restaurantId);
+
+  const view = parseSupplierInvoiceAnalysis(analysisJson);
+  const patch =
+    view &&
+    buildMetadataPatchFromAnalysis(
+      {
+        invoice_number: row.invoice_number,
+        invoice_date: row.invoice_date,
+        amount_ht: row.amount_ht,
+        amount_ttc: row.amount_ttc,
+      },
+      view
+    );
+
+  if (patch && Object.keys(patch).length > 0) {
+    await supabaseServer
+      .from("supplier_invoices")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", invoiceId)
+      .eq("restaurant_id", restaurantId);
+  }
+
+  const viewForLines = parseSupplierInvoiceAnalysis(analysisJson);
+  const { error: linesErr } = await replaceSupplierInvoiceExtractedLines(
+    invoiceId,
+    viewForLines?.lines ?? []
+  );
+  if (linesErr) {
+    console.error("[applySupplierInvoiceAnalysisResult] lignes extraites:", linesErr.message);
+  }
+
+  const supplierRow = inv as { supplier_id?: string };
+  if (supplierRow.supplier_id && viewForLines?.vendor) {
+    await applyVendorHintsFromInvoiceAnalysis(supplierRow.supplier_id, restaurantId, viewForLines.vendor);
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -71,22 +151,6 @@ export async function runSupplierInvoiceAnalysis(
     return { ok: true };
   }
 
-  if (outcome.kind === "skipped_pdf") {
-    await replaceSupplierInvoiceExtractedLines(invoiceId, []);
-    await supabaseServer
-      .from("supplier_invoices")
-      .update({
-        analysis_status: "unsupported_pdf",
-        analysis_error: outcome.message,
-        analysis_result_json: null,
-        analysis_version: SUPPLIER_INVOICE_ANALYSIS_VERSION,
-        updated_at: now,
-      })
-      .eq("id", invoiceId)
-      .eq("restaurant_id", restaurantId);
-    return { ok: true };
-  }
-
   if (outcome.kind === "error") {
     await supabaseServer
       .from("supplier_invoices")
@@ -102,47 +166,5 @@ export async function runSupplierInvoiceAnalysis(
   }
 
   const analysisJson = outcome.result.json;
-  await supabaseServer
-    .from("supplier_invoices")
-    .update({
-      analysis_result_json: analysisJson,
-      analysis_status: "done",
-      analysis_error: null,
-      analysis_version: SUPPLIER_INVOICE_ANALYSIS_VERSION,
-      updated_at: now,
-    })
-    .eq("id", invoiceId)
-    .eq("restaurant_id", restaurantId);
-
-  const view = parseSupplierInvoiceAnalysis(analysisJson);
-  const patch =
-    view &&
-    buildMetadataPatchFromAnalysis(
-      {
-        invoice_number: row.invoice_number,
-        invoice_date: row.invoice_date,
-        amount_ht: row.amount_ht,
-        amount_ttc: row.amount_ttc,
-      },
-      view
-    );
-
-  if (patch && Object.keys(patch).length > 0) {
-    await supabaseServer
-      .from("supplier_invoices")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", invoiceId)
-      .eq("restaurant_id", restaurantId);
-  }
-
-  const viewForLines = parseSupplierInvoiceAnalysis(analysisJson);
-  const { error: linesErr } = await replaceSupplierInvoiceExtractedLines(
-    invoiceId,
-    viewForLines?.lines ?? []
-  );
-  if (linesErr) {
-    console.error("[runSupplierInvoiceAnalysis] lignes extraites:", linesErr.message);
-  }
-
-  return { ok: true };
+  return applySupplierInvoiceAnalysisResult(invoiceId, restaurantId, analysisJson);
 }

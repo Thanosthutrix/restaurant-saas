@@ -526,6 +526,40 @@ export async function getServiceSalesAggregate(
   return { data: map, error: null };
 }
 
+/** Ligne historique CA mensuel (import onboarding / assistant). */
+export type RestaurantMonthlyRevenue = {
+  id: string;
+  restaurant_id: string;
+  month: string;
+  revenue_ttc: number | null;
+  revenue_ht: number | null;
+  source_label: string | null;
+  notes: string | null;
+  analysis_result_json: unknown;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getRestaurantMonthlyRevenues(
+  restaurantId: string
+): Promise<{ data: RestaurantMonthlyRevenue[] | null; error: Error | null }> {
+  const { data, error } = await supabaseServer
+    .from("restaurant_monthly_revenues")
+    .select(
+      "id, restaurant_id, month, revenue_ttc, revenue_ht, source_label, notes, analysis_result_json, created_at, updated_at"
+    )
+    .eq("restaurant_id", restaurantId)
+    .order("month", { ascending: false });
+
+  if (error) return { data: null, error: new Error(error.message) };
+  const rows = (data ?? []) as RestaurantMonthlyRevenue[];
+  for (const r of rows) {
+    if (r.revenue_ttc != null) r.revenue_ttc = Number(r.revenue_ttc);
+    if (r.revenue_ht != null) r.revenue_ht = Number(r.revenue_ht);
+  }
+  return { data: rows, error: null };
+}
+
 /** Liste des alias de plats pour un restaurant. */
 export async function getDishAliases(
   restaurantId: string
@@ -2033,6 +2067,7 @@ export async function getSupplierInvoiceWithDeliveryNotes(
           invoice_date: parsedFromJson?.invoice_date ?? null,
           amount_ht: parsedFromJson?.amount_ht ?? null,
           amount_ttc: parsedFromJson?.amount_ttc ?? null,
+          vendor: parsedFromJson?.vendor ?? null,
           lines: linesForView,
           raw_text: parsedFromJson?.raw_text ?? null,
         }
@@ -2052,8 +2087,12 @@ export async function getSupplierInvoiceWithDeliveryNotes(
     control_state: "none",
   };
   type ReceptionLineRef = {
+    deliveryNoteId: string | null;
+    deliveryNoteLineId: string | null;
     label: string | null;
     itemName: string | null;
+    purchaseUnit: string | null;
+    stockUnit: string | null;
     qtyDeliveredPurchase: number | null;
     qtyReceivedStock: number | null;
     purchaseToStockRatio: number | null;
@@ -2070,8 +2109,44 @@ export async function getSupplierInvoiceWithDeliveryNotes(
       .in("id", noteIds);
     const { data: lines } = await supabaseServer
       .from("delivery_note_lines")
-      .select("delivery_note_id, inventory_item_id, label, qty_delivered, qty_received, bl_line_total_ht, bl_unit_price_stock_ht, manual_unit_price_stock_ht, inventory_items(name), purchase_order_lines(purchase_to_stock_ratio)")
+      .select("id, delivery_note_id, inventory_item_id, label, unit, sort_order, qty_delivered, qty_received, bl_line_total_ht, bl_unit_price_stock_ht, manual_unit_price_stock_ht, inventory_items(name, unit), purchase_order_lines(purchase_to_stock_ratio)")
       .in("delivery_note_id", noteIds);
+
+    const notesSorted = [...(notes ?? [])] as {
+      id: string;
+      created_at: string | null;
+      status: string;
+    }[];
+    notesSorted.sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return ta - tb;
+    });
+    const noteChronoRank = new Map<string, number>();
+    notesSorted.forEach((n, idx) => noteChronoRank.set(n.id, idx));
+
+    type DnLineRow = {
+      id: string;
+      delivery_note_id: string;
+      inventory_item_id: string | null;
+      sort_order?: number;
+      label?: string | null;
+      unit?: string | null;
+      qty_delivered?: unknown;
+      qty_received?: unknown;
+      bl_line_total_ht?: unknown;
+      bl_unit_price_stock_ht?: unknown;
+      manual_unit_price_stock_ht?: unknown;
+      inventory_items?: { name?: string; unit?: string } | { name?: string; unit?: string }[] | null;
+      purchase_order_lines?: { purchase_to_stock_ratio?: unknown } | { purchase_to_stock_ratio?: unknown }[] | null;
+    };
+    const rowsOrdered = [...(lines ?? [])] as DnLineRow[];
+    rowsOrdered.sort((a, b) => {
+      const ra = noteChronoRank.get(a.delivery_note_id) ?? 999;
+      const rb = noteChronoRank.get(b.delivery_note_id) ?? 999;
+      if (ra !== rb) return ra - rb;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
 
     const byNote: Record<
       string,
@@ -2080,19 +2155,8 @@ export async function getSupplierInvoiceWithDeliveryNotes(
     for (const nid of noteIds) {
       byNote[nid] = { lines_count: 0, with_product: 0, without_product: 0 };
     }
-    for (const row of lines ?? []) {
-      const r = row as {
-        delivery_note_id: string;
-        inventory_item_id: string | null;
-        label?: string | null;
-        qty_delivered?: unknown;
-        qty_received?: unknown;
-        bl_line_total_ht?: unknown;
-        bl_unit_price_stock_ht?: unknown;
-        manual_unit_price_stock_ht?: unknown;
-        inventory_items?: { name?: string } | { name?: string }[] | null;
-        purchase_order_lines?: { purchase_to_stock_ratio?: unknown } | { purchase_to_stock_ratio?: unknown }[] | null;
-      };
+    for (const row of rowsOrdered) {
+      const r = row;
       const nid = r.delivery_note_id;
       const hasProduct = r.inventory_item_id != null;
       if (byNote[nid]) {
@@ -2105,11 +2169,19 @@ export async function getSupplierInvoiceWithDeliveryNotes(
         invRaw && typeof (invRaw as { name?: string }).name === "string"
           ? (invRaw as { name: string }).name
           : null;
+      const stockUnit =
+        invRaw && typeof (invRaw as { unit?: string }).unit === "string"
+          ? (invRaw as { unit: string }).unit
+          : null;
       const polRaw = Array.isArray(r.purchase_order_lines) ? r.purchase_order_lines[0] : r.purchase_order_lines;
       const ratioRaw = polRaw?.purchase_to_stock_ratio;
       receptionLineRefs.push({
+        deliveryNoteId: r.delivery_note_id,
+        deliveryNoteLineId: r.id,
         label: r.label == null ? null : String(r.label),
         itemName,
+        purchaseUnit: r.unit == null ? null : String(r.unit),
+        stockUnit,
         qtyDeliveredPurchase: r.qty_delivered == null ? null : Number(r.qty_delivered),
         qtyReceivedStock: r.qty_received == null ? null : Number(r.qty_received),
         purchaseToStockRatio: ratioRaw == null ? null : Number(ratioRaw),
@@ -2119,7 +2191,7 @@ export async function getSupplierInvoiceWithDeliveryNotes(
       });
     }
 
-    deliveryNotes = (notes ?? []).map((n: { id: string; created_at: string | null; status: string }) => {
+    deliveryNotes = notesSorted.map((n: { id: string; created_at: string | null; status: string }) => {
       const agg = byNote[n.id] ?? { lines_count: 0, with_product: 0, without_product: 0 };
       return {
         id: n.id,

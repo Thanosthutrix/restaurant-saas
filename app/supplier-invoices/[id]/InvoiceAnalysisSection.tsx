@@ -86,6 +86,54 @@ export function InvoiceAnalysisSection({ analysisView, analysis_status, analysis
             </div>
           </dl>
 
+          {analysisView!.vendor &&
+          Object.values(analysisView!.vendor).some((x) => x != null && String(x).trim() !== "") ? (
+            <div className="mb-4 rounded border border-slate-200 bg-white px-3 py-2 text-sm">
+              <p className="mb-1 text-xs font-medium text-slate-600">Émetteur détecté sur la facture</p>
+              <dl className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+                {analysisView!.vendor.legal_name ? (
+                  <div>
+                    <dt className="text-slate-500">Raison sociale</dt>
+                    <dd className="text-slate-900">{fmt(analysisView!.vendor.legal_name)}</dd>
+                  </div>
+                ) : null}
+                {analysisView!.vendor.siret ? (
+                  <div>
+                    <dt className="text-slate-500">SIRET</dt>
+                    <dd className="text-slate-900">{fmt(analysisView!.vendor.siret)}</dd>
+                  </div>
+                ) : null}
+                {analysisView!.vendor.vat_number ? (
+                  <div>
+                    <dt className="text-slate-500">N° TVA</dt>
+                    <dd className="text-slate-900">{fmt(analysisView!.vendor.vat_number)}</dd>
+                  </div>
+                ) : null}
+                {analysisView!.vendor.email ? (
+                  <div>
+                    <dt className="text-slate-500">E-mail</dt>
+                    <dd className="text-slate-900">{fmt(analysisView!.vendor.email)}</dd>
+                  </div>
+                ) : null}
+                {analysisView!.vendor.phone ? (
+                  <div>
+                    <dt className="text-slate-500">Téléphone</dt>
+                    <dd className="text-slate-900">{fmt(analysisView!.vendor.phone)}</dd>
+                  </div>
+                ) : null}
+                {analysisView!.vendor.address ? (
+                  <div className="sm:col-span-2">
+                    <dt className="text-slate-500">Adresse</dt>
+                    <dd className="text-slate-900">{fmt(analysisView!.vendor.address)}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              <p className="mt-2 text-[11px] text-slate-500">
+                Ces champs servent à compléter la fiche fournisseur lorsque les zones correspondantes sont encore vides.
+              </p>
+            </div>
+          ) : null}
+
           <p className="mb-2 text-xs text-slate-500">
             Les totaux ligne sont attendus en <strong className="font-medium text-slate-600">HT</strong> pour correspondre au montant HT facture dans le rapprochement.
           </p>

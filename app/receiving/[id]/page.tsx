@@ -6,7 +6,10 @@ import {
   getDeliveryNoteFileUrl,
   getInventoryItems,
 } from "@/lib/db";
-import { fetchDeliveryLabelAliasMap } from "@/lib/inventoryDeliveryLabelAliases";
+import {
+  fetchDeliveryLabelAliasMap,
+  fetchDeliveryLabelConversionHintsMap,
+} from "@/lib/inventoryDeliveryLabelAliases";
 import { ReceivingClient } from "./ReceivingClient";
 import { BlAnalyzeButton } from "./BlAnalyzeButton";
 import { BlUploadSection } from "./BlUploadSection";
@@ -36,6 +39,9 @@ export default async function ReceivingPage({ params }: Props) {
 
   const deliveryLabelAliases = Object.fromEntries(
     await fetchDeliveryLabelAliasMap(restaurant.id, note.supplier_id)
+  );
+  const deliveryLabelConversionHints = Object.fromEntries(
+    await fetchDeliveryLabelConversionHintsMap(restaurant.id, note.supplier_id)
   );
 
   return (
@@ -115,6 +121,7 @@ export default async function ReceivingPage({ params }: Props) {
           deliveryNote={note}
           inventoryItems={inventoryItems}
           deliveryLabelAliases={deliveryLabelAliases}
+          deliveryLabelConversionHints={deliveryLabelConversionHints}
         />
       </div>
     </div>

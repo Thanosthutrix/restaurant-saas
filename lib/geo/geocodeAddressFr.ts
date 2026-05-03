@@ -26,7 +26,10 @@ type BanFeature = {
   };
 };
 
-export async function geocodeAddressFr(query: string): Promise<GeocodeFrResult | null> {
+export async function geocodeAddressFr(
+  query: string,
+  opts?: { noStore?: boolean }
+): Promise<GeocodeFrResult | null> {
   const q = query.trim();
   if (!q) return null;
 
@@ -36,7 +39,9 @@ export async function geocodeAddressFr(query: string): Promise<GeocodeFrResult |
 
   const res = await fetch(url.toString(), {
     headers: { "User-Agent": "RestaurantSaaS/1.0 (geocodage restaurant)" },
-    next: { revalidate: 60 * 60 * 24 * 30 },
+    ...(opts?.noStore
+      ? { cache: "no-store" as const }
+      : { next: { revalidate: 60 * 60 * 24 * 30 } }),
   });
 
   if (!res.ok) return null;

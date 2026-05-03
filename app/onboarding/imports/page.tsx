@@ -21,7 +21,9 @@ export default async function OnboardingImportsPage() {
         </Link>
         <h1 className={`mt-4 ${uiPageTitle}`}>Assistant d’import IA</h1>
         <p className={`mt-2 ${uiLead}`}>
-          Rejouez les étapes utiles de l’onboarding pour {restaurant.name}, sans recréer le restaurant.
+          Complétez votre restaurant sans tout saisir à la main : imports rejouables pour {restaurant.name}. Les factures
+          fournisseurs sont analysées pour proposer des tarifs d’achat et enrichir les fiches fournisseurs (coordonnées,
+          SIRET, TVA quand ils figurent sur le PDF).
         </p>
       </div>
       <div className={uiAuthCard}>

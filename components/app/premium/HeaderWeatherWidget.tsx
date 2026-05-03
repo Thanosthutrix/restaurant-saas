@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Cloud, CloudRain, CloudSun, Loader2, Sun } from "lucide-react";
 import type { DailyWeatherPoint } from "@/lib/calendar/openMeteo";
 
@@ -68,6 +69,7 @@ export function HeaderWeatherWidget({
   initialHint?: WeatherHint | null;
 }) {
   const fromLayout = shellHeaderReady === true;
+  const pathname = usePathname();
   const [data, setData] = useState<ApiOk | null>(() =>
     initialWeather && initialWeather.days?.length ? initialWeather : null
   );
@@ -91,11 +93,12 @@ export function HeaderWeatherWidget({
     }
 
     let cancelled = false;
+    const ac = new AbortController();
     (async () => {
       setLoading(true);
       setErr(null);
       try {
-        const res = await fetch("/api/weather/header");
+        const res = await fetch("/api/weather/header", { signal: ac.signal });
         const json = (await res.json()) as ApiOk & ApiErr;
         if (cancelled) return;
         if (!res.ok) {
@@ -117,7 +120,8 @@ export function HeaderWeatherWidget({
           setErr({ error: json.error ?? "unknown", restaurantId: json.restaurantId });
           setData(null);
         }
-      } catch {
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
         if (!cancelled) setErr({ error: "network" });
       } finally {
         if (!cancelled) setLoading(false);
@@ -125,8 +129,9 @@ export function HeaderWeatherWidget({
     })();
     return () => {
       cancelled = true;
+      ac.abort();
     };
-  }, [fromLayout, initialWeather, initialHint]);
+  }, [fromLayout, initialWeather, initialHint, pathname]);
 
   if (loading) {
     return (
@@ -152,11 +157,20 @@ export function HeaderWeatherWidget({
     );
   }
 
-  if (err?.error === "forecast_unavailable") {
+  if (
+    err?.error === "forecast_unavailable" ||
+    err?.error === "network" ||
+    err?.error === "unknown" ||
+    err?.error === "error"
+  ) {
     return (
       <span
-        className="hidden rounded-xl border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[11px] font-medium text-slate-500 sm:inline"
-        title="Réessayez plus tard"
+        className="inline-flex max-w-[200px] items-center truncate rounded-xl border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[11px] font-medium text-slate-500 sm:max-w-none"
+        title={
+          err?.error === "network"
+            ? "Vérifiez votre connexion"
+            : "Réessayez plus tard ou vérifiez l’adresse du restaurant"
+        }
       >
         Météo indisponible
       </span>

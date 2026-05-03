@@ -11,11 +11,23 @@ export type SupplierInvoiceAnalysisLine = {
   line_total: number | null;
 };
 
+/** Infos vendeur lues sur la facture (émetteur), pour préremplir la fiche fournisseur. */
+export type SupplierInvoiceVendorHint = {
+  legal_name: string | null;
+  address: string | null;
+  email: string | null;
+  phone: string | null;
+  vat_number: string | null;
+  siret: string | null;
+};
+
 export type SupplierInvoiceAnalysisView = {
   invoice_number: string | null;
   invoice_date: string | null;
   amount_ht: number | null;
   amount_ttc: number | null;
+  /** Fournisseur émetteur (champ optionnel selon version d’analyse). */
+  vendor: SupplierInvoiceVendorHint | null;
   lines: SupplierInvoiceAnalysisLine[];
   raw_text: string | null;
 };
@@ -99,6 +111,8 @@ export function parseSupplierInvoiceAnalysis(json: unknown): SupplierInvoiceAnal
     if (line) lines.push(line);
   }
 
+  const vendor = parseVendorBlock(obj);
+
   return {
     invoice_number:
       str(header.invoice_number) ?? str(header.number) ?? str(obj.invoice_number) ?? str(obj.number) ?? null,
@@ -110,8 +124,43 @@ export function parseSupplierInvoiceAnalysis(json: unknown): SupplierInvoiceAnal
       null,
     amount_ht,
     amount_ttc,
+    vendor,
     lines,
     raw_text: str(obj.raw_text) ?? str(obj.rawText) ?? str(obj.raw) ?? null,
+  };
+}
+
+function parseVendorBlock(obj: Record<string, unknown>): SupplierInvoiceVendorHint | null {
+  const header = obj.header && typeof obj.header === "object" ? (obj.header as Record<string, unknown>) : null;
+  const raw =
+    obj.vendor ??
+    obj.supplier ??
+    obj.emitter ??
+    header?.vendor ??
+    header?.supplier ??
+    null;
+  if (!raw || typeof raw !== "object") return null;
+  const v = raw as Record<string, unknown>;
+  const legal_name =
+    str(v.legal_name) ??
+    str(v.company_name) ??
+    str(v.name) ??
+    str(v.raison_sociale) ??
+    null;
+  const address = str(v.address) ?? str(v.adresse) ?? null;
+  const email = str(v.email) ?? null;
+  const phone = str(v.phone) ?? str(v.telephone) ?? str(v.tel) ?? null;
+  const vat_number =
+    str(v.vat_number) ?? str(v.vat) ?? str(v.numero_tva) ?? str(v.tva_intracommunautaire) ?? null;
+  const siret = str(v.siret) ?? str(v.siren) ?? null;
+  if (!legal_name && !address && !email && !phone && !vat_number && !siret) return null;
+  return {
+    legal_name,
+    address,
+    email,
+    phone,
+    vat_number,
+    siret,
   };
 }
 

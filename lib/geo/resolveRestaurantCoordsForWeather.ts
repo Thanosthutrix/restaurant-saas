@@ -15,7 +15,8 @@ export async function resolveRestaurantCoordsForWeather(r: {
   }
   const addr = r.address_text?.trim();
   if (!addr) return null;
-  const geo = await geocodeAddressFr(addr);
+  /** Géocodage sans cache long : cohérent avec une adresse tout juste enregistrée. */
+  const geo = await geocodeAddressFr(addr, { noStore: true });
   if (!geo) return null;
   return { latitude: geo.latitude, longitude: geo.longitude };
 }

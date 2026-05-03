@@ -24,7 +24,7 @@ import {
   uiSelect,
   uiSuccess,
 } from "@/components/ui/premium";
-import { analyzeOnboardingImportDocuments, importOnboardingBusinessDocuments } from "./actions";
+import { analyzeOnboardingImportDocuments, importOnboardingBusinessDocuments, importOnboardingRevenueDocuments } from "./actions";
 
 type SupplierOption = { id: string; name: string };
 
@@ -180,43 +180,69 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
 
   async function submitBusinessImports(e: React.FormEvent) {
     e.preventDefault();
-    setBusinessError(null);
-    setBusinessResult(null);
     if (deliveryFiles.length === 0 && invoiceFiles.length === 0 && revenueFiles.length === 0) {
       setBusinessError("Ajoutez au moins un BL, une facture ou un relevé de CA.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("delivery_supplier_id", deliverySupplierId);
-    formData.append("delivery_supplier_name", deliverySupplierName);
-    formData.append("invoice_supplier_id", invoiceSupplierId);
-    formData.append("invoice_supplier_name", invoiceSupplierName);
-    for (const file of deliveryFiles) formData.append("delivery_note_file", file);
-    for (const file of invoiceFiles) formData.append("supplier_invoice_file", file);
-    for (const file of revenueFiles) formData.append("revenue_statement_image", file);
-
     setBusinessPending(true);
-    const result = await importOnboardingBusinessDocuments(formData);
+    setBusinessError(null);
+    setBusinessResult(null);
+
+    const mergedErrors: string[] = [];
+    let deliveryNotesCreated = 0;
+    let supplierInvoicesCreated = 0;
+    let revenueMonthsImported = 0;
+    let purchasePriceSuggestions: PendingOnboardingPurchasePricesStored["items"] = [];
+
+    if (deliveryFiles.length > 0 || invoiceFiles.length > 0) {
+      const formData = new FormData();
+      formData.append("delivery_supplier_id", deliverySupplierId);
+      formData.append("delivery_supplier_name", deliverySupplierName);
+      formData.append("invoice_supplier_id", invoiceSupplierId);
+      formData.append("invoice_supplier_name", invoiceSupplierName);
+      for (const file of deliveryFiles) formData.append("delivery_note_file", file);
+      for (const file of invoiceFiles) formData.append("supplier_invoice_file", file);
+
+      const result = await importOnboardingBusinessDocuments(formData);
+      deliveryNotesCreated = result.deliveryNotesCreated;
+      supplierInvoicesCreated = result.supplierInvoicesCreated;
+      purchasePriceSuggestions = result.purchasePriceSuggestions;
+      mergedErrors.push(...result.errors);
+    }
+
+    for (const file of revenueFiles) {
+      const fd = new FormData();
+      fd.append("revenue_statement_image", file);
+      const rev = await importOnboardingRevenueDocuments(fd);
+      revenueMonthsImported += rev.revenueMonthsImported;
+      mergedErrors.push(...rev.errors);
+    }
+
+    const anyImport =
+      deliveryNotesCreated + supplierInvoicesCreated + revenueMonthsImported > 0;
+    const importOk = anyImport || mergedErrors.length === 0;
+
     setBusinessPending(false);
-    if (!result.ok) {
-      setBusinessError(result.errors.join(" ") || "Import impossible.");
+    if (!importOk) {
+      setBusinessError(mergedErrors.join(" ") || "Import impossible.");
       return;
     }
+
     setBusinessResult({
-      deliveryNotesCreated: result.deliveryNotesCreated,
-      supplierInvoicesCreated: result.supplierInvoicesCreated,
-      revenueMonthsImported: result.revenueMonthsImported,
-      errors: result.errors,
+      deliveryNotesCreated,
+      supplierInvoicesCreated,
+      revenueMonthsImported,
+      errors: mergedErrors,
     });
     setDeliveryFiles([]);
     setInvoiceFiles([]);
     setRevenueFiles([]);
-    if (result.purchasePriceSuggestions.length > 0) {
+    if (purchasePriceSuggestions.length > 0) {
       try {
         const payload: PendingOnboardingPurchasePricesStored = {
           v: 1,
-          items: result.purchasePriceSuggestions,
+          items: purchasePriceSuggestions,
         };
         sessionStorage.setItem(PENDING_ONBOARDING_PURCHASE_PRICES_KEY, JSON.stringify(payload));
       } catch {
@@ -270,10 +296,15 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
 
       <form onSubmit={submitBusinessImports} className={`${uiCard} space-y-5`}>
         <div>
-          <h2 className={uiSectionTitleSm}>BL, factures fournisseurs et CA</h2>
+          <h2 className={uiSectionTitleSm}>Factures, BL et CA</h2>
           <p className={`mt-1 ${uiMuted}`}>
-            Les BL et factures alimentent les registres existants. Les relevés de CA créent un historique mensuel pour
-            les futures projections.
+            <span className="font-medium text-slate-800">Factures fournisseurs (recommandé)</span> : l’IA lit les lignes
+            produits (libellé, quantités, prix HT) et en déduit des propositions de{" "}
+            <strong>tarifs d’achat de référence</strong> sur la page suivante, en les rattachant à vos ingrédients
+            existants quand c’est possible. Vous pouvez laisser le fournisseur vide : chaque fichier est alors attribué
+            automatiquement au bon fournisseur (création ou rapprochement à partir de la facture). Sinon, choisissez ou
+            saisissez un fournisseur pour forcer l’attribution. Les <strong>BL</strong> exigent encore un fournisseur
+            choisi ou nommé. Les <strong>relevés de CA</strong> alimentent l’historique mensuel.
           </p>
         </div>
 
@@ -316,7 +347,12 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
         </section>
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Factures fournisseurs</h3>
+          <h3 className="text-sm font-semibold text-slate-900">Factures fournisseurs → tarifs + fiche fournisseur</h3>
+          <p className={uiMuted}>
+            Après import, si l’analyse a trouvé des montants, vous serez redirigé vers l’écran de validation des{" "}
+            <strong>tarifs d’achat</strong> (session en cours). L’analyse des PDF et images de facture suppose une clé
+            API OpenAI configurée sur l’environnement du serveur.
+          </p>
           <SupplierPicker
             label="Fournisseur des factures"
             suppliers={suppliers}
@@ -325,6 +361,12 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
             supplierName={invoiceSupplierName}
             setSupplierName={setInvoiceSupplierName}
           />
+          <p className="text-[11px] leading-snug text-slate-600">
+            Laissez la liste sur « Nouveau fournisseur » et le nom vide : chaque fichier est analysé, le fournisseur est{" "}
+            <strong>rapproché</strong> (nom, SIRET dans les notes, similarité) ou <strong>créé</strong> avec les données
+            lues sur la facture. Sinon, choisissez un fournisseur ou saisissez un nom pour attribuer toutes les factures à
+            ce fournisseur.
+          </p>
           <input
             type="file"
             accept=".pdf,image/*"
@@ -345,8 +387,9 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Relevés mensuels de CA</h3>
           <p className={uiMuted}>
-            Import image pour l’instant : relevé mensuel, export caisse ou tableau de CA. Les PDF pourront être ajoutés
-            ensuite.
+            Import image pour l’instant : relevé mensuel, export caisse ou tableau de CA. Vous pouvez en sélectionner
+            plusieurs : chaque fichier est traité dans une requête séparée pour éviter les erreurs de taille. Les PDF
+            pourront être ajoutés ensuite.
           </p>
           <input
             type="file"

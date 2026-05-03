@@ -35,6 +35,13 @@ async function preprocessImageFromUrl(imageUrl: string): Promise<string> {
   return `data:image/jpeg;base64,${processed.toString("base64")}`;
 }
 
+async function pdfDataUrlFromUrl(fileUrl: string): Promise<string> {
+  const res = await fetch(fileUrl);
+  if (!res.ok) throw new Error(`Téléchargement du PDF : ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return `data:application/pdf;base64,${buffer.toString("base64")}`;
+}
+
 const INVOICE_PROMPT = `
 Tu es un assistant qui lit une facture fournisseur (restauration / alimentaire).
 Retourne UNIQUEMENT un JSON valide, sans texte avant ou après, au format exact :
@@ -44,6 +51,14 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ou après, au format exact 
   "invoice_date": string | null,
   "amount_ht": number | null,
   "amount_ttc": number | null,
+  "vendor": {
+    "legal_name": string | null,
+    "address": string | null,
+    "email": string | null,
+    "phone": string | null,
+    "vat_number": string | null,
+    "siret": string | null
+  },
   "lines": [
     {
       "label": string,
@@ -65,6 +80,14 @@ Règles :
 - Extrais toutes les lignes de produits / prestations visibles (hors lignes de simple total TVA ou total TTC récapitulatif si ce ne sont pas des lignes d’article).
 - Si une information est illisible ou absente, mets null.
 - raw_text : court résumé ou extrait texte utile (optionnel, peut être null).
+
+Bloc vendor (vendeur / émetteur de la facture — pas le restaurant client) :
+- legal_name : raison sociale ou dénomination du fournisseur qui émet la facture.
+- address : adresse complète du siège ou établissement émetteur si visible.
+- email, phone : coordonnées du fournisseur imprimées sur le document.
+- vat_number : numéro de TVA intracommunautaire (ex. FR…).
+- siret : SIRET ou identifiant d’établissement français si présent.
+Ne pas remplir vendor avec les coordonnées du client facturé (votre restaurant).
 `;
 
 export type SupplierInvoiceOpenAiResult = {
@@ -75,11 +98,10 @@ export type SupplierInvoiceOpenAiResult = {
 export type AnalyzeSupplierInvoiceOutcome =
   | { kind: "success"; result: SupplierInvoiceOpenAiResult }
   | { kind: "error"; message: string }
-  | { kind: "skipped_pdf"; message: string }
   | { kind: "skipped_no_key"; message: string };
 
 /**
- * Analyse le document facture (image). Les PDF ne sont pas supportés en V1.
+ * Analyse le document facture (image ou PDF).
  * @param publicUrl URL publique du fichier (Storage)
  * @param fileName nom d’origine (détection PDF / image)
  */
@@ -95,11 +117,29 @@ export async function analyzeSupplierInvoiceDocument(
   }
 
   if (isPdfFileName(fileName)) {
-    return {
-      kind: "skipped_pdf",
-      message:
-        "Les PDF ne sont pas analysés automatiquement en V1. Utilisez une image (JPG, PNG) ou complétez les champs manuellement.",
-    };
+    try {
+      const fileData = await pdfDataUrlFromUrl(publicUrl);
+      const response = await openai.responses.create({
+        model: "gpt-4o",
+        input: [
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: INVOICE_PROMPT },
+              { type: "input_file", filename: fileName || "facture.pdf", file_data: fileData },
+            ],
+          },
+        ],
+      });
+      const raw = response.output_text;
+      if (!raw) return { kind: "error", message: "Réponse vide du modèle d’analyse PDF." };
+      const jsonStr = extractJson(raw) ?? raw;
+      return { kind: "success", result: { json: JSON.parse(jsonStr) as Record<string, unknown> } };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Échec de l’analyse PDF";
+      console.error("[supplier-invoice-openai:pdf]", e);
+      return { kind: "error", message: msg };
+    }
   }
 
   if (!isLikelyImageFileName(fileName)) {

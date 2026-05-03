@@ -9,6 +9,7 @@ import {
   createSupplier,
   createSupplierInvoice,
   getInventoryItems,
+  getSupplierInvoiceFileUrl,
   getSuppliers,
 } from "@/lib/db";
 import { findInventoryMatchCandidates } from "@/lib/matching/findInventoryMatchCandidates";
@@ -19,9 +20,19 @@ import { analyzeMenuImageFromBuffer } from "@/lib/menu-analysis";
 import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestions";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
 import { analyzeRecipeImageFromBuffer, type RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
-import { analyzeRevenueStatementImageFromBuffer } from "@/lib/revenue-statement-analysis";
+import { analyzeRevenueStatementImageFromBuffer, REVENUE_EXTRACTION_VERSION } from "@/lib/revenue-statement-analysis";
+import { resolveOrCreateSupplierFromInvoiceVendor } from "@/lib/resolveSupplierFromInvoiceVendor";
 import { runDeliveryNoteAnalysis } from "@/lib/run-delivery-note-analysis";
-import { runSupplierInvoiceAnalysis } from "@/lib/run-supplier-invoice-analysis";
+import {
+  applySupplierInvoiceAnalysisResult,
+  runSupplierInvoiceAnalysis,
+} from "@/lib/run-supplier-invoice-analysis";
+import { parseSupplierInvoiceAnalysis } from "@/lib/supplier-invoice-analysis";
+import {
+  analyzeSupplierInvoiceDocument,
+  SUPPLIER_INVOICE_ANALYSIS_VERSION,
+  type AnalyzeSupplierInvoiceOutcome,
+} from "@/lib/supplier-invoice-openai";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export type AnalyzeOnboardingImportsResult = {
@@ -102,6 +113,41 @@ async function resolveSupplier(restaurantId: string, supplierId: string, supplie
   return { id: created.data.id, error: null };
 }
 
+async function persistOnboardingInvoiceAnalysis(
+  invoiceId: string,
+  restaurantId: string,
+  outcome: AnalyzeSupplierInvoiceOutcome
+): Promise<void> {
+  const now = new Date().toISOString();
+  if (outcome.kind === "skipped_no_key") {
+    await supabaseServer
+      .from("supplier_invoices")
+      .update({
+        analysis_status: "skipped",
+        analysis_error: outcome.message,
+        analysis_version: SUPPLIER_INVOICE_ANALYSIS_VERSION,
+        updated_at: now,
+      })
+      .eq("id", invoiceId)
+      .eq("restaurant_id", restaurantId);
+    return;
+  }
+  if (outcome.kind === "error") {
+    await supabaseServer
+      .from("supplier_invoices")
+      .update({
+        analysis_status: "error",
+        analysis_error: outcome.message,
+        analysis_version: SUPPLIER_INVOICE_ANALYSIS_VERSION,
+        updated_at: now,
+      })
+      .eq("id", invoiceId)
+      .eq("restaurant_id", restaurantId);
+    return;
+  }
+  await applySupplierInvoiceAnalysisResult(invoiceId, restaurantId, outcome.result.json);
+}
+
 async function collectPurchasePriceSuggestionsForInvoice(params: {
   restaurantId: string;
   invoiceId: string;
@@ -159,6 +205,77 @@ async function collectPurchasePriceSuggestionsForInvoice(params: {
     });
   }
   return suggestions;
+}
+
+async function processRevenueStatementFiles(
+  restaurant: { id: string },
+  revenueFiles: FormFile[]
+): Promise<{ revenueMonthsImported: number; errors: string[] }> {
+  let revenueMonthsImported = 0;
+  const errors: string[] = [];
+
+  for (const file of revenueFiles) {
+    if (file.type && !file.type.startsWith("image/")) {
+      errors.push(`${fileNameOf(file, "relevé CA")}: seuls les relevés CA en image sont analysés pour l’instant.`);
+      continue;
+    }
+    const result = await analyzeRevenueStatementImageFromBuffer(Buffer.from(await file.arrayBuffer()));
+    if (result.error) errors.push(`${fileNameOf(file, "relevé CA")}: ${result.error}`);
+    for (const row of result.suggestions) {
+      const { error } = await supabaseServer.from("restaurant_monthly_revenues").upsert(
+        {
+          restaurant_id: restaurant.id,
+          month: row.month,
+          revenue_ttc: row.revenue_ttc,
+          revenue_ht: row.revenue_ht,
+          source_label: row.label ?? fileNameOf(file, "relevé CA"),
+          notes: row.notes ?? null,
+          analysis_result_json: {
+            ...row,
+            document_notes: result.document_notes ?? null,
+            extraction_version: REVENUE_EXTRACTION_VERSION,
+          },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "restaurant_id,month" }
+      );
+      if (error) {
+        errors.push(`${row.month}: import CA impossible (${error.message}).`);
+      } else {
+        revenueMonthsImported++;
+      }
+    }
+  }
+
+  return { revenueMonthsImported, errors };
+}
+
+/** Import CA uniquement — une ou plusieurs images par appel (préférez une image par requête côté client pour limiter la taille du FormData). */
+export async function importOnboardingRevenueDocuments(formData: FormData): Promise<{
+  ok: boolean;
+  revenueMonthsImported: number;
+  errors: string[];
+}> {
+  const restaurant = await getRestaurantForPage();
+  if (!restaurant) redirect("/onboarding");
+
+  const revenueFiles = formData.getAll("revenue_statement_image").filter(isUsableFile);
+  if (revenueFiles.length === 0) {
+    return { ok: false, revenueMonthsImported: 0, errors: ["Aucune image de relevé CA."] };
+  }
+
+  const { revenueMonthsImported, errors } = await processRevenueStatementFiles(restaurant, revenueFiles);
+
+  if (revenueMonthsImported > 0) {
+    revalidatePath("/achats");
+    revalidatePath("/dashboard");
+  }
+
+  return {
+    ok: revenueMonthsImported > 0 || errors.length === 0,
+    revenueMonthsImported,
+    errors,
+  };
 }
 
 export async function analyzeOnboardingImportDocuments(
@@ -229,23 +346,21 @@ export async function importOnboardingBusinessDocuments(
 
   const deliveryFiles = formData.getAll("delivery_note_file").filter(isUsableFile);
   const invoiceFiles = formData.getAll("supplier_invoice_file").filter(isUsableFile);
-  const revenueFiles = formData.getAll("revenue_statement_image").filter(isUsableFile);
 
-  if (deliveryFiles.length === 0 && invoiceFiles.length === 0 && revenueFiles.length === 0) {
+  if (deliveryFiles.length === 0 && invoiceFiles.length === 0) {
     return {
       ok: false,
       deliveryNotesCreated: 0,
       supplierInvoicesCreated: 0,
       revenueMonthsImported: 0,
       purchasePriceSuggestions: [],
-      errors: ["Ajoutez au moins un BL, une facture ou un relevé de CA."],
+      errors: ["Ajoutez au moins un bon de livraison ou une facture fournisseur."],
     };
   }
 
   const errors: string[] = [];
   let deliveryNotesCreated = 0;
   let supplierInvoicesCreated = 0;
-  let revenueMonthsImported = 0;
   const purchasePriceSuggestions: PendingOnboardingPurchasePriceSuggestion[] = [];
 
   if (deliveryFiles.length > 0) {
@@ -288,19 +403,59 @@ export async function importOnboardingBusinessDocuments(
   }
 
   if (invoiceFiles.length > 0) {
-    const supplier = await resolveSupplier(
-      restaurant.id,
-      String(formData.get("invoice_supplier_id") ?? ""),
-      String(formData.get("invoice_supplier_name") ?? "")
-    );
-    if (!supplier.id) {
-      errors.push(`Factures : ${supplier.error}`);
+    const invoiceSupplierId = String(formData.get("invoice_supplier_id") ?? "").trim();
+    const invoiceSupplierName = String(formData.get("invoice_supplier_name") ?? "").trim();
+    const autoSupplierFromInvoice = !invoiceSupplierId && !invoiceSupplierName;
+
+    if (!autoSupplierFromInvoice) {
+      const supplier = await resolveSupplier(
+        restaurant.id,
+        invoiceSupplierId,
+        invoiceSupplierName
+      );
+      if (!supplier.id) {
+        errors.push(`Factures : ${supplier.error}`);
+      } else {
+        for (const file of invoiceFiles) {
+          const upload = await uploadFormFile({
+            bucket: SUPPLIER_INVOICES_BUCKET,
+            restaurantId: restaurant.id,
+            folder: `onboarding-invoices/${supplier.id}`,
+            file,
+            fallbackName: "facture-fournisseur.jpg",
+          });
+          if (upload.error) {
+            errors.push(`${upload.fileName}: upload facture impossible (${upload.error}).`);
+            continue;
+          }
+          const created = await createSupplierInvoice({
+            restaurantId: restaurant.id,
+            supplierId: supplier.id,
+            filePath: upload.path,
+            fileName: upload.fileName,
+          });
+          if (created.error || !created.data) {
+            errors.push(`${upload.fileName}: création facture impossible (${created.error?.message ?? "erreur inconnue"}).`);
+            continue;
+          }
+          supplierInvoicesCreated++;
+          const analysis = await runSupplierInvoiceAnalysis(created.data.id, restaurant.id);
+          if (!analysis.ok) errors.push(`${upload.fileName}: analyse facture à vérifier (${analysis.error}).`);
+          purchasePriceSuggestions.push(
+            ...(await collectPurchasePriceSuggestionsForInvoice({
+              restaurantId: restaurant.id,
+              invoiceId: created.data.id,
+              supplierId: supplier.id,
+            }))
+          );
+        }
+      }
     } else {
       for (const file of invoiceFiles) {
         const upload = await uploadFormFile({
           bucket: SUPPLIER_INVOICES_BUCKET,
           restaurantId: restaurant.id,
-          folder: `onboarding-invoices/${supplier.id}`,
+          folder: "onboarding-invoices/auto",
           file,
           fallbackName: "facture-fournisseur.jpg",
         });
@@ -308,9 +463,34 @@ export async function importOnboardingBusinessDocuments(
           errors.push(`${upload.fileName}: upload facture impossible (${upload.error}).`);
           continue;
         }
+
+        const publicUrl = getSupplierInvoiceFileUrl(upload.path);
+        if (!publicUrl) {
+          errors.push(`${upload.fileName}: URL fichier introuvable.`);
+          continue;
+        }
+
+        const outcome = await analyzeSupplierInvoiceDocument(publicUrl, upload.fileName);
+
+        let vendorFromAnalysis = null;
+        if (outcome.kind === "success") {
+          const view = parseSupplierInvoiceAnalysis(outcome.result.json);
+          vendorFromAnalysis = view?.vendor ?? null;
+        }
+
+        const resolved = await resolveOrCreateSupplierFromInvoiceVendor(
+          restaurant.id,
+          vendorFromAnalysis,
+          upload.fileName
+        );
+        if ("error" in resolved) {
+          errors.push(`${upload.fileName}: ${resolved.error}`);
+          continue;
+        }
+
         const created = await createSupplierInvoice({
           restaurantId: restaurant.id,
-          supplierId: supplier.id,
+          supplierId: resolved.id,
           filePath: upload.path,
           fileName: upload.fileName,
         });
@@ -319,44 +499,22 @@ export async function importOnboardingBusinessDocuments(
           continue;
         }
         supplierInvoicesCreated++;
-        const analysis = await runSupplierInvoiceAnalysis(created.data.id, restaurant.id);
-        if (!analysis.ok) errors.push(`${upload.fileName}: analyse facture à vérifier (${analysis.error}).`);
+
+        await persistOnboardingInvoiceAnalysis(created.data.id, restaurant.id, outcome);
+
+        if (outcome.kind === "error") {
+          errors.push(`${upload.fileName}: analyse facture (${outcome.message})`);
+        } else if (outcome.kind === "skipped_no_key") {
+          errors.push(`${upload.fileName}: analyse automatique indisponible (${outcome.message})`);
+        }
+
         purchasePriceSuggestions.push(
           ...(await collectPurchasePriceSuggestionsForInvoice({
             restaurantId: restaurant.id,
             invoiceId: created.data.id,
-            supplierId: supplier.id,
+            supplierId: resolved.id,
           }))
         );
-      }
-    }
-  }
-
-  for (const file of revenueFiles) {
-    if (file.type && !file.type.startsWith("image/")) {
-      errors.push(`${fileNameOf(file, "relevé CA")}: seuls les relevés CA en image sont analysés pour l’instant.`);
-      continue;
-    }
-    const result = await analyzeRevenueStatementImageFromBuffer(Buffer.from(await file.arrayBuffer()));
-    if (result.error) errors.push(`${fileNameOf(file, "relevé CA")}: ${result.error}`);
-    for (const row of result.suggestions) {
-      const { error } = await supabaseServer.from("restaurant_monthly_revenues").upsert(
-        {
-          restaurant_id: restaurant.id,
-          month: row.month,
-          revenue_ttc: row.revenue_ttc,
-          revenue_ht: row.revenue_ht,
-          source_label: row.label ?? fileNameOf(file, "relevé CA"),
-          notes: row.notes ?? null,
-          analysis_result_json: row,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "restaurant_id,month" }
-      );
-      if (error) {
-        errors.push(`${row.month}: import CA impossible (${error.message}).`);
-      } else {
-        revenueMonthsImported++;
       }
     }
   }
@@ -367,10 +525,10 @@ export async function importOnboardingBusinessDocuments(
   revalidatePath("/dashboard");
 
   return {
-    ok: deliveryNotesCreated + supplierInvoicesCreated + revenueMonthsImported > 0 || errors.length === 0,
+    ok: deliveryNotesCreated + supplierInvoicesCreated > 0 || errors.length === 0,
     deliveryNotesCreated,
     supplierInvoicesCreated,
-    revenueMonthsImported,
+    revenueMonthsImported: 0,
     purchasePriceSuggestions,
     errors,
   };

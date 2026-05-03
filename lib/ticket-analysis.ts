@@ -4,7 +4,7 @@ import sharp from "sharp";
 export const ANALYSIS_VERSION = "2";
 
 /** Version du cache JSON pour l’analyse BL (même pipeline que le relevé de caisse). */
-export const BL_ANALYSIS_VERSION = "1";
+export const BL_ANALYSIS_VERSION = "2";
 
 export type TicketItem = { name: string; qty: number };
 
@@ -15,6 +15,8 @@ export type BlDeliveryItem = {
   unit: string | null;
   unit_price_ht: number | null;
   line_total_ht: number | null;
+  /** Fragment conditionnement visible sur la ligne (ex. sac 20 kg), pour conversion stock. */
+  packaging_hint: string | null;
 };
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -113,7 +115,7 @@ Ignore only:
 const BL_STRICT_PROMPT = `
 Return only valid JSON, with no other text, in this exact format:
 
-{"items":[{"name":"string","qty":number,"unit":null,"unit_price_ht":null,"line_total_ht":null}]}
+{"items":[{"name":"string","qty":number,"unit":null,"unit_price_ht":null,"line_total_ht":null,"packaging_hint":null}]}
 
 You are analyzing a French supplier delivery note (bon de livraison).
 
@@ -133,6 +135,7 @@ Optional fields on each item (use null when absent or unreadable):
 - unit: unit of measure as printed (kg, L, PI, etc.)
 - unit_price_ht: unit price excluding VAT
 - line_total_ht: line amount HT
+- packaging_hint: literal packaging text from the line when useful for conversion (e.g. "sac 20 kg", "carton 6x1L"); null if not visible or not applicable
 
 Ignore only:
 - totals, subtotals, VAT summary lines
@@ -185,6 +188,7 @@ function normalizeBlItems(input: unknown): BlDeliveryItem[] {
         unit?: unknown;
         unit_price_ht?: unknown;
         line_total_ht?: unknown;
+        packaging_hint?: unknown;
       };
 
       const name =
@@ -197,6 +201,9 @@ function normalizeBlItems(input: unknown): BlDeliveryItem[] {
       const unit = unitRaw.length > 0 ? unitRaw : null;
       const unit_price_ht = parseNumericFieldBl(item.unit_price_ht);
       const line_total_ht = parseNumericFieldBl(item.line_total_ht);
+      const phRaw =
+        typeof item.packaging_hint === "string" ? item.packaging_hint.trim() : "";
+      const packaging_hint = phRaw.length > 0 ? phRaw : null;
 
       return {
         name,
@@ -204,6 +211,7 @@ function normalizeBlItems(input: unknown): BlDeliveryItem[] {
         unit,
         unit_price_ht: unit_price_ht != null && unit_price_ht > 0 ? unit_price_ht : null,
         line_total_ht: line_total_ht != null && line_total_ht > 0 ? line_total_ht : null,
+        packaging_hint,
       };
     })
     .filter((x) => x.name.length > 0);

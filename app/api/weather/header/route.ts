@@ -3,6 +3,9 @@ import { getRestaurantForPage, getCurrentUser } from "@/lib/auth";
 import { fetchSevenDayForecast } from "@/lib/calendar/openMeteo";
 import { resolveRestaurantCoordsForWeather } from "@/lib/geo/resolveRestaurantCoordsForWeather";
 
+/** Toujours relire le restaurant courant et les APIs externes (pas de réponse figée au build). */
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) {
@@ -22,7 +25,12 @@ export async function GET() {
     });
   }
 
-  const days = await fetchSevenDayForecast(coords.latitude, coords.longitude);
+  let days: Awaited<ReturnType<typeof fetchSevenDayForecast>>;
+  try {
+    days = await fetchSevenDayForecast(coords.latitude, coords.longitude);
+  } catch {
+    return NextResponse.json({ error: "forecast_unavailable", restaurantId: restaurant.id });
+  }
   if (!days?.length) {
     return NextResponse.json({ error: "forecast_unavailable", restaurantId: restaurant.id });
   }

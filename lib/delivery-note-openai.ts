@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import sharp from "sharp";
 
-export const DELIVERY_NOTE_ANALYSIS_VERSION = "6";
+export const DELIVERY_NOTE_ANALYSIS_VERSION = "7";
 
 /** Snapshot compatible sorties structurées (schéma JSON strict). */
 const DELIVERY_NOTE_MODEL = "gpt-4o-2024-08-06";
@@ -29,8 +29,20 @@ const DELIVERY_NOTE_LINE_JSON_SCHEMA = {
     unit: { anyOf: [{ type: "string" }, { type: "null" }] },
     unit_price_ht: { anyOf: [{ type: "number" }, { type: "null" }] },
     line_total_ht: { anyOf: [{ type: "number" }, { type: "null" }] },
+    packaging_hint: {
+      anyOf: [{ type: "string" }, { type: "null" }],
+      description:
+        "Fragment conditionnement visible sur la ligne (ex. sac 20 kg, carton 6x1L), tel quel si lisible ; null sinon.",
+    },
   },
-  required: ["label", "quantity", "unit", "unit_price_ht", "line_total_ht"],
+  required: [
+    "label",
+    "quantity",
+    "unit",
+    "unit_price_ht",
+    "line_total_ht",
+    "packaging_hint",
+  ],
 } as const;
 
 const DELIVERY_NOTE_ROOT_JSON_SCHEMA = {
@@ -137,6 +149,7 @@ Champ extraction_confidence :
 Autres règles :
 - N’invente pas de lignes. Champs numériques null si illisible. Décimales FR → nombre JSON.
 - Exclure totaux globaux, TVA récap seule, hors lignes articles.
+- packaging_hint : texte court copié depuis la ligne si un conditionnement est visible (sac/carton et poids/volume) ; null si absent ou illisible.
 
 En-tête : supplier_name_on_document, bl_number, delivery_date (YYYY-MM-DD) si lisibles, sinon null.
 raw_text : description factuelle courte. extraction_notes : utile si low/unreadable.`;

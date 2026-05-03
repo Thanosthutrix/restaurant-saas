@@ -124,7 +124,7 @@ export async function applyOnboardingPurchasePrices(
 
     const patch: Record<string, unknown> = {
       reference_purchase_unit_cost_ht: price,
-      updated_at: new Date().toISOString(),
+      unit,
     };
     if (row.supplier_id) patch.supplier_id = row.supplier_id;
 

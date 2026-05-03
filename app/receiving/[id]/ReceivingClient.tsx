@@ -4,24 +4,35 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { DeliveryNoteWithLines, InventoryItem, ReceptionTraceabilityPhoto } from "@/lib/db";
 import { supabase } from "@/lib/supabaseClient";
-import { DELIVERY_NOTES_BUCKET, TRACEABILITY_ELEMENT_LABEL_FR, TRACEABILITY_ELEMENT_TYPES } from "@/lib/constants";
+import {
+  ALLOWED_UNITS,
+  DELIVERY_NOTES_BUCKET,
+  STOCK_UNIT_LABEL_FR,
+  TRACEABILITY_ELEMENT_LABEL_FR,
+  TRACEABILITY_ELEMENT_TYPES,
+  type AllowedUnit,
+} from "@/lib/constants";
 import { Camera, Check, Loader2 } from "lucide-react";
 import {
   updateDeliveryNoteLinesAction,
   validateReceptionAction,
   addDeliveryNoteLineAction,
   setDeliveryNoteLineInventoryItemAction,
+  createInventoryItemFromDeliveryLineAction,
   saveDeliveryLabelAliasAction,
   recordTraceabilityPhotoAction,
   deleteTraceabilityPhotoAction,
   toggleDeliveryNoteLineVerifiedAction,
+  applyPurchaseConversionFromReceivingAction,
 } from "./actions";
+import Link from "next/link";
 import {
   findInventoryMatchCandidates,
   type InventoryCandidate,
 } from "@/lib/matching/findInventoryMatchCandidates";
 import { computeDeliveryLabelCore } from "@/lib/matching/deliveryLabelCore";
 import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
+import type { SavedBlConversionHint } from "@/lib/receiving/blStockConversion";
 
 function buildInventorySelectOptions(
   lineLabel: string,
@@ -139,17 +150,214 @@ function displayBlMoney(
   });
 }
 
+/** BL → stock : fiche composant, ligne commande, puis conversion mémorisée par libellé fournisseur. */
+function effectiveRatioForLine(
+  line: EditableLine,
+  inventoryItems: InventoryItem[],
+  conversionHints?: Map<string, SavedBlConversionHint>
+): number {
+  if (line.inventory_item_id) {
+    const item = inventoryItems.find((i) => i.id === line.inventory_item_id);
+    const u = item?.units_per_purchase;
+    if (u != null && Number.isFinite(Number(u)) && Number(u) > 0) return Number(u);
+  }
+  if (line.purchase_to_stock_ratio != null && line.purchase_to_stock_ratio > 0) {
+    return line.purchase_to_stock_ratio;
+  }
+  if (conversionHints && line.label) {
+    const normalized = normalizeInventoryItemName(line.label);
+    const core = computeDeliveryLabelCore(line.label);
+    const hint = conversionHints.get(normalized) ?? conversionHints.get(core);
+    if (hint && hint.stockUnitsPerPurchase > 0) return hint.stockUnitsPerPurchase;
+  }
+  return 1;
+}
+
+function getEffectiveRatio(
+  line: EditableLine,
+  inventoryItems: InventoryItem[],
+  conversionHints?: Map<string, SavedBlConversionHint>
+): number {
+  return effectiveRatioForLine(line, inventoryItems, conversionHints);
+}
+
+/** Unité BL ≠ stock et conversion connue (fiche, commande ou alias mémorisé). */
+function purchaseConversionIsConfigured(
+  line: EditableLine,
+  inventoryItems: InventoryItem[],
+  conversionHints?: Map<string, SavedBlConversionHint>
+): boolean {
+  if (!line.inventory_item_id || !line.unit || !line.stock_unit) return false;
+  if (
+    String(line.unit).trim().toLowerCase() ===
+    String(line.stock_unit).trim().toLowerCase()
+  ) {
+    return false;
+  }
+  const linked = inventoryItems.find((i) => i.id === line.inventory_item_id);
+  if (linked?.units_per_purchase != null && Number(linked.units_per_purchase) > 0) {
+    return true;
+  }
+  if (line.purchase_to_stock_ratio != null && line.purchase_to_stock_ratio > 0) {
+    return true;
+  }
+  if (conversionHints && line.label) {
+    const normalized = normalizeInventoryItemName(line.label);
+    const core = computeDeliveryLabelCore(line.label);
+    const hint = conversionHints.get(normalized) ?? conversionHints.get(core);
+    if (hint && hint.stockUnitsPerPurchase > 0) return true;
+  }
+  return false;
+}
+
+function LinePurchaseConversionFix({
+  line,
+  inventoryItems,
+  conversionHints,
+  restaurantId,
+  deliveryNoteId,
+  readOnly,
+  onApplied,
+}: {
+  line: EditableLine;
+  inventoryItems: InventoryItem[];
+  conversionHints?: Map<string, SavedBlConversionHint>;
+  restaurantId: string;
+  deliveryNoteId: string;
+  readOnly: boolean;
+  onApplied: () => void;
+}) {
+  const linkedItem = inventoryItems.find((i) => i.id === line.inventory_item_id);
+  const [pu, setPu] = useState("");
+  const [ratioStr, setRatioStr] = useState("");
+  const [pending, setPending] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!linkedItem) return;
+    const hint =
+      line.label && conversionHints
+        ? conversionHints.get(normalizeInventoryItemName(line.label)) ??
+          conversionHints.get(computeDeliveryLabelCore(line.label))
+        : undefined;
+    setPu(linkedItem.purchase_unit ?? line.unit ?? hint?.blPurchaseUnit ?? "");
+    const eff = effectiveRatioForLine(line, inventoryItems, conversionHints);
+    setRatioStr(String(eff));
+  }, [
+    linkedItem?.id,
+    linkedItem?.purchase_unit,
+    linkedItem?.units_per_purchase,
+    line.unit,
+    line.purchase_to_stock_ratio,
+    line.label,
+    line.id,
+    conversionHints,
+    inventoryItems,
+  ]);
+
+  if (!linkedItem || readOnly) return null;
+
+  const invItem = linkedItem;
+  const stockLabel = line.stock_unit ?? invItem.unit;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFeedback(null);
+    const ratio = Number(String(ratioStr).replace(",", "."));
+    if (!Number.isFinite(ratio) || ratio <= 0) {
+      setFeedback("Indiquez un nombre strictement positif (ex. 20000 pour 1 sac = 20 kg si le stock est en g).");
+      return;
+    }
+    setPending(true);
+    try {
+      const res = await applyPurchaseConversionFromReceivingAction({
+        restaurantId,
+        deliveryNoteId,
+        lineId: line.id,
+        inventoryItemId: invItem.id,
+        purchaseUnit: pu,
+        unitsPerPurchase: ratio,
+      });
+      if (!res.ok) {
+        setFeedback(res.error);
+        return;
+      }
+      onApplied();
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(e) => void handleSubmit(e)}
+      className="mt-2 space-y-2 rounded border border-indigo-200 bg-indigo-50/70 px-2 py-2"
+    >
+      <p className="text-xs font-medium text-indigo-950">Corriger la conversion achat → stock</p>
+      <p className="text-xs text-indigo-900/95">
+        Les recettes restent en <strong>{stockLabel}</strong> (ex. 500 g reste 500 g). Vous indiquez combien de{" "}
+        <strong>{stockLabel}</strong> correspondent à <strong>1 unité livrée</strong> sur le BL (ex. sac 20 kg → 20000
+        si le stock est en g).
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] font-medium text-indigo-900">Unité d&apos;achat (BL)</span>
+          <input
+            value={pu}
+            onChange={(e) => setPu(e.target.value)}
+            className="w-32 rounded border border-indigo-200 bg-white px-2 py-1 text-xs"
+            placeholder="sac, carton…"
+          />
+        </label>
+        <span className="pb-2 text-xs text-indigo-900">→</span>
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] font-medium text-indigo-900">
+            = combien de {stockLabel} ?
+          </span>
+          <input
+            value={ratioStr}
+            onChange={(e) => setRatioStr(e.target.value)}
+            inputMode="decimal"
+            className="w-32 rounded border border-indigo-200 bg-white px-2 py-1 text-xs"
+            placeholder="20000"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded bg-indigo-700 px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          {pending ? "…" : "Enregistrer et recalculer qté stock"}
+        </button>
+      </div>
+      <p className="text-[10px] text-indigo-900/85">
+        Qté reçue (stock) = qté livrée BL × ce nombre. La commande fournisseur liée est alignée si besoin.
+      </p>
+      <Link
+        href={`/inventory/${invItem.id}`}
+        className="inline-block text-[10px] font-medium text-indigo-700 underline decoration-indigo-300"
+      >
+        Fiche composant (achat avancé)
+      </Link>
+      {feedback ? <p className="text-xs text-rose-700">{feedback}</p> : null}
+    </form>
+  );
+}
+
 type Props = {
   deliveryNote: DeliveryNoteWithLines;
   inventoryItems: InventoryItem[];
   /** Libellés mémorisés (clé normalisée → inventory_item_id), pour suggestions et affichage. */
   deliveryLabelAliases: Record<string, string>;
+  /** Conversions BL → stock mémorisées (mêmes clés que les alias). */
+  deliveryLabelConversionHints?: Record<string, SavedBlConversionHint>;
 };
 
 export function ReceivingClient({
   deliveryNote,
   inventoryItems,
   deliveryLabelAliases,
+  deliveryLabelConversionHints = {},
 }: Props) {
   const [lines, setLines] = useState<EditableLine[]>(deliveryNote.lines as EditableLine[]);
   const [saving, startSaving] = useTransition();
@@ -160,11 +368,22 @@ export function ReceivingClient({
   const [validateError, setValidateError] = useState<string | null>(null);
   const [pendingInventoryLineId, setPendingInventoryLineId] = useState<string | null>(null);
   const [savingAliasLineId, setSavingAliasLineId] = useState<string | null>(null);
+  const [createProductLineId, setCreateProductLineId] = useState<string | null>(null);
+  const [createProductName, setCreateProductName] = useState("");
+  const [createProductUnit, setCreateProductUnit] = useState<AllowedUnit>("unit");
+  const [createProductType, setCreateProductType] = useState<"ingredient" | "prep" | "resale">("ingredient");
+  const [createProductError, setCreateProductError] = useState<string | null>(null);
+  const [creatingProductLineId, setCreatingProductLineId] = useState<string | null>(null);
   const router = useRouter();
 
   const deliveryLabelAliasMap = useMemo(
     () => new Map<string, string>(Object.entries(deliveryLabelAliases)),
     [deliveryLabelAliases]
+  );
+
+  const deliveryLabelConversionHintsMap = useMemo(
+    () => new Map<string, SavedBlConversionHint>(Object.entries(deliveryLabelConversionHints)),
+    [deliveryLabelConversionHints]
   );
 
   const readOnly = deliveryNote.status === "validated";
@@ -191,12 +410,6 @@ export function ReceivingClient({
   const [tracePhotoError, setTracePhotoError] = useState<string | null>(null);
   const [togglingVerifiedLineId, setTogglingVerifiedLineId] = useState<string | null>(null);
 
-  function getRatio(line: EditableLine): number {
-    return line.purchase_to_stock_ratio != null && line.purchase_to_stock_ratio > 0
-      ? line.purchase_to_stock_ratio
-      : 1;
-  }
-
   function onChangeLine(id: string, field: "qty_delivered" | "qty_received", value: string) {
     setLines((prev) =>
       prev.map((l): EditableLine => {
@@ -205,7 +418,7 @@ export function ReceivingClient({
         const parsed = Number(num);
         if (field === "qty_delivered") {
           const qtyDelivered = Number.isFinite(parsed) ? parsed : (Number(l.qty_delivered) || 0);
-          const ratio = getRatio(l);
+          const ratio = getEffectiveRatio(l, inventoryItems, deliveryLabelConversionHintsMap);
           const qtyReceived = Math.round(qtyDelivered * ratio * 1000) / 1000;
           return { ...l, qty_delivered: value, qty_received: String(qtyReceived) };
         }
@@ -319,7 +532,7 @@ export function ReceivingClient({
   }
 
   function computeDiffStock(line: EditableLine): number {
-    const ratio = getRatio(line);
+    const ratio = getEffectiveRatio(line, inventoryItems, deliveryLabelConversionHintsMap);
     const orderedStock = (Number(line.qty_ordered) || 0) * ratio;
     const received = getQty(line, "qty_received");
     return Math.round((received - orderedStock) * 1000) / 1000;
@@ -383,6 +596,42 @@ export function ReceivingClient({
       router.refresh();
     } finally {
       setSavingAliasLineId(null);
+    }
+  }
+
+  function openCreateProductForLine(line: EditableLine) {
+    setCreateProductLineId(line.id);
+    setCreateProductName(line.label.trim());
+    const normalizedLineUnit = String(line.unit ?? "").trim().toLowerCase();
+    const allowed = ALLOWED_UNITS.find((unit) => unit === normalizedLineUnit);
+    setCreateProductUnit(allowed ?? "unit");
+    setCreateProductType("ingredient");
+    setCreateProductError(null);
+  }
+
+  async function handleCreateProductFromLine(line: EditableLine) {
+    const name = createProductName.trim() || line.label.trim();
+    if (!name) {
+      setCreateProductError("Indiquez un nom de produit.");
+      return;
+    }
+    setCreatingProductLineId(line.id);
+    setCreateProductError(null);
+    try {
+      const res = await createInventoryItemFromDeliveryLineAction(
+        deliveryNote.id,
+        deliveryNote.restaurant_id,
+        line.id,
+        { name, unit: createProductUnit, itemType: createProductType }
+      );
+      if (!res.ok) {
+        setCreateProductError(res.error);
+        return;
+      }
+      setCreateProductLineId(null);
+      router.refresh();
+    } finally {
+      setCreatingProductLineId(null);
     }
   }
 
@@ -522,8 +771,8 @@ export function ReceivingClient({
                   <th className="pb-2 pr-2">Produit / libellé</th>
                   <th className="pb-2 pr-2 text-right">Qté commandée (achat)</th>
                   <th className="pb-2 pr-2 text-right">Qté livrée (achat)</th>
-                  <th className="pb-2 pr-2 text-right">Qté reçue (stock)</th>
                   <th className="pb-2 pr-2">Unité achat</th>
+                  <th className="pb-2 pr-2 text-right">Qté reçue (stock)</th>
                   <th className="pb-2 pr-2">Unité stock</th>
                   <th
                     className="pb-2 pr-2 text-right min-w-[4.5rem]"
@@ -665,6 +914,125 @@ export function ReceivingClient({
                                 ))}
                               </optgroup>
                             </select>
+                            {line.inventory_item_id &&
+                              line.unit &&
+                              line.stock_unit &&
+                              String(line.unit).trim().toLowerCase() !==
+                                String(line.stock_unit).trim().toLowerCase() &&
+                              (purchaseConversionIsConfigured(
+                                line,
+                                inventoryItems,
+                                deliveryLabelConversionHintsMap
+                              ) ? (
+                                <p className="mt-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-900">
+                                  Conversion mise en place (unité d&apos;achat → stock).
+                                </p>
+                              ) : (
+                                <>
+                                  <p className="mt-1 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+                                    Unité BL différente de l’unité stock ({line.unit} ≠ {line.stock_unit}). Corrigez la
+                                    conversion ci-dessous : les recettes restent dans l’unité stock (ex. 500 g), seule la
+                                    ligne de livraison est recalculée.
+                                  </p>
+                                  <LinePurchaseConversionFix
+                                    line={line}
+                                    inventoryItems={inventoryItems}
+                                    conversionHints={deliveryLabelConversionHintsMap}
+                                    restaurantId={deliveryNote.restaurant_id}
+                                    deliveryNoteId={deliveryNote.id}
+                                    readOnly={readOnly}
+                                    onApplied={() => router.refresh()}
+                                  />
+                                </>
+                              ))}
+                            {!line.inventory_item_id && (
+                              <button
+                                type="button"
+                                onClick={() => openCreateProductForLine(line)}
+                                className="mt-1.5 block text-left text-xs font-medium text-emerald-700 underline decoration-emerald-300 hover:text-emerald-900"
+                              >
+                                Créer un produit depuis ce libellé BL
+                              </button>
+                            )}
+                            {createProductLineId === line.id && (
+                              <div className="mt-2 space-y-2 rounded border border-emerald-200 bg-emerald-50/80 p-2">
+                                <label className="block">
+                                  <span className="mb-0.5 block text-xs font-medium text-emerald-950">
+                                    Nom produit
+                                  </span>
+                                  <input
+                                    value={createProductName}
+                                    onChange={(e) => setCreateProductName(e.target.value)}
+                                    className="w-full rounded border border-emerald-200 bg-white px-2 py-1 text-xs"
+                                  />
+                                </label>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  <label className="block">
+                                    <span className="mb-0.5 block text-xs font-medium text-emerald-950">
+                                      Unité stock
+                                    </span>
+                                    <select
+                                      value={createProductUnit}
+                                      onChange={(e) => setCreateProductUnit(e.target.value as AllowedUnit)}
+                                      className="w-full rounded border border-emerald-200 bg-white px-2 py-1 text-xs"
+                                    >
+                                      {ALLOWED_UNITS.map((unit) => (
+                                        <option key={unit} value={unit}>
+                                          {STOCK_UNIT_LABEL_FR[unit]}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label className="block">
+                                    <span className="mb-0.5 block text-xs font-medium text-emerald-950">
+                                      Type
+                                    </span>
+                                    <select
+                                      value={createProductType}
+                                      onChange={(e) =>
+                                        setCreateProductType(e.target.value as "ingredient" | "prep" | "resale")
+                                      }
+                                      className="w-full rounded border border-emerald-200 bg-white px-2 py-1 text-xs"
+                                    >
+                                      <option value="ingredient">Ingrédient</option>
+                                      <option value="prep">Préparation</option>
+                                      <option value="resale">Revente</option>
+                                    </select>
+                                  </label>
+                                </div>
+                                {line.unit &&
+                                  String(line.unit).trim().toLowerCase() !==
+                                    String(createProductUnit).trim().toLowerCase() && (
+                                    <p className="text-xs text-amber-900">
+                                      L’unité BL est “{line.unit}”. Si vous choisissez “{createProductUnit}” comme
+                                      unité stock, ajustez la quantité reçue stock et les recettes concernées.
+                                    </p>
+                                  )}
+                                {createProductError ? (
+                                  <p className="text-xs text-red-700" role="alert">
+                                    {createProductError}
+                                  </p>
+                                ) : null}
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={creatingProductLineId === line.id}
+                                    onClick={() => void handleCreateProductFromLine(line)}
+                                    className="rounded bg-emerald-700 px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                                  >
+                                    {creatingProductLineId === line.id ? "Création…" : "Créer et lier"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={creatingProductLineId === line.id}
+                                    onClick={() => setCreateProductLineId(null)}
+                                    className="rounded border border-emerald-300 bg-white px-2 py-1 text-xs font-semibold text-emerald-900"
+                                  >
+                                    Annuler
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                             {line.inventory_item_id && line.label.trim() && !memoized && (
                               <button
                                 type="button"
@@ -716,6 +1084,9 @@ export function ReceivingClient({
                           />
                         )}
                       </td>
+                      <td className="py-2 pr-2 text-slate-600">
+                        <span className="inline-flex h-9 min-h-9 items-center">{line.unit ?? "—"}</span>
+                      </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
                           <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
@@ -735,9 +1106,6 @@ export function ReceivingClient({
                             className="box-border h-9 min-h-9 w-20 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
-                      </td>
-                      <td className="py-2 pr-2 text-slate-600">
-                        <span className="inline-flex h-9 min-h-9 items-center">{line.unit ?? "—"}</span>
                       </td>
                       <td className="py-2 pr-2 text-slate-600">
                         <span className="inline-flex h-9 min-h-9 items-center">{line.stock_unit ?? "—"}</span>

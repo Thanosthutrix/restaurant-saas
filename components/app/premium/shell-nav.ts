@@ -21,6 +21,8 @@ import {
   BookUser,
   CalendarCheck,
   Archive,
+  TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
 
@@ -156,7 +158,15 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     icon: CalendarDays,
     navKey: "insights",
     group: "Registres",
-    match: (p) => p.startsWith("/insights"),
+    match: (p) => p.startsWith("/insights/calendar"),
+  },
+  {
+    href: "/insights/ventes",
+    label: "Analyse des ventes",
+    icon: BarChart3,
+    navKey: "insights",
+    group: "Registres",
+    match: (p) => p.startsWith("/insights/ventes"),
   },
   {
     href: "/livraison",

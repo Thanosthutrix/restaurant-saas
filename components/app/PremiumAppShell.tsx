@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Menu, X } from "lucide-react";
+import { ChevronLeft, LogOut, Menu, X } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 import { SHELL_NAV_ITEMS, isBareShellPath } from "@/components/app/premium/shell-nav";
 import { HeaderRestaurantSelect } from "@/components/app/premium/HeaderRestaurantSelect";
@@ -68,7 +68,7 @@ function NavLinks({
             const Icon = item.icon;
             return (
               <Link
-                key={item.navKey}
+                key={item.href}
                 href={item.href}
                 onClick={onNavigate}
                 className={`${sidebarLinkBase} ${active ? sidebarActive : sidebarIdle}`}
@@ -98,6 +98,14 @@ export function PremiumAppShell({
   const [clientBootstrap, setClientBootstrap] = useState<ShellClientPayload | null>(null);
   const prefetchedRef = useRef(false);
   const shellPayload = headerBootstrap ?? clientBootstrap;
+
+  function handleNavigateBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/dashboard");
+    }
+  }
 
   useEffect(() => {
     if (bare || headerBootstrap) return;
@@ -235,6 +243,15 @@ export function PremiumAppShell({
                 onClick={() => setMobileNavOpen((o) => !o)}
               >
                 {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigateBack()}
+                className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] sm:px-3"
+                aria-label="Revenir à la page précédente"
+              >
+                <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
+                Retour
               </button>
               <HeaderRestaurantSelect
                 clientFetchEnabled={false}

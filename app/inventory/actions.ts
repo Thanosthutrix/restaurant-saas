@@ -449,7 +449,7 @@ export async function updateInventoryItemSupplier(params: {
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/inventory");
-  revalidatePath("/inventory/[id]", "page");
+  revalidatePath(`/inventory/${itemId}`);
   revalidatePath("/orders/suggestions", "page");
   return { ok: true };
 }

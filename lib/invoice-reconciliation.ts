@@ -42,6 +42,36 @@ export function labelsRoughlyMatch(extractedLabel: string, receptionLabel: strin
   return false;
 }
 
+/**
+ * Score de similarité pour choisir la meilleure ligne BL parmi plusieurs candidats
+ * (évite d’apparier la facture ligne 2 avec le mauvais BL quand plusieurs libellés se ressemblent).
+ * Retourne -1 si aucune correspondance grossière.
+ */
+export function labelMatchStrength(
+  extractedLabel: string,
+  receptionLabel: string | null,
+  itemName: string | null
+): number {
+  if (!labelsRoughlyMatch(extractedLabel, receptionLabel, itemName)) return -1;
+  const a = normalizeLabel(extractedLabel);
+  if (a.length < 2) return 1;
+  let best = 1;
+  for (const cand of [receptionLabel, itemName].filter(Boolean) as string[]) {
+    const b = normalizeLabel(cand);
+    if (b.length < 2) continue;
+    let s = 0;
+    if (a === b) s += 80;
+    else if (a.includes(b) || b.includes(a)) s += 25;
+    const aw = new Set(a.split(" ").filter((w) => w.length >= 2));
+    for (const w of b.split(" ").filter((x) => x.length >= 2)) {
+      if (aw.has(w)) s += 5;
+      else if ([...aw].some((x) => x.includes(w) || w.includes(x))) s += 2;
+    }
+    best = Math.max(best, s);
+  }
+  return best;
+}
+
 export type InvoiceReconciliationSummary = {
   extracted_lines_count: number;
   reception_lines_count: number;
@@ -59,8 +89,12 @@ export type InvoiceReconciliationSummary = {
 };
 
 export type InvoiceReceptionLineForComparison = {
+  deliveryNoteId: string | null;
+  deliveryNoteLineId: string | null;
   label: string | null;
   itemName: string | null;
+  purchaseUnit: string | null;
+  stockUnit: string | null;
   qtyDeliveredPurchase: number | null;
   qtyReceivedStock: number | null;
   purchaseToStockRatio: number | null;
@@ -71,20 +105,89 @@ export type InvoiceReceptionLineForComparison = {
 
 export type InvoiceLineComparison = {
   status: "ok" | "price_delta" | "qty_delta" | "invoice_only" | "reception_only";
+  invoiceLineIndex: number | null;
   invoiceLabel: string | null;
+  invoiceUnit: string | null;
   invoiceQuantity: number | null;
   invoiceUnitPrice: number | null;
   invoiceLineTotal: number | null;
   receptionLabel: string | null;
   receptionItemName: string | null;
+  receptionDeliveryNoteId: string | null;
+  receptionLineId: string | null;
+  receptionPurchaseUnit: string | null;
+  receptionStockUnit: string | null;
   receptionQuantityPurchase: number | null;
   receptionUnitPricePurchase: number | null;
+  receptionPriceSource: "bl" | "invoice_fallback" | "missing";
   receptionLineTotal: number | null;
   qtyDelta: number | null;
+  /** PU facture − PU BL (uniquement si le BL fournit un PU ; sinon null). */
   unitPriceDelta: number | null;
+  /** Total HT ligne facture − total HT ligne côté BL (référence la plus fiable pour l’écart « argent »). */
   lineTotalDelta: number | null;
+  /** Conservé pour compatibilité ; le détail est dans `describeBlVsInvoiceLineIssues`. */
   hints: string[];
 };
+
+/**
+ * Résumé lisible (contrôle BL vs facture) : quelles lignes posent problème et pourquoi.
+ */
+export function describeBlVsInvoiceLineIssues(rows: InvoiceLineComparison[]): string[] {
+  const out: string[] = [];
+
+  for (const row of rows) {
+    const invLabel = row.invoiceLabel?.trim();
+    const blLabel = row.receptionItemName?.trim() || row.receptionLabel?.trim();
+
+    if (row.status === "invoice_only") {
+      out.push(
+        `Facture — « ${invLabel || "ligne"} » : aucun BL lié ne correspond à ce libellé (recherche automatique). Vérifiez réceptions liées, liaison produit et libellés.`
+      );
+      continue;
+    }
+
+    if (row.status === "reception_only") {
+      out.push(
+        `BL — « ${blLabel || "ligne"} » : réception valorisée mais aucune ligne facture assortie. Article absent de la lecture ou libellé trop différent.`
+      );
+      continue;
+    }
+
+    const parts: string[] = [];
+    if (row.qtyDelta != null && Math.abs(row.qtyDelta) > 0.0001) {
+      parts.push(
+        `quantités ${row.invoiceQuantity ?? "—"} ${row.invoiceUnit ?? ""} (facture) vs ${row.receptionQuantityPurchase ?? "—"} ${row.receptionPurchaseUnit ?? ""} (BL)`
+      );
+    }
+    if (row.unitPriceDelta != null && Math.abs(row.unitPriceDelta) > AMOUNT_TOLERANCE) {
+      parts.push(`PU HT écart ${row.unitPriceDelta > 0 ? "+" : ""}${row.unitPriceDelta.toLocaleString("fr-FR")} €`);
+    }
+    if (row.lineTotalDelta != null && Math.abs(row.lineTotalDelta) > AMOUNT_TOLERANCE) {
+      parts.push(
+        `total ligne HT écart ${row.lineTotalDelta > 0 ? "+" : ""}${row.lineTotalDelta.toLocaleString("fr-FR")} €`
+      );
+    }
+    if (
+      row.invoiceUnit &&
+      row.receptionPurchaseUnit &&
+      normalizeLabel(row.invoiceUnit) !== normalizeLabel(row.receptionPurchaseUnit)
+    ) {
+      parts.push(`unités différentes (${row.invoiceUnit} vs ${row.receptionPurchaseUnit})`);
+    }
+    if (row.receptionPriceSource === "missing") {
+      parts.push("prix / total BL insuffisants pour comparer");
+    }
+
+    if (parts.length === 0) continue;
+
+    const title = invLabel ? `« ${invLabel} »` : `« ${blLabel || "ligne"} »`;
+    const against = blLabel && invLabel !== blLabel ? ` avec BL « ${blLabel} »` : "";
+    out.push(`${title}${against} : ${parts.join(" ; ")}.`);
+  }
+
+  return out;
+}
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -123,97 +226,130 @@ export function buildInvoiceLineComparisons(input: {
   const out: InvoiceLineComparison[] = [];
   const usedReceptionIndexes = new Set<number>();
 
-  for (const inv of input.extractedLines) {
+  for (let invIndex = 0; invIndex < input.extractedLines.length; invIndex++) {
+    const inv = input.extractedLines[invIndex];
     let bestIdx = -1;
+    let bestScore = -1;
     for (let i = 0; i < input.receptionLines.length; i++) {
       if (usedReceptionIndexes.has(i)) continue;
       const rec = input.receptionLines[i];
-      if (labelsRoughlyMatch(inv.label, rec.label, rec.itemName)) {
+      const score = labelMatchStrength(inv.label, rec.label, rec.itemName);
+      if (score < 0) continue;
+      if (score > bestScore || (score === bestScore && (bestIdx < 0 || i < bestIdx))) {
+        bestScore = score;
         bestIdx = i;
-        break;
       }
     }
 
     if (bestIdx < 0) {
       out.push({
         status: "invoice_only",
+        invoiceLineIndex: invIndex,
         invoiceLabel: inv.label,
+        invoiceUnit: inv.unit,
         invoiceQuantity: inv.quantity,
         invoiceUnitPrice: inv.unit_price,
         invoiceLineTotal: inv.line_total,
         receptionLabel: null,
         receptionItemName: null,
+        receptionDeliveryNoteId: null,
+        receptionLineId: null,
+        receptionPurchaseUnit: null,
+        receptionStockUnit: null,
         receptionQuantityPurchase: null,
         receptionUnitPricePurchase: null,
+        receptionPriceSource: "missing",
         receptionLineTotal: null,
         qtyDelta: null,
         unitPriceDelta: null,
         lineTotalDelta: null,
-        hints: ["Ligne présente sur la facture, non retrouvée dans les BL liés."],
+        hints: [],
       });
       continue;
     }
 
     usedReceptionIndexes.add(bestIdx);
     const rec = input.receptionLines[bestIdx];
-    const recUnit = unitPricePurchaseFromReceptionLine(rec);
+    const recUnitFromBl = unitPricePurchaseFromReceptionLine(rec);
+    const recUnit =
+      recUnitFromBl ??
+      (inv.unit_price != null && Number.isFinite(inv.unit_price) && inv.unit_price > 0 ? inv.unit_price : null);
+    const recPriceSource = recUnitFromBl != null ? "bl" : recUnit != null ? "invoice_fallback" : "missing";
     const invTotal = lineTotalFromUnit(inv.quantity, inv.unit_price, inv.line_total);
     const recTotal = lineTotalFromUnit(rec.qtyDeliveredPurchase, recUnit, rec.blLineTotalHt);
     const qtyDelta =
       inv.quantity != null && rec.qtyDeliveredPurchase != null ? round2(inv.quantity - rec.qtyDeliveredPurchase) : null;
-    const unitPriceDelta = inv.unit_price != null && recUnit != null ? round2(inv.unit_price - recUnit) : null;
+    /** Écart PU facture − PU réellement issu du BL uniquement (pas de repli facture, sinon l’écart serait toujours 0). */
+    const unitPriceDelta =
+      inv.unit_price != null && recUnitFromBl != null ? round2(inv.unit_price - recUnitFromBl) : null;
     const lineTotalDelta = invTotal != null && recTotal != null ? round2(invTotal - recTotal) : null;
-    const hints: string[] = [];
     let status: InvoiceLineComparison["status"] = "ok";
 
-    if (qtyDelta != null && Math.abs(qtyDelta) > 0.0001) {
+    const hasQtyIssue = qtyDelta != null && Math.abs(qtyDelta) > 0.0001;
+    const hasPriceIssue = unitPriceDelta != null && Math.abs(unitPriceDelta) > AMOUNT_TOLERANCE;
+    const hasTotalIssue = lineTotalDelta != null && Math.abs(lineTotalDelta) > AMOUNT_TOLERANCE;
+
+    if (hasQtyIssue) {
       status = "qty_delta";
-      hints.push(`Écart quantité : facture ${inv.quantity} vs BL ${rec.qtyDeliveredPurchase}.`);
     }
-    if (unitPriceDelta != null && Math.abs(unitPriceDelta) > AMOUNT_TOLERANCE) {
+    if (hasPriceIssue) {
       status = status === "qty_delta" ? "qty_delta" : "price_delta";
-      hints.push(`Écart prix unitaire : ${unitPriceDelta > 0 ? "+" : ""}${unitPriceDelta.toLocaleString("fr-FR")} €.`);
     }
-    if (lineTotalDelta != null && Math.abs(lineTotalDelta) > AMOUNT_TOLERANCE) {
-      hints.push(`Écart total ligne : ${lineTotalDelta > 0 ? "+" : ""}${lineTotalDelta.toLocaleString("fr-FR")} €.`);
-      if (status === "ok") status = "price_delta";
+    if (hasTotalIssue && status === "ok") {
+      status = "price_delta";
     }
 
     out.push({
       status,
+      invoiceLineIndex: invIndex,
       invoiceLabel: inv.label,
+      invoiceUnit: inv.unit,
       invoiceQuantity: inv.quantity,
       invoiceUnitPrice: inv.unit_price,
       invoiceLineTotal: invTotal,
       receptionLabel: rec.label,
       receptionItemName: rec.itemName,
+      receptionDeliveryNoteId: rec.deliveryNoteId,
+      receptionLineId: rec.deliveryNoteLineId,
+      receptionPurchaseUnit: rec.purchaseUnit,
+      receptionStockUnit: rec.stockUnit,
       receptionQuantityPurchase: rec.qtyDeliveredPurchase,
       receptionUnitPricePurchase: recUnit,
+      receptionPriceSource: recPriceSource,
       receptionLineTotal: recTotal,
       qtyDelta,
       unitPriceDelta,
       lineTotalDelta,
-      hints,
+      hints: [],
     });
   }
 
   input.receptionLines.forEach((rec, i) => {
     if (usedReceptionIndexes.has(i)) return;
+    const recUnitBl = unitPricePurchaseFromReceptionLine(rec);
+    const recTotalOnly = lineTotalFromUnit(rec.qtyDeliveredPurchase, recUnitBl, rec.blLineTotalHt);
     out.push({
       status: "reception_only",
+      invoiceLineIndex: null,
       invoiceLabel: null,
+      invoiceUnit: null,
       invoiceQuantity: null,
       invoiceUnitPrice: null,
       invoiceLineTotal: null,
       receptionLabel: rec.label,
       receptionItemName: rec.itemName,
+      receptionDeliveryNoteId: rec.deliveryNoteId,
+      receptionLineId: rec.deliveryNoteLineId,
+      receptionPurchaseUnit: rec.purchaseUnit,
+      receptionStockUnit: rec.stockUnit,
       receptionQuantityPurchase: rec.qtyDeliveredPurchase,
-      receptionUnitPricePurchase: unitPricePurchaseFromReceptionLine(rec),
-      receptionLineTotal: lineTotalFromUnit(rec.qtyDeliveredPurchase, unitPricePurchaseFromReceptionLine(rec), rec.blLineTotalHt),
+      receptionUnitPricePurchase: recUnitBl,
+      receptionPriceSource: recUnitBl != null ? "bl" : "missing",
+      receptionLineTotal: recTotalOnly,
       qtyDelta: null,
       unitPriceDelta: null,
       lineTotalDelta: null,
-      hints: ["Ligne présente dans le BL, non retrouvée sur la facture."],
+      hints: [],
     });
   });
 

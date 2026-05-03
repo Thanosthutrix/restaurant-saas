@@ -81,8 +81,14 @@ export function CreateSupplierForm({ restaurantId }: { restaurantId: string }) {
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="text-xs text-slate-500">Email</span>
-            <input type="email" name="email" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+            <span className="text-xs text-slate-500">E-mail (optionnel)</span>
+            <input
+              type="text"
+              name="email"
+              inputMode="email"
+              autoComplete="email"
+              className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            />
           </label>
           <label className="block">
             <span className="text-xs text-slate-500">Téléphone</span>

@@ -4,12 +4,17 @@ import { BL_ANALYSIS_VERSION } from "@/lib/ticket-analysis";
 import { getDeliveryNoteFileUrl } from "@/lib/db";
 import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
 import { matchInventoryItemForLabel } from "@/lib/matching/findInventoryMatchCandidates";
-import { fetchDeliveryLabelAliasMap } from "@/lib/inventoryDeliveryLabelAliases";
+import { fetchDeliveryLabelAliasMap, fetchDeliveryLabelConversionHintsMap } from "@/lib/inventoryDeliveryLabelAliases";
+import {
+  computeDeliveryLineQtyReceived,
+  type BlConversionInventoryHint,
+} from "@/lib/receiving/blStockConversion";
 
 type ParsedLine = {
   label: string;
   quantity: number;
   unit: string | null;
+  packagingHint: string | null;
   blLineTotalHt: number | null;
   blUnitPriceStockHt: number | null;
 };
@@ -141,6 +146,12 @@ function parseLinesFromJson(json: Record<string, unknown>): ParsedLine[] {
         "qté",
       ]) ?? 0;
     const unit = pickString(o, ["unit", "unite", "unité", "unite_commande"]);
+    const packagingHint = pickString(o, [
+      "packaging_hint",
+      "packagingHint",
+      "conditionnement",
+      "conditionnement_hint",
+    ]);
     const unitPrice = pickNumber(o, [
       "unit_price_ht",
       "prix_unitaire_ht",
@@ -161,6 +172,7 @@ function parseLinesFromJson(json: Record<string, unknown>): ParsedLine[] {
       label,
       quantity: qty >= 0 ? qty : 0,
       unit,
+      packagingHint,
       blLineTotalHt: lineTotal != null && lineTotal > 0 ? lineTotal : null,
       blUnitPriceStockHt: unitPrice != null && unitPrice > 0 ? unitPrice : null,
     });
@@ -282,12 +294,22 @@ export async function runDeliveryNoteBlExtraction(
 
   const { data: invRows } = await supabaseServer
     .from("inventory_items")
-    .select("id, name")
+    .select("id, name, unit, units_per_purchase")
     .eq("restaurant_id", restaurantId);
 
   const invItems = (invRows ?? []) as { id: string; name: string }[];
 
-  const aliasMap = await fetchDeliveryLabelAliasMap(restaurantId, row.supplier_id);
+  const invById = new Map<string, BlConversionInventoryHint>(
+    (invRows ?? []).map((r) => {
+      const row = r as BlConversionInventoryHint;
+      return [row.id, row];
+    })
+  );
+
+  const [aliasMap, hintMap] = await Promise.all([
+    fetchDeliveryLabelAliasMap(restaurantId, row.supplier_id),
+    fetchDeliveryLabelConversionHintsMap(restaurantId, row.supplier_id),
+  ]);
 
   const noteText = [
     supplier ? `Fournisseur (document) : ${supplier}.` : null,
@@ -330,14 +352,24 @@ export async function runDeliveryNoteBlExtraction(
 
   const rows = parsedLines.map((l, index) => {
     const inventoryItemId = matchInventoryItemForLabel(l.label, invItems, { aliasMap });
+    const qtyDelivered = l.quantity;
+    const qtyReceived = computeDeliveryLineQtyReceived({
+      qtyDelivered,
+      inventoryItemId,
+      label: l.label,
+      unit: l.unit,
+      packagingHint: l.packagingHint,
+      invById,
+      hintMap,
+    });
     return {
       delivery_note_id: deliveryNoteId,
       purchase_order_line_id: null,
       inventory_item_id: inventoryItemId,
       label: l.label,
       qty_ordered: 0,
-      qty_delivered: l.quantity,
-      qty_received: l.quantity,
+      qty_delivered: qtyDelivered,
+      qty_received: qtyReceived,
       unit: l.unit,
       sort_order: index,
       bl_line_total_ht: l.blLineTotalHt,

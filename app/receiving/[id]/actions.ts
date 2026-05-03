@@ -11,6 +11,7 @@ import {
   insertPurchaseMovementsFromReception,
 } from "@/lib/stock/stockMovements";
 import { upsertDeliveryLabelAlias } from "@/lib/inventoryDeliveryLabelAliases";
+import { createInventoryItem, updateInventoryItemSupplier } from "@/app/inventory/actions";
 
 async function assertExtractedLineAllowedForDeliveryNote(
   deliveryNoteId: string,
@@ -167,6 +168,100 @@ export async function setDeliveryNoteLineInventoryItemAction(
     .eq("delivery_note_id", deliveryNoteId);
   if (error) throw new Error(error.message);
   revalidatePath(`/receiving/${deliveryNoteId}`);
+}
+
+export async function createInventoryItemFromDeliveryLineAction(
+  deliveryNoteId: string,
+  restaurantId: string,
+  lineId: string,
+  params: {
+    name: string;
+    unit: string;
+    itemType: "ingredient" | "prep" | "resale";
+  }
+): Promise<{ ok: true; inventoryItemId: string } | { ok: false; error: string }> {
+  const restaurant = await getRestaurantForPage();
+  if (!restaurant || restaurant.id !== restaurantId) {
+    return { ok: false, error: "Non autorisé." };
+  }
+
+  const { data: note, error: noteErr } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, supplier_id, status")
+    .eq("id", deliveryNoteId)
+    .maybeSingle();
+  if (noteErr) return { ok: false, error: noteErr.message };
+  if (!note || (note as { restaurant_id: string }).restaurant_id !== restaurantId) {
+    return { ok: false, error: "Réception introuvable." };
+  }
+  if ((note as { status: string }).status === "validated") {
+    return { ok: false, error: "Cette réception est validée. Impossible de créer un produit lié." };
+  }
+
+  const { data: line, error: lineErr } = await supabaseServer
+    .from("delivery_note_lines")
+    .select("id, label, qty_received, bl_line_total_ht, bl_unit_price_stock_ht")
+    .eq("id", lineId)
+    .eq("delivery_note_id", deliveryNoteId)
+    .maybeSingle();
+  if (lineErr) return { ok: false, error: lineErr.message };
+  if (!line) return { ok: false, error: "Ligne BL introuvable." };
+
+  const label = String((line as { label?: string | null }).label ?? "").trim();
+  const name = params.name.trim() || label;
+  const created = await createInventoryItem({
+    restaurantId,
+    name,
+    unit: params.unit,
+    itemType: params.itemType,
+    currentStockQty: 0,
+    minStockQty: null,
+  });
+  if (!created.ok) return { ok: false, error: created.error };
+  if (!created.data?.id) return { ok: false, error: "Création produit incomplète." };
+
+  const inventoryItemId = created.data.id;
+  const qtyReceived = Number((line as { qty_received?: unknown }).qty_received) || 0;
+  const lineTotal = Number((line as { bl_line_total_ht?: unknown }).bl_line_total_ht);
+  const unitPrice = Number((line as { bl_unit_price_stock_ht?: unknown }).bl_unit_price_stock_ht);
+  const referenceCost =
+    Number.isFinite(unitPrice) && unitPrice > 0
+      ? unitPrice
+      : Number.isFinite(lineTotal) && lineTotal > 0 && qtyReceived > 0
+        ? Math.round((lineTotal / qtyReceived) * 1_000_000) / 1_000_000
+        : null;
+
+  const patch: Record<string, unknown> = {
+    supplier_id: (note as { supplier_id: string }).supplier_id,
+  };
+  if (referenceCost != null) patch.reference_purchase_unit_cost_ht = referenceCost;
+
+  const { error: itemPatchErr } = await supabaseServer
+    .from("inventory_items")
+    .update(patch)
+    .eq("id", inventoryItemId)
+    .eq("restaurant_id", restaurantId);
+  if (itemPatchErr) return { ok: false, error: itemPatchErr.message };
+
+  const { error: linkErr } = await supabaseServer
+    .from("delivery_note_lines")
+    .update({ inventory_item_id: inventoryItemId })
+    .eq("id", lineId)
+    .eq("delivery_note_id", deliveryNoteId);
+  if (linkErr) return { ok: false, error: linkErr.message };
+
+  if (label) {
+    await upsertDeliveryLabelAlias(
+      restaurantId,
+      (note as { supplier_id: string }).supplier_id,
+      label,
+      inventoryItemId
+    );
+  }
+
+  revalidatePath(`/receiving/${deliveryNoteId}`);
+  revalidatePath("/inventory");
+  return { ok: true, inventoryItemId };
 }
 
 /** Enregistre la liaison libellé BL → article stock pour les prochaines livraisons (ce fournisseur). */
@@ -518,4 +613,106 @@ export async function validateReceptionAction(deliveryNoteId: string, restaurant
   revalidatePath(`/receiving/${deliveryNoteId}`);
   revalidatePath("/livraison");
   revalidatePath("/inventory");
+}
+
+export async function applyPurchaseConversionFromReceivingAction(params: {
+  restaurantId: string;
+  deliveryNoteId: string;
+  lineId: string;
+  inventoryItemId: string;
+  purchaseUnit: string;
+  unitsPerPurchase: number;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const restaurant = await getRestaurantForPage();
+  if (!restaurant || restaurant.id !== params.restaurantId) {
+    return { ok: false, error: "Non autorisé." };
+  }
+
+  const u = params.unitsPerPurchase;
+  if (!Number.isFinite(u) || u <= 0) {
+    return {
+      ok: false,
+      error: "Le ratio doit être un nombre strictement positif (ex. 20000 pour 1 sac = 20 kg exprimé en grammes).",
+    };
+  }
+
+  const { data: note, error: noteErr } = await supabaseServer
+    .from("delivery_notes")
+    .select("id, restaurant_id, status, supplier_id")
+    .eq("id", params.deliveryNoteId)
+    .maybeSingle();
+  if (noteErr) return { ok: false, error: noteErr.message };
+  if (!note || (note as { restaurant_id: string }).restaurant_id !== params.restaurantId) {
+    return { ok: false, error: "Réception introuvable." };
+  }
+  if ((note as { status: string }).status === "validated") {
+    return { ok: false, error: "Réception déjà validée." };
+  }
+
+  const { data: row, error: lineErr } = await supabaseServer
+    .from("delivery_note_lines")
+    .select("id, inventory_item_id, qty_delivered, purchase_order_line_id, label")
+    .eq("id", params.lineId)
+    .eq("delivery_note_id", params.deliveryNoteId)
+    .maybeSingle();
+  if (lineErr) return { ok: false, error: lineErr.message };
+  if (!row) return { ok: false, error: "Ligne introuvable." };
+  if ((row as { inventory_item_id: string | null }).inventory_item_id !== params.inventoryItemId) {
+    return { ok: false, error: "Le produit lié à la ligne ne correspond pas." };
+  }
+
+  const qtyDelivered = Number((row as { qty_delivered?: unknown }).qty_delivered) || 0;
+  const purchaseOrderLineId = (row as { purchase_order_line_id: string | null }).purchase_order_line_id;
+
+  const noteSupplierId = (note as { supplier_id: string | null }).supplier_id;
+
+  const supplierPatch = await updateInventoryItemSupplier({
+    itemId: params.inventoryItemId,
+    restaurantId: params.restaurantId,
+    ...(noteSupplierId ? { supplierId: noteSupplierId } : {}),
+    purchaseUnit: params.purchaseUnit.trim() || null,
+    unitsPerPurchase: u,
+  });
+  if (!supplierPatch.ok) return { ok: false, error: supplierPatch.error };
+
+  const qtyReceived = Math.round(qtyDelivered * u * 1000) / 1000;
+
+  const { error: updLineErr } = await supabaseServer
+    .from("delivery_note_lines")
+    .update({ qty_received: qtyReceived })
+    .eq("id", params.lineId)
+    .eq("delivery_note_id", params.deliveryNoteId);
+  if (updLineErr) return { ok: false, error: updLineErr.message };
+
+  if (purchaseOrderLineId) {
+    const { error: polErr } = await supabaseServer
+      .from("purchase_order_lines")
+      .update({ purchase_to_stock_ratio: u })
+      .eq("id", purchaseOrderLineId);
+    if (polErr) return { ok: false, error: polErr.message };
+  }
+
+  const supplierId = (note as { supplier_id: string }).supplier_id;
+  const rawLabel = String((row as { label?: string | null }).label ?? "").trim();
+  if (rawLabel) {
+    const { error: aliasConvErr } = await upsertDeliveryLabelAlias(
+      params.restaurantId,
+      supplierId,
+      rawLabel,
+      params.inventoryItemId,
+      {
+        purchaseUnit: params.purchaseUnit.trim() || null,
+        stockUnitsPerPurchase: u,
+      }
+    );
+    if (aliasConvErr) {
+      console.warn("[applyPurchaseConversionFromReceivingAction] alias conversion:", aliasConvErr);
+    }
+  }
+
+  revalidatePath(`/receiving/${params.deliveryNoteId}`);
+  revalidatePath(`/inventory/${params.inventoryItemId}`);
+  revalidatePath("/inventory");
+  revalidatePath("/orders/suggestions", "page");
+  return { ok: true };
 }

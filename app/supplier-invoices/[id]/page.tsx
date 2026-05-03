@@ -13,6 +13,12 @@ import { InvoiceAnalysisSection } from "./InvoiceAnalysisSection";
 import { RerunInvoiceAnalysisButton } from "./RerunInvoiceAnalysisButton";
 import { MarkInvoiceReviewedButton } from "./MarkInvoiceReviewedButton";
 import { InvoiceLineComparisonTable } from "./InvoiceLineComparisonTable";
+import { UnlinkReceptionButton } from "./UnlinkReceptionButton";
+import { InvoiceExtractedLinesEditor } from "./InvoiceExtractedLinesEditor";
+import { InvoiceClaimActionsPanel } from "./InvoiceClaimActionsPanel";
+import { ExportInvoiceToDropboxButton } from "./ExportInvoiceToDropboxButton";
+import { describeBlVsInvoiceLineIssues } from "@/lib/invoice-reconciliation";
+import { isDropboxExportConfigured } from "@/lib/dropboxClient";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -40,6 +46,9 @@ export default async function SupplierInvoicePage({ params }: Props) {
   const fileUrl = invoice.file_url ?? getSupplierInvoiceFileUrl(invoice.file_path);
   const c = invoice.control_summary;
   const reco = invoice.invoice_reconciliation;
+  const lineIssueDescriptions = describeBlVsInvoiceLineIssues(invoice.invoice_line_comparisons);
+  const dropboxExportConfigured = isDropboxExportConfigured();
+  const dropboxSaverEnabled = Boolean(process.env.NEXT_PUBLIC_DROPBOX_APP_KEY);
   const CONTROL_STATE_LABELS: Record<string, string> = {
     none: "Aucune réception liée",
     review: "Points à vérifier",
@@ -102,6 +111,11 @@ export default async function SupplierInvoicePage({ params }: Props) {
             {invoice.file_path || invoice.file_url ? (
               <RerunInvoiceAnalysisButton invoiceId={invoice.id} restaurantId={restaurant.id} />
             ) : null}
+            <InvoiceExtractedLinesEditor
+              invoiceId={invoice.id}
+              restaurantId={restaurant.id}
+              initialLines={invoice.analysis_view?.lines ?? []}
+            />
           </div>
 
           <div className="mt-6 border-t border-slate-200 pt-4">
@@ -135,11 +149,34 @@ export default async function SupplierInvoicePage({ params }: Props) {
             <span>Lignes sans produit : {c.lines_without_product}</span>
           </dl>
           <div className="mt-4 border-t border-amber-200/80 pt-3">
-            <h3 className="mb-2 text-xs font-medium text-slate-600">
-              Rapprochement facture / réceptions (automatique, à valider)
+            <h3 className="mb-2 text-xs font-medium text-slate-700">
+              Contrôle principal : BL reçus vs facture
             </h3>
             <p className="mb-2 text-xs text-slate-500">
-              Les montants des lignes et le contrôle d’écart sont basés sur le <strong className="font-medium text-slate-700">HT</strong> ; le <strong className="font-medium text-slate-700">TTC</strong> sert au total à payer (pied de facture), comparé au HT uniquement entre les deux totaux saisis.
+              Ce contrôle compare ce que le fournisseur facture avec ce qui a réellement été reçu et valorisé dans les
+              BL liés.
+            </p>
+            <InvoiceClaimActionsPanel
+              invoiceId={invoice.id}
+              restaurantId={restaurant.id}
+              restaurantName={restaurant.name}
+              supplierName={supplier?.name ?? "fournisseur"}
+              supplierEmail={supplier?.email ?? null}
+              supplierPhone={supplier?.phone ?? null}
+              supplierWhatsapp={supplier?.whatsapp_phone ?? null}
+              invoiceNumber={invoice.invoice_number}
+              invoiceDate={invoice.invoice_date}
+              rows={invoice.invoice_line_comparisons}
+              lineIssueDetails={lineIssueDescriptions}
+            />
+          </div>
+          <div className="mt-4 border-t border-amber-200/80 pt-3">
+            <h3 className="mb-2 text-xs font-medium text-slate-600">
+              Contrôle secondaire : cohérence interne de la facture
+            </h3>
+            <p className="mb-2 text-xs text-slate-500">
+              Ce contrôle vérifie seulement que la somme des lignes lues sur la facture correspond au total HT saisi sur
+              la facture. Il ne remplace pas le contrôle BL vs facture ci-dessus.
             </p>
             <dl className="grid grid-cols-1 gap-1 text-xs text-slate-600 sm:grid-cols-2">
               <span>Lignes extraites (table) : {reco.extracted_lines_count}</span>
@@ -159,7 +196,7 @@ export default async function SupplierInvoicePage({ params }: Props) {
               )}
               {reco.delta_ht_vs_sum_lines != null && reco.amount_ht_on_invoice != null && reco.sum_extracted_line_totals != null && (
                 <span className="sm:col-span-2">
-                  Écart (somme lignes − HT facture) :{" "}
+                  Écart interne facture (somme lignes − HT facture) :{" "}
                   {reco.delta_ht_vs_sum_lines > 0 ? "+" : ""}
                   {reco.delta_ht_vs_sum_lines.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </span>
@@ -196,10 +233,21 @@ export default async function SupplierInvoicePage({ params }: Props) {
             Écarts ligne par ligne
           </h2>
           <p className="mb-3 text-xs text-slate-500">
-            Comparaison automatique entre les lignes lues sur la facture et les lignes des BL liés. Les prix BL
-            viennent du BL lu par IA ou du dernier prix connu si le BL n’a pas encore été relu.
+            La colonne « Écart ligne HT » correspond au montant facturé pour la ligne moins le montant valorisé sur le
+            BL (même logique que le bandeau ci-dessus). Les PU BL peuvent être repris sur la facture si le BL n’a pas de
+            tarif : l’écart HT reste la référence.
           </p>
-          <InvoiceLineComparisonTable rows={invoice.invoice_line_comparisons} />
+          {invoice.invoice_line_comparisons.length > 0 && lineIssueDescriptions.length === 0 ? (
+            <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+              Aucune anomalie ligne par ligne détectée pour le rapprochement BL / facture.
+            </div>
+          ) : null}
+          <InvoiceLineComparisonTable
+            rows={invoice.invoice_line_comparisons}
+            invoiceId={invoice.id}
+            restaurantId={restaurant.id}
+            invoiceLines={invoice.analysis_view?.lines ?? []}
+          />
         </div>
 
         {invoice.status !== "reviewed" ? (
@@ -220,8 +268,18 @@ export default async function SupplierInvoicePage({ params }: Props) {
             ) : null}
           </div>
         ) : (
-          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-sm font-semibold text-emerald-900">
-            Facture prête comptable.
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4">
+            <p className="text-sm font-semibold text-emerald-900">Facture prête comptable.</p>
+            {dropboxSaverEnabled || dropboxExportConfigured ? (
+              <div className="mt-3">
+                <ExportInvoiceToDropboxButton
+                  invoiceId={invoice.id}
+                  restaurantId={restaurant.id}
+                  saverEnabled={dropboxSaverEnabled}
+                  serverUploadEnabled={dropboxExportConfigured}
+                />
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -259,6 +317,11 @@ export default async function SupplierInvoicePage({ params }: Props) {
                         </span>
                       )}
                     </span>
+                    <UnlinkReceptionButton
+                      invoiceId={invoice.id}
+                      deliveryNoteId={dn.id}
+                      restaurantId={restaurant.id}
+                    />
                   </li>
                 ))}
               </ul>

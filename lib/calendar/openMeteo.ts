@@ -29,10 +29,12 @@ function todayIsoInParis(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
 }
 
-async function fetchJson(url: string): Promise<unknown> {
+async function fetchJson(url: string, cache: RequestCache = "default"): Promise<unknown> {
   const res = await fetch(url, {
     headers: { "User-Agent": "RestaurantSaaS/1.0 (calendar insights)" },
-    next: { revalidate: 60 * 60 },
+    ...(cache === "no-store"
+      ? { cache: "no-store" as const }
+      : { next: { revalidate: 60 * 60 } }),
   });
   if (!res.ok) return null;
   return res.json();
@@ -118,7 +120,8 @@ export async function fetchSevenDayForecast(lat: number, lng: number): Promise<D
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
     `&forecast_days=7` +
     `&daily=weather_code,temperature_2m_max,precipitation_sum&timezone=Europe%2FParis`;
-  const json = await fetchJson(url);
+  /** Pas de cache Data Cache : évite prévisions périmées ou état vide après changement d’adresse. */
+  const json = await fetchJson(url, "no-store");
   const body = json as { error?: boolean; daily?: DailyPayload };
   if (!json || body.error || !body.daily?.time?.length) return null;
   const d = body.daily;

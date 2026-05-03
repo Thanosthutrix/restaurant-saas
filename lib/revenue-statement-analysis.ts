@@ -6,6 +6,16 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MAX_SIZE = 1800;
 const JPEG_QUALITY = 80;
 
+/** Une ligne extraite d’un relevé (plat, famille, code article…). */
+export type RevenueStatementLine = {
+  label: string;
+  qty: number | null;
+  amount_ttc: number | null;
+  amount_ht: number | null;
+  category: string | null;
+  notes: string | null;
+};
+
 export type MonthlyRevenueSuggestion = {
   month: string;
   revenue_ttc: number | null;
@@ -13,12 +23,102 @@ export type MonthlyRevenueSuggestion = {
   label?: string | null;
   confidence?: "high" | "low" | "unreadable";
   notes?: string | null;
+  /** Détail des ventes / rubriques si visible sur le document. */
+  lines?: RevenueStatementLine[];
+  /** Couverts ou équivalent si indiqué sur le relevé. */
+  covers_estimate?: number | null;
+  /** Nombre de tickets / commandes si visible. */
+  ticket_count_estimate?: number | null;
 };
 
 export type RevenueStatementAnalysisResult = {
   suggestions: MonthlyRevenueSuggestion[];
+  /** Commentaires sur tout le document (qualité photo, ambiguïtés). */
+  document_notes?: string | null;
   error?: string;
 };
+
+const EXTRACTION_VERSION = 2 as const;
+
+export function parseAnalysisResultJson(json: unknown): {
+  lines: RevenueStatementLine[];
+  covers_estimate: number | null;
+  ticket_count_estimate: number | null;
+  document_notes: string | null;
+  extraction_version: number;
+} {
+  if (!json || typeof json !== "object") {
+    return {
+      lines: [],
+      covers_estimate: null,
+      ticket_count_estimate: null,
+      document_notes: null,
+      extraction_version: 1,
+    };
+  }
+  const o = json as Record<string, unknown>;
+  const lines: RevenueStatementLine[] = [];
+  const raw = o.lines;
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const L = item as Record<string, unknown>;
+      const label = typeof L.label === "string" ? L.label.trim() : "";
+      if (!label) continue;
+      lines.push({
+        label,
+        qty: parseOptionalQty(L.qty ?? L.quantity ?? L.qte),
+        amount_ttc: parseNumber(L.amount_ttc ?? L.montant_ttc ?? L.total_ttc),
+        amount_ht: parseNumber(L.amount_ht ?? L.montant_ht ?? L.total_ht),
+        category:
+          typeof L.category === "string"
+            ? L.category.trim() || null
+            : typeof L.rubrique === "string"
+              ? L.rubrique.trim() || null
+              : typeof L.famille === "string"
+                ? L.famille.trim() || null
+                : null,
+        notes: typeof L.notes === "string" ? L.notes.trim() || null : null,
+      });
+    }
+  }
+
+  const cov = o.covers_estimate ?? o.covers;
+  const tickets = o.ticket_count_estimate ?? o.tickets ?? o.ticket_count;
+  const document_notes = typeof o.document_notes === "string" ? o.document_notes.trim() || null : null;
+  const extraction_version =
+    typeof o.extraction_version === "number" && Number.isFinite(o.extraction_version)
+      ? o.extraction_version
+      : lines.length > 0 || document_notes
+        ? EXTRACTION_VERSION
+        : 1;
+
+  return {
+    lines,
+    covers_estimate: parseOptionalQty(cov),
+    ticket_count_estimate: parseOptionalQty(tickets),
+    document_notes,
+    extraction_version,
+  };
+}
+
+/** Indique si l’import photo contient du détail exploitable en UI. */
+export function hasImportedRevenueDetail(json: unknown): boolean {
+  const p = parseAnalysisResultJson(json);
+  return (
+    p.lines.length > 0 ||
+    p.covers_estimate != null ||
+    p.ticket_count_estimate != null ||
+    (p.document_notes != null && p.document_notes.length > 0)
+  );
+}
+
+function parseOptionalQty(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(String(raw).replace(",", "."));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 1000) / 1000;
+}
 
 function stripMarkdownCodeBlock(text: string): string {
   const trimmed = text.trim();
@@ -99,6 +199,34 @@ function normalizeMonth(raw: unknown): string | null {
   return `${year}-${String(adjusted).padStart(2, "0")}-01`;
 }
 
+function normalizeLinesFromOpenAiRow(r: Record<string, unknown>): RevenueStatementLine[] {
+  const raw = r.lines;
+  if (!Array.isArray(raw)) return [];
+  const lines: RevenueStatementLine[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const L = item as Record<string, unknown>;
+    const label = typeof L.label === "string" ? L.label.trim() : "";
+    if (!label) continue;
+    lines.push({
+      label,
+      qty: parseOptionalQty(L.qty ?? L.quantity ?? L.qte),
+      amount_ttc: parseNumber(L.amount_ttc ?? L.montant_ttc ?? L.total_ttc),
+      amount_ht: parseNumber(L.amount_ht ?? L.montant_ht ?? L.total_ht),
+      category:
+        typeof L.category === "string"
+          ? L.category.trim() || null
+          : typeof L.rubrique === "string"
+            ? L.rubrique.trim() || null
+            : typeof L.famille === "string"
+              ? L.famille.trim() || null
+              : null,
+      notes: typeof L.notes === "string" ? L.notes.trim() || null : null,
+    });
+  }
+  return lines;
+}
+
 function normalizeSuggestions(json: unknown): MonthlyRevenueSuggestion[] {
   if (!json || typeof json !== "object") return [];
   const obj = json as Record<string, unknown>;
@@ -115,6 +243,7 @@ function normalizeSuggestions(json: unknown): MonthlyRevenueSuggestion[] {
     const r = row as Record<string, unknown>;
     const month = normalizeMonth(r.month ?? r.period ?? r.periode ?? r.date);
     if (!month) continue;
+    const lines = normalizeLinesFromOpenAiRow(r);
     out.push({
       month,
       revenue_ttc: parseNumber(r.revenue_ttc ?? r.ca_ttc ?? r.turnover_ttc ?? r.amount_ttc ?? r.ca),
@@ -125,9 +254,23 @@ function normalizeSuggestions(json: unknown): MonthlyRevenueSuggestion[] {
           ? r.confidence
           : "low",
       notes: typeof r.notes === "string" ? r.notes.trim() : null,
+      lines: lines.length > 0 ? lines : undefined,
+      covers_estimate: parseOptionalQty(r.covers_estimate ?? r.covers),
+      ticket_count_estimate: parseOptionalQty(r.ticket_count_estimate ?? r.tickets ?? r.ticket_count),
     });
   }
-  return out.filter((row) => row.revenue_ttc != null || row.revenue_ht != null);
+  return out.filter(
+    (row) =>
+      row.revenue_ttc != null ||
+      row.revenue_ht != null ||
+      (Array.isArray(row.lines) && row.lines.length > 0)
+  );
+}
+
+function extractDocumentNotes(parsed: unknown): string | null {
+  if (!parsed || typeof parsed !== "object") return null;
+  const o = parsed as Record<string, unknown>;
+  return typeof o.document_notes === "string" ? o.document_notes.trim() || null : null;
 }
 
 async function bufferToJpegDataUrl(buffer: Buffer): Promise<string> {
@@ -137,6 +280,53 @@ async function bufferToJpegDataUrl(buffer: Buffer): Promise<string> {
     .toBuffer();
   return `data:image/jpeg;base64,${processed.toString("base64")}`;
 }
+
+const SYSTEM_PROMPT_CA = `Réponds uniquement en JSON valide UTF-8.
+
+Tu analyses des photos de relevés de chiffre d'affaires : exports logiciel de caisse, tableaux Excel imprimés, captures d'écran POS, récapitulatifs mensuels, tickets Z agrégés, etc.
+
+Schéma JSON attendu :
+{
+  "document_notes": string|null,
+  "months": [
+    {
+      "month": "YYYY-MM",
+      "revenue_ttc": number|null,
+      "revenue_ht": number|null,
+      "label": string|null,
+      "confidence": "high"|"low"|"unreadable",
+      "notes": string|null,
+      "covers_estimate": number|null,
+      "ticket_count_estimate": number|null,
+      "lines": [
+        {
+          "label": "libellé (plat, famille, code, rubrique vente)",
+          "qty": number|null,
+          "amount_ttc": number|null,
+          "amount_ht": number|null,
+          "category": string|null,
+          "notes": string|null
+        }
+      ]
+    }
+  ]
+}
+
+Règles importantes :
+- Extrais le MAXIMUM d'informations visibles : si un tableau liste des plats, familles, codes ou montants par ligne, remplis "lines" avec une entrée par ligne lisible.
+- Si le document regroupe par rubrique / famille / TVA, renseigne "category" sur chaque ligne ou des libellés explicites dans "label".
+- Si des quantités ou montants HT/TTC par ligne sont présents, renseigne-les ; sinon null.
+- Renseigne "covers_estimate" ou "ticket_count_estimate" seulement s'ils sont indiqués sur le document.
+- Pour chaque période mensuelle claire, crée une entrée dans "months" avec "month" au format YYYY-MM.
+- Si tu ne peux extraire qu'un total mensuel sans détail, "lines" peut être [].
+- N'invente pas de chiffres : null si illisible ou absent.
+- Montants en euros ; nombres JSON avec point décimal.
+- "document_notes" : qualité de l'image, ce qui manque, ambiguïtés (une phrase courte).`;
+
+const USER_PROMPT_CA = `Analyse cette image de relevé de CA. Extrais les totaux par mois ET tout détail de ventes (lignes plats / rubriques / montants) lisible sur le document. Si un seul total est visible sans précision HT/TTC, mets-le dans revenue_ttc et précise l'incertitude dans notes.`;
+
+/** Version du schéma d'extraction stocké dans analysis_result_json. */
+export const REVENUE_EXTRACTION_VERSION = EXTRACTION_VERSION;
 
 export async function analyzeRevenueStatementImageFromBuffer(
   buffer: Buffer
@@ -149,18 +339,16 @@ export async function analyzeRevenueStatementImageFromBuffer(
     const imageUrl = await bufferToJpegDataUrl(buffer);
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      max_tokens: 2500,
+      max_tokens: 8192,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content:
-            "Réponds uniquement en JSON valide. Extrait l'historique de chiffre d'affaires mensuel. Format: {\"months\":[{\"month\":\"YYYY-MM\",\"revenue_ttc\":number|null,\"revenue_ht\":number|null,\"label\":string|null,\"confidence\":\"high\"|\"low\"|\"unreadable\",\"notes\":string|null}]}. N'invente pas de mois ni de montants.",
+          content: SYSTEM_PROMPT_CA,
         },
         {
           role: "user",
-          content:
-            "Analyse ce relevé de chiffre d'affaires ou export mensuel. Extrais uniquement les mois lisibles et les montants de CA HT/TTC. Si un seul montant est visible sans précision HT/TTC, mets-le dans revenue_ttc et indique l'incertitude en notes.",
+          content: USER_PROMPT_CA,
         },
         {
           role: "user",
@@ -171,7 +359,9 @@ export async function analyzeRevenueStatementImageFromBuffer(
     const raw = response.choices[0]?.message?.content;
     if (!raw) return { suggestions: [], error: "Réponse vide du modèle." };
     const parsed = JSON.parse(stripMarkdownCodeBlock(raw)) as unknown;
-    return { suggestions: normalizeSuggestions(parsed) };
+    const document_notes = extractDocumentNotes(parsed);
+    const suggestions = normalizeSuggestions(parsed);
+    return { suggestions, document_notes };
   } catch (e) {
     return { suggestions: [], error: e instanceof Error ? e.message : "Analyse CA impossible." };
   }

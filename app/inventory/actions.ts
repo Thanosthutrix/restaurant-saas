@@ -12,8 +12,16 @@ import {
 } from "@/lib/stock/stockMovements";
 import { assertNoInventoryCycle } from "@/lib/recipes/assertNoInventoryCycle";
 import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
-import { ALLOWED_STOCK_UNITS_HELP_FR, parseAllowedStockUnit } from "@/lib/constants";
-import { roundMoney } from "@/lib/stock/purchasePriceHistory";
+import { ALLOWED_STOCK_UNITS_HELP_FR, parseAllowedStockUnit, type AllowedUnit } from "@/lib/constants";
+import { scaleRecipeQuantitiesWhenStockUnitChanges } from "@/lib/inventory/scaleRecipeQuantitiesWhenStockUnitChanges";
+import type { BenchmarkSuggestion } from "@/lib/benchmarkTariffFr";
+import {
+  benchmarkPriceForStockUnit,
+  findBenchmarkTariffMatch,
+  getBenchmarkProductById,
+  listBenchmarkTariffSuggestions,
+} from "@/lib/benchmarkTariffFr";
+import { roundMoney, roundReferenceUnitCostHt } from "@/lib/stock/purchasePriceHistory";
 import { roundRecipeQty, stockUnitQtyScaleFactor } from "@/lib/units/stockUnitConversion";
 
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
@@ -25,6 +33,45 @@ async function requireInventoryMutate(userId: string, restaurantId: string): Pro
 }
 
 const ITEM_TYPES = ["ingredient", "prep", "resale"] as const;
+
+/** Produit de la base indicative proposé pour association manuelle. */
+export type BenchmarkTariffChoice = {
+  benchmarkProductId: string;
+  produitLabel: string;
+  famille: string;
+  /** € HT / unité de stock (ex. €/g si stock en grammes). */
+  price: number;
+  /** Moyenne HT du fichier (€ / kg, € / L…). */
+  catalogMeanEuroHt: number;
+  catalogNormalizedUnit: string;
+};
+
+function collectBenchmarkTariffChoices(
+  name: string,
+  itemType: "ingredient" | "resale",
+  stockUnit: AllowedUnit
+): BenchmarkTariffChoice[] {
+  const toChoice = (s: BenchmarkSuggestion[]): BenchmarkTariffChoice[] =>
+    s.map(
+      ({ productId, produitLabel, famille, price, catalogMeanEuroHt, catalogNormalizedUnit }) => ({
+        benchmarkProductId: productId,
+        produitLabel,
+        famille,
+        price,
+        catalogMeanEuroHt,
+        catalogNormalizedUnit,
+      })
+    );
+
+  let rows = listBenchmarkTariffSuggestions(name, itemType, stockUnit, { limit: 14, minScore: 0.08 });
+  if (rows.length < 5) {
+    rows = listBenchmarkTariffSuggestions(name, itemType, stockUnit, { limit: 14, minScore: 0.045 });
+  }
+  if (rows.length === 0) {
+    rows = listBenchmarkTariffSuggestions(name, itemType, stockUnit, { limit: 14, minScore: 0.018 });
+  }
+  return toChoice(rows);
+}
 
 /** Met à jour recipe_status du parent (prep) : missing si 0 composant, draft sinon. */
 async function syncPrepRecipeStatus(parentItemId: string, restaurantId: string): Promise<void> {
@@ -38,63 +85,6 @@ async function syncPrepRecipeStatus(parentItemId: string, restaurantId: string):
     .eq("restaurant_id", restaurantId);
 }
 
-/** Recettes où cet article est composant : met les quantités à l’échelle (ex. ml → l). */
-async function scaleComponentRecipeQuantitiesForItemUnitChange(params: {
-  restaurantId: string;
-  inventoryItemId: string;
-  factor: number;
-}): Promise<{ error: string | null }> {
-  const { restaurantId, inventoryItemId, factor } = params;
-
-  const { data: iicRows, error: iicErr } = await supabaseServer
-    .from("inventory_item_components")
-    .select("id, qty")
-    .eq("restaurant_id", restaurantId)
-    .eq("component_item_id", inventoryItemId);
-
-  if (iicErr) return { error: iicErr.message };
-
-  for (const r of iicRows ?? []) {
-    const id = (r as { id: string }).id;
-    const q = Number((r as { qty: unknown }).qty);
-    if (!Number.isFinite(q)) continue;
-    const nq = roundRecipeQty(q * factor);
-    if (nq <= 1e-9) {
-      return {
-        error:
-          "Après changement d’unité, une quantité de recette (préparation) deviendrait nulle. Ajustez ou supprimez la ligne concernée, puis réessayez.",
-      };
-    }
-    const { error } = await supabaseServer.from("inventory_item_components").update({ qty: nq }).eq("id", id);
-    if (error) return { error: error.message };
-  }
-
-  const { data: dcRows, error: dcErr } = await supabaseServer
-    .from("dish_components")
-    .select("id, qty")
-    .eq("restaurant_id", restaurantId)
-    .eq("inventory_item_id", inventoryItemId);
-
-  if (dcErr) return { error: dcErr.message };
-
-  for (const r of dcRows ?? []) {
-    const id = (r as { id: string }).id;
-    const q = Number((r as { qty: unknown }).qty);
-    if (!Number.isFinite(q)) continue;
-    const nq = roundRecipeQty(q * factor);
-    if (nq <= 1e-9) {
-      return {
-        error:
-          "Après changement d’unité, une quantité de recette (plat) deviendrait nulle. Ajustez ou supprimez la ligne concernée, puis réessayez.",
-      };
-    }
-    const { error } = await supabaseServer.from("dish_components").update({ qty: nq }).eq("id", id);
-    if (error) return { error: error.message };
-  }
-
-  return { error: null };
-}
-
 export async function createInventoryItem(params: {
   restaurantId: string;
   name: string;
@@ -102,7 +92,7 @@ export async function createInventoryItem(params: {
   itemType: (typeof ITEM_TYPES)[number];
   currentStockQty?: number;
   minStockQty?: number | null;
-}): Promise<ActionResult<{ id: string }>> {
+}): Promise<ActionResult<{ id: string; appliedBenchmark?: boolean }>> {
   const { restaurantId, name, unit, itemType, currentStockQty = 0, minStockQty } = params;
   const trimmedName = name.trim();
   if (!trimmedName) return { ok: false, error: "Nom requis." };
@@ -156,11 +146,27 @@ export async function createInventoryItem(params: {
     }
   }
 
+  let appliedBenchmark = false;
+  if (itemType !== "prep") {
+    const bench = findBenchmarkTariffMatch(trimmedName, itemType, canonicalUnit);
+    if (bench) {
+      const { error: benchErr } = await supabaseServer
+        .from("inventory_items")
+        .update({
+          reference_purchase_unit_cost_ht: bench.price,
+          reference_purchase_is_benchmark: true,
+        })
+        .eq("id", newId)
+        .eq("restaurant_id", restaurantId);
+      if (!benchErr) appliedBenchmark = true;
+    }
+  }
+
   revalidatePath("/inventory");
   revalidatePath("/inventory/[id]", "page");
   revalidatePath("/orders/suggestions", "page");
   revalidatePath("/dashboard", "page");
-  return { ok: true, data: { id: newId } };
+  return { ok: true, data: { id: newId, appliedBenchmark } };
 }
 
 export async function updateInventoryItem(params: {
@@ -223,7 +229,7 @@ export async function updateInventoryItem(params: {
   const { data: current } = await supabaseServer
     .from("inventory_items")
     .select(
-      "id, item_type, unit, reference_purchase_unit_cost_ht, min_stock_qty, target_stock_qty"
+      "id, item_type, unit, reference_purchase_unit_cost_ht, reference_purchase_is_benchmark, min_stock_qty, target_stock_qty"
     )
     .eq("id", itemId)
     .eq("restaurant_id", restaurantId)
@@ -235,9 +241,11 @@ export async function updateInventoryItem(params: {
     item_type: string;
     unit: string;
     reference_purchase_unit_cost_ht: unknown;
+    reference_purchase_is_benchmark?: unknown;
     min_stock_qty: unknown;
     target_stock_qty: unknown;
   };
+  const wasBenchmarkRef = Boolean(cur.reference_purchase_is_benchmark);
 
   const wasPrep = cur.item_type === "prep";
   const becomesNonPrep = itemType !== "prep";
@@ -262,7 +270,7 @@ export async function updateInventoryItem(params: {
       : null;
 
   if (unitScaleFactor != null && unitScaleFactor !== 1) {
-    const scaled = await scaleComponentRecipeQuantitiesForItemUnitChange({
+    const scaled = await scaleRecipeQuantitiesWhenStockUnitChanges({
       restaurantId,
       inventoryItemId: itemId,
       factor: unitScaleFactor,
@@ -333,18 +341,22 @@ export async function updateInventoryItem(params: {
   if (referencePurchaseUnitCostHt !== undefined) {
     if (referencePurchaseUnitCostHt === null) {
       update.reference_purchase_unit_cost_ht = null;
+      update.reference_purchase_is_benchmark = false;
     } else if (unitScaleFactor != null && unitScaleFactor !== 1) {
       const prevRef = cur.reference_purchase_unit_cost_ht;
       const p = prevRef == null || prevRef === "" ? null : Number(prevRef);
       if (p != null && Number.isFinite(p) && p > 0) {
         update.reference_purchase_unit_cost_ht = roundMoney(p / unitScaleFactor);
+        update.reference_purchase_is_benchmark = wasBenchmarkRef;
       } else {
         const r = Number(referencePurchaseUnitCostHt);
         update.reference_purchase_unit_cost_ht = Number.isFinite(r) && r > 0 ? r : null;
+        update.reference_purchase_is_benchmark = false;
       }
     } else {
       const r = Number(referencePurchaseUnitCostHt);
       update.reference_purchase_unit_cost_ht = Number.isFinite(r) && r > 0 ? r : null;
+      update.reference_purchase_is_benchmark = false;
     }
   }
 
@@ -890,4 +902,184 @@ export async function validatePrepRecipe(params: {
   revalidatePath("/inventory/[id]", "page");
   revalidatePath("/dishes/[id]", "page");
   return { ok: true };
+}
+
+/** Applique le prix HT de la base indicative France (nom + unité compatibles). */
+export async function applyBenchmarkTariffToInventoryItemAction(params: {
+  itemId: string;
+  restaurantId: string;
+}): Promise<
+  | { ok: true; data: { price: number; produitLabel: string } }
+  | { ok: false; error: string; suggestions?: BenchmarkTariffChoice[] }
+> {
+  const { itemId, restaurantId } = params;
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return { ok: false, error: invGate.error };
+
+  const { data: row, error } = await supabaseServer
+    .from("inventory_items")
+    .select("id, name, unit, item_type")
+    .eq("id", itemId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!row) return { ok: false, error: "Composant introuvable." };
+
+  const it = row as { name: string; unit: string; item_type: string };
+  if (it.item_type === "prep") {
+    return { ok: false, error: "La base indicative ne couvre pas les préparations." };
+  }
+  const itemType = it.item_type as "ingredient" | "resale";
+  const canonicalUnit = parseAllowedStockUnit(it.unit);
+  if (!canonicalUnit) {
+    return { ok: false, error: `Unité de stock non reconnue. Utilisez : ${ALLOWED_STOCK_UNITS_HELP_FR}.` };
+  }
+
+  const match = findBenchmarkTariffMatch(it.name, itemType, canonicalUnit);
+  if (!match) {
+    const suggestions = collectBenchmarkTariffChoices(it.name, itemType, canonicalUnit);
+    const errorMsg =
+      suggestions.length > 0
+        ? "Aucune correspondance automatique. Choisissez une proposition ci-dessous ou ajustez le libellé."
+        : "Aucune correspondance automatique. Utilisez une unité g, kg, ml ou L pour la base indicative, ou ouvrez « Voir les propositions proches ».";
+    return {
+      ok: false,
+      error: errorMsg,
+      ...(suggestions.length > 0 ? { suggestions } : {}),
+    };
+  }
+
+  const { error: upErr } = await supabaseServer
+    .from("inventory_items")
+    .update({
+      reference_purchase_unit_cost_ht: match.price,
+      reference_purchase_is_benchmark: true,
+    })
+    .eq("id", itemId)
+    .eq("restaurant_id", restaurantId);
+
+  if (upErr) return { ok: false, error: upErr.message };
+
+  revalidatePath("/inventory");
+  revalidatePath("/inventory/[id]", "page");
+  revalidatePath("/orders/suggestions", "page");
+  revalidatePath("/dashboard", "page");
+  revalidatePath("/margins", "page");
+  return { ok: true, data: { price: match.price, produitLabel: match.produitLabel } };
+}
+
+/** Liste des produits de la base les plus proches du nom (même unité de stock). */
+export async function loadBenchmarkTariffSuggestionsAction(params: {
+  itemId: string;
+  restaurantId: string;
+}): Promise<{ ok: true; data: BenchmarkTariffChoice[] } | { ok: false; error: string }> {
+  const { itemId, restaurantId } = params;
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return { ok: false, error: invGate.error };
+
+  const { data: row, error } = await supabaseServer
+    .from("inventory_items")
+    .select("id, name, unit, item_type")
+    .eq("id", itemId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!row) return { ok: false, error: "Composant introuvable." };
+
+  const it = row as { name: string; unit: string; item_type: string };
+  if (it.item_type === "prep") {
+    return { ok: false, error: "La base indicative ne couvre pas les préparations." };
+  }
+  const itemType = it.item_type as "ingredient" | "resale";
+  const canonicalUnit = parseAllowedStockUnit(it.unit);
+  if (!canonicalUnit) {
+    return { ok: false, error: `Unité de stock non reconnue. Utilisez : ${ALLOWED_STOCK_UNITS_HELP_FR}.` };
+  }
+
+  const data = collectBenchmarkTariffChoices(it.name, itemType, canonicalUnit);
+  return { ok: true, data };
+}
+
+/** Applique le tarif d’un produit précis de la base (choix manuel dans les propositions). */
+export async function applyBenchmarkTariffByProductIdAction(params: {
+  itemId: string;
+  restaurantId: string;
+  benchmarkProductId: string;
+}): Promise<
+  | { ok: true; data: { price: number; produitLabel: string } }
+  | { ok: false; error: string }
+> {
+  const { itemId, restaurantId, benchmarkProductId } = params;
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const invGate = await requireInventoryMutate(user.id, restaurantId);
+  if (!invGate.ok) return { ok: false, error: invGate.error };
+
+  const { data: invRow, error: invErr } = await supabaseServer
+    .from("inventory_items")
+    .select("id, unit, item_type")
+    .eq("id", itemId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (invErr) return { ok: false, error: invErr.message };
+  if (!invRow) return { ok: false, error: "Composant introuvable." };
+
+  const inv = invRow as { unit: string; item_type: string };
+  if (inv.item_type === "prep") {
+    return { ok: false, error: "La base indicative ne couvre pas les préparations." };
+  }
+  const itemType = inv.item_type as "ingredient" | "resale";
+  const canonicalUnit = parseAllowedStockUnit(inv.unit);
+  if (!canonicalUnit) {
+    return { ok: false, error: `Unité de stock non reconnue. Utilisez : ${ALLOWED_STOCK_UNITS_HELP_FR}.` };
+  }
+
+  const product = getBenchmarkProductById(benchmarkProductId);
+  if (!product) {
+    return { ok: false, error: "Référence produit introuvable dans la base indicative." };
+  }
+
+  const allowed = product.type === "Ingrédient" || product.type === "Boisson";
+  if (!allowed) {
+    return { ok: false, error: "Ce produit de la base n'est pas utilisable pour ce type d'article." };
+  }
+
+  const priceRaw = benchmarkPriceForStockUnit(product, canonicalUnit);
+  if (priceRaw == null || !Number.isFinite(priceRaw) || priceRaw <= 0) {
+    return {
+      ok: false,
+      error:
+        "Prix incompatible avec votre unité de stock. Utilisez g, kg, ml ou L pour les produits au kg ou au litre dans la base.",
+    };
+  }
+
+  const price = roundReferenceUnitCostHt(priceRaw);
+
+  const { error: upErr } = await supabaseServer
+    .from("inventory_items")
+    .update({
+      reference_purchase_unit_cost_ht: price,
+      reference_purchase_is_benchmark: true,
+    })
+    .eq("id", itemId)
+    .eq("restaurant_id", restaurantId);
+
+  if (upErr) return { ok: false, error: upErr.message };
+
+  revalidatePath("/inventory");
+  revalidatePath("/inventory/[id]", "page");
+  revalidatePath("/orders/suggestions", "page");
+  revalidatePath("/dashboard", "page");
+  revalidatePath("/margins", "page");
+  return { ok: true, data: { price, produitLabel: product.produit } };
 }

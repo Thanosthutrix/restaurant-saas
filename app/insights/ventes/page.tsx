@@ -7,7 +7,7 @@ import {
   defaultMarginDateRange,
   parseMarginDateParam,
 } from "@/lib/margins/realizedServiceMargins";
-import { ImportedMonthlyCaSection } from "./ImportedMonthlyCaSection";
+import { MonthlyImportedCaBoard } from "./MonthlyImportedCaBoard";
 import { SalesInsightsClient } from "./SalesInsightsClient";
 import { uiBackLink, uiBtnSecondary, uiCard, uiInput, uiLabel, uiLead, uiPageTitle } from "@/components/ui/premium";
 
@@ -107,7 +107,7 @@ export default async function VentesInsightsPage({
       )}
 
       {!monthlyImportRes.error && (
-        <ImportedMonthlyCaSection rows={monthlyImported} rangeFrom={from} rangeTo={to} />
+        <MonthlyImportedCaBoard rows={monthlyImported} rangeFrom={from} rangeTo={to} />
       )}
 
       {error && (

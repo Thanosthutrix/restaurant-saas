@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import sharp from "sharp";
+import { isPdfBuffer } from "@/lib/isPdfBuffer";
 import { normalizeDishLabel } from "@/lib/normalizeDishLabel";
 import { supabaseServer } from "@/lib/supabaseServer";
 import type { MenuSuggestionItem, MenuSuggestionMode } from "@/lib/menuSuggestionTypes";
@@ -176,7 +177,7 @@ async function sharpBufferToJpegDataUrl(buffer: Buffer): Promise<string> {
   return `data:image/jpeg;base64,${processed.toString("base64")}`;
 }
 
-const MENU_PROMPT = `Analyze this restaurant menu photo. Extract only concrete products (dishes, drinks, desserts) that a customer can order.
+const MENU_PROMPT = `Analyze this restaurant menu document (photo or PDF). Extract only concrete products (dishes, drinks, desserts) that a customer can order.
 
 OUTPUT FORMAT - You MUST respond with ONLY valid JSON, nothing else. No introduction, no markdown, no \`\`\`json, no text after the JSON.
 Escape any double quotes inside strings with backslash (e.g. "Pizza \"reine\"").
@@ -211,33 +212,10 @@ suggested_ingredients: always return [] for this menu analysis. Recipes and ingr
 
 Do not include rows that are only a price without a product name. Return ONLY the JSON object.`;
 
-async function runOpenAiMenuAnalysis(
-  imageJpegDataUrl: string
-): Promise<{ suggestions: MenuSuggestionItem[]; error?: string }> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: 4000,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "Respond with ONLY valid JSON. No markdown, no backticks, no text before or after. Use keys: items (array), each item: dish_name (string), suggested_category (string or null), suggested_mode (PREPARED or RESELL or IGNORE), selling_price_ttc (number or null, euros TTC on menu), selling_vat_rate_pct (optional 5.5, 10 or 20), suggested_ingredients (always []). Escape double quotes inside strings with backslash. If no items: {\"items\":[]}",
-        },
-      { role: "user", content: MENU_PROMPT },
-      {
-        role: "user",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: imageJpegDataUrl, detail: "high" as const },
-          },
-        ],
-      },
-    ],
-  });
+const MENU_SYSTEM_PROMPT =
+  "Respond with ONLY valid JSON. No markdown, no backticks, no text before or after. Use keys: items (array), each item: dish_name (string), suggested_category (string or null), suggested_mode (PREPARED or RESELL or IGNORE), selling_price_ttc (number or null, euros TTC on menu), selling_vat_rate_pct (optional 5.5, 10 or 20), suggested_ingredients (always []). Escape double quotes inside strings with backslash. If no items: {\"items\":[]}";
 
-  const raw = response.choices[0]?.message?.content;
+function parseMenuModelRaw(raw: string | null | undefined): { suggestions: MenuSuggestionItem[]; error?: string } {
   if (!raw) {
     console.warn(LOG_PREFIX, "empty OpenAI response");
     return { suggestions: [], error: "Réponse vide du modèle." };
@@ -299,7 +277,7 @@ async function runOpenAiMenuAnalysis(
     console.warn(LOG_PREFIX, "parse failed:", errMsg, "raw sample:", raw.slice(0, 300));
     return {
       suggestions: [],
-      error: `Réponse du modèle invalide (JSON non parsable). Réessayez ou utilisez une autre photo.`,
+      error: `Réponse du modèle invalide (JSON non parsable). Réessayez ou utilisez un autre fichier.`,
     };
   }
 
@@ -312,6 +290,55 @@ async function runOpenAiMenuAnalysis(
   }
 
   return { suggestions };
+}
+
+async function runOpenAiMenuAnalysisFromPdfBuffer(
+  buffer: Buffer
+): Promise<{ suggestions: MenuSuggestionItem[]; error?: string }> {
+  const fileData = `data:application/pdf;base64,${buffer.toString("base64")}`;
+  const combinedText = `${MENU_SYSTEM_PROMPT}\n\n${MENU_PROMPT}`;
+  const response = await openai.responses.create({
+    model: "gpt-4o",
+    input: [
+      {
+        role: "user",
+        content: [
+          { type: "input_text", text: combinedText },
+          { type: "input_file", filename: "carte.pdf", file_data: fileData },
+        ],
+      },
+    ],
+  });
+  const raw = response.output_text;
+  return parseMenuModelRaw(raw);
+}
+
+async function runOpenAiMenuAnalysis(
+  imageJpegDataUrl: string
+): Promise<{ suggestions: MenuSuggestionItem[]; error?: string }> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    max_tokens: 4000,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: MENU_SYSTEM_PROMPT,
+      },
+      { role: "user", content: MENU_PROMPT },
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: imageJpegDataUrl, detail: "high" as const },
+          },
+        ],
+      },
+    ],
+  });
+
+  return parseMenuModelRaw(response.choices[0]?.message?.content);
 }
 
 export async function analyzeMenuImage(
@@ -347,6 +374,9 @@ export async function analyzeMenuImageFromBuffer(
   }
 
   try {
+    if (isPdfBuffer(buffer)) {
+      return await runOpenAiMenuAnalysisFromPdfBuffer(buffer);
+    }
     const jpegDataUrl = await sharpBufferToJpegDataUrl(buffer);
     return runOpenAiMenuAnalysis(jpegDataUrl);
   } catch (e) {

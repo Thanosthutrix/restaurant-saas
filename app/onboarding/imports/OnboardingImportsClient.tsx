@@ -127,7 +127,7 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
     e.preventDefault();
     setError(null);
     if (menuFiles.length === 0 && recipeFiles.length === 0 && equipmentFiles.length === 0) {
-      setError("Ajoutez au moins une photo de carte, de recette ou de matériel.");
+      setError("Ajoutez au moins une carte, une recette ou un fichier matériel (photo ou PDF).");
       return;
     }
 
@@ -275,8 +275,8 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
           files={recipeFiles}
           onChange={setRecipeFiles}
           disabled={pending}
-          title="Photo(s) de recettes"
-          description="Ajoutez des fiches recettes ou notes de cuisine. Les recettes détectées seront proposées en validation."
+          title="Photo(s) ou PDF de recettes"
+          description="Ajoutez des fiches recettes ou notes de cuisine (images ou PDF). Les recettes détectées seront proposées en validation."
           galleryLabel="Fiches recettes depuis la galerie"
           cameraLabel="Photographier une recette"
         />
@@ -284,8 +284,8 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
           files={equipmentFiles}
           onChange={setEquipmentFiles}
           disabled={pending}
-          title="Photo(s) matériel cuisine / salle"
-          description="Ajoutez des photos de la cuisine, réserve, bar ou salle. L’IA proposera le matériel à créer pour préparer hygiène et salle."
+          title="Photo(s) ou PDF matériel cuisine / salle"
+          description="Ajoutez des photos ou un PDF listant la cuisine, réserve, bar ou salle. L’IA proposera le matériel à créer pour préparer hygiène et salle."
           galleryLabel="Photos matériel depuis la galerie"
           cameraLabel="Photographier le matériel"
         />
@@ -387,13 +387,12 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Relevés mensuels de CA</h3>
           <p className={uiMuted}>
-            Import image pour l’instant : relevé mensuel, export caisse ou tableau de CA. Vous pouvez en sélectionner
-            plusieurs : chaque fichier est traité dans une requête séparée pour éviter les erreurs de taille. Les PDF
-            pourront être ajoutés ensuite.
+            Import image ou PDF : relevé mensuel, export caisse ou tableau de CA. Vous pouvez en sélectionner plusieurs :
+            chaque fichier est traité dans une requête séparée pour éviter les erreurs de taille.
           </p>
           <input
             type="file"
-            accept="image/*"
+            accept=".pdf,image/*"
             multiple
             disabled={businessPending}
             onChange={(e) => {

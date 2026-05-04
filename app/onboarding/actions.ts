@@ -7,6 +7,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { resolveRestaurantProfile } from "@/lib/templates/restaurantTemplates";
 import { seedRestaurantTemplateContent } from "@/lib/templates/seedRestaurantTemplateContent";
 import { ACTIVE_RESTAURANT_COOKIE } from "@/lib/auth";
+import { resolveAddressForRestaurantInsert } from "@/lib/geo/resolveAddressForRestaurantInsert";
 import { analyzeMenuImageFromBuffer } from "@/lib/menu-analysis";
 import { getImageBuffersFromFormData, getMenuImageBuffersFromFormData } from "@/lib/getMenuImageBuffersFromFormData";
 import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestions";
@@ -31,13 +32,8 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
   if (!name) return { error: "Le nom du restaurant est requis." };
 
   const profile = String(formData.get("profile") ?? "");
-  const avgCoversRaw = String(formData.get("avg_covers") ?? "").trim();
-  let avg_covers: number | null = null;
-  if (avgCoversRaw) {
-    const n = parseInt(avgCoversRaw, 10);
-    avg_covers = Number.isFinite(n) ? n : null;
-  }
   const service_type = String(formData.get("service_type") ?? "both") || "both";
+  const address_raw = String(formData.get("address_text") ?? "");
 
   const declaredCountRaw = String(formData.get("menu_image_count") ?? "").trim();
   const declaredImageCount = declaredCountRaw ? parseInt(declaredCountRaw, 10) : 0;
@@ -47,7 +43,7 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
   if (Number.isFinite(declaredImageCount) && declaredImageCount > 0 && menuBuffers.length === 0) {
     return {
       error:
-        "Les photos de carte n’ont pas été reçues par le serveur (fichiers trop lourds ou navigateur). Réessayez avec des images plus légères, ou importez la carte depuis Plats une fois le restaurant créé.",
+        "Les fichiers carte n’ont pas été reçus par le serveur (fichiers trop lourds ou navigateur). Réessayez avec des fichiers plus légers, ou importez depuis Plats une fois le restaurant créé.",
     };
   }
 
@@ -63,6 +59,9 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
 
   const { template_slug, activity_type, template } = resolveRestaurantProfile(profile ?? "");
 
+  const geo = await resolveAddressForRestaurantInsert(address_raw);
+  if (!geo.ok) return { error: geo.error };
+
   const { data: inserted, error } = await supabaseServer
     .from("restaurants")
     .insert({
@@ -70,8 +69,13 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
       name,
       activity_type,
       template_slug,
-      avg_covers: avg_covers != null && Number.isFinite(avg_covers) ? avg_covers : null,
+      avg_covers: null,
       service_type: service_type || null,
+      address_text: geo.address_text,
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+      school_zone: geo.school_zone,
+      school_zone_is_manual: false,
     })
     .select("id")
     .single();
@@ -134,6 +138,7 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
     secure: process.env.NODE_ENV === "production",
   });
 
+  revalidatePath("/", "layout");
   revalidatePath("/dashboard");
   return { error: null, restaurantId, menuSuggestions, recipeSuggestions };
 }
@@ -141,9 +146,10 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
 export type OnboardingPayload = {
   name: string;
   profile: string;
-  avg_covers: number | null;
   service_type: string;
   skip_template_seed?: boolean;
+  /** Adresse complète (France). Vide = ignorée ; sinon géocodée comme sur la fiche établissement. */
+  address_text?: string;
 };
 
 /** Création onboarding : accepte un `FormData` (avec `menu_image`) ou l’ancien objet payload (sans fichiers). */
@@ -158,11 +164,10 @@ export async function submitOnboarding(
   const fd = new FormData();
   fd.append("name", input.name?.trim() ?? "");
   fd.append("profile", input.profile ?? "");
-  fd.append(
-    "avg_covers",
-    input.avg_covers != null && Number.isFinite(input.avg_covers) ? String(input.avg_covers) : ""
-  );
   fd.append("service_type", input.service_type ?? "both");
+  if (input.address_text?.trim()) {
+    fd.append("address_text", input.address_text.trim());
+  }
   if (input.skip_template_seed) {
     fd.append("_force_skip_template_seed", "1");
   }

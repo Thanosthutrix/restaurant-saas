@@ -6,8 +6,12 @@ import type { RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
 export const PENDING_ONBOARDING_MENU_KEY = "rs_pending_onboarding_menu_v1";
 export const PENDING_ONBOARDING_RECIPES_KEY = "rs_pending_onboarding_recipes_v1";
 export const PENDING_ONBOARDING_CATEGORIES_KEY = "rs_pending_onboarding_categories_v1";
+/** Rubriques composants stock — après rubriques carte ; dérivé des recettes analysées. */
+export const PENDING_ONBOARDING_INGREDIENT_CATEGORIES_KEY = "rs_pending_onboarding_ingredient_categories_v1";
 export const PENDING_ONBOARDING_PURCHASE_PRICES_KEY = "rs_pending_onboarding_purchase_prices_v1";
 export const PENDING_ONBOARDING_EQUIPMENT_KEY = "rs_pending_onboarding_equipment_v1";
+/** Après rubriques carte : enchaînement factures → CA → rubriques composants / équipement (session). */
+export const PENDING_ONBOARDING_POST_CATEGORIES_FLOW_KEY = "rs_onboarding_post_categories_flow_v1";
 
 export type PendingOnboardingCategoryAssignment = {
   dish_name: string;
@@ -36,6 +40,17 @@ export type PendingOnboardingMenuStored = {
 export type PendingOnboardingRecipesStored = {
   v: 1;
   items: RecipePhotoSuggestion[];
+};
+
+export type PendingOnboardingIngredientCategoryAssignment = {
+  ingredient_name: string;
+  normalized_label: string;
+  suggested_category: string;
+};
+
+export type PendingOnboardingIngredientCategoriesStored = {
+  v: 1;
+  assignments: PendingOnboardingIngredientCategoryAssignment[];
 };
 
 export type PendingOnboardingCategoriesStored = {

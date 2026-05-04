@@ -103,6 +103,28 @@ function buildCategoryAggregates(rows: SalesInsightRow[]): CategoryAggregate[] {
     .sort((a, b) => b.revenueHt - a.revenueHt);
 }
 
+/** Première partie du chemin rubrique (« Grande famille › Sous… » → « Grande famille »). */
+export function buildRootCategoryAggregates(rows: SalesInsightRow[]): CategoryAggregate[] {
+  const byRoot = new Map<string, { qtySold: number; revenueHt: number; marginHtSum: number }>();
+  for (const r of rows) {
+    const raw = r.categoryPath.trim();
+    const root = raw.includes(" › ") ? raw.split(" › ")[0]!.trim() : raw;
+    const cur = byRoot.get(root) ?? { qtySold: 0, revenueHt: 0, marginHtSum: 0 };
+    cur.qtySold += r.qtySold;
+    if (r.revenueHt != null && Number.isFinite(r.revenueHt)) cur.revenueHt += r.revenueHt;
+    if (r.marginHt != null && Number.isFinite(r.marginHt)) cur.marginHtSum += r.marginHt;
+    byRoot.set(root, cur);
+  }
+  return [...byRoot.entries()]
+    .map(([categoryPath, v]) => ({
+      categoryPath,
+      qtySold: v.qtySold,
+      revenueHt: v.revenueHt,
+      marginHtSum: v.marginHtSum,
+    }))
+    .sort((a, b) => b.revenueHt - a.revenueHt);
+}
+
 /** Seuils indicatifs pour suggestions (pas des règles métier figées). */
 const PUSH_MARGIN_PCT = 68;
 const PUSH_MIN_QTY = 6;
@@ -160,6 +182,171 @@ function buildSuggestions(rows: SalesInsightRow[]): SalesInsightSuggestions {
   };
 }
 
+async function buildSalesInsightRowsForServiceIds(
+  restaurantId: string,
+  serviceIds: string[]
+): Promise<{ rows: SalesInsightRow[]; error: string | null }> {
+  if (serviceIds.length === 0) {
+    return { rows: [], error: null };
+  }
+
+  const [marginRows, categoriesRes, dishesRes, qtyByDish] = await Promise.all([
+    getRealizedMarginRowsByDish(restaurantId, serviceIds),
+    listRestaurantCategories(restaurantId),
+    getDishes(restaurantId),
+    sumQtyByDish(restaurantId, serviceIds),
+  ]);
+
+  const flat = categoriesRes.data ?? [];
+  const dishById = new Map((dishesRes.data ?? []).map((d) => [d.id, d]));
+
+  const rows: SalesInsightRow[] = marginRows.map((m) => {
+    const d = dishById.get(m.dishId);
+    const catId = d?.category_id ?? null;
+    const pathLabel = categoryPathLabel(catId, flat);
+    return {
+      dishId: m.dishId,
+      dishName: m.dishName,
+      categoryId: catId,
+      categoryPath: pathLabel ?? "Sans rubrique",
+      qtySold: qtyByDish.get(m.dishId) ?? 0,
+      revenueHt: m.revenueHt,
+      marginHt: m.marginHt,
+      marginPct: m.marginPct,
+      revenueComplete: m.revenueComplete,
+      note: m.note,
+      recipeStatus: d?.recipe_status ?? null,
+    };
+  });
+
+  return {
+    rows,
+    error: categoriesRes.error?.message ?? dishesRes.error?.message ?? null,
+  };
+}
+
+/** Bornes inclusives YYYY-MM-DD pour un mois calendaire (UTC). */
+export function calendarMonthDateBounds(isoMonth: string): { from: string; to: string } | null {
+  if (!/^\d{4}-\d{2}$/.test(isoMonth)) return null;
+  const [yStr, mStr] = isoMonth.split("-");
+  const y = Number(yStr);
+  const m = Number(mStr);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return {
+    from: `${y}-${pad(m)}-01`,
+    to: `${y}-${pad(m)}-${pad(lastDay)}`,
+  };
+}
+
+export type MonthSalesInsightsPayload = {
+  isoMonth: string;
+  rows: SalesInsightRow[];
+  categoryAggregates: CategoryAggregate[];
+  rootCategoryAggregates: CategoryAggregate[];
+  /** Top plats pour le graphique (évite les payloads énormes). */
+  topDishRows: SalesInsightRow[];
+  totals: {
+    revenueHt: number;
+    marginHt: number;
+    marginPct: number | null;
+    serviceCount: number;
+  };
+  error: string | null;
+};
+
+/** Données renvoyées au client (sans la liste complète des plats). */
+export type MonthSalesInsightsForClient = {
+  isoMonth: string;
+  categoryAggregates: CategoryAggregate[];
+  rootCategoryAggregates: CategoryAggregate[];
+  topDishRows: SalesInsightRow[];
+  totals: MonthSalesInsightsPayload["totals"];
+  error: string | null;
+  dishCountWithSales: number;
+};
+
+export function toMonthSalesInsightsClientPayload(
+  full: MonthSalesInsightsPayload
+): MonthSalesInsightsForClient {
+  const dishCountWithSales = full.rows.filter((r) => r.qtySold > 0).length;
+  return {
+    isoMonth: full.isoMonth,
+    categoryAggregates: full.categoryAggregates,
+    rootCategoryAggregates: full.rootCategoryAggregates,
+    topDishRows: full.topDishRows,
+    totals: full.totals,
+    error: full.error,
+    dishCountWithSales,
+  };
+}
+
+const TOP_DISH_CHART = 24;
+
+/**
+ * Ventes + marges (services app) sur un mois calendaire — pour les tuiles CA importé / analyse.
+ */
+export async function getSalesInsightsForCalendarMonth(
+  restaurantId: string,
+  isoMonth: string
+): Promise<MonthSalesInsightsPayload> {
+  const bounds = calendarMonthDateBounds(isoMonth);
+  if (!bounds) {
+    return {
+      isoMonth,
+      rows: [],
+      categoryAggregates: [],
+      rootCategoryAggregates: [],
+      topDishRows: [],
+      totals: { revenueHt: 0, marginHt: 0, marginPct: null, serviceCount: 0 },
+      error: "Mois invalide.",
+    };
+  }
+
+  const services = await fetchServicesInDateRange(
+    restaurantId,
+    bounds.from,
+    bounds.to,
+    SALES_INSIGHTS_SERVICE_LIMIT
+  );
+  const serviceIds = services.map((s) => s.id);
+  const built = await buildSalesInsightRowsForServiceIds(restaurantId, serviceIds);
+
+  let revenueHt = 0;
+  let marginHt = 0;
+  for (const r of built.rows) {
+    if (r.revenueHt != null && Number.isFinite(r.revenueHt)) revenueHt += r.revenueHt;
+    if (r.marginHt != null && Number.isFinite(r.marginHt)) marginHt += r.marginHt;
+  }
+  const marginPct =
+    revenueHt > 0 && Number.isFinite(marginHt)
+      ? Math.round((marginHt / revenueHt) * 1000) / 10
+      : null;
+
+  const categoryAggregates = buildCategoryAggregates(built.rows);
+  const rootCategoryAggregates = buildRootCategoryAggregates(built.rows);
+  const topDishRows = [...built.rows]
+    .filter((r) => (r.revenueHt ?? 0) > 0)
+    .sort((a, b) => (b.revenueHt ?? 0) - (a.revenueHt ?? 0))
+    .slice(0, TOP_DISH_CHART);
+
+  return {
+    isoMonth,
+    rows: built.rows,
+    categoryAggregates,
+    rootCategoryAggregates,
+    topDishRows,
+    totals: {
+      revenueHt,
+      marginHt,
+      marginPct,
+      serviceCount: services.length,
+    },
+    error: built.error,
+  };
+}
+
 export async function getSalesInsightsData(
   restaurantId: string,
   from: string,
@@ -194,35 +381,8 @@ export async function getSalesInsightsData(
     };
   }
 
-  const [marginRows, categoriesRes, dishesRes, qtyByDish] = await Promise.all([
-    getRealizedMarginRowsByDish(restaurantId, serviceIds),
-    listRestaurantCategories(restaurantId),
-    getDishes(restaurantId),
-    sumQtyByDish(restaurantId, serviceIds),
-  ]);
-
-  const flat = categoriesRes.data ?? [];
-  const dishById = new Map((dishesRes.data ?? []).map((d) => [d.id, d]));
-
-  const rows: SalesInsightRow[] = marginRows.map((m) => {
-    const d = dishById.get(m.dishId);
-    const catId = d?.category_id ?? null;
-    const pathLabel = categoryPathLabel(catId, flat);
-    return {
-      dishId: m.dishId,
-      dishName: m.dishName,
-      categoryId: catId,
-      categoryPath: pathLabel ?? "Sans rubrique",
-      qtySold: qtyByDish.get(m.dishId) ?? 0,
-      revenueHt: m.revenueHt,
-      marginHt: m.marginHt,
-      marginPct: m.marginPct,
-      revenueComplete: m.revenueComplete,
-      note: m.note,
-      recipeStatus: d?.recipe_status ?? null,
-    };
-  });
-
+  const built = await buildSalesInsightRowsForServiceIds(restaurantId, serviceIds);
+  const rows = built.rows;
   const categoryAggregates = buildCategoryAggregates(rows);
   const suggestions = buildSuggestions(rows);
 
@@ -231,6 +391,6 @@ export async function getSalesInsightsData(
     suggestions,
     categoryAggregates,
     meta: { serviceCount: services.length, from, to },
-    error: categoriesRes.error?.message ?? dishesRes.error?.message ?? null,
+    error: built.error,
   };
 }

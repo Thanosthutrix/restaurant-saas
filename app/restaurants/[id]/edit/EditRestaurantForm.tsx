@@ -32,7 +32,6 @@ export function EditRestaurantForm({
     restaurant.messaging_sender_display_name ?? ""
   );
   const [templateSlug, setTemplateSlug] = useState(restaurant.template_slug ?? "");
-  const [avgCovers, setAvgCovers] = useState(restaurant.avg_covers != null ? String(restaurant.avg_covers) : "");
   const [serviceType, setServiceType] = useState(restaurant.service_type || "both");
   const [addressText, setAddressText] = useState(restaurant.address_text ?? "");
   const [zoneChoice, setZoneChoice] = useState<ZoneChoice>(initialZoneChoice(restaurant));
@@ -47,7 +46,6 @@ export function EditRestaurantForm({
       name: name.trim(),
       messaging_sender_display_name: messagingSenderDisplayName.trim() || null,
       template_slug: templateSlug.trim() || null,
-      avg_covers: avgCovers ? parseInt(avgCovers, 10) : null,
       service_type: serviceType,
       address_text: addressText.trim() || null,
       school_zone: zoneChoice === "auto" ? null : zoneChoice,
@@ -119,20 +117,6 @@ export function EditRestaurantForm({
         <p className="mt-1 text-xs text-slate-500">
           Utilisé pour les suggestions de plats et composants. Changer n&apos;écrase pas vos données.
         </p>
-      </div>
-      <div>
-        <label htmlFor="avgCovers" className="mb-1 block text-sm font-medium text-slate-700">
-          Nombre moyen de couverts / jour
-        </label>
-        <input
-          id="avgCovers"
-          type="number"
-          min={1}
-          value={avgCovers}
-          onChange={(e) => setAvgCovers(e.target.value)}
-          placeholder="50"
-          className="w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
-        />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">

@@ -254,7 +254,7 @@ export function PremiumAppShell({
                 Retour
               </button>
               <HeaderRestaurantSelect
-                clientFetchEnabled={false}
+                clientFetchEnabled={true}
                 server={
                   shellPayload && shellPayload.restaurants.length > 0
                     ? {

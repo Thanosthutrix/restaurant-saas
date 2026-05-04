@@ -16,7 +16,10 @@ export default async function OnboardingReviewCategoriesPage() {
         <div className="text-center">
           <h1 className={uiPageTitle}>Rubriques de carte : {restaurant.name}</h1>
           <p className={`mt-2 ${uiLead}`}>
-            Validez les rubriques proposées par l’analyse IA avant de finaliser l’onboarding.
+            Validez les rubriques carte proposées par l’analyse IA. Ensuite, vous pourrez charger des factures fournisseur
+            (tarifs, fiches fournisseurs) puis des relevés de CA — comme dans l’assistant d’import. Si des recettes
+            proposent des rubriques composants, une étape dédiée suivra. Si tous les plats concernés sont en revente,
+            les rubriques créées seront aussi disponibles pour le stock.
           </p>
         </div>
         <div className={uiAuthCard}>

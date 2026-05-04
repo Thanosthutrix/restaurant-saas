@@ -10,12 +10,15 @@ export function PurchasePriceSection({
   stats,
   error,
   referenceUnitCostHt,
+  referenceIsBenchmark,
 }: {
   stockUnit: string;
   stats: PurchasePriceStats;
   error: string | null;
   /** Prix saisi sur la fiche composant (€ HT / unité de stock), si défini. */
   referenceUnitCostHt?: number | null;
+  /** True si ce prix provient uniquement de la base indicative France. */
+  referenceIsBenchmark?: boolean;
 }) {
   return (
     <div className={uiCard}>
@@ -37,7 +40,10 @@ export function PurchasePriceSection({
         </div>
         {referenceUnitCostHt != null && Number(referenceUnitCostHt) > 0 ? (
           <div className={uiCardMuted}>
-            <dt className={uiMuted}>Prix de référence (fiche)</dt>
+            <dt className={uiMuted}>
+              Prix de référence (fiche)
+              {referenceIsBenchmark ? " — indicatif France" : ""}
+            </dt>
             <dd className="font-semibold text-slate-900">
               {formatEur(referenceUnitCostHt)} / {stockUnit}
             </dd>

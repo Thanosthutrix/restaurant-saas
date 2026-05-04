@@ -31,8 +31,8 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
   const [name, setName] = useState("");
   const defaultProfile = templates[0]?.slug ?? RESTAURANT_PROFILE_OTHER;
   const [profile, setProfile] = useState<string>(defaultProfile);
-  const [avgCovers, setAvgCovers] = useState("");
   const [serviceType, setServiceType] = useState("both");
+  const [addressText, setAddressText] = useState("");
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
   const [recipeFiles, setRecipeFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +52,10 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
     const fd = new FormData();
     fd.append("name", name.trim());
     fd.append("profile", profile);
-    fd.append("avg_covers", avgCovers);
     fd.append("service_type", serviceType);
+    if (addressText.trim()) {
+      fd.append("address_text", addressText.trim());
+    }
     if (menuFiles.length > 0) {
       fd.append("menu_image_count", String(menuFiles.length));
     }
@@ -127,6 +129,23 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
         />
       </div>
       <div>
+        <label htmlFor="address" className={uiFormLabel}>
+          Adresse de l&apos;établissement
+        </label>
+        <textarea
+          id="address"
+          value={addressText}
+          onChange={(e) => setAddressText(e.target.value)}
+          rows={2}
+          placeholder="12 rue de la République, 75001 Paris"
+          className={`${uiInputBlock} min-h-[4rem] resize-y`}
+        />
+        <p className={`mt-1 ${uiMuted}`}>
+          Utilisée pour la météo et le calendrier (zone vacances). Laissez vide pour renseigner plus tard dans Infos
+          établissement. Si vous la saisissez, elle doit être géocodable en France (numéro, rue, code postal, ville).
+        </p>
+      </div>
+      <div>
         <label htmlFor="profile" className={uiFormLabel}>
           Type d&apos;établissement et modèle de départ
         </label>
@@ -152,20 +171,6 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
         )}
       </div>
       <div>
-        <label htmlFor="avgCovers" className={uiFormLabel}>
-          Nombre moyen de couverts / jour
-        </label>
-        <input
-          id="avgCovers"
-          type="number"
-          min={1}
-          value={avgCovers}
-          onChange={(e) => setAvgCovers(e.target.value)}
-          placeholder="50"
-          className={uiInputBlock}
-        />
-      </div>
-      <div>
         <label className={uiFormLabel}>Type de service</label>
         <select
           value={serviceType}
@@ -187,7 +192,7 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
         onChange={setRecipeFiles}
         disabled={loading}
         title="Photo(s) de recettes (optionnel)"
-        description="Ajoutez des fiches recettes, cahiers de cuisine ou notes manuscrites. L’IA proposera ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
+        description="Ajoutez des fiches recettes, cahiers de cuisine ou notes manuscrites (images ou PDF). L’IA proposera ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
         galleryLabel="Fiches recettes depuis la galerie"
         cameraLabel="Photographier une recette"
       />

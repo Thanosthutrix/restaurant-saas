@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { normalizeDishLabel } from "@/lib/normalizeDishLabel";
 import {
   PENDING_ONBOARDING_CATEGORIES_KEY,
-  PENDING_ONBOARDING_EQUIPMENT_KEY,
   type PendingOnboardingCategoriesStored,
 } from "@/lib/onboardingPendingMenuStorage";
+import { setPostCategoriesOnboardingFlowActive } from "@/lib/onboardingPostCategoriesFlow";
 import {
   uiBtnOutlineSm,
   uiBtnPrimaryBlock,
@@ -93,15 +93,12 @@ export function ReviewCategoriesClient() {
       /* ignore */
     }
     try {
-      if (sessionStorage.getItem(PENDING_ONBOARDING_EQUIPMENT_KEY)) {
-        router.push("/onboarding/review-equipment");
-        return;
-      }
+      setPostCategoriesOnboardingFlowActive();
+      router.push("/onboarding/upload-supplier-documents");
     } catch {
-      /* ignore */
+      router.push("/dashboard");
+      router.refresh();
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   function updateRow(index: number, patch: Partial<EditableAssignment>) {

@@ -20,6 +20,7 @@ type Item = {
   current_stock_qty: number;
   min_stock_qty?: number | null;
   reference_purchase_unit_cost_ht?: number | null;
+  reference_purchase_is_benchmark?: boolean;
 };
 
 export function EditInventoryItemBlock({
@@ -82,6 +83,13 @@ export function EditInventoryItemBlock({
   return (
     <div className={uiCard}>
       <h2 className="mb-3 text-sm font-semibold text-slate-900">Modifier le composant</h2>
+      {item.reference_purchase_is_benchmark ? (
+        <p className="mb-3 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 text-xs text-violet-950">
+          Le prix d&apos;achat de référence affiché provient de la{" "}
+          <strong className="font-semibold">base indicative France</strong> (moyenne marché). Il sera remplacé dès
+          qu&apos;un prix réel est saisi ici, à l&apos;onboarding ou via une réception (BL / facture).
+        </p>
+      ) : null}
       {error && (
         <p className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {error}

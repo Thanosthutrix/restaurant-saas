@@ -6,6 +6,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { getDish, getDishComponents, getInventoryItems } from "@/lib/db";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
 import { ensureResaleDishStockBinding } from "@/lib/recipes/ensureResaleDishStockBinding";
+import { syncResaleInventoryCategoryFromDish } from "@/lib/recipes/syncResaleInventoryCategoryFromDish";
 import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
 import {
   normalizeVatRatePct,
@@ -144,8 +145,13 @@ export async function updateDishCategory(params: {
     .eq("restaurant_id", restaurantId);
 
   if (error) return { ok: false, error: error.message };
+
+  const sync = await syncResaleInventoryCategoryFromDish(restaurantId, dishId);
+  if (sync.error) return { ok: false, error: sync.error.message };
+
   revalidatePath(`/dishes/${dishId}`, "page");
   revalidatePath("/dishes");
+  revalidatePath("/inventory");
   revalidatePath("/salle");
   revalidatePath("/caisse");
   return { ok: true };

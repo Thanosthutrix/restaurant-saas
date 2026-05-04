@@ -11,9 +11,10 @@ export type EstablishmentPayload = {
   restaurantId: string;
   activityLabel: string;
   serviceLabel: string;
-  avgCovers: number | null;
   /** Nom d’expéditeur effectif (personnalisé ou nom de l’établissement). */
   emailSenderLabel: string;
+  /** Adresse postale renseignée sur la fiche établissement. */
+  addressLabel: string | null;
 };
 
 export type HeaderRestaurantServerPayload = {
@@ -40,16 +41,16 @@ function EstablishmentFlyout({ e }: { e: EstablishmentPayload }) {
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Activité</dt>
           <dd className="mt-0.5 font-semibold text-slate-900">{e.activityLabel}</dd>
         </div>
-        {e.avgCovers != null ? (
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Couverts / jour</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900">{e.avgCovers}</dd>
-          </div>
-        ) : null}
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Type de service</dt>
           <dd className="mt-0.5 font-semibold text-slate-900">{e.serviceLabel}</dd>
         </div>
+        {e.addressLabel ? (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Adresse</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap font-semibold text-slate-900">{e.addressLabel}</dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">E-mails (nom expéditeur)</dt>
           <dd className="mt-0.5 font-semibold text-slate-900">{e.emailSenderLabel}</dd>

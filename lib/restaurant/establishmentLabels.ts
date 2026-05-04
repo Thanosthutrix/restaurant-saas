@@ -33,10 +33,12 @@ export function getEstablishmentLabels(r: Restaurant) {
 
   const emailSenderLabel = r.messaging_sender_display_name?.trim() || r.name;
 
+  const addressLabel = r.address_text?.trim() || null;
+
   return {
     activityLabel,
     serviceLabel,
-    avgCovers: r.avg_covers,
     emailSenderLabel,
+    addressLabel,
   };
 }

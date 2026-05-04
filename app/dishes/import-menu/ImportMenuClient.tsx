@@ -43,7 +43,7 @@ export function ImportMenuClient({ restaurantId }: { restaurantId: string }) {
 
   const handleUploadAndAnalyze = async () => {
     if (!file) {
-      setError("Choisissez une photo de carte.");
+      setError("Choisissez une image ou un PDF de carte.");
       return;
     }
     setError(null);
@@ -70,7 +70,7 @@ export function ImportMenuClient({ restaurantId }: { restaurantId: string }) {
       const rows = menuItemsToEditableRows(items as MenuSuggestionItem[]);
       setSuggestions(rows);
       if (rows.length === 0) {
-        setError("Aucune suggestion trouvée. Réessayez avec une autre photo ou un menu plus lisible.");
+        setError("Aucune suggestion trouvée. Réessayez avec un autre fichier ou un menu plus lisible.");
       } else {
         setError(null);
       }
@@ -121,18 +121,18 @@ export function ImportMenuClient({ restaurantId }: { restaurantId: string }) {
       </div>
 
       <div>
-        <h1 className={uiPageTitle}>Importer depuis une photo de carte</h1>
+        <h1 className={uiPageTitle}>Importer depuis une photo ou un PDF de carte</h1>
         <p className={`mt-2 ${uiLead}`}>
-          Uploadez une ou plusieurs photos de votre carte ou menu. L’IA extrait les plats, rubriques, prix TTC, TVA
-          et type. Les recettes restent gérées dans l’analyse dédiée.
+          Uploadez une photo ou un PDF de votre carte ou menu. L’IA extrait les plats, rubriques, prix TTC, TVA et type.
+          Les recettes restent gérées dans l’analyse dédiée.
         </p>
       </div>
 
       <div className={uiCard}>
-        <label className={`mb-2 block ${uiSectionTitleSm}`}>Photo de la carte</label>
+        <label className={`mb-2 block ${uiSectionTitleSm}`}>Fichier carte (image ou PDF)</label>
         <input
           type="file"
-          accept="image/*"
+          accept=".pdf,image/*"
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
             setSuggestions([]);

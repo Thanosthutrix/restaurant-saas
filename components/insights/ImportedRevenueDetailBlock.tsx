@@ -1,4 +1,4 @@
-import { parseAnalysisResultJson } from "@/lib/revenue-statement-analysis";
+import { parseAnalysisResultJson } from "@/lib/revenue-statement-analysisJson";
 
 function formatEur(n: number | null | undefined) {
   if (n == null || !Number.isFinite(n)) return "—";

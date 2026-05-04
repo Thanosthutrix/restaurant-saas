@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PremiumAppShell } from "@/components/app/PremiumAppShell";
+import { buildShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,12 +28,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headerBootstrap = await buildShellHeaderBootstrap();
+
   return (
     <html lang="fr" className="scroll-smooth">
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <PremiumAppShell headerBootstrap={null}>{children}</PremiumAppShell>
+        <PremiumAppShell headerBootstrap={headerBootstrap}>{children}</PremiumAppShell>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import sharp from "sharp";
+import { isPdfBuffer } from "@/lib/isPdfBuffer";
 import {
   HYGIENE_ELEMENT_CATEGORIES,
   type HygieneElementCategory,
@@ -111,11 +112,50 @@ async function bufferToJpegDataUrl(buffer: Buffer): Promise<string> {
   return `data:image/jpeg;base64,${processed.toString("base64")}`;
 }
 
+const EQUIPMENT_SYSTEM_PROMPT =
+  'Réponds uniquement en JSON valide. Extrait le matériel visible pour préparer hygiène et salle. Format: {"items":[{"name":string,"area_kind":"kitchen"|"dining"|"bar"|"storage"|"sanitary"|"other","area_label":string,"hygiene_category":string|null,"quantity":number,"notes":string|null,"confidence":"high"|"low"|"unreadable"}]}. Pour hygiene_category utilise si possible: plan_travail, sol, mur, chambre_froide, frigo, congelateur, etagere, hotte, four, piano_plaque, trancheuse, machine, ustensile, bac_gastronorme, plonge, sanitaire, poubelle, poignee_contact, zone_dechets, reserve, vehicule, autre.';
+
+const EQUIPMENT_USER_PROMPT =
+  "Analyse cette photo ou ce PDF de cuisine, réserve, bar ou salle. Liste uniquement le matériel réellement visible ou très probablement identifiable. Pour les tables de salle, crée une ligne par table ou groupe logique avec un libellé court.";
+
+async function analyzeEquipmentPdfFromBuffer(
+  buffer: Buffer
+): Promise<{ suggestions: EquipmentInventorySuggestion[]; error?: string }> {
+  const fileData = `data:application/pdf;base64,${buffer.toString("base64")}`;
+  const combinedText = `${EQUIPMENT_SYSTEM_PROMPT}\n\n${EQUIPMENT_USER_PROMPT}`;
+  const response = await openai.responses.create({
+    model: "gpt-4o",
+    input: [
+      {
+        role: "user",
+        content: [
+          { type: "input_text", text: combinedText },
+          { type: "input_file", filename: "materiel.pdf", file_data: fileData },
+        ],
+      },
+    ],
+  });
+  const raw = response.output_text;
+  if (!raw) return { suggestions: [], error: "Réponse vide du modèle." };
+  try {
+    const cleaned = stripMarkdownCodeBlock(raw);
+    return { suggestions: normalizeSuggestions(JSON.parse(cleaned)) };
+  } catch (e) {
+    return {
+      suggestions: [],
+      error: e instanceof Error ? e.message : "Réponse JSON invalide pour le matériel.",
+    };
+  }
+}
+
 export async function analyzeEquipmentInventoryImageFromBuffer(
   buffer: Buffer
 ): Promise<{ suggestions: EquipmentInventorySuggestion[]; error?: string }> {
   if (!process.env.OPENAI_API_KEY) return { suggestions: [], error: "OPENAI_API_KEY missing" };
   try {
+    if (isPdfBuffer(buffer)) {
+      return await analyzeEquipmentPdfFromBuffer(buffer);
+    }
     const imageUrl = await bufferToJpegDataUrl(buffer);
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -124,13 +164,11 @@ export async function analyzeEquipmentInventoryImageFromBuffer(
       messages: [
         {
           role: "system",
-          content:
-            "Réponds uniquement en JSON valide. Extrait le matériel visible pour préparer hygiène et salle. Format: {\"items\":[{\"name\":string,\"area_kind\":\"kitchen\"|\"dining\"|\"bar\"|\"storage\"|\"sanitary\"|\"other\",\"area_label\":string,\"hygiene_category\":string|null,\"quantity\":number,\"notes\":string|null,\"confidence\":\"high\"|\"low\"|\"unreadable\"}]}. Pour hygiene_category utilise si possible: plan_travail, sol, mur, chambre_froide, frigo, congelateur, etagere, hotte, four, piano_plaque, trancheuse, machine, ustensile, bac_gastronorme, plonge, sanitaire, poubelle, poignee_contact, zone_dechets, reserve, vehicule, autre.",
+          content: EQUIPMENT_SYSTEM_PROMPT,
         },
         {
           role: "user",
-          content:
-            "Analyse cette photo de cuisine, réserve, bar ou salle. Liste uniquement le matériel réellement visible ou très probablement identifiable. Pour les tables de salle, crée une ligne par table ou groupe logique avec un libellé court.",
+          content: EQUIPMENT_USER_PROMPT,
         },
         {
           role: "user",

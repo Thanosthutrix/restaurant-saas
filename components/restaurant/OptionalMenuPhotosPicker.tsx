@@ -17,15 +17,15 @@ type Props = {
 };
 
 /**
- * Sélection multiple + entrée « appareil photo » (mobile) pour analyse de carte après création du restaurant.
+ * Sélection multiple + entrée « appareil photo » (mobile) pour analyse de carte ou PDF après création du restaurant.
  */
 export function OptionalMenuPhotosPicker({
   files,
   onChange,
   disabled,
-  title = "Photo(s) de carte (optionnel)",
-  description = "Si vous ajoutez des photos, le modèle du type d’établissement (composants stock et plats suggérés) n’est pas appliqué : la carte analysée le remplace. L’IA propose plats, rubriques, prix TTC et type ; rien n’est enregistré sans votre validation.",
-  galleryLabel = "Galerie (plusieurs fichiers)",
+  title = "Photo(s) ou PDF de carte (optionnel)",
+  description = "Si vous ajoutez des fichiers, le modèle du type d’établissement (composants stock et plats suggérés) n’est pas appliqué : la carte analysée le remplace. Formats : JPG, PNG, WEBP… ou PDF. L’IA propose plats, rubriques, prix TTC et type ; rien n’est enregistré sans votre validation.",
+  galleryLabel = "Galerie (images ou PDF)",
   cameraLabel = "Appareil photo",
 }: Props) {
   const mergeFiles = (list: FileList | null) => {
@@ -50,7 +50,7 @@ export function OptionalMenuPhotosPicker({
         <label className={`mb-1 block text-xs font-medium text-slate-500`}>{galleryLabel}</label>
         <input
           type="file"
-          accept="image/*"
+          accept=".pdf,image/*"
           multiple
           disabled={disabled}
           onChange={(e) => {
@@ -64,7 +64,7 @@ export function OptionalMenuPhotosPicker({
         <label className={`mb-1 block text-xs font-medium text-slate-500`}>{cameraLabel}</label>
         <input
           type="file"
-          accept="image/*"
+          accept=".pdf,image/*"
           capture="environment"
           disabled={disabled}
           onChange={(e) => {

@@ -6,7 +6,7 @@ import {
   getRestaurantMonthlyRevenues,
   type RestaurantMonthlyRevenue,
 } from "@/lib/db";
-import { hasImportedRevenueDetail } from "@/lib/revenue-statement-analysis";
+import { hasImportedRevenueDetail } from "@/lib/revenue-statement-analysisJson";
 import { ImportedRevenueDetailBlock } from "@/components/insights/ImportedRevenueDetailBlock";
 import { uiBackLink, uiCard, uiLead, uiPageTitle } from "@/components/ui/premium";
 

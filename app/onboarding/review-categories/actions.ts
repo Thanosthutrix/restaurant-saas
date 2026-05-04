@@ -6,6 +6,7 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
 import { getDishes } from "@/lib/db";
 import { normalizeDishLabel } from "@/lib/normalizeDishLabel";
+import { syncResaleInventoryCategoryFromDish } from "@/lib/recipes/syncResaleInventoryCategoryFromDish";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export type CategoryAssignmentPayload = {
@@ -36,6 +37,8 @@ async function getOrCreateDishCategory(params: {
   restaurantId: string;
   name: string;
   categoryByName: Map<string, { id: string; applies_to: "dish" | "inventory" | "both" }>;
+  /** Tous les plats à classer sont en revente : une seule arborescence de rubriques pour carte et stock. */
+  catalogResaleOnly: boolean;
 }): Promise<{ id: string; created: boolean; error?: string }> {
   const key = normalizeCategoryName(params.name);
   const existing = params.categoryByName.get(key);
@@ -48,17 +51,26 @@ async function getOrCreateDishCategory(params: {
         .eq("restaurant_id", params.restaurantId);
       if (error) return { id: existing.id, created: false, error: error.message };
       existing.applies_to = "both";
+    } else if (params.catalogResaleOnly && existing.applies_to === "dish") {
+      const { error } = await supabaseServer
+        .from("restaurant_categories")
+        .update({ applies_to: "both" })
+        .eq("id", existing.id)
+        .eq("restaurant_id", params.restaurantId);
+      if (error) return { id: existing.id, created: false, error: error.message };
+      existing.applies_to = "both";
     }
     return { id: existing.id, created: false };
   }
 
+  const appliesTo = params.catalogResaleOnly ? "both" : "dish";
   const { data, error } = await supabaseServer
     .from("restaurant_categories")
     .insert({
       restaurant_id: params.restaurantId,
       parent_id: null,
       name: params.name.trim(),
-      applies_to: "dish",
+      applies_to: appliesTo,
       sort_order: 0,
     })
     .select("id")
@@ -69,7 +81,7 @@ async function getOrCreateDishCategory(params: {
   }
 
   const id = (data as { id: string }).id;
-  params.categoryByName.set(key, { id, applies_to: "dish" });
+  params.categoryByName.set(key, { id, applies_to: appliesTo });
   return { id, created: true };
 }
 
@@ -126,6 +138,13 @@ export async function applyOnboardingCategoryAssignments(
     ])
   );
 
+  const catalogResaleOnly =
+    selected.length > 0 &&
+    selected.every((row) => {
+      const dish = dishByNorm.get(row.normalized_label) ?? dishByNorm.get(normalizeDishLabel(row.dish_name));
+      return dish?.production_mode === "resale";
+    });
+
   let createdCategories = 0;
   let assignedDishes = 0;
   let skipped = 0;
@@ -143,6 +162,7 @@ export async function applyOnboardingCategoryAssignments(
       restaurantId: restaurant.id,
       name: row.suggested_category,
       categoryByName,
+      catalogResaleOnly,
     });
     if (category.error || !category.id) {
       skipped++;
@@ -163,9 +183,17 @@ export async function applyOnboardingCategoryAssignments(
       continue;
     }
     assignedDishes++;
+
+    if (dish.production_mode === "resale") {
+      const sync = await syncResaleInventoryCategoryFromDish(restaurant.id, dish.id);
+      if (sync.error) {
+        errors.push(`${dish.name}: rubrique stock — ${sync.error.message}`);
+      }
+    }
   }
 
   revalidatePath("/dishes");
+  revalidatePath("/inventory");
   revalidatePath("/salle");
   revalidatePath("/caisse");
   revalidatePath("/account");

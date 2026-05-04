@@ -11,8 +11,8 @@ export type AppShellHeaderBootstrap = {
     restaurantId: string;
     activityLabel: string;
     serviceLabel: string;
-    avgCovers: number | null;
     emailSenderLabel: string;
+    addressLabel: string | null;
   } | null;
   weather: { days: DailyWeatherPoint[]; restaurantId: string } | null;
   weatherHint:

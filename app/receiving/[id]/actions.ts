@@ -234,7 +234,10 @@ export async function createInventoryItemFromDeliveryLineAction(
   const patch: Record<string, unknown> = {
     supplier_id: (note as { supplier_id: string }).supplier_id,
   };
-  if (referenceCost != null) patch.reference_purchase_unit_cost_ht = referenceCost;
+  if (referenceCost != null) {
+    patch.reference_purchase_unit_cost_ht = referenceCost;
+    patch.reference_purchase_is_benchmark = false;
+  }
 
   const { error: itemPatchErr } = await supabaseServer
     .from("inventory_items")

@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getAccessibleRestaurantsForUser, ACTIVE_RESTAURANT_COOKIE } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { geocodeAddressFr } from "@/lib/geo/geocodeAddressFr";
+import { resolveAddressForRestaurantInsert } from "@/lib/geo/resolveAddressForRestaurantInsert";
 import { getInventoryItems, getDishes } from "@/lib/db";
 import {
   getRestaurantTemplateBySlug,
@@ -66,7 +67,6 @@ export type CreateRestaurantPayload = {
   name: string;
   /** Slug du modèle (ex. snack-fastfood) ou `other`. */
   profile: string;
-  avg_covers: number | null;
   service_type: string;
   /** Si true : n’applique pas composants + plats du modèle (remplacés par l’import carte). */
   skip_template_seed?: boolean;
@@ -93,7 +93,7 @@ export async function createRestaurant(
       name,
       activity_type,
       template_slug,
-      avg_covers: payload.avg_covers != null && Number.isFinite(payload.avg_covers) ? payload.avg_covers : null,
+      avg_covers: null,
       service_type: payload.service_type || null,
     })
     .select("id")
@@ -138,13 +138,8 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
   if (!name) return { error: "Le nom du restaurant est requis." };
 
   const profile = String(formData.get("profile") ?? "");
-  const avgCoversRaw = String(formData.get("avg_covers") ?? "").trim();
-  let avg_covers: number | null = null;
-  if (avgCoversRaw) {
-    const n = parseInt(avgCoversRaw, 10);
-    avg_covers = Number.isFinite(n) ? n : null;
-  }
   const service_type = String(formData.get("service_type") ?? "both") || "both";
+  const address_raw = String(formData.get("address_text") ?? "");
 
   const declaredCountRaw = String(formData.get("menu_image_count") ?? "").trim();
   const declaredImageCount = declaredCountRaw ? parseInt(declaredCountRaw, 10) : 0;
@@ -154,13 +149,16 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
   if (Number.isFinite(declaredImageCount) && declaredImageCount > 0 && menuBuffers.length === 0) {
     return {
       error:
-        "Les photos de carte n’ont pas été reçues par le serveur (fichiers trop lourds ou navigateur). Réessayez avec des images plus légères, ou importez depuis Plats.",
+        "Les fichiers carte n’ont pas été reçus par le serveur (fichiers trop lourds ou navigateur). Réessayez avec des fichiers plus légers, ou importez depuis Plats.",
     };
   }
 
   const skip_template_seed = menuBuffers.length > 0;
 
   const { template_slug, activity_type, template } = resolveRestaurantProfile(profile ?? "");
+
+  const geo = await resolveAddressForRestaurantInsert(address_raw);
+  if (!geo.ok) return { error: geo.error };
 
   const { data: inserted, error } = await supabaseServer
     .from("restaurants")
@@ -169,8 +167,13 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
       name,
       activity_type,
       template_slug,
-      avg_covers: avg_covers != null && Number.isFinite(avg_covers) ? avg_covers : null,
+      avg_covers: null,
       service_type: service_type || null,
+      address_text: geo.address_text,
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+      school_zone: geo.school_zone,
+      school_zone_is_manual: false,
     })
     .select("id")
     .single();
@@ -233,6 +236,7 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
     secure: process.env.NODE_ENV === "production",
   });
 
+  revalidatePath("/", "layout");
   revalidatePath("/dashboard");
   return { error: null, restaurantId, menuSuggestions, recipeSuggestions };
 }
@@ -242,7 +246,6 @@ export type UpdateRestaurantPayload = {
   /** Nom d’affichage expéditeur e-mails (Resend) ; vide = utiliser le nom du restaurant. */
   messaging_sender_display_name: string | null;
   template_slug: string | null;
-  avg_covers: number | null;
   service_type: string;
   address_text: string | null;
   school_zone: "A" | "B" | "C" | null;
@@ -304,7 +307,6 @@ export async function updateRestaurant(
       name,
       messaging_sender_display_name: displayFrom,
       template_slug: payload.template_slug?.trim() || null,
-      avg_covers: payload.avg_covers != null && Number.isFinite(payload.avg_covers) ? payload.avg_covers : null,
       service_type: payload.service_type || null,
       address_text: addressText,
       latitude,

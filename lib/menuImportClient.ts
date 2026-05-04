@@ -10,7 +10,8 @@ export async function uploadMenuImageForRestaurant(
   file: File,
   restaurantId: string
 ): Promise<{ url: string; path: string } | { error: string }> {
-  const ext = file.type.includes("png") ? "png" : "jpg";
+  const ext =
+    file.name.toLowerCase().endsWith(".pdf") ? "pdf" : file.type.includes("png") ? "png" : file.type.includes("webp") ? "webp" : "jpg";
   const safeRandom = crypto.randomUUID().replace(/-/g, "");
   const path = `${restaurantId}/menu-${safeRandom}.${ext}`;
   const { error } = await supabase.storage.from(MENU_IMPORT_STORAGE_BUCKET).upload(path, file, {

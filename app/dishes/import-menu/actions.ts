@@ -6,6 +6,7 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { getDishes, createDish } from "@/lib/db";
 import { normalizeVatRatePct, sellingPriceHtFromTtc } from "@/lib/tax/frenchSellingVat";
 import { normalizeDishLabel } from "@/lib/normalizeDishLabel";
+import { ensureResaleDishStockBinding } from "@/lib/recipes/ensureResaleDishStockBinding";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export type CreateFromMenuPayload = {
@@ -145,6 +146,15 @@ export async function createDishesFromMenuSuggestions(
         errors.push(`${name}: mise à jour impossible (${updateErr.message})`);
         continue;
       }
+
+      if (mode === "resale") {
+        const bind = await ensureResaleDishStockBinding(restaurant.id, existingDish.id, name);
+        if (bind.error) {
+          errors.push(`${name}: revente — ${bind.error.message}`);
+          continue;
+        }
+      }
+
       updated++;
       touchedDishIds.push(existingDish.id);
       continue;

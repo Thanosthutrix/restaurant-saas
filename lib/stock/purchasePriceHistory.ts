@@ -19,6 +19,14 @@ export function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Coût d’achat de référence **par unité de stock** (g, ml, kg…).
+ * Plus de décimales que `roundMoney` pour éviter 0,00 € quand l’unité est en grammes ou millilitres.
+ */
+export function roundReferenceUnitCostHt(n: number): number {
+  return Math.round(n * 1_000_000) / 1_000_000;
+}
+
 /** Dernier coût unitaire connu par article (une requête, ordre chronologique global). */
 export async function getLastKnownPurchaseUnitCostByItemIds(
   restaurantId: string,

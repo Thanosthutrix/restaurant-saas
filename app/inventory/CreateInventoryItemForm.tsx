@@ -19,10 +19,12 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
   const [minStockQty, setMinStockQty] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [benchmarkHint, setBenchmarkHint] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setBenchmarkHint(null);
     if (!name.trim()) return;
     const qty = currentStockQty === "" ? 0 : parseFloat(currentStockQty.replace(",", "."));
     const minQty = minStockQty.trim() === "" ? undefined : parseFloat(minStockQty.replace(",", "."));
@@ -43,6 +45,11 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
       setUnit("unit");
       setCurrentStockQty("");
       setMinStockQty("");
+      if (result.data?.appliedBenchmark) {
+        setBenchmarkHint(
+          "Prix d’achat de référence prérempli depuis la base indicative France (moyenne marché HT). À ajuster après vos factures ou BL."
+        );
+      }
     } else {
       setError(result.error);
     }
@@ -51,6 +58,11 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
   return (
     <form onSubmit={handleSubmit} className={uiCard}>
       <h3 className="mb-3 text-sm font-semibold text-slate-900">Nouveau composant</h3>
+      {benchmarkHint ? (
+        <p className="mb-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 text-xs text-violet-950">
+          {benchmarkHint}
+        </p>
+      ) : null}
       {error && <p className={`mb-2 ${uiError}`}>{error}</p>}
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">

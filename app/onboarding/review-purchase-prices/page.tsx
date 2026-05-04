@@ -19,7 +19,9 @@ export default async function OnboardingReviewPurchasePricesPage() {
         <div className="text-center">
           <h1 className={uiPageTitle}>Tarifs d’achat détectés</h1>
           <p className={`mt-2 ${uiLead}`}>
-            Validez les prix lus sur les factures pour initialiser les coûts ingrédients de {restaurant.name}.
+            Validez les prix lus sur les factures pour initialiser les coûts ingrédients de {restaurant.name}. Pour chaque
+            nouvel ingrédient, vous pouvez lier une ligne de la base indicative France avant d’enregistrer le tarif
+            facture comme référence réelle.
           </p>
         </div>
         <div className={uiAuthCard}>

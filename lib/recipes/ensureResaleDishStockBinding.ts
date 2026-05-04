@@ -1,4 +1,5 @@
 import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
+import { syncResaleInventoryCategoryFromDish } from "@/lib/recipes/syncResaleInventoryCategoryFromDish";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 const RESALE_UNIT = "unit" as const;
@@ -75,6 +76,9 @@ export async function ensureResaleDishStockBinding(
     .eq("id", dishId)
     .eq("restaurant_id", restaurantId);
   if (upErr) return { error: new Error(upErr.message) };
+
+  const sync = await syncResaleInventoryCategoryFromDish(restaurantId, dishId);
+  if (sync.error) return { error: sync.error };
 
   return { error: null };
 }

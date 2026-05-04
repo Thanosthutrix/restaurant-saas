@@ -14,6 +14,7 @@ import {
   flattenCategoryOptionsForSelect,
   listRestaurantCategories,
 } from "@/lib/catalog/restaurantCategories";
+import { ApplyBenchmarkTariffButton } from "./ApplyBenchmarkTariffButton";
 import { EditInventoryItemBlock } from "./EditInventoryItemBlock";
 import { InventoryCategoryBlock } from "./InventoryCategoryBlock";
 import { FifoStockBlock } from "./FifoStockBlock";
@@ -132,6 +133,16 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         initialStockQty={stockFromMovements ?? item.current_stock_qty ?? 0}
       />
 
+      {!isPrep ? (
+        <ApplyBenchmarkTariffButton
+          restaurantId={restaurant.id}
+          itemId={item.id}
+          itemType={item.item_type}
+          referencePurchaseUnitCostHt={item.reference_purchase_unit_cost_ht ?? null}
+          referencePurchaseIsBenchmark={item.reference_purchase_is_benchmark === true}
+        />
+      ) : null}
+
       <FifoStockBlock
         stockUnit={item.unit}
         summary={fifoRes.data}
@@ -143,6 +154,7 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         stats={priceStatsRes.data}
         error={priceStatsRes.error?.message ?? null}
         referenceUnitCostHt={item.reference_purchase_unit_cost_ht ?? null}
+        referenceIsBenchmark={item.reference_purchase_is_benchmark === true}
       />
 
       <InventoryItemSupplierBlock

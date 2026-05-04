@@ -11,10 +11,13 @@ import {
 import {
   PENDING_ONBOARDING_CATEGORIES_KEY,
   PENDING_ONBOARDING_EQUIPMENT_KEY,
+  PENDING_ONBOARDING_INGREDIENT_CATEGORIES_KEY,
   PENDING_ONBOARDING_RECIPES_KEY,
+  type PendingOnboardingIngredientCategoriesStored,
   type PendingOnboardingRecipesStored,
 } from "@/lib/onboardingPendingMenuStorage";
-import type { RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
+import type { RecipePhotoIngredient, RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
+import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
 import {
   uiBtnOutlineSm,
   uiBtnPrimaryBlock,
@@ -57,11 +60,44 @@ function toEditable(items: RecipePhotoSuggestion[]): EditableRecipe[] {
     ...item,
     clientId: newClientId(),
     selected: item.ingredients.length > 0,
-    ingredients: item.ingredients.map((ing) => ({
+    ingredients: item.ingredients.map((ing: RecipePhotoIngredient) => ({
       ...ing,
       unit: ing.unit ? (parseAllowedStockUnit(ing.unit) ?? "unit") : "unit",
     })),
   }));
+}
+
+/** Prépare l’étape « rubriques composants » après validation des recettes. */
+function persistIngredientCategoriesFromRecipes(rows: EditableRecipe[]) {
+  const assignments: PendingOnboardingIngredientCategoriesStored["assignments"] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    if (!r.selected) continue;
+    for (const ing of r.ingredients) {
+      const cat = (ing.suggested_stock_category ?? "").trim();
+      const name = ing.name.trim();
+      if (!cat || !name) continue;
+      const norm = normalizeInventoryItemName(name);
+      const key = `${norm}::${cat.toLocaleLowerCase("fr")}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      assignments.push({
+        ingredient_name: name,
+        normalized_label: norm,
+        suggested_category: cat,
+      });
+    }
+  }
+  try {
+    if (assignments.length > 0) {
+      const payload: PendingOnboardingIngredientCategoriesStored = { v: 1, assignments };
+      sessionStorage.setItem(PENDING_ONBOARDING_INGREDIENT_CATEGORIES_KEY, JSON.stringify(payload));
+    } else {
+      sessionStorage.removeItem(PENDING_ONBOARDING_INGREDIENT_CATEGORIES_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 function fileKey(f: File): string {
@@ -99,11 +135,18 @@ export function ReviewRecipesClient() {
     }
   }
 
-  function clearAndGoNext() {
+  function navigateAfterRecipesSessionCleanup(opts: { wipeIngredientCategoriesDraft: boolean }) {
     try {
       sessionStorage.removeItem(PENDING_ONBOARDING_RECIPES_KEY);
     } catch {
       /* ignore */
+    }
+    if (opts.wipeIngredientCategoriesDraft) {
+      try {
+        sessionStorage.removeItem(PENDING_ONBOARDING_INGREDIENT_CATEGORIES_KEY);
+      } catch {
+        /* ignore */
+      }
     }
     if (hasPendingCategories()) {
       router.push("/onboarding/review-categories");
@@ -115,6 +158,10 @@ export function ReviewRecipesClient() {
     }
     router.push("/dashboard");
     router.refresh();
+  }
+
+  function clearAndGoNext() {
+    navigateAfterRecipesSessionCleanup({ wipeIngredientCategoriesDraft: true });
   }
 
   const updateRecipe = (index: number, patch: Partial<EditableRecipe>) => {
@@ -152,7 +199,7 @@ export function ReviewRecipesClient() {
     setRecipes((prev) =>
       prev.map((row, i) =>
         i === recipeIndex
-          ? { ...row, ingredients: [...row.ingredients, { name: "", qty: 1, unit: "unit" }] }
+          ? { ...row, ingredients: [...row.ingredients, { name: "", qty: 1, unit: "unit", suggested_stock_category: null }] }
           : row
       )
     );
@@ -172,7 +219,7 @@ export function ReviewRecipesClient() {
 
   async function analyzeReloadedPhotos(mode: "append" | "replace") {
     if (reloadFiles.length === 0) {
-      setError("Ajoutez au moins une photo de recette.");
+      setError("Ajoutez au moins un fichier de recette (image ou PDF).");
       return;
     }
     const formData = new FormData();
@@ -218,7 +265,8 @@ export function ReviewRecipesClient() {
       return;
     }
     setResult({ applied: res.applied, replaced: res.replaced, skipped: res.skipped, errors: res.errors });
-    clearAndGoNext();
+    persistIngredientCategoriesFromRecipes(recipes);
+    navigateAfterRecipesSessionCleanup({ wipeIngredientCategoriesDraft: false });
   }
 
   if (missing) {
@@ -248,7 +296,8 @@ export function ReviewRecipesClient() {
       <div>
         <h2 className={uiSectionTitleSm}>Recettes détectées ({recipes.length})</h2>
         <p className={`mt-1 ${uiMuted}`}>
-          Le nom du plat doit correspondre à un plat déjà créé. Corrigez les quantités par portion avant validation.
+          Le nom du plat doit correspondre à un plat déjà créé. Corrigez les quantités par portion avant validation. La
+          rubrique stock par ingrédient est proposée par l&apos;IA ; vous pouvez la modifier avant de créer les recettes.
         </p>
       </div>
 
@@ -256,7 +305,7 @@ export function ReviewRecipesClient() {
         <div>
           <h3 className={uiSectionTitleSm}>Les propositions ne conviennent pas ?</h3>
           <p className={`mt-1 ${uiMuted}`}>
-            Ajoutez d’autres photos de recettes, puis remplacez la liste actuelle ou ajoutez les nouvelles propositions
+            Ajoutez d’autres fichiers de recettes (images ou PDF), puis remplacez la liste actuelle ou ajoutez les nouvelles propositions
             à la suite.
           </p>
         </div>
@@ -265,7 +314,7 @@ export function ReviewRecipesClient() {
             <label className="mb-1 block text-xs font-medium text-slate-500">Galerie</label>
             <input
               type="file"
-              accept="image/*"
+              accept=".pdf,image/*"
               multiple
               disabled={analyzePending || pending}
               onChange={(e) => {
@@ -373,7 +422,20 @@ export function ReviewRecipesClient() {
 
             <div className="space-y-2">
               {recipe.ingredients.map((ingredient, ingredientIndex) => (
-                <div key={`${recipe.clientId}-${ingredientIndex}`} className="grid gap-2 sm:grid-cols-[1fr_7rem_6rem_auto]">
+                <div
+                  key={`${recipe.clientId}-${ingredientIndex}`}
+                  className="grid gap-2 sm:grid-cols-[minmax(0,9rem)_1fr_7rem_6rem_auto]"
+                >
+                  <input
+                    value={ingredient.suggested_stock_category ?? ""}
+                    onChange={(e) =>
+                      updateIngredient(recipeIndex, ingredientIndex, {
+                        suggested_stock_category: e.target.value.trim() ? e.target.value : null,
+                      })
+                    }
+                    placeholder="Rubrique stock"
+                    className={`${uiInput} w-full text-xs sm:text-sm`}
+                  />
                   <input
                     value={ingredient.name}
                     onChange={(e) => updateIngredient(recipeIndex, ingredientIndex, { name: e.target.value })}

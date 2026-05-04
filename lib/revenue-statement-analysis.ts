@@ -1,20 +1,16 @@
 import OpenAI from "openai";
 import sharp from "sharp";
+import { isPdfBuffer } from "@/lib/isPdfBuffer";
+import type { RevenueStatementLine } from "./revenue-statement-analysisJson";
+import { parseNumber, parseOptionalQty } from "./revenue-statement-analysisJson";
+
+export type { RevenueStatementLine } from "./revenue-statement-analysisJson";
+export { REVENUE_EXTRACTION_VERSION } from "./revenue-statement-analysisJson";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_SIZE = 1800;
 const JPEG_QUALITY = 80;
-
-/** Une ligne extraite d’un relevé (plat, famille, code article…). */
-export type RevenueStatementLine = {
-  label: string;
-  qty: number | null;
-  amount_ttc: number | null;
-  amount_ht: number | null;
-  category: string | null;
-  notes: string | null;
-};
 
 export type MonthlyRevenueSuggestion = {
   month: string;
@@ -38,88 +34,6 @@ export type RevenueStatementAnalysisResult = {
   error?: string;
 };
 
-const EXTRACTION_VERSION = 2 as const;
-
-export function parseAnalysisResultJson(json: unknown): {
-  lines: RevenueStatementLine[];
-  covers_estimate: number | null;
-  ticket_count_estimate: number | null;
-  document_notes: string | null;
-  extraction_version: number;
-} {
-  if (!json || typeof json !== "object") {
-    return {
-      lines: [],
-      covers_estimate: null,
-      ticket_count_estimate: null,
-      document_notes: null,
-      extraction_version: 1,
-    };
-  }
-  const o = json as Record<string, unknown>;
-  const lines: RevenueStatementLine[] = [];
-  const raw = o.lines;
-  if (Array.isArray(raw)) {
-    for (const item of raw) {
-      if (!item || typeof item !== "object") continue;
-      const L = item as Record<string, unknown>;
-      const label = typeof L.label === "string" ? L.label.trim() : "";
-      if (!label) continue;
-      lines.push({
-        label,
-        qty: parseOptionalQty(L.qty ?? L.quantity ?? L.qte),
-        amount_ttc: parseNumber(L.amount_ttc ?? L.montant_ttc ?? L.total_ttc),
-        amount_ht: parseNumber(L.amount_ht ?? L.montant_ht ?? L.total_ht),
-        category:
-          typeof L.category === "string"
-            ? L.category.trim() || null
-            : typeof L.rubrique === "string"
-              ? L.rubrique.trim() || null
-              : typeof L.famille === "string"
-                ? L.famille.trim() || null
-                : null,
-        notes: typeof L.notes === "string" ? L.notes.trim() || null : null,
-      });
-    }
-  }
-
-  const cov = o.covers_estimate ?? o.covers;
-  const tickets = o.ticket_count_estimate ?? o.tickets ?? o.ticket_count;
-  const document_notes = typeof o.document_notes === "string" ? o.document_notes.trim() || null : null;
-  const extraction_version =
-    typeof o.extraction_version === "number" && Number.isFinite(o.extraction_version)
-      ? o.extraction_version
-      : lines.length > 0 || document_notes
-        ? EXTRACTION_VERSION
-        : 1;
-
-  return {
-    lines,
-    covers_estimate: parseOptionalQty(cov),
-    ticket_count_estimate: parseOptionalQty(tickets),
-    document_notes,
-    extraction_version,
-  };
-}
-
-/** Indique si l’import photo contient du détail exploitable en UI. */
-export function hasImportedRevenueDetail(json: unknown): boolean {
-  const p = parseAnalysisResultJson(json);
-  return (
-    p.lines.length > 0 ||
-    p.covers_estimate != null ||
-    p.ticket_count_estimate != null ||
-    (p.document_notes != null && p.document_notes.length > 0)
-  );
-}
-
-function parseOptionalQty(raw: unknown): number | null {
-  if (raw == null || raw === "") return null;
-  const n = typeof raw === "number" ? raw : Number(String(raw).replace(",", "."));
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 1000) / 1000;
-}
-
 function stripMarkdownCodeBlock(text: string): string {
   const trimmed = text.trim();
   const open = trimmed.indexOf("```");
@@ -128,28 +42,6 @@ function stripMarkdownCodeBlock(text: string): string {
   const close = afterOpen.indexOf("```");
   if (close === -1) return trimmed;
   return afterOpen.slice(0, close).trim();
-}
-
-function parseNumber(raw: unknown): number | null {
-  if (raw == null || raw === "") return null;
-  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) {
-    return Math.round(raw * 100) / 100;
-  }
-  const s = String(raw)
-    .trim()
-    .replace(/\u202f|\u00a0/g, " ")
-    .replace(/\s/g, "")
-    .replace(/€/g, "");
-  if (!s) return null;
-  const lastComma = s.lastIndexOf(",");
-  const lastDot = s.lastIndexOf(".");
-  let n: number;
-  if (lastComma !== -1 && lastComma > lastDot) {
-    n = Number(`${s.slice(0, lastComma).replace(/\./g, "")}.${s.slice(lastComma + 1)}`);
-  } else {
-    n = Number(s.replace(/,/g, ""));
-  }
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 }
 
 function normalizeMonth(raw: unknown): string | null {
@@ -325,8 +217,34 @@ Règles importantes :
 
 const USER_PROMPT_CA = `Analyse cette image de relevé de CA. Extrais les totaux par mois ET tout détail de ventes (lignes plats / rubriques / montants) lisible sur le document. Si un seul total est visible sans précision HT/TTC, mets-le dans revenue_ttc et précise l'incertitude dans notes.`;
 
-/** Version du schéma d'extraction stocké dans analysis_result_json. */
-export const REVENUE_EXTRACTION_VERSION = EXTRACTION_VERSION;
+const USER_PROMPT_CA_DOCUMENT = `Analyse ce relevé de CA (document ci-joint : capture, scan ou PDF exporté). Extrais les totaux par mois ET tout détail de ventes (lignes plats / rubriques / montants) lisible sur le document. Si un seul total est visible sans précision HT/TTC, mets-le dans revenue_ttc et précise l'incertitude dans notes.`;
+
+function extractJsonObject(text: string): string | null {
+  const trimmed = stripMarkdownCodeBlock(text).trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  return trimmed.slice(start, end + 1);
+}
+
+function parseRevenueModelOutput(raw: string | null | undefined): RevenueStatementAnalysisResult {
+  if (!raw) return { suggestions: [], error: "Réponse vide du modèle." };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripMarkdownCodeBlock(raw)) as unknown;
+  } catch {
+    const obj = extractJsonObject(raw);
+    if (!obj) return { suggestions: [], error: "Réponse du modèle invalide (JSON)." };
+    try {
+      parsed = JSON.parse(obj) as unknown;
+    } catch (e) {
+      return { suggestions: [], error: e instanceof Error ? e.message : "JSON invalide." };
+    }
+  }
+  const document_notes = extractDocumentNotes(parsed);
+  const suggestions = normalizeSuggestions(parsed);
+  return { suggestions, document_notes };
+}
 
 export async function analyzeRevenueStatementImageFromBuffer(
   buffer: Buffer
@@ -336,6 +254,24 @@ export async function analyzeRevenueStatementImageFromBuffer(
   }
 
   try {
+    if (isPdfBuffer(buffer)) {
+      const fileData = `data:application/pdf;base64,${buffer.toString("base64")}`;
+      const combinedText = `${SYSTEM_PROMPT_CA}\n\n${USER_PROMPT_CA_DOCUMENT}`;
+      const response = await openai.responses.create({
+        model: "gpt-4o",
+        input: [
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: combinedText },
+              { type: "input_file", filename: "releve-ca.pdf", file_data: fileData },
+            ],
+          },
+        ],
+      });
+      return parseRevenueModelOutput(response.output_text);
+    }
+
     const imageUrl = await bufferToJpegDataUrl(buffer);
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -356,12 +292,7 @@ export async function analyzeRevenueStatementImageFromBuffer(
         },
       ],
     });
-    const raw = response.choices[0]?.message?.content;
-    if (!raw) return { suggestions: [], error: "Réponse vide du modèle." };
-    const parsed = JSON.parse(stripMarkdownCodeBlock(raw)) as unknown;
-    const document_notes = extractDocumentNotes(parsed);
-    const suggestions = normalizeSuggestions(parsed);
-    return { suggestions, document_notes };
+    return parseRevenueModelOutput(response.choices[0]?.message?.content);
   } catch (e) {
     return { suggestions: [], error: e instanceof Error ? e.message : "Analyse CA impossible." };
   }

@@ -281,6 +281,8 @@ export type InventoryItem = {
   target_stock_qty?: number | null;
   /** € HT / unité de stock, saisi sur la fiche ; repli coût réception si pas d’autre source. */
   reference_purchase_unit_cost_ht?: number | null;
+  /** True si le prix de référence vient uniquement de la base indicative France (avant BL / saisie). */
+  reference_purchase_is_benchmark?: boolean;
 };
 
 /** Liste inventaire enrichie couche 2 (stock calculé depuis les mouvements). */
@@ -651,7 +653,7 @@ export async function createDishAlias(
 // --- Inventory & recipe (recettes / stock) ---
 
 const INVENTORY_ITEM_SELECT =
-  "id, restaurant_id, name, unit, item_type, category_id, current_stock_qty, min_stock_qty, recipe_status, created_at, supplier_id, supplier_sku, purchase_unit, units_per_purchase, min_order_quantity, order_multiple, target_stock_qty, reference_purchase_unit_cost_ht";
+  "id, restaurant_id, name, unit, item_type, category_id, current_stock_qty, min_stock_qty, recipe_status, created_at, supplier_id, supplier_sku, purchase_unit, units_per_purchase, min_order_quantity, order_multiple, target_stock_qty, reference_purchase_unit_cost_ht, reference_purchase_is_benchmark";
 
 /** Liste des composants stockables du restaurant. */
 export async function getInventoryItems(

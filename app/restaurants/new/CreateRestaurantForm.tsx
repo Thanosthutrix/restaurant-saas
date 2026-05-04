@@ -32,8 +32,8 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
   const [name, setName] = useState("");
   const defaultProfile = templates[0]?.slug ?? RESTAURANT_PROFILE_OTHER;
   const [profile, setProfile] = useState<string>(defaultProfile);
-  const [avgCovers, setAvgCovers] = useState("");
   const [serviceType, setServiceType] = useState("both");
+  const [addressText, setAddressText] = useState("");
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
   const [recipeFiles, setRecipeFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<Phase>("form");
@@ -64,8 +64,10 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
     const fd = new FormData();
     fd.append("name", name.trim());
     fd.append("profile", profile);
-    fd.append("avg_covers", avgCovers);
     fd.append("service_type", serviceType);
+    if (addressText.trim()) {
+      fd.append("address_text", addressText.trim());
+    }
     if (menuFiles.length > 0) {
       fd.append("menu_image_count", String(menuFiles.length));
     }
@@ -218,6 +220,22 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
         />
       </div>
       <div>
+        <label htmlFor="address" className="mb-1 block text-sm font-medium text-slate-700">
+          Adresse de l&apos;établissement
+        </label>
+        <textarea
+          id="address"
+          value={addressText}
+          onChange={(e) => setAddressText(e.target.value)}
+          rows={2}
+          placeholder="12 rue de la République, 75001 Paris"
+          className={`${inputClass} min-h-[4rem] resize-y`}
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Optionnel : météo et calendrier. Si renseignée, adresse géocodable en France (Base Adresse Nationale).
+        </p>
+      </div>
+      <div>
         <label htmlFor="profile" className="mb-1 block text-sm font-medium text-slate-700">
           Type d&apos;établissement et modèle de départ
         </label>
@@ -243,20 +261,6 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
         )}
       </div>
       <div>
-        <label htmlFor="avgCovers" className="mb-1 block text-sm font-medium text-slate-700">
-          Nombre moyen de couverts / jour
-        </label>
-        <input
-          id="avgCovers"
-          type="number"
-          min={1}
-          value={avgCovers}
-          onChange={(e) => setAvgCovers(e.target.value)}
-          placeholder="50"
-          className={inputClass}
-        />
-      </div>
-      <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Type de service</label>
         <select
           value={serviceType}
@@ -278,7 +282,7 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
         onChange={setRecipeFiles}
         disabled={loading}
         title="Photo(s) de recettes (optionnel)"
-        description="Ajoutez plusieurs fiches recettes ou notes cuisine. L’IA proposera les ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
+          description="Ajoutez plusieurs fiches recettes ou notes cuisine (images ou PDF). L’IA proposera les ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
         galleryLabel="Fiches recettes depuis la galerie"
         cameraLabel="Photographier une recette"
       />

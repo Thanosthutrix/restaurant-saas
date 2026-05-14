@@ -46,6 +46,12 @@ function mapStaff(row: Record<string, unknown>): StaffMember {
       row.planning_prep_bands_json != null && typeof row.planning_prep_bands_json === "object"
         ? (row.planning_prep_bands_json as Record<string, unknown>)
         : null,
+    color_index: (() => {
+      const c = row.color_index;
+      if (c == null || c === "") return null;
+      const n = Number(c);
+      return Number.isFinite(n) && n >= 0 && n <= 9 ? Math.round(n) : null;
+    })(),
     active: Boolean(row.active),
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),

@@ -217,10 +217,11 @@ export async function submitOpeningTemperatureLogAction(
 
   const logStatus = classifyTemperatureStatus(parsed.value, point.min_threshold, point.max_threshold);
 
-  if (requiresCorrectiveFields(logStatus) && !params.comment?.trim()) {
+  // Seul un écart critique (hors plage) rend le commentaire obligatoire.
+  if (logStatus === "critical" && !params.comment?.trim()) {
     return {
       ok: false,
-      error: `Température ${logStatus === "critical" ? "hors plage" : "en alerte"} — un commentaire est obligatoire.`,
+      error: "Température hors plage — un commentaire est obligatoire.",
     };
   }
 

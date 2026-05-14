@@ -171,7 +171,7 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
                 const tempVal = temps.get(point.id) ?? "";
                 const commentVal = comments.get(point.id) ?? "";
                 const status = getTempStatus(point);
-                const isAnomaly = status === "alert" || status === "critical";
+                const isAnomaly = status === "critical";
                 const inputBorder =
                   status === "critical"
                     ? "border-rose-400 focus:ring-rose-400"
@@ -237,7 +237,13 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
                         id={`comment-${point.id}`}
                         type="text"
                         autoComplete="off"
-                        placeholder={isAnomaly ? "Décrivez l'anomalie constatée…" : "ex. légère vibration, porte mal fermée…"}
+                        placeholder={
+                          isAnomaly
+                            ? "Décrivez l'anomalie constatée…"
+                            : status === "alert"
+                            ? "Proche du seuil — précisez si besoin…"
+                            : "ex. légère vibration, porte mal fermée…"
+                        }
                         className={`${uiInput} mt-0.5 w-full`}
                         value={commentVal}
                         onChange={(e) =>

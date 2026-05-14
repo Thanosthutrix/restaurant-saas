@@ -56,6 +56,7 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
         colorIndex: null,
         staffMemberId: null,
         restaurantId: null,
+        usedColorIndexes: [],
       },
     };
   }

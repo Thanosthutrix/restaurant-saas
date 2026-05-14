@@ -156,8 +156,8 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
       {/* Modale relevés de température HACCP — obligatoires avant de pointer */}
       {showTempModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div className="border-b border-slate-100 px-5 py-4">
+          <div className="flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="shrink-0 border-b border-slate-100 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-900">
                 Relevés de température — ouverture
               </h2>
@@ -166,7 +166,7 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
               </p>
             </div>
 
-            <div className="max-h-[55vh] overflow-y-auto px-5 py-4 space-y-3">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-3">
               {temperaturePoints.map((point) => {
                 const tempVal = temps.get(point.id) ?? "";
                 const commentVal = comments.get(point.id) ?? "";
@@ -262,7 +262,7 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
               </p>
             )}
 
-            <div className="border-t border-slate-100 px-5 py-4">
+            <div className="shrink-0 border-t border-slate-100 px-5 py-4">
               <button
                 type="button"
                 disabled={pending || !allFilled()}

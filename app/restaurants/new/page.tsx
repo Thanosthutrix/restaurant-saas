@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser, getCurrentRestaurant } from "@/lib/auth";
+import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { getRestaurantTemplates } from "@/lib/templates/restaurantTemplates";
 import { CreateRestaurantForm } from "./CreateRestaurantForm";
 
@@ -8,7 +8,7 @@ export default async function NewRestaurantPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const current = await getCurrentRestaurant();
+  const current = await getRestaurantForPage();
   if (!current) redirect("/onboarding");
 
   const templates = getRestaurantTemplates();

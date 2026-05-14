@@ -10,6 +10,7 @@ import {
   visibleCategoryIdsWithAncestors,
 } from "@/lib/catalog/restaurantCategories";
 import { getRestaurantForPage } from "@/lib/auth";
+import { getNavAccessLevel } from "@/lib/auth/requireNavAccess";
 import { InventoryCategoryTiles } from "./InventoryCategoryTiles";
 import { CreateInventoryItemForm } from "./CreateInventoryItemForm";
 import { uiBackLink, uiError, uiInfoBanner, uiLead, uiPageTitle, uiSectionTitle } from "@/components/ui/premium";
@@ -17,6 +18,8 @@ import { uiBackLink, uiError, uiInfoBanner, uiLead, uiPageTitle, uiSectionTitle 
 export default async function InventoryPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
+  const access = await getNavAccessLevel("inventory");
+  const canWrite = access === "full";
 
   const [{ data: items, error }, catRes] = await Promise.all([
     getInventoryItemsWithCalculatedStock(restaurant.id),
@@ -56,7 +59,7 @@ export default async function InventoryPage() {
 
       {error && <div className={uiError}>{error.message}</div>}
 
-      <CreateInventoryItemForm restaurantId={restaurant.id} />
+      {canWrite && <CreateInventoryItemForm restaurantId={restaurant.id} />}
 
       <p>
         <Link href="/account#rubriques" className={uiBackLink}>

@@ -15,11 +15,13 @@ function CategoryBranch({
   depth,
   directMap,
   dishExtras,
+  canWrite,
 }: {
   node: CategoryTreeNode;
   depth: number;
   directMap: Map<string, Dish[]>;
   dishExtras: Map<string, DishExtra>;
+  canWrite: boolean;
 }) {
   const direct = directMap.get(node.id) ?? [];
   const subtree = countInSubtree(node, directMap);
@@ -41,6 +43,7 @@ function CategoryBranch({
             depth={depth + 1}
             directMap={directMap}
             dishExtras={dishExtras}
+            canWrite={canWrite}
           />
         ))}
         {direct.length > 0 ? (
@@ -54,6 +57,7 @@ function CategoryBranch({
                     compCount={ex.compCount}
                     suggestionAvailable={ex.suggestionAvailable}
                     showCategoryInRow={false}
+                    canWrite={canWrite}
                   />
                 </li>
               );
@@ -70,11 +74,13 @@ export function DishesNestedCategoryTiles({
   directMap,
   dishExtras,
   uncategorized,
+  canWrite = true,
 }: {
   roots: CategoryTreeNode[];
   directMap: Map<string, Dish[]>;
   dishExtras: Map<string, DishExtra>;
   uncategorized: Dish[];
+  canWrite?: boolean;
 }) {
   const nUncat = uncategorized.length;
   const uncatSubtitle =
@@ -89,6 +95,7 @@ export function DishesNestedCategoryTiles({
           depth={0}
           directMap={directMap}
           dishExtras={dishExtras}
+          canWrite={canWrite}
         />
       ))}
       {nUncat > 0 ? (
@@ -109,6 +116,7 @@ export function DishesNestedCategoryTiles({
                     compCount={ex.compCount}
                     suggestionAvailable={ex.suggestionAvailable}
                     showCategoryInRow={false}
+                    canWrite={canWrite}
                   />
                 </li>
               );

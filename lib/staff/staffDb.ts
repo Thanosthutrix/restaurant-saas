@@ -22,6 +22,7 @@ function mapStaff(row: Record<string, unknown>): StaffMember {
     user_id: row.user_id == null ? null : String(row.user_id),
     role_label: row.role_label == null || String(row.role_label).trim() === "" ? null : String(row.role_label).trim(),
     app_role: row.app_role == null || String(row.app_role).trim() === "" ? null : String(row.app_role).trim(),
+    app_nav_keys: Array.isArray(row.app_nav_keys) ? (row.app_nav_keys as string[]) : null,
     contract_type:
       row.contract_type == null || String(row.contract_type).trim() === ""
         ? null
@@ -57,11 +58,14 @@ export async function getStaffMembershipForAccess(userId: string): Promise<{
   restaurant_id: string;
   restaurant_name: string;
   app_role: string | null;
+  app_nav_keys: string[] | null;
+  display_name: string;
+  color_index: number | null;
   restaurant: Restaurant;
 } | null> {
   const { data, error } = await supabaseServer
     .from("staff_members")
-    .select("id, restaurant_id, app_role")
+    .select("id, restaurant_id, app_role, app_nav_keys, display_name, color_index")
     .eq("user_id", userId)
     .eq("active", true)
     .limit(1)
@@ -73,11 +77,17 @@ export async function getStaffMembershipForAccess(userId: string): Promise<{
   const restaurant = await getRestaurantById(restaurant_id);
   if (!restaurant) return null;
 
+  const rawKeys = (data as { app_nav_keys: unknown }).app_nav_keys;
+  const rawColor = (data as { color_index: unknown }).color_index;
+
   return {
     staff_member_id: String((data as { id: string }).id),
     restaurant_id,
     restaurant_name: restaurant.name,
     app_role: (data as { app_role: string | null }).app_role,
+    app_nav_keys: Array.isArray(rawKeys) ? (rawKeys as string[]) : null,
+    display_name: String((data as { display_name: string }).display_name ?? ""),
+    color_index: typeof rawColor === "number" ? rawColor : null,
     restaurant,
   };
 }

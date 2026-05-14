@@ -5,8 +5,10 @@ export type StaffMember = {
   user_id: string | null;
   /** Poste affiché (salle, cuisine…). */
   role_label: string | null;
-  /** Rôle applicatif une fois le compte lié (droits menu). */
+  /** Rôle applicatif une fois le compte lié (droits menu — legacy). */
   app_role: string | null;
+  /** Pages accessibles par le collaborateur (prend le dessus sur app_role si défini). */
+  app_nav_keys: string[] | null;
   /** Contrat (cdi, cdd, …). */
   contract_type: string | null;
   /** Volume horaire cible hebdomadaire. */
@@ -15,6 +17,8 @@ export type StaffMember = {
   planning_carryover_minutes: number;
   /** Notes internes planning. */
   planning_notes: string | null;
+  /** Index (0-9) dans la palette STAFF_COLORS choisi par le collaborateur. NULL = auto. */
+  color_index: number | null;
   /** Horaires habituels / souhaités (même format que l’établissement). */
   availability_json: Record<string, unknown> | null;
   /** Prépa / travail hors service client (même structure jour → plages). */

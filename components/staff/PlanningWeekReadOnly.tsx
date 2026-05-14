@@ -5,29 +5,14 @@ import { computePlanningWeekTimeRange } from "@/lib/staff/planningGridRange";
 import { PLANNING_DAY_KEYS, PLANNING_DAY_LABELS_FR } from "@/lib/staff/planningHoursTypes";
 import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
 import type { StaffMember, WorkShiftWithDetails } from "@/lib/staff/types";
+import { buildStaffInitialsByMemberId, staffInitialsBase } from "@/lib/staff/staffDisplayInitials";
+import { STAFF_COLORS, resolveStaffColorIndex } from "@/lib/staff/staffColors";
 import { addDays, parseISODateLocal } from "@/lib/staff/weekUtils";
 
 const COL_H = 432;
 const COL_WIDTH_SCALE = 0.7;
 
-const STAFF_LAYER_CLASS = [
-  "bg-violet-600",
-  "bg-amber-600",
-  "bg-emerald-600",
-  "bg-rose-600",
-  "bg-cyan-600",
-  "bg-fuchsia-600",
-  "bg-lime-700",
-  "bg-orange-600",
-  "bg-sky-600",
-  "bg-teal-600",
-];
-
-function staffInitials(displayName: string): string {
-  const p = displayName.trim().split(/\s+/).filter(Boolean);
-  if (p.length >= 2) return (p[0]![0]! + p[p.length - 1]![0]!).toUpperCase();
-  return displayName.slice(0, 2).toUpperCase();
-}
+const STAFF_LAYER_CLASS = STAFF_COLORS;
 
 function dayBounds(d: Date): { start: Date; end: Date } {
   const start = new Date(d);
@@ -237,11 +222,13 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
   }, [dayColumnWeights]);
 
   const staffColor = useMemo(() => {
-    const sorted = [...staff].sort((a, b) => a.id.localeCompare(b.id));
+    const allIds = staff.map((s) => s.id);
     const m = new Map<string, number>();
-    sorted.forEach((s, i) => m.set(s.id, i));
+    staff.forEach((s) => m.set(s.id, resolveStaffColorIndex(s.id, s.color_index, allIds)));
     return m;
   }, [staff]);
+
+  const initialsById = useMemo(() => buildStaffInitialsByMemberId(staff), [staff]);
 
   if (!monday || resolvedWeekDays.length !== 7) {
     return (
@@ -365,7 +352,7 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
                       >
                         <div className="pointer-events-none flex min-h-0 w-full flex-col items-center justify-center gap-0.5 px-0.5 py-0.5 text-center">
                           <span className="w-full truncate text-[8px] font-bold leading-none drop-shadow-sm">
-                            {staffInitials(s.staff_display_name)}
+                            {initialsById.get(s.staff_member_id) ?? staffInitialsBase(s.staff_display_name)}
                           </span>
                           <span className="w-full truncate text-[7px] font-semibold leading-tight opacity-95 drop-shadow-sm">
                             {formatRangeLabel(s.starts_at, s.ends_at)}

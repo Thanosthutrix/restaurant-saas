@@ -21,7 +21,7 @@ import { getServicesForRestaurant, getServiceSalesAggregate, getInventoryStockDa
 import { DayClockShell } from "@/components/staff/DayClockShell";
 import { getStaffMemberByUserAndRestaurant, listWorkShiftsInRange } from "@/lib/staff/staffDb";
 import { addDays, mondayOfWeekContaining } from "@/lib/staff/weekUtils";
-import type { ShellNavKey } from "@/lib/auth/appRoles";
+import { ALL_SHELL_NAV_KEYS, type ShellNavKey } from "@/lib/auth/appRoles";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -112,7 +112,7 @@ const quickActions: {
     href: "/onboarding/imports",
     description: "Réimporter carte, recettes et rubriques",
     icon: WandSparkles,
-    navKey: "dashboard",
+    navKey: "ai_assistant",
   },
 ];
 
@@ -154,7 +154,15 @@ export default async function DashboardPage() {
   const lastFiveServices = (recentServices ?? []).slice(0, 5);
   const inventoryCount = stockSummary?.inventoryCount ?? 0;
   const belowMinStockCount = stockSummary?.belowMinStockCount ?? 0;
-  const visibleQuickActions = quickActions.filter((action) => accessContext?.allowedNavKeys.includes(action.navKey));
+  const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
+  const isOwner = accessContext?.isOwner ?? false;
+
+  const visibleQuickActions = quickActions.filter((action) => allowed.includes(action.navKey));
+  // Pour le propriétaire : toutes les rubriques visibles (pas de restriction).
+  // Pour un collaborateur : chaque rubrique nécessite sa clé spécifique.
+  const showStats = isOwner || allowed.includes("dashboard_stats");
+  const showRecentServices = isOwner || allowed.includes("dashboard_recent_services");
+  const showStockAlert = isOwner || allowed.includes("dashboard_stock_alert");
 
   const cardBase = "rounded-2xl border border-slate-100 bg-white shadow-sm";
 
@@ -183,7 +191,7 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
             {visibleQuickActions.map((action) => {
               const Icon = action.icon;
               return (
@@ -207,6 +215,7 @@ export default async function DashboardPage() {
         </section>
 
         {/* Stats */}
+      {showStats && (
       <section aria-label="Indicateurs récents">
         <h2 className="sr-only">Statistiques</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -236,8 +245,9 @@ export default async function DashboardPage() {
           />
         </div>
       </section>
+      )}
 
-      {belowMinStockCount > 0 ? (
+      {showStockAlert && belowMinStockCount > 0 ? (
         <div
           className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
           role="status"
@@ -255,7 +265,7 @@ export default async function DashboardPage() {
       ) : null}
 
       {/* Derniers services — tableau */}
-      {lastFiveServices.length > 0 ? (
+      {showRecentServices && lastFiveServices.length > 0 ? (
         <section className={cardBase} aria-labelledby="services-heading">
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
             <div>

@@ -13,14 +13,14 @@ import {
 } from "@/lib/staff/planningResolve";
 import type { OpeningHoursMap, PlanningDayKey } from "@/lib/staff/planningHoursTypes";
 import type { StaffMember, WorkShiftWithDetails } from "@/lib/staff/types";
-import {
-  actualDurationMinutes,
-  formatMinutesHuman,
-  plannedDurationMinutes,
-  varianceMinutes,
-} from "@/lib/staff/timeHelpers";
 import { addDays, parseISODateLocal, toISODateString } from "@/lib/staff/weekUtils";
-import { APP_ROLES } from "@/lib/auth/appRoles";
+import {
+  NAV_KEY_GROUPS,
+  NAV_KEY_LABELS_FR,
+  NAV_KEY_READONLY_PAIRS,
+  type ShellNavKey,
+  resolveNavKeys,
+} from "@/lib/auth/appRoles";
 import {
   clearStaffUserLinkAction,
   createSimulationShiftAction,
@@ -29,14 +29,11 @@ import {
   createWeekSimulationAction,
   createWorkShiftAction,
   deactivateStaffMemberAction,
-  deleteSimulationShiftAction,
-  deleteWorkShiftAction,
-  discardWeekSimulationAction,
   generateAutoSimulationShiftsAction,
   linkMyAccountToStaffAction,
-  managerSetAttendanceAction,
   publishWeekSimulationAction,
-  updateStaffAppRoleAction,
+  updateStaffNavPermissionsAction,
+  discardWeekSimulationAction,
 } from "./actions";
 import {
   uiBtnOutlineSm,
@@ -47,8 +44,8 @@ import {
   uiLabel,
   uiSuccess,
 } from "@/components/ui/premium";
+import { STAFF_COLORS, STAFF_COLOR_HEX, STAFF_COLOR_LABELS, resolveStaffColorIndex } from "@/lib/staff/staffColors";
 
-/** Lien utilisable dans un mail / SMS (le serveur peut renvoyer un chemin relatif si pas d’URL publique en env). */
 function toAbsoluteInviteUrl(joinUrlFromServer: string): string {
   const t = joinUrlFromServer.trim();
   if (t.startsWith("http://") || t.startsWith("https://")) return t;
@@ -57,82 +54,6 @@ function toAbsoluteInviteUrl(joinUrlFromServer: string): string {
   return `${window.location.origin}${path}`;
 }
 
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* fallback ci-dessous */
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
-function toDatetimeLocalValue(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day}T${h}:${min}`;
-}
-
-function formatDateTimeFr(iso: string): string {
-  return new Date(iso).toLocaleString("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-const APP_ROLE_LABELS_FR: Record<(typeof APP_ROLES)[number], string> = {
-  manager: "Complet (toutes les sections)",
-  service: "Salle, caisse, plats, services",
-  cuisine: "Cuisine, stock, préparations",
-  hygiene: "Hygiène / nettoyage",
-  achats: "Achats, fournisseurs, livraison, commandes",
-  lecture_seule: "Lecture (dashboard + compte)",
-};
-
-type PlanningMode = "real" | "simulation";
-
-type Props = {
-  restaurantId: string;
-  currentUserId: string;
-  weekMondayIso: string;
-  /** Dérivé de l’URL ?planning=sim pour garder le mode après navigation / refresh. */
-  initialPlanningMode: PlanningMode;
-  staff: StaffMember[];
-  shifts: WorkShiftWithDetails[];
-  simulationId: string | null;
-  simulationShifts: WorkShiftWithDetails[];
-  resolvedWeekDays: WeekResolvedDay[];
-  /** Même base que la fiche restaurant : recalcul client des plages affichées (évite toute dérive RSC). */
-  planningOpeningHours: OpeningHoursMap;
-  planningStaffExtraBands: OpeningHoursMap;
-  planningStaffTargetsWeekly: Partial<Record<PlanningDayKey, number>>;
-  planningDayOverrides: PlanningDayOverrideRow[];
-  planningAlerts: PlanningAlert[];
-  simulationAlerts: PlanningAlert[];
-};
 
 function formatDatetimeLocalFromDate(d: Date): string {
   const y = d.getFullYear();
@@ -142,6 +63,165 @@ function formatDatetimeLocalFromDate(d: Date): string {
   const min = String(d.getMinutes()).padStart(2, "0");
   return `${y}-${m}-${day}T${h}:${min}`;
 }
+
+
+/** Éditeur de permissions pages par collaborateur (checkboxes groupées). */
+function NavPermissionsEditor({
+  member,
+  pending,
+  onSave,
+}: {
+  member: { id: string; app_role: string | null; app_nav_keys: string[] | null };
+  pending: boolean;
+  onSave: (keys: string[]) => void;
+}) {
+  const initialKeys = resolveNavKeys(member.app_nav_keys, member.app_role);
+  const [checked, setChecked] = useState<Set<string>>(() => new Set(initialKeys));
+  const [dirty, setDirty] = useState(false);
+
+  function toggle(key: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    setDirty(true);
+  }
+
+  type Level = "none" | "readonly" | "full";
+
+  function getPageLevel(baseKey: ShellNavKey): Level {
+    if (checked.has(baseKey)) return "full";
+    const ro = NAV_KEY_READONLY_PAIRS[baseKey];
+    if (ro && checked.has(ro)) return "readonly";
+    return "none";
+  }
+
+  function setPageLevel(baseKey: ShellNavKey, level: Level) {
+    const ro = NAV_KEY_READONLY_PAIRS[baseKey];
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.delete(baseKey);
+      if (ro) next.delete(ro);
+      if (level === "full") next.add(baseKey);
+      else if (level === "readonly" && ro) next.add(ro);
+      return next;
+    });
+    setDirty(true);
+  }
+
+  const levelLabels: Record<Level, string> = {
+    none: "Aucun",
+    readonly: "Lecture",
+    full: "Complet",
+  };
+
+  const levelStyles: Record<Level, Record<Level, string>> = {
+    none: {
+      none: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+      readonly: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+      full: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+    },
+    readonly: {
+      none: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+      readonly: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+      full: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+    },
+    full: {
+      none: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+      readonly: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+      full: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200",
+    },
+  };
+
+  return (
+    <div className="mt-4">
+      <p className={`${uiLabel} mb-2`}>Pages accessibles</p>
+      <div className="space-y-4">
+        {NAV_KEY_GROUPS.map((group) => (
+          <div key={group.label}>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              {group.label}
+            </p>
+            <div className="space-y-1.5">
+              {group.keys.map((key) => {
+                const baseKey = key as ShellNavKey;
+                const hasReadonly = baseKey in NAV_KEY_READONLY_PAIRS;
+                if (hasReadonly) {
+                  const level = getPageLevel(baseKey);
+                  return (
+                    <div key={key} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-slate-50">
+                      <span className="text-xs text-slate-700">{NAV_KEY_LABELS_FR[baseKey]}</span>
+                      <div className="flex shrink-0 rounded-lg bg-slate-100 p-0.5 gap-0.5">
+                        {(["none", "readonly", "full"] as Level[]).map((lvl) => (
+                          <button
+                            key={lvl}
+                            type="button"
+                            disabled={pending}
+                            onClick={() => setPageLevel(baseKey, lvl)}
+                            className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-all ${levelStyles[level][lvl]}`}
+                          >
+                            {levelLabels[lvl]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      checked={checked.has(key)}
+                      disabled={pending}
+                      onChange={() => toggle(key)}
+                    />
+                    {NAV_KEY_LABELS_FR[baseKey]}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      {dirty && (
+        <button
+          type="button"
+          disabled={pending}
+          className={`${uiBtnPrimarySm} mt-3`}
+          onClick={() => { onSave([...checked]); setDirty(false); }}
+        >
+          Enregistrer les accès
+        </button>
+      )}
+    </div>
+  );
+}
+
+type PlanningMode = "real" | "simulation";
+
+type Props = {
+  restaurantId: string;
+  currentUserId: string;
+  weekMondayIso: string;
+  initialPlanningMode: PlanningMode;
+  staff: StaffMember[];
+  shifts: WorkShiftWithDetails[];
+  simulationId: string | null;
+  simulationShifts: WorkShiftWithDetails[];
+  resolvedWeekDays: WeekResolvedDay[];
+  planningOpeningHours: OpeningHoursMap;
+  planningStaffExtraBands: OpeningHoursMap;
+  planningStaffTargetsWeekly: Partial<Record<PlanningDayKey, number>>;
+  planningDayOverrides: PlanningDayOverrideRow[];
+  planningAlerts: PlanningAlert[];
+  simulationAlerts: PlanningAlert[];
+};
 
 export function EquipePlanningClient({
   restaurantId,
@@ -165,7 +245,6 @@ export function EquipePlanningClient({
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [planningMode, setPlanningMode] = useState<PlanningMode>(initialPlanningMode);
-  /** Si le serveur renvoie encore simulationId=null après création (cache), on garde l’UUID renvoyé par l’action. */
   const [optimisticSimulationId, setOptimisticSimulationId] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
@@ -177,13 +256,13 @@ export function EquipePlanningClient({
   const [shiftNotes, setShiftNotes] = useState("");
   const [shiftBreakMinutes, setShiftBreakMinutes] = useState("");
 
-  const [editShiftId, setEditShiftId] = useState<string | null>(null);
-  const [editIn, setEditIn] = useState("");
-  const [editOut, setEditOut] = useState("");
+  /** Collaborateur dont la tuile détail est ouverte. */
+  const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
+  /** Lien d'invitation généré, affiché dans la tuile pour copie manuelle. */
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   const monday = useMemo(() => parseISODateLocal(weekMondayIso), [weekMondayIso]);
 
-  /** Grille : même logique que le serveur mais recalculée ici pour des `openingBands` / `ymd` fiables côté navigateur. */
   const resolvedWeekDaysForGrid = useMemo(() => {
     const m = parseISODateLocal(weekMondayIso);
     if (!m) return resolvedWeekDays;
@@ -202,6 +281,12 @@ export function EquipePlanningClient({
     planningStaffTargetsWeekly,
     planningDayOverrides,
   ]);
+
+  /** Index couleur par collaborateur — respecte color_index quand défini, sinon tri par id. */
+  const staffColorIndex = useMemo(() => {
+    const allIds = staff.map((s) => s.id);
+    return new Map(staff.map((s) => [s.id, resolveStaffColorIndex(s.id, s.color_index, allIds)]));
+  }, [staff]);
 
   const prevWeek = monday ? toISODateString(addDays(monday, -7)) : weekMondayIso;
   const nextWeek = monday ? toISODateString(addDays(monday, 7)) : weekMondayIso;
@@ -225,7 +310,6 @@ export function EquipePlanningClient({
     }
   }, [simulationIdProp, optimisticSimulationId]);
 
-  /** Horaires par défaut (lundi 9h–17h) pour pouvoir ajouter un créneau sans étape invisible. */
   useEffect(() => {
     if (!monday || staff.length === 0) return;
     const t0 = new Date(monday);
@@ -255,7 +339,6 @@ export function EquipePlanningClient({
     router.refresh();
   }
 
-  /** Mise à jour d’URL sur /equipe + refetch des Server Components (sans F5). */
   function replaceEquipeUrl(href: string) {
     router.replace(href);
     router.refresh();
@@ -269,10 +352,7 @@ export function EquipePlanningClient({
         displayName: newName,
         roleLabel: newRole.trim() || null,
       });
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       setNewName("");
       setNewRole("");
       refresh();
@@ -285,32 +365,31 @@ export function EquipePlanningClient({
     setSuccessMsg(null);
     start(async () => {
       const r = await deactivateStaffMemberAction(restaurantId, id);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
+      setExpandedStaffId(null);
+      setInviteLink(null);
       refresh();
     });
   }
 
-  function copyInviteLink(staffId: string) {
+  function generateInviteLink(staffId: string) {
     setError(null);
     setSuccessMsg(null);
+    setInviteLink(null);
     start(async () => {
       const r = await createStaffInviteAction(restaurantId, staffId);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       const absolute = toAbsoluteInviteUrl(r.joinUrl);
-      const copied = await copyTextToClipboard(absolute);
-      if (!copied) {
-        setError(`Copie automatique impossible. Sélectionnez et copiez ce lien : ${absolute}`);
-        return;
+      // Tentative d'auto-copie (peut échouer hors contexte sécurisé)
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(absolute);
+          setSuccessMsg("Lien copié dans le presse-papiers. Valable 7 jours.");
+        }
+      } catch {
+        // Ignore — le lien est affiché ci-dessous pour copie manuelle
       }
-      setSuccessMsg(
-        "Lien copié dans le presse-papiers. Envoyez-le au collaborateur (e-mail, SMS…). Il est valable 7 jours."
-      );
+      setInviteLink(absolute);
     });
   }
 
@@ -319,11 +398,8 @@ export function EquipePlanningClient({
     setSuccessMsg(null);
     start(async () => {
       const r = await linkMyAccountToStaffAction(restaurantId, staffId);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      setSuccessMsg("Ce poste est maintenant lié à votre compte (planning, rôle applicatif ci-dessus).");
+      if (!r.ok) { setError(r.error); return; }
+      setSuccessMsg("Ce poste est maintenant lié à votre compte.");
       refresh();
     });
   }
@@ -332,22 +408,16 @@ export function EquipePlanningClient({
     setError(null);
     start(async () => {
       const r = await clearStaffUserLinkAction(restaurantId, staffId);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       refresh();
     });
   }
 
-  function saveAppRole(staffId: string, value: string) {
+  function saveNavPermissions(staffId: string, keys: string[]) {
     setError(null);
     start(async () => {
-      const r = await updateStaffAppRoleAction(restaurantId, staffId, value);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      const r = await updateStaffNavPermissionsAction(restaurantId, staffId, keys);
+      if (!r.ok) { setError(r.error); return; }
       refresh();
     });
   }
@@ -357,10 +427,7 @@ export function EquipePlanningClient({
     setSuccessMsg(null);
     start(async () => {
       const r = await createWeekSimulationAction(restaurantId, weekMondayIso);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       setOptimisticSimulationId(r.id);
       setPlanningMode("simulation");
       router.replace(`/equipe?week=${encodeURIComponent(weekMondayIso)}&planning=sim`);
@@ -369,35 +436,26 @@ export function EquipePlanningClient({
 
   function runAutoSimulation() {
     if (staff.length === 0) {
-      setError("Ajoutez au moins un collaborateur actif pour lancer une génération automatique.");
+      setError("Ajoutez au moins un collaborateur actif pour générer une ébauche.");
       return;
     }
     if (effectiveSimulationId) {
-      if (
-        !confirm(
-          "Remplacer tous les créneaux du brouillon par une nouvelle proposition calculée (horaires restaurant + effectifs + dispos équipe) ?"
-        )
-      ) {
-        return;
-      }
+      if (!confirm("Remplacer tous les créneaux du brouillon par une nouvelle ébauche ?")) return;
     }
     setError(null);
     setSuccessMsg(null);
     start(async () => {
       const r = await generateAutoSimulationShiftsAction(restaurantId, weekMondayIso);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       setOptimisticSimulationId(null);
       setPlanningMode("simulation");
       if (r.generatedCount === 0) {
         setSuccessMsg(
-          "Aucun créneau généré : vérifiez les horaires d’ouverture (jours ouverts), les objectifs d’effectif et les disponibilités dans les fiches équipe."
+          "Aucun créneau généré : vérifiez les horaires d'ouverture, les objectifs d'effectif et les disponibilités."
         );
       } else {
         setSuccessMsg(
-          `Proposition automatique : ${r.generatedCount} créneau${r.generatedCount === 1 ? "" : "x"} (modifiables avant publication).`
+          `Ébauche générée : ${r.generatedCount} créneau${r.generatedCount === 1 ? "" : "x"} (modifiables avant publication).`
         );
       }
       router.replace(`/equipe?week=${encodeURIComponent(weekMondayIso)}&planning=sim`);
@@ -411,7 +469,7 @@ export function EquipePlanningClient({
       return;
     }
     if (planningMode === "simulation" && !effectiveSimulationId) {
-      setError("Créez d’abord une simulation pour cette semaine (bouton ci-dessus).");
+      setError("Créez d'abord un brouillon pour cette semaine (bouton ci-dessus).");
       return;
     }
     start(async () => {
@@ -427,10 +485,7 @@ export function EquipePlanningClient({
         planningMode === "simulation" && effectiveSimulationId
           ? await createSimulationShiftAction(restaurantId, effectiveSimulationId, payload)
           : await createWorkShiftAction(restaurantId, payload);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       setShiftNotes("");
       if (planningMode === "simulation") {
         router.replace(`/equipe?week=${encodeURIComponent(weekMondayIso)}&planning=sim`);
@@ -440,40 +495,12 @@ export function EquipePlanningClient({
     });
   }
 
-  function removeShift(s: WorkShiftWithDetails) {
-    if (!confirm("Supprimer ce créneau ?")) return;
-    setError(null);
-    start(async () => {
-      const r = s.isSimulationDraft
-        ? await deleteSimulationShiftAction(restaurantId, s.id)
-        : await deleteWorkShiftAction(restaurantId, s.id);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      if (planningMode === "simulation") {
-        router.replace(`/equipe?week=${encodeURIComponent(weekMondayIso)}&planning=sim`);
-      } else {
-        refresh();
-      }
-    });
-  }
-
   function publishSimulation() {
-    if (
-      !confirm(
-        "Publier cette simulation ? Les créneaux réels de la semaine seront remplacés par le brouillon, puis le brouillon sera supprimé."
-      )
-    ) {
-      return;
-    }
+    if (!confirm("Publier cette ébauche ? Les créneaux réels de la semaine seront remplacés, puis le brouillon supprimé.")) return;
     setError(null);
     start(async () => {
       const r = await publishWeekSimulationAction(restaurantId, weekMondayIso);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       setOptimisticSimulationId(null);
       setPlanningMode("real");
       setSuccessMsg(`Planning publié (${r.publishedCount} créneau${r.publishedCount === 1 ? "" : "x"}).`);
@@ -482,62 +509,15 @@ export function EquipePlanningClient({
   }
 
   function discardSimulation() {
-    if (!confirm("Abandonner la simulation ? Le brouillon sera supprimé sans modifier le planning réel.")) return;
+    if (!confirm("Abandonner le brouillon ? Le planning réel reste inchangé.")) return;
     setError(null);
     start(async () => {
       const r = await discardWeekSimulationAction(restaurantId, weekMondayIso);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
+      if (!r.ok) { setError(r.error); return; }
       setOptimisticSimulationId(null);
       setPlanningMode("real");
-      setSuccessMsg("Simulation abandonnée.");
+      setSuccessMsg("Brouillon supprimé.");
       router.replace(`/equipe?week=${encodeURIComponent(weekMondayIso)}`);
-    });
-  }
-
-  function openEditAttendance(s: WorkShiftWithDetails) {
-    setEditShiftId(s.id);
-    setEditIn(s.attendance?.clock_in_at ? toDatetimeLocalValue(s.attendance.clock_in_at) : "");
-    setEditOut(s.attendance?.clock_out_at ? toDatetimeLocalValue(s.attendance.clock_out_at) : "");
-  }
-
-  function parseLocalDateTimeInputClient(s: string): string {
-    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s.trim());
-    if (!m) throw new Error("invalid");
-    return new Date(
-      Number(m[1]),
-      Number(m[2]) - 1,
-      Number(m[3]),
-      Number(m[4]),
-      Number(m[5]),
-      0,
-      0
-    ).toISOString();
-  }
-
-  function saveAttendance() {
-    if (!editShiftId) return;
-    setError(null);
-    start(async () => {
-      let inIso: string | null = null;
-      let outIso: string | null = null;
-      try {
-        if (editIn.trim()) inIso = parseLocalDateTimeInputClient(editIn);
-        if (editOut.trim()) outIso = parseLocalDateTimeInputClient(editOut);
-      } catch {
-        setError("Format attendu : AAAA-MM-JJTHH:mm pour chaque champ renseigné.");
-        return;
-      }
-
-      const r = await managerSetAttendanceAction(restaurantId, editShiftId, inIso, outIso);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      setEditShiftId(null);
-      refresh();
     });
   }
 
@@ -548,74 +528,52 @@ export function EquipePlanningClient({
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>
       )}
 
-      <section className={`${uiCard}`}>
-        <h2 className="text-sm font-semibold text-slate-900">Planning & alertes</h2>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-slate-600">Affichage :</span>
-          <button
-            type="button"
-            disabled={pending}
-            className={
-              planningMode === "real"
-                ? `${uiBtnPrimarySm} ring-2 ring-indigo-300`
-                : uiBtnOutlineSm
-            }
-            onClick={() => navigatePlanningMode("real")}
-          >
-            Planning réel
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            className={
-              planningMode === "simulation"
-                ? `${uiBtnPrimarySm} ring-2 ring-amber-400`
-                : uiBtnOutlineSm
-            }
-            onClick={() => navigatePlanningMode("simulation")}
-          >
-            Simulation
-          </button>
-        </div>
-        {planningMode === "simulation" ? (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2 text-sm text-amber-950">
-            <strong className="font-semibold">Mode simulation</strong> — les créneaux ci-dessous sont un brouillon par
-            semaine. Ils ne remplacent le planning publié qu’après « Publier ». Pas de pointage sur le brouillon.
-            {effectiveSimulationId ? (
-              <span className="ml-1 inline-flex flex-wrap items-center gap-2">
+      {/* ── Planning ──────────────────────────────────────────────────────── */}
+      <section className={uiCard}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-slate-900">Planning</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              className={planningMode === "real" ? `${uiBtnPrimarySm} ring-2 ring-indigo-300` : uiBtnOutlineSm}
+              onClick={() => navigatePlanningMode("real")}
+            >
+              Planning réel
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              className={planningMode === "simulation" ? `${uiBtnPrimarySm} ring-2 ring-amber-400` : uiBtnOutlineSm}
+              onClick={() => navigatePlanningMode("simulation")}
+            >
+              Brouillon
+            </button>
+            {planningMode === "simulation" && effectiveSimulationId && (
+              <>
                 <button type="button" disabled={pending} className={uiBtnPrimarySm} onClick={publishSimulation}>
-                  Publier la simulation
+                  Publier
                 </button>
                 <button type="button" disabled={pending} className={uiBtnOutlineSm} onClick={discardSimulation}>
                   Abandonner
                 </button>
-              </span>
-            ) : (
-              <span className="mt-2 block text-xs">
-                Aucun brouillon pour cette semaine — utilisez « Démarrer une simulation » dans la section créneaux.
-              </span>
+              </>
             )}
           </div>
-        ) : simulationIdProp || optimisticSimulationId ? (
-          <p className="mt-2 text-xs text-slate-600">
-            Un <strong className="font-medium text-slate-800">brouillon de simulation</strong> existe pour cette semaine.
-            Passez en « Simulation » pour le modifier ou le publier.
-          </p>
-        ) : null}
-        <p className="mt-1 text-xs text-slate-500">
-          Grille : créneaux planifiés par collaborateur. Les alertes listent chevauchements, écarts aux horaires
-          d’ouverture (modèle + exceptions), volumes vs objectif, pauses longues journées, retards de pointage.
-        </p>
-        <p className="mt-2 text-xs text-slate-600">
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500">
           <Link
             href={`/restaurants/${restaurantId}/edit`}
             className="font-medium text-indigo-700 underline underline-offset-2"
           >
-            Horaires, prépa hors client (établissement), objectifs et exceptions
+            Horaires, prépa hors client, objectifs et exceptions
           </Link>{" "}
           se règlent dans les infos du restaurant.
         </p>
-        <div className="mt-4 space-y-3">
+
+        {/* Alertes */}
+        <div className="mt-4">
           {displayAlerts.length > 0 ? (
             <ul className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-3 text-sm">
               {displayAlerts.map((a, i) => (
@@ -638,19 +596,32 @@ export function EquipePlanningClient({
             </ul>
           ) : (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-900">
-              Aucune alerte automatique sur cette semaine (chevauchements, plages, volumes…).
+              Aucune alerte sur cette semaine.
             </p>
           )}
         </div>
 
-        <div className="mt-8 space-y-6 border-t border-slate-100 pt-8">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">Ajuster les créneaux à la main</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Vue par collaborateur : déplacer ou redimensionner les blocs (pas de 15 min), double-clic pour saisir les
-              horaires. Le tableau sous la grille résume les heures, le contrat et le solde reporté.
-            </p>
+        {/* Ébauche de planning (mode brouillon uniquement) */}
+        {planningMode === "simulation" && (
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              disabled={pending || staff.length === 0}
+              className={uiBtnPrimarySm}
+              onClick={runAutoSimulation}
+            >
+              Ébauche de planning
+            </button>
+            {!effectiveSimulationId && (
+              <button type="button" disabled={pending} className={uiBtnOutlineSm} onClick={startWeekSimulation}>
+                Brouillon vide
+              </button>
+            )}
           </div>
+        )}
+
+        {/* Grille */}
+        <div className="mt-6 border-t border-slate-100 pt-6">
           <ManualWeekPlanner
             restaurantId={restaurantId}
             weekMondayIso={weekMondayIso}
@@ -674,14 +645,11 @@ export function EquipePlanningClient({
         </div>
       </section>
 
-      <section className={`${uiCard}`}>
+      {/* ── Semaine affichée ──────────────────────────────────────────────── */}
+      <section className={uiCard}>
         <h2 className="text-sm font-semibold text-slate-900">Semaine affichée</h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Link
-            href={equipeWeekHref(prevWeek)}
-            className={`${uiBtnSecondary} text-sm`}
-            scroll={false}
-          >
+          <Link href={equipeWeekHref(prevWeek)} className={`${uiBtnSecondary} text-sm`} scroll={false}>
             ← Semaine précédente
           </Link>
           <span className="text-sm font-medium text-slate-700">
@@ -689,25 +657,17 @@ export function EquipePlanningClient({
               ? `Du ${monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au ${addDays(monday, 6).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
               : weekMondayIso}
           </span>
-          <Link
-            href={equipeWeekHref(nextWeek)}
-            className={`${uiBtnSecondary} text-sm`}
-            scroll={false}
-          >
+          <Link href={equipeWeekHref(nextWeek)} className={`${uiBtnSecondary} text-sm`} scroll={false}>
             Semaine suivante →
           </Link>
         </div>
       </section>
 
-      <section className={`${uiCard}`}>
+      {/* ── Collaborateurs ────────────────────────────────────────────────── */}
+      <section className={uiCard}>
         <h2 className="text-sm font-semibold text-slate-900">Collaborateurs</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Le <strong className="font-medium text-slate-700">rôle applicatif</strong> règle le menu une fois le compte
-          lié. Pour <strong className="font-medium text-slate-700">lier un compte</strong> : soit vous envoyez un{" "}
-          <strong className="font-medium text-slate-700">lien d’invitation</strong> à la bonne personne (elle ouvre le
-          lien, se connecte et accepte), soit c’est vous qui occupez ce poste sur cet appareil — utilisez alors{" "}
-          <strong className="font-medium text-slate-700">« C’est moi (ce poste) »</strong>.
-        </p>
+
+        {/* Ajout */}
         <div className="mt-3 flex flex-wrap gap-2">
           <input
             className={`${uiInput} min-w-[10rem] flex-1`}
@@ -717,7 +677,7 @@ export function EquipePlanningClient({
           />
           <input
             className={`${uiInput} min-w-[8rem] flex-1`}
-            placeholder="Rôle (optionnel)"
+            placeholder="Poste (optionnel)"
             value={newRole}
             onChange={(e) => setNewRole(e.target.value)}
           />
@@ -725,137 +685,45 @@ export function EquipePlanningClient({
             Ajouter
           </button>
         </div>
-        <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
-          {staff.length === 0 ? (
-            <li className="px-3 py-4 text-sm text-slate-500">Aucun collaborateur. Ajoutez-en au moins un pour planifier.</li>
-          ) : (
-            staff.map((m) => (
-              <li key={m.id} className="px-3 py-3 text-sm">
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <span className="font-medium text-slate-900">{m.display_name}</span>
-                  {m.role_label ? (
-                    <span className="text-slate-500"> · {m.role_label}</span>
-                  ) : null}
-                  <span className="ml-2 text-xs text-slate-400">
-                    {m.user_id ? "Compte lié" : "Pas de compte lié"}
-                  </span>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <label className="sr-only" htmlFor={`app-role-${m.id}`}>
-                      Rôle applicatif pour {m.display_name}
-                    </label>
-                    <select
-                      id={`app-role-${m.id}`}
-                      className={`${uiInput} max-w-[min(100%,20rem)] text-xs`}
-                      value={m.app_role ?? "lecture_seule"}
-                      disabled={pending}
-                      onChange={(e) => saveAppRole(m.id, e.target.value)}
-                    >
-                      {APP_ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {APP_ROLE_LABELS_FR[r]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {!m.user_id ? (
-                    <>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        className={uiBtnOutlineSm}
-                        onClick={() => copyInviteLink(m.id)}
-                        title="Copie un lien à envoyer à quelqu’un d’autre pour qu’il associe son compte à cette fiche"
-                      >
-                        Lien d’invitation
-                      </button>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        className={uiBtnOutlineSm}
-                        onClick={() => linkMe(m.id)}
-                        title="À utiliser si vous êtes cette personne : lie cette fiche à votre session actuelle"
-                      >
-                        C’est moi (ce poste)
-                      </button>
-                    </>
-                  ) : m.user_id === currentUserId ? (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      className={uiBtnOutlineSm}
-                      onClick={() => unlinkStaff(m.id)}
-                    >
-                      Délier mon compte
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      className={uiBtnOutlineSm}
-                      onClick={() => unlinkStaff(m.id)}
-                    >
-                      Retirer le compte
-                    </button>
-                  )}
+
+        {/* Liste */}
+        {staff.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-500">Aucun collaborateur. Ajoutez-en au moins un pour planifier.</p>
+        ) : (
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {staff.map((m) => {
+              const idx = (staffColorIndex.get(m.id) ?? 0) % STAFF_COLORS.length;
+              const colorClass = STAFF_COLORS[idx];
+              return (
+                <li key={m.id}>
                   <button
                     type="button"
-                    disabled={pending}
-                    className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                    onClick={() => deactivate(m.id)}
+                    onClick={() => setExpandedStaffId(m.id)}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50 transition-colors"
                   >
-                    Désactiver
+                    <span className={`h-3 w-3 flex-none rounded-full ${colorClass}`} />
+                    <span className="font-medium text-slate-900">{m.display_name}</span>
+                    {m.role_label && (
+                      <span className="text-xs text-slate-500">{m.role_label}</span>
+                    )}
                   </button>
-                </div>
-                </div>
-                <details className="mt-2 rounded-lg border border-slate-100 bg-slate-50/50 px-2 py-1">
-                  <summary className="cursor-pointer text-xs font-medium text-indigo-800">
-                    Contrat, volume cible, disponibilités…
-                  </summary>
-                  <StaffPlanningProfileForm restaurantId={restaurantId} member={m} />
-                </details>
-              </li>
-            ))
-          )}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
-      <section className={`${uiCard}`}>
-        <h2 className="text-sm font-semibold text-slate-900">Nouveau créneau</h2>
-        {planningMode === "simulation" ? (
-          <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-            <p className="font-medium text-slate-800">Brouillon de la semaine</p>
-            <p className="text-xs text-slate-600">
-              <strong className="font-medium text-slate-700">Génération automatique</strong> : utilise les plages
-              d’ouverture (et exceptions) du restaurant, l’objectif <strong className="font-medium text-slate-700">nombre
-              de personnes pour la journée</strong> (réparti entre les services du jour, pas répété à chaque plage), les{" "}
-              <strong className="font-medium text-slate-700">disponibilités</strong> et volumes cibles des fiches
-              équipe. Chaque créneau est l’intersection ouverture × disponibilité. Ajustez ou publiez ensuite.
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                disabled={pending || staff.length === 0}
-                className={uiBtnPrimarySm}
-                onClick={runAutoSimulation}
-              >
-                {effectiveSimulationId ? "Régénérer automatiquement" : "Simulation automatique (restaurant + équipe)"}
-              </button>
-              {!effectiveSimulationId ? (
-                <button type="button" disabled={pending} className={uiBtnOutlineSm} onClick={startWeekSimulation}>
-                  Brouillon vide (sans auto)
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+      {/* ── Nouveau créneau (replié par défaut) ──────────────────────────── */}
+      <details className={uiCard}>
+        <summary className="cursor-pointer select-none text-sm font-semibold text-slate-900">
+          Ajouter un créneau manuellement
+        </summary>
+
+        {/* Saisie manuelle */}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={uiLabel} htmlFor="shift-staff">
-              Collaborateur
-            </label>
+            <label className={uiLabel} htmlFor="shift-staff">Collaborateur</label>
             <select
               id="shift-staff"
               className={`${uiInput} mt-1 w-full`}
@@ -863,17 +731,13 @@ export function EquipePlanningClient({
               onChange={(e) => setShiftStaffId(e.target.value)}
             >
               {staff.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.display_name}
-                </option>
+                <option key={m.id} value={m.id}>{m.display_name}</option>
               ))}
             </select>
           </div>
           <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={uiLabel} htmlFor="shift-start">
-                Début
-              </label>
+              <label className={uiLabel} htmlFor="shift-start">Début</label>
               <input
                 id="shift-start"
                 type="datetime-local"
@@ -883,9 +747,7 @@ export function EquipePlanningClient({
               />
             </div>
             <div>
-              <label className={uiLabel} htmlFor="shift-end">
-                Fin
-              </label>
+              <label className={uiLabel} htmlFor="shift-end">Fin</label>
               <input
                 id="shift-end"
                 type="datetime-local"
@@ -896,9 +758,7 @@ export function EquipePlanningClient({
             </div>
           </div>
           <div>
-            <label className={uiLabel} htmlFor="shift-break">
-              Pause planifiée (min)
-            </label>
+            <label className={uiLabel} htmlFor="shift-break">Pause planifiée (min)</label>
             <input
               id="shift-break"
               type="number"
@@ -912,9 +772,7 @@ export function EquipePlanningClient({
             />
           </div>
           <div className="sm:col-span-2">
-            <label className={uiLabel} htmlFor="shift-notes">
-              Note (optionnel)
-            </label>
+            <label className={uiLabel} htmlFor="shift-notes">Note (optionnel)</label>
             <input
               id="shift-notes"
               className={`${uiInput} mt-1 w-full`}
@@ -926,199 +784,140 @@ export function EquipePlanningClient({
         </div>
         <button
           type="button"
-          disabled={
-            pending ||
-            staff.length === 0 ||
-            (planningMode === "simulation" && !effectiveSimulationId)
-          }
+          disabled={pending || staff.length === 0 || (planningMode === "simulation" && !effectiveSimulationId)}
           className={`${uiBtnPrimarySm} mt-3`}
           onClick={addShift}
         >
           {planningMode === "simulation" ? "Ajouter au brouillon" : "Ajouter le créneau"}
         </button>
-      </section>
+      </details>
 
-      <section className={`${uiCard}`}>
-        <h2 className="text-sm font-semibold text-slate-900">
-          {planningMode === "simulation" ? "Brouillon (simulation)" : "Planning & pointages"}
-        </h2>
-        <p className="mt-1 text-xs text-slate-500">
-          {planningMode === "simulation" ? (
-            <>
-              Créneaux du brouillon pour la semaine affichée. Publiez pour les appliquer au planning réel et activer les
-              pointages.
-            </>
-          ) : (
-            <>
-              Prévu = créneau saisi (pause déduite pour l’affichage du libellé d’alerte). Réalisé = entrée / sortie.
-              Écart = durée pointée − durée prévue.
-            </>
-          )}
-        </p>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-2 py-2">Collaborateur</th>
-                <th className="px-2 py-2">Prévu</th>
-                <th className="px-2 py-2">Pause</th>
-                <th className="px-2 py-2">Pointé</th>
-                <th className="px-2 py-2">Écart</th>
-                <th className="px-2 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {displayShifts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-2 py-6 text-center text-slate-500">
-                    {planningMode === "simulation"
-                      ? effectiveSimulationId
-                        ? "Aucun créneau dans le brouillon."
-                        : "Aucun brouillon — démarrez une simulation ci-dessus."
-                      : "Aucun créneau cette semaine."}
-                  </td>
-                </tr>
-              ) : (
-                displayShifts.map((s) => {
-                  const planned = plannedDurationMinutes(s.starts_at, s.ends_at);
-                  const actual = actualDurationMinutes(
-                    s.attendance?.clock_in_at ?? null,
-                    s.attendance?.clock_out_at ?? null
-                  );
-                  const varMin = varianceMinutes(planned, actual);
-                  return (
-                    <tr key={s.id} className="align-top">
-                      <td className="px-2 py-2">
-                        {s.isSimulationDraft ? (
-                          <span className="mb-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
-                            Brouillon
-                          </span>
-                        ) : null}
-                        <div className="font-medium text-slate-900">{s.staff_display_name}</div>
-                        {s.staff_role_label ? (
-                          <div className="text-xs text-slate-500">{s.staff_role_label}</div>
-                        ) : null}
-                      </td>
-                      <td className="px-2 py-2 tabular-nums text-slate-700">
-                        <div>{formatDateTimeFr(s.starts_at)}</div>
-                        <div className="text-slate-500">→ {formatDateTimeFr(s.ends_at)}</div>
-                        <div className="text-xs text-slate-400">({formatMinutesHuman(planned)})</div>
-                      </td>
-                      <td className="px-2 py-2 tabular-nums text-slate-600">
-                        {s.break_minutes != null && s.break_minutes > 0 ? `${s.break_minutes} min` : "—"}
-                      </td>
-                      <td className="px-2 py-2 tabular-nums text-slate-700">
-                        {s.attendance?.clock_in_at ? (
-                          <>
-                            <div>Entrée {formatDateTimeFr(s.attendance.clock_in_at)}</div>
-                            {s.attendance.clock_out_at ? (
-                              <div>Sortie {formatDateTimeFr(s.attendance.clock_out_at)}</div>
-                            ) : (
-                              <div className="text-amber-700">Sortie non pointée</div>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2">
-                        {varMin == null ? (
-                          <span className="text-slate-400">—</span>
-                        ) : (
-                          <span
-                            className={
-                              varMin === 0
-                                ? "text-slate-600"
-                                : varMin > 0
-                                  ? "text-amber-800"
-                                  : "text-indigo-800"
-                            }
-                          >
-                            {formatMinutesHuman(varMin)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {!s.isSimulationDraft ? (
-                            <button
-                              type="button"
-                              className={uiBtnOutlineSm}
-                              onClick={() => openEditAttendance(s)}
-                            >
-                              Ajuster pointage
-                            </button>
-                          ) : null}
+      {/* ── Tuile détail collaborateur ────────────────────────────────────── */}
+      {expandedStaffId && (() => {
+        const m = staff.find((s) => s.id === expandedStaffId);
+        if (!m) return null;
+        const idx = (staffColorIndex.get(m.id) ?? 0) % STAFF_COLORS.length;
+        const colorClass = STAFF_COLORS[idx];
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center p-4 sm:items-center">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/40"
+              aria-label="Fermer"
+              onClick={() => setExpandedStaffId(null)}
+            />
+            <div className={`relative z-10 ${uiCard} w-full max-w-lg shadow-xl overflow-y-auto max-h-[90vh]`}>
+              {/* En-tête */}
+              <div className="flex items-center gap-3">
+                <span className={`h-4 w-4 flex-none rounded-full ${colorClass}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900">{m.display_name}</p>
+                  {m.role_label && <p className="text-xs text-slate-500">{m.role_label}</p>}
+                </div>
+                <button
+                  type="button"
+                  className="ml-auto rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"
+                  onClick={() => { setExpandedStaffId(null); setInviteLink(null); }}
+                >
+                  Fermer
+                </button>
+              </div>
+
+              {/* Accès pages */}
+              <NavPermissionsEditor
+                member={m}
+                pending={pending}
+                onSave={(keys) => saveNavPermissions(m.id, keys)}
+              />
+
+              {/* Lier un compte */}
+              <div className="mt-4 space-y-2">
+                {!m.user_id ? (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={pending}
+                        className={uiBtnOutlineSm}
+                        onClick={() => generateInviteLink(m.id)}
+                      >
+                        Générer le lien d'invitation
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        className={uiBtnOutlineSm}
+                        onClick={() => linkMe(m.id)}
+                      >
+                        C'est moi (ce poste)
+                      </button>
+                    </div>
+                    {inviteLink && expandedStaffId === m.id && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-slate-500">
+                          Copiez ce lien et envoyez-le au collaborateur (valable 7 jours) :
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            readOnly
+                            value={inviteLink}
+                            className={`${uiInput} flex-1 text-xs`}
+                            onFocus={(e) => e.target.select()}
+                          />
                           <button
                             type="button"
-                            className="text-xs font-semibold text-rose-700 hover:underline"
-                            onClick={() => removeShift(s)}
+                            className={uiBtnOutlineSm}
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(inviteLink);
+                                setSuccessMsg("Lien copié dans le presse-papiers.");
+                              } catch {
+                                setError("Copie impossible depuis ce navigateur — sélectionnez le lien et copiez-le manuellement.");
+                              }
+                            }}
                           >
-                            Supprimer
+                            Copier
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-emerald-700 font-medium">Compte lié</span>
+                    {m.user_id === currentUserId ? (
+                      <button type="button" disabled={pending} className={uiBtnOutlineSm} onClick={() => unlinkStaff(m.id)}>
+                        Délier mon compte
+                      </button>
+                    ) : (
+                      <button type="button" disabled={pending} className={uiBtnOutlineSm} onClick={() => unlinkStaff(m.id)}>
+                        Retirer le compte lié
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
 
-      {editShiftId && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center p-4 sm:items-center">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            aria-label="Fermer"
-            onClick={() => setEditShiftId(null)}
-          />
-          <div className={`relative z-10 ${uiCard} w-full max-w-md shadow-xl`}>
-            <h3 className="text-sm font-semibold text-slate-900">Ajuster le pointage (gérant)</h3>
-            <p className="mt-1 text-xs text-slate-500">Laissez vide pour effacer une valeur.</p>
-            <div className="mt-3 space-y-3">
-              <div>
-                <label className={uiLabel} htmlFor="edit-in">
-                  Entrée
-                </label>
-                <input
-                  id="edit-in"
-                  type="datetime-local"
-                  className={`${uiInput} mt-1 w-full`}
-                  value={editIn}
-                  onChange={(e) => setEditIn(e.target.value)}
-                />
+              {/* Contrat / disponibilités */}
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <StaffPlanningProfileForm restaurantId={restaurantId} member={m} />
               </div>
-              <div>
-                <label className={uiLabel} htmlFor="edit-out">
-                  Sortie
-                </label>
-                <input
-                  id="edit-out"
-                  type="datetime-local"
-                  className={`${uiInput} mt-1 w-full`}
-                  value={editOut}
-                  onChange={(e) => setEditOut(e.target.value)}
-                />
+
+              {/* Désactivation */}
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  disabled={pending}
+                  className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                  onClick={() => deactivate(m.id)}
+                >
+                  Désactiver ce collaborateur
+                </button>
               </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" disabled={pending} className={uiBtnPrimarySm} onClick={saveAttendance}>
-                Enregistrer
-              </button>
-              <button
-                type="button"
-                className={uiBtnSecondary}
-                onClick={() => setEditShiftId(null)}
-              >
-                Annuler
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

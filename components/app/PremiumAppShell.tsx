@@ -8,8 +8,9 @@ import { signOut } from "@/app/login/actions";
 import { SHELL_NAV_ITEMS, isBareShellPath } from "@/components/app/premium/shell-nav";
 import { HeaderRestaurantSelect } from "@/components/app/premium/HeaderRestaurantSelect";
 import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidget";
+import { HeaderUserAvatar } from "@/components/app/HeaderUserAvatar";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
-import type { ShellNavKey } from "@/lib/auth/appRoles";
+import { type ShellNavKey, canAccessPage } from "@/lib/auth/appRoles";
 
 type ShellClientPayload = Pick<
   AppShellHeaderBootstrap,
@@ -46,7 +47,7 @@ function NavLinks({
 }) {
   const items =
     allowedNavKeys != null && allowedNavKeys.length > 0
-      ? SHELL_NAV_ITEMS.filter((item) => allowedNavKeys.includes(item.navKey))
+      ? SHELL_NAV_ITEMS.filter((item) => canAccessPage(item.navKey, allowedNavKeys))
       : SHELL_NAV_ITEMS;
 
   const groupedItems = navGroupOrder
@@ -272,6 +273,12 @@ export function PremiumAppShell({
                 initialWeather={headerBootstrap?.weather ?? undefined}
                 initialHint={headerBootstrap?.weatherHint ?? undefined}
               />
+              {headerBootstrap?.userProfile && (
+                <HeaderUserAvatar
+                  profile={headerBootstrap.userProfile}
+                  usedColorIndexes={headerBootstrap.userProfile.usedColorIndexes}
+                />
+              )}
               <form action={signOut} className="hidden sm:block">
                 <button
                   type="submit"

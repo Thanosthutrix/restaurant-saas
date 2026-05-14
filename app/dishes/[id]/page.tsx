@@ -5,6 +5,7 @@ import { computeDishFoodCostHt } from "@/lib/margins/dishMarginAnalysis";
 import { explodeDishComponents } from "@/lib/recipes/explodeDishComponents";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
 import { getRestaurantForPage } from "@/lib/auth";
+import { getNavAccessLevel } from "@/lib/auth/requireNavAccess";
 import {
   buildCategoryTree,
   categoryPathLabel,
@@ -26,6 +27,8 @@ type Props = { params: Promise<{ id: string }> };
 export default async function DishDetailPage({ params }: Props) {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
+  const access = await getNavAccessLevel("dishes");
+  const canWrite = access === "full";
 
   const { id } = await params;
   const [dishRes, componentsRes, itemsRes, catRes] = await Promise.all([
@@ -88,28 +91,33 @@ export default async function DishDetailPage({ params }: Props) {
         </p>
       </div>
 
-      <DishCategoryBlock
-        restaurantId={restaurant.id}
-        dishId={dish.id}
-        options={dishCatOptions}
-        initialCategoryId={dish.category_id ?? null}
-        categoryPath={dishCategoryPath}
-      />
+      {canWrite && (
+        <DishCategoryBlock
+          restaurantId={restaurant.id}
+          dishId={dish.id}
+          options={dishCatOptions}
+          initialCategoryId={dish.category_id ?? null}
+          categoryPath={dishCategoryPath}
+        />
+      )}
 
-      <DishSellingPriceBlock
-        dishId={dish.id}
-        restaurantId={restaurant.id}
-        initialSellingPriceTtc={sellingTtcInitial}
-        initialVatRatePct={vatInitial}
-        initialSellingPriceHt={sellingHtInitial}
-        foodCostHt={
-          costRes && !costRes.errorMessage && costRes.costIsComplete ? costRes.foodCostHt : null
-        }
-        costIsComplete={costRes ? costRes.costIsComplete && !costRes.errorMessage : true}
-        foodCostError={costRes?.errorMessage ?? null}
-      />
+      {/* Prix de vente et coût matière : visibles uniquement en accès complet */}
+      {canWrite && (
+        <DishSellingPriceBlock
+          dishId={dish.id}
+          restaurantId={restaurant.id}
+          initialSellingPriceTtc={sellingTtcInitial}
+          initialVatRatePct={vatInitial}
+          initialSellingPriceHt={sellingHtInitial}
+          foodCostHt={
+            costRes && !costRes.errorMessage && costRes.costIsComplete ? costRes.foodCostHt : null
+          }
+          costIsComplete={costRes ? costRes.costIsComplete && !costRes.errorMessage : true}
+          foodCostError={costRes?.errorMessage ?? null}
+        />
+      )}
 
-      {costRes != null && (
+      {canWrite && costRes != null && (
         <RecipeFoodCostSection
           title="Coût matière de la recette"
           footnote="Pour une portion vendue telle que définie par les quantités de la recette (composants dépliés)."
@@ -117,7 +125,8 @@ export default async function DishDetailPage({ params }: Props) {
         />
       )}
 
-      {showSuggestionBlock && suggestion && (
+      {/* Composition : visible uniquement en accès complet */}
+      {canWrite && showSuggestionBlock && suggestion && (
         <RecipeSuggestionBlock
           dishId={dish.id}
           restaurantId={restaurant.id}
@@ -125,20 +134,24 @@ export default async function DishDetailPage({ params }: Props) {
         />
       )}
 
-      <DishComponentsBlock
-        dish={dish}
-        components={components}
-        allItems={allItems}
-        restaurantId={restaurant.id}
-      />
+      {canWrite && (
+        <DishComponentsBlock
+          dish={dish}
+          components={components}
+          allItems={allItems}
+          restaurantId={restaurant.id}
+        />
+      )}
 
-      {components.length > 0 && status !== "validated" && (
+      {canWrite && components.length > 0 && status !== "validated" && (
         <ValidateRecipeButton dishId={dish.id} restaurantId={restaurant.id} />
       )}
 
-      <DeleteDishButton dishId={dish.id} restaurantId={restaurant.id} dishName={dish.name} />
+      {canWrite && (
+        <DeleteDishButton dishId={dish.id} restaurantId={restaurant.id} dishName={dish.name} />
+      )}
 
-      {exploded.length > 0 && (
+      {canWrite && exploded.length > 0 && (
         <div className={uiCard}>
           <h2 className="mb-2 text-sm font-semibold text-slate-900">
             Consommation dépliée (base pour stock)

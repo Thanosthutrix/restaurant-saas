@@ -11,36 +11,162 @@ export type GeneratedSimulationShift = {
   notes: string | null;
 };
 
-/** Meilleur chevauchement plage d’ouverture / fenêtres de travail (service + prépa). */
-function bestOverlapBand(band: TimeBand, eff: TimeBand[]): TimeBand | null {
-  const ovs = intersectTimeBands([band], eff);
-  if (ovs.length === 0) return null;
-  return ovs.reduce((best, o) =>
-    bandDurationMinutes(o) > bandDurationMinutes(best) ? o : best
-  );
+// ─── Utilitaires ─────────────────────────────────────────────────────────────
+
+function bandDuration(b: TimeBand): number {
+  const a = minutesFromMidnight(b.start);
+  const e = minutesFromMidnight(b.end);
+  if (a == null || e == null || e <= a) return 0;
+  return e - a;
 }
 
-function localDateTimeOnDay(day: Date, hhmm: string): Date {
+function breakFor(durM: number): number | null {
+  if (durM > 360) return 30;
+  if (durM > 240) return 15;
+  return null;
+}
+
+function netMin(durM: number): number {
+  return Math.max(0, durM - (breakFor(durM) ?? 0));
+}
+
+function hhmmFromMs(msFromEpoch: number): string {
+  const d = new Date(msFromEpoch);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function startOfDay(day: Date, hhmm: string): Date {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
   if (!m) return new Date(day);
   const d = new Date(day);
-  d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  d.setHours(+m[1], +m[2], 0, 0);
   return d;
 }
 
-function bandDurationMinutes(band: TimeBand): number {
-  const a = minutesFromMidnight(band.start);
-  const b = minutesFromMidnight(band.end);
-  if (a == null || b == null || b <= a) return 0;
-  return b - a;
+/** Toutes les intersections dispo × bande (≥ 15 min). */
+function overlaps(band: TimeBand, eff: TimeBand[]): TimeBand[] {
+  return intersectTimeBands([band], eff).filter((b) => bandDuration(b) >= 15);
 }
 
-function breakForDurationMinutes(d: number): number | null {
-  return d > 360 ? 30 : null;
+/** Minutes nettes disponibles pour un membre sur toutes les bandes du jour. */
+function memberAvailNet(m: StaffMember, wd: WeekResolvedDay, bands: TimeBand[]): number {
+  const eff = mergedStaffWorkBands(m, wd);
+  return bands.reduce((s, b) => s + overlaps(b, eff).reduce((a, seg) => a + netMin(bandDuration(seg)), 0), 0);
+}
+
+/** Priorité de rôle pour équilibrer salle / cuisine / gestion. */
+function roleFamily(m: StaffMember): number {
+  const r = (m.role_label ?? "").toLowerCase();
+  if (/g[eé]rant|manager/.test(r)) return 0;
+  if (/chef|cuisine|cuisinier|commis/.test(r)) return 1;
+  if (/serveur|serveuse|salle|h[oô]te/.test(r)) return 2;
+  return 3;
 }
 
 /**
- * Proposition de créneaux pour la semaine (plages d’ouverture × fenêtres service + prépa par collaborateur).
+ * Priorité de renfort pour un jour (plus petit = plus prioritaire).
+ * Samedi > vendredi / jours fériés travaillés > jeudi > reste.
+ */
+function reinforcementPriority(wd: WeekResolvedDay): number {
+  if (wd.dayKey === "sat") return 1;
+  if (wd.dayKey === "fri") return 2;
+  if (wd.exceptionLabel) return 2; // jour férié ou exception
+  if (wd.dayKey === "sun") return 3;
+  if (wd.dayKey === "thu") return 4;
+  if (wd.dayKey === "wed") return 5;
+  if (wd.dayKey === "tue") return 6;
+  return 7;
+}
+
+// ─── Placement d'un membre sur un jour ───────────────────────────────────────
+
+/**
+ * Place le membre sur toutes ses bandes disponibles pour ce jour,
+ * dans la limite du budget hebdomadaire restant.
+ * Retourne les minutes nettes placées (0 si rien).
+ */
+function placeOnDay(
+  m: StaffMember,
+  wd: WeekResolvedDay,
+  bands: TimeBand[],
+  weeklyBudget: Map<string, number | null>,
+  usedNet: Map<string, number>,
+  out: GeneratedSimulationShift[]
+): number {
+  const eff = mergedStaffWorkBands(m, wd);
+  let placed = 0;
+  let lastEndMs = 0;
+
+  // Chrono : déjeuner avant dîner
+  const chronoBands = [...bands].sort(
+    (a, b) => (minutesFromMidnight(a.start) ?? 0) - (minutesFromMidnight(b.start) ?? 0)
+  );
+
+  for (const band of chronoBands) {
+    const segs = mergeTimeBands(overlaps(band, eff));
+    for (const seg of segs) {
+      const durM = bandDuration(seg);
+      if (durM < 15) continue;
+
+      const start = startOfDay(wd.date, seg.start);
+      const end = startOfDay(wd.date, seg.end);
+      if (!(end > start) || start.getTime() < lastEndMs) continue;
+
+      // Budget restant
+      const bud = weeklyBudget.get(m.id);
+      const used = usedNet.get(m.id) ?? 0;
+      const remaining = bud != null ? Math.max(0, bud - used) : 999999;
+      if (remaining < 15) continue;
+
+      const net = netMin(durM);
+      let finalEnd = end;
+
+      if (net > remaining) {
+        // Tronquer pour ne pas dépasser le contrat
+        const br = breakFor(durM) ?? 0;
+        const grossCap = remaining + br;
+        if (grossCap < 15) continue;
+        finalEnd = new Date(start.getTime() + grossCap * 60000);
+      }
+
+      const finalDur = Math.round((finalEnd.getTime() - start.getTime()) / 60000);
+      if (finalDur < 15) continue;
+      const finalNet = netMin(finalDur);
+      const finalBr = breakFor(finalDur);
+
+      usedNet.set(m.id, used + finalNet);
+      lastEndMs = finalEnd.getTime();
+      placed += finalNet;
+
+      out.push({
+        staff_member_id: m.id,
+        starts_at: start.toISOString(),
+        ends_at: finalEnd.toISOString(),
+        break_minutes: finalBr,
+        notes: `Auto · ${seg.start}–${hhmmFromMs(finalEnd.getTime())}`,
+      });
+    }
+  }
+
+  return placed;
+}
+
+// ─── Algorithme principal ─────────────────────────────────────────────────────
+
+/**
+ * Génère les créneaux de la semaine en deux passes :
+ *
+ * **Passe 1 — Couverture minimum** (ordre chronologique lun → dim)
+ *   Pour chaque jour ouvert, on remplit jusqu'à l'objectif d'effectif (`staffTarget`).
+ *   Tri des candidats : proportion de contrat remplie la plus faible en premier,
+ *   avec équilibre des rôles (salle / cuisine / gestion) comme critère secondaire.
+ *   → Chaque personne travaille en priorité les jours où elle est la plus "en retard"
+ *     sur ses heures contractuelles.
+ *
+ * **Passe 2 — Renfort** (tri par priorité : sam > ven / fériés > jeu > …)
+ *   Les membres qui ont encore des heures à effectuer sont ajoutés sur les jours
+ *   qu'ils n'ont pas encore travaillés, en commençant par les jours les plus chargés.
+ *   → Un membre n'est ajouté en renfort que s'il lui reste au moins 1 h de contrat.
  */
 export function generateAutoSimulationShifts(params: {
   resolvedWeekDays: WeekResolvedDay[];
@@ -50,85 +176,113 @@ export function generateAutoSimulationShifts(params: {
   const active = staff.filter((s) => s.active);
   if (active.length === 0) return [];
 
-  const usedMinutes = new Map<string, number>();
+  // Budget net en minutes (null = pas de cible horaire).
+  const weeklyBudget = new Map<string, number | null>(
+    active.map((m) => [
+      m.id,
+      m.target_weekly_hours != null && m.target_weekly_hours > 0
+        ? Math.round(m.target_weekly_hours * 60)
+        : null,
+    ])
+  );
+
+  const usedNet = new Map<string, number>(active.map((m) => [m.id, 0]));
+
+  // Qui a travaillé quel jour (ymd) — pour ne pas doubler en passe 2.
+  const workedDays = new Map<string, Set<string>>(active.map((m) => [m.id, new Set()]));
+
   const out: GeneratedSimulationShift[] = [];
 
-  resolvedWeekDays.forEach((wd, dayIndex) => {
-    const dayWorkBands = mergeTimeBands([...wd.openingBands, ...(wd.staffExtraBands ?? [])]);
-    if (dayWorkBands.length === 0) return;
+  // Jours ouverts (au moins une plage de travail)
+  const openDays = resolvedWeekDays.filter(
+    (wd) => mergeTimeBands([...wd.openingBands, ...(wd.staffExtraBands ?? [])]).length > 0
+  );
 
-    const nBands = dayWorkBands.length;
-    const targetRaw = wd.staffTarget;
+  // ── PASSE 1 : couverture minimum, ordre chronologique ─────────────────────
 
-    const dailyDistinctTarget =
-      targetRaw != null && Number.isFinite(targetRaw) && targetRaw > 0
-        ? Math.min(Math.max(1, Math.ceil(Number(targetRaw))), active.length)
-        : null;
+  for (const wd of openDays) {
+    const bands = mergeTimeBands([...wd.openingBands, ...(wd.staffExtraBands ?? [])]);
+    const target =
+      wd.staffTarget != null && wd.staffTarget > 0
+        ? Math.min(Math.ceil(wd.staffTarget), active.length)
+        : 0;
+    if (target === 0) continue;
 
-    const perBandHeadcount =
-      dailyDistinctTarget != null
-        ? Math.max(1, Math.ceil(dailyDistinctTarget / nBands))
-        : 1;
+    // Proportion du contrat déjà couverte (ascending = priorité haute)
+    function contractPct(m: StaffMember): number {
+      const bud = weeklyBudget.get(m.id);
+      if (!bud) return 0;
+      return (usedNet.get(m.id) ?? 0) / bud;
+    }
 
-    const scheduledThisCalendarDay = new Set<string>();
+    // Nombre de membres déjà planifiés aujourd'hui (pour l'équilibre des rôles)
+    const todayMembers: StaffMember[] = [];
 
-    dayWorkBands.forEach((band, bandIdx) => {
-      if (bandDurationMinutes(band) <= 0) return;
+    function roleScore(m: StaffMember): number {
+      const fam = roleFamily(m);
+      const total = active.filter((x) => roleFamily(x) === fam).length;
+      const done = todayMembers.filter((x) => roleFamily(x) === fam).length;
+      const expected = todayMembers.length > 0 ? todayMembers.length * (total / active.length) : 0;
+      return Math.max(0, expected - done); // manque → score élevé → priorité haute
+    }
 
-      type Cand = { member: StaffMember; ob: TimeBand; dur: number };
-      const candidates: Cand[] = [];
-      for (const m of active) {
-        const eff = mergedStaffWorkBands(m, wd);
-        const ob = bestOverlapBand(band, eff);
-        if (!ob) continue;
-        const dur = bandDurationMinutes(ob);
-        if (dur <= 0) continue;
-        const cap = m.target_weekly_hours;
-        if (cap != null && Number.isFinite(cap) && cap > 0) {
-          const used = usedMinutes.get(m.id) ?? 0;
-          if (used + dur > cap * 60 + 0.01) continue;
-        }
-        candidates.push({ member: m, ob, dur });
-      }
-
-      const needMoreDistinct =
-        dailyDistinctTarget != null && scheduledThisCalendarDay.size < dailyDistinctTarget;
-
-      candidates.sort((a, b) => {
-        if (needMoreDistinct) {
-          const aSeen = scheduledThisCalendarDay.has(a.member.id);
-          const bSeen = scheduledThisCalendarDay.has(b.member.id);
-          if (aSeen !== bSeen) return aSeen ? 1 : -1;
-        }
-        const ua = usedMinutes.get(a.member.id) ?? 0;
-        const ub = usedMinutes.get(b.member.id) ?? 0;
-        if (ua !== ub) return ua - ub;
-        return a.member.id.localeCompare(b.member.id);
+    const candidates = active
+      .filter((m) => {
+        const bud = weeklyBudget.get(m.id);
+        const remaining = bud != null ? bud - (usedNet.get(m.id) ?? 0) : 999999;
+        return remaining >= 30 && memberAvailNet(m, wd, bands) > 0;
+      })
+      .sort((a, b) => {
+        const rs = roleScore(b) - roleScore(a);
+        if (Math.abs(rs) > 0.01) return rs; // rôle manquant en priorité
+        return contractPct(a) - contractPct(b); // le plus en retard sur son contrat en premier
       });
 
-      const k = Math.min(perBandHeadcount, candidates.length);
-      const offset = (dayIndex * 11 + bandIdx * 3) % Math.max(candidates.length, 1);
-      const rotated = [...candidates.slice(offset), ...candidates.slice(0, offset)];
-
-      for (let i = 0; i < k; i++) {
-        const { member: m, ob, dur } = rotated[i];
-        const start = localDateTimeOnDay(wd.date, ob.start);
-        const end = localDateTimeOnDay(wd.date, ob.end);
-        if (!(end > start)) continue;
-
-        usedMinutes.set(m.id, (usedMinutes.get(m.id) ?? 0) + dur);
-        scheduledThisCalendarDay.add(m.id);
-
-        out.push({
-          staff_member_id: m.id,
-          starts_at: start.toISOString(),
-          ends_at: end.toISOString(),
-          break_minutes: breakForDurationMinutes(dur),
-          notes: `Auto · ${ob.start}–${ob.end}`,
-        });
+    let placed = 0;
+    for (const m of candidates) {
+      if (placed >= target) break;
+      const net = placeOnDay(m, wd, bands, weeklyBudget, usedNet, out);
+      if (net > 0) {
+        workedDays.get(m.id)!.add(wd.ymd);
+        todayMembers.push(m);
+        placed++;
       }
-    });
-  });
+    }
+  }
+
+  // ── PASSE 2 : renfort, ordre de priorité (sam > ven / fériés > jeu > …) ──
+
+  const reinforcementDays = [...openDays].sort(
+    (a, b) => reinforcementPriority(a) - reinforcementPriority(b)
+  );
+
+  for (const wd of reinforcementDays) {
+    const bands = mergeTimeBands([...wd.openingBands, ...(wd.staffExtraBands ?? [])]);
+
+    // Membres qui n'ont pas encore travaillé ce jour et qui ont encore des heures
+    const reinforceCandidates = active
+      .filter((m) => {
+        if (workedDays.get(m.id)!.has(wd.ymd)) return false; // déjà planifié ce jour
+        const bud = weeklyBudget.get(m.id);
+        const remaining = bud != null ? bud - (usedNet.get(m.id) ?? 0) : 999999;
+        return remaining >= 60 && memberAvailNet(m, wd, bands) > 0; // au moins 1 h restante
+      })
+      .sort((a, b) => {
+        // Le plus en retard sur son contrat en premier
+        const bA = weeklyBudget.get(a.id) ?? 1;
+        const bB = weeklyBudget.get(b.id) ?? 1;
+        const remA = bA - (usedNet.get(a.id) ?? 0);
+        const remB = bB - (usedNet.get(b.id) ?? 0);
+        return remB - remA;
+      });
+
+    for (const m of reinforceCandidates) {
+      const net = placeOnDay(m, wd, bands, weeklyBudget, usedNet, out);
+      if (net > 0) {
+        workedDays.get(m.id)!.add(wd.ymd);
+      }
+    }
+  }
 
   return out;
 }

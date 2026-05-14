@@ -8,6 +8,7 @@ import { getPurchasePriceStatsForItem } from "@/lib/stock/purchasePriceHistory";
 import { getCalculatedStockForSingleItem } from "@/lib/stock/stockMovements";
 import { findRecipeSuggestionForPrep } from "@/lib/recipes/findRecipeSuggestionForPrep";
 import { getRestaurantForPage } from "@/lib/auth";
+import { getNavAccessLevel } from "@/lib/auth/requireNavAccess";
 import {
   buildCategoryTree,
   categoryPathLabel,
@@ -43,6 +44,8 @@ const RECIPE_STATUS_LABELS: Record<string, string> = {
 export default async function InventoryItemDetailPage({ params }: Props) {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
+  const access = await getNavAccessLevel("inventory");
+  const canWrite = access === "full";
 
   const { id } = await params;
   const [itemRes, componentsRes, allItemsRes, suppliersRes, calcRes, fifoRes, priceStatsRes, catRes] =
@@ -119,21 +122,25 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         </p>
       </div>
 
-      <InventoryCategoryBlock
-        restaurantId={restaurant.id}
-        itemId={item.id}
-        options={invCatOptions}
-        initialCategoryId={item.category_id ?? null}
-        categoryPath={invCategoryPath}
-      />
+      {canWrite && (
+        <InventoryCategoryBlock
+          restaurantId={restaurant.id}
+          itemId={item.id}
+          options={invCatOptions}
+          initialCategoryId={item.category_id ?? null}
+          categoryPath={invCategoryPath}
+        />
+      )}
 
-      <EditInventoryItemBlock
-        item={item}
-        restaurantId={restaurant.id}
-        initialStockQty={stockFromMovements ?? item.current_stock_qty ?? 0}
-      />
+      {canWrite && (
+        <EditInventoryItemBlock
+          item={item}
+          restaurantId={restaurant.id}
+          initialStockQty={stockFromMovements ?? item.current_stock_qty ?? 0}
+        />
+      )}
 
-      {!isPrep ? (
+      {canWrite && !isPrep && (
         <ApplyBenchmarkTariffButton
           restaurantId={restaurant.id}
           itemId={item.id}
@@ -141,29 +148,37 @@ export default async function InventoryItemDetailPage({ params }: Props) {
           referencePurchaseUnitCostHt={item.reference_purchase_unit_cost_ht ?? null}
           referencePurchaseIsBenchmark={item.reference_purchase_is_benchmark === true}
         />
-      ) : null}
+      )}
 
-      <FifoStockBlock
-        stockUnit={item.unit}
-        summary={fifoRes.data}
-        fifoError={fifoRes.error?.message ?? null}
-      />
+      {/* Coûts d'achat : visibles uniquement en accès complet */}
+      {canWrite && (
+        <FifoStockBlock
+          stockUnit={item.unit}
+          summary={fifoRes.data}
+          fifoError={fifoRes.error?.message ?? null}
+        />
+      )}
 
-      <PurchasePriceSection
-        stockUnit={item.unit}
-        stats={priceStatsRes.data}
-        error={priceStatsRes.error?.message ?? null}
-        referenceUnitCostHt={item.reference_purchase_unit_cost_ht ?? null}
-        referenceIsBenchmark={item.reference_purchase_is_benchmark === true}
-      />
+      {canWrite && (
+        <PurchasePriceSection
+          stockUnit={item.unit}
+          stats={priceStatsRes.data}
+          error={priceStatsRes.error?.message ?? null}
+          referenceUnitCostHt={item.reference_purchase_unit_cost_ht ?? null}
+          referenceIsBenchmark={item.reference_purchase_is_benchmark === true}
+        />
+      )}
 
-      <InventoryItemSupplierBlock
-        item={item}
-        suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}
-        restaurantId={restaurant.id}
-      />
+      {canWrite && (
+        <InventoryItemSupplierBlock
+          item={item}
+          suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}
+          restaurantId={restaurant.id}
+        />
+      )}
 
-      {isPrep && showSuggestionBlock && suggestion && (
+      {/* Composition et recette : visibles uniquement en accès complet */}
+      {canWrite && isPrep && showSuggestionBlock && suggestion && (
         <PrepRecipeSuggestionBlock
           inventoryItemId={item.id}
           parentItemId={item.id}
@@ -173,7 +188,7 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         />
       )}
 
-      {isPrep && (
+      {canWrite && isPrep && (
         <PrepComponentsBlock
           parentItem={item}
           components={components}
@@ -182,7 +197,8 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         />
       )}
 
-      {prepCostRes != null && (
+      {/* Coût matière : visible uniquement en accès complet */}
+      {canWrite && prepCostRes != null && (
         <RecipeFoodCostSection
           title="Coût matière de la recette"
           footnote={`Pour 1 ${item.unit} produit (préparation dépliée en matières premières).`}
@@ -190,17 +206,19 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         />
       )}
 
-      {isPrep && components.length > 0 && status !== "validated" && (
+      {canWrite && isPrep && components.length > 0 && status !== "validated" && (
         <ValidatePrepRecipeButton inventoryItemId={item.id} restaurantId={restaurant.id} />
       )}
 
-      {!isPrep && (
+      {canWrite && !isPrep && (
         <p className={uiLead}>
           Seules les préparations ont une liste de composants. Ce composant peut être utilisé dans une préparation ou dans un plat.
         </p>
       )}
 
-      <DeleteInventoryItemButton itemId={item.id} restaurantId={restaurant.id} itemName={item.name} />
+      {canWrite && (
+        <DeleteInventoryItemButton itemId={item.id} restaurantId={restaurant.id} itemName={item.name} />
+      )}
     </div>
   );
 }

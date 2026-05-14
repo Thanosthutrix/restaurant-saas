@@ -40,7 +40,7 @@ export async function createStaffInviteRecord(params: {
     .select("token, expires_at")
     .single();
 
-  if (error || !data) return { error: error?.message ?? "Création d’invitation impossible." };
+  if (error || !data) return { error: error?.message ?? "Création d'invitation impossible." };
   const row = data as { token: string; expires_at: string };
   return { token: row.token, expires_at: row.expires_at };
 }
@@ -112,13 +112,15 @@ export async function consumeStaffInvite(params: {
     if (upErr.code === "23505") {
       return {
         ok: false,
-        error: "Ce compte est déjà lié à une autre fiche dans ce restaurant.",
+        error:
+          "Ce compte est déjà associé à une autre fiche dans ce restaurant. " +
+          "Connectez-vous avec un compte différent, ou demandez au responsable de délier l'ancienne fiche.",
       };
     }
     return { ok: false, error: upErr.message };
   }
   if (!linked) {
-    return { ok: false, error: "Cette fiche est déjà liée à un compte ou n’est plus valide." };
+    return { ok: false, error: "Cette fiche est déjà liée à un compte ou n'est plus valide." };
   }
 
   const { error } = await supabaseServer

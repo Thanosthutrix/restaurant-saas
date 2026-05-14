@@ -16,6 +16,8 @@ import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
 import { snapLocalDateToStep } from "@/lib/staff/planningSnap";
 import { formatMinutesHuman, netPlannedMinutes } from "@/lib/staff/timeHelpers";
 import type { StaffMember, WorkShiftWithDetails } from "@/lib/staff/types";
+import { buildStaffInitialsByMemberId, staffInitialsBase } from "@/lib/staff/staffDisplayInitials";
+import { STAFF_COLORS, resolveStaffColorIndex } from "@/lib/staff/staffColors";
 import { addDays, parseISODateLocal } from "@/lib/staff/weekUtils";
 import { uiBtnOutlineSm, uiBtnPrimarySm, uiCard, uiInput, uiLabel } from "@/components/ui/premium";
 
@@ -25,24 +27,7 @@ const COL_H = 432;
 /** Réduit les largeurs min. des colonnes jour d’environ 30 %. */
 const COL_WIDTH_SCALE = 0.7;
 
-const STAFF_LAYER_CLASS = [
-  "bg-violet-600",
-  "bg-amber-600",
-  "bg-emerald-600",
-  "bg-rose-600",
-  "bg-cyan-600",
-  "bg-fuchsia-600",
-  "bg-lime-700",
-  "bg-orange-600",
-  "bg-sky-600",
-  "bg-teal-600",
-];
-
-function staffInitials(displayName: string): string {
-  const p = displayName.trim().split(/\s+/).filter(Boolean);
-  if (p.length >= 2) return (p[0][0] + p[p.length - 1][0]).toUpperCase();
-  return displayName.slice(0, 2).toUpperCase();
-}
+const STAFF_LAYER_CLASS = STAFF_COLORS;
 
 function shiftsForCalendarDay(shifts: WorkShiftWithDetails[], day: Date): WorkShiftWithDetails[] {
   const d0 = dayBounds(day).start.getTime();
@@ -250,60 +235,37 @@ export function ManualWeekPlanner({
     return all.filter((i) => resolvedWeekDays[i]!.openingBands.length > 0);
   }, [hideClosedDays, resolvedWeekDays]);
 
-  /** Largeur relative de chaque jour visible : pic de présence + couloirs (sans l’aperçu drag). */
-  const dayColumnWeights = useMemo(() => {
-    if (weekDays.length !== 7) return [];
-    const stepM = Math.max(30, Math.min(90, Math.ceil(rangeSpan / 14)));
-    return visibleDayIndices.map((di) => {
-      const day = weekDays[di]!;
-      const dayShifts = shiftsForCalendarDay(shifts, day);
-      const hc = headcountAt(shifts, day, minM, maxM, stepM);
-      const peakHc = hc.length ? Math.max(...hc) : 0;
-      const laneMap = assignShiftLanesForDay(
-        dayShifts,
-        day,
-        minM,
-        maxM,
-        (s) => ({ start: s.starts_at, end: s.ends_at })
-      );
-      let maxLanes = 1;
-      for (const v of laneMap.values()) {
-        maxLanes = Math.max(maxLanes, v.maxLanes);
-      }
-      return Math.max(1, peakHc, maxLanes);
-    });
-  }, [weekDays, shifts, minM, maxM, rangeSpan, visibleDayIndices]);
+  /** Largeur en px de chaque sous-colonne employé. */
+  const PER_STAFF_PX = 44;
 
-  /**
-   * Colonnes jour : largeur min liée au pic (lisibilité) + parts fr étalées (écart jour calme vs chargé).
-   * min ≈ (72px + pic×40px) × COL_WIDTH_SCALE ; fr ∝ pic^1.35.
-   */
+  /** Employés triés par id — ordre stable identique à la légende et aux couleurs. */
+  const sortedStaff = useMemo(
+    () => [...staff].sort((a, b) => a.id.localeCompare(b.id)),
+    [staff]
+  );
+
+  const nStaff = Math.max(1, sortedStaff.length);
+
+  /** Chaque colonne jour a une largeur proportionnelle au nombre d'employés. */
   const gridColsTemplate = useMemo(() => {
-    if (dayColumnWeights.length === 0) return "3rem";
-    const parts = dayColumnWeights.map((w) => {
-      const minPx = Math.round((72 + w * 40) * COL_WIDTH_SCALE);
-      const fr = Math.pow(Math.max(1, w), 1.35);
-      return `minmax(${minPx}px, ${fr.toFixed(2)}fr)`;
-    });
-    return `3rem ${parts.join(" ")}`;
-  }, [dayColumnWeights]);
+    if (visibleDayIndices.length === 0) return "3rem";
+    const dayW = `minmax(${nStaff * PER_STAFF_PX}px, ${nStaff}fr)`;
+    return `3rem ${visibleDayIndices.map(() => dayW).join(" ")}`;
+  }, [visibleDayIndices, nStaff]);
 
-  /** Largeur minimale du tableau pour que les minmax ne soient pas écrasés. */
-  const gridMinWidthPx = useMemo(() => {
-    const timeCol = 48;
-    const daysMin = dayColumnWeights.reduce(
-      (acc, w) => acc + Math.round((72 + w * 40) * COL_WIDTH_SCALE),
-      0
-    );
-    return timeCol + daysMin + 16;
-  }, [dayColumnWeights]);
+  const gridMinWidthPx = useMemo(
+    () => 48 + visibleDayIndices.length * nStaff * PER_STAFF_PX + 16,
+    [visibleDayIndices, nStaff]
+  );
 
   const staffColor = useMemo(() => {
-    const sorted = [...staff].sort((a, b) => a.id.localeCompare(b.id));
+    const allIds = staff.map((s) => s.id);
     const m = new Map<string, number>();
-    sorted.forEach((s, i) => m.set(s.id, i));
+    staff.forEach((s) => m.set(s.id, resolveStaffColorIndex(s.id, s.color_index, allIds)));
     return m;
   }, [staff]);
+
+  const initialsById = useMemo(() => buildStaffInitialsByMemberId(staff), [staff]);
 
   const disabled = pending || (isSimulation && !simulationId);
 
@@ -530,7 +492,7 @@ export function ManualWeekPlanner({
     setErr(null);
   }
 
-  function openCreateSlot(day: Date) {
+  function openCreateSlot(day: Date, staffId?: string) {
     const d0 = dayBounds(day).start;
     const s = new Date(d0);
     s.setHours(9, 0, 0, 0);
@@ -538,7 +500,7 @@ export function ManualWeekPlanner({
     e.setHours(13, 0, 0, 0);
     setFormStart(toDatetimeLocalValue(s));
     setFormEnd(toDatetimeLocalValue(e));
-    setSheet({ mode: "create", staffId: staff[0]?.id ?? "" });
+    setSheet({ mode: "create", staffId: staffId ?? staff[0]?.id ?? "" });
     setErr(null);
   }
 
@@ -634,14 +596,7 @@ export function ManualWeekPlanner({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-600">
-        <strong className="text-slate-800">Planning manuel</strong> : glisser le bloc pour déplacer, tirer le haut ou le
-        bas pour ajuster (pas de 15 min) — les horaires s’affichent sur le bloc et dans une bulle pendant le geste.
-        Double-clic pour saisir les horaires. « + Créneau » sous chaque jour : choisir le collaborateur dans la fenêtre.
-        Les créneaux qui se chevauchent sont côte à côte. Colonnes plus fines (~−30 % de largeur min.) ; le pic de
-        présence continue de les pondérer.         Clic sur le bloc (zone déplacement) : menu Demain / Supprimer. Double-clic
-        : éditer.
-      </p>
+
       {err ? <p className="text-sm text-rose-700">{err}</p> : null}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -663,6 +618,8 @@ export function ManualWeekPlanner({
       ) : (
       <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
         <div className="min-w-0" style={{ minWidth: Math.max(620, gridMinWidthPx) }}>
+
+          {/* ── En-tête : jour + initiales des employés ── */}
           <div
             className="grid border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600"
             style={{ gridTemplateColumns: gridColsTemplate }}
@@ -670,28 +627,49 @@ export function ManualWeekPlanner({
             <div className="px-1 py-2 text-center text-[10px] leading-tight text-slate-500">Heures</div>
             {visibleDayIndices.map((di) => {
               const wd = resolvedWeekDays[di]!;
+              const day = weekDays[di]!;
               return (
-              <div
-                key={wd.ymd}
-                className="border-l-2 border-slate-200 bg-slate-50/90 px-1 py-2 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]"
-              >
-                {PLANNING_DAY_LABELS_FR[wd.dayKey]}
-                <div className="font-normal text-[10px] text-slate-400">
-                  {wd.date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                <div key={wd.ymd} className="border-l-2 border-slate-200">
+                  {/* Ligne jour */}
+                  <div className="px-1 py-1 text-center">
+                    {PLANNING_DAY_LABELS_FR[wd.dayKey]}
+                    <div className="font-normal text-[10px] text-slate-400">
+                      {wd.date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                    </div>
+                    {wd.openingBands.length === 0 ? (
+                      <div className="text-[10px] font-medium text-rose-700">Fermé</div>
+                    ) : null}
+                  </div>
+                  {/* Sous-en-têtes employés */}
+                  <div className="flex border-t border-slate-200/60">
+                    {sortedStaff.map((emp) => {
+                      const idx = staffColor.get(emp.id) ?? 0;
+                      const layer = STAFF_LAYER_CLASS[idx % STAFF_LAYER_CLASS.length];
+                      const initials = initialsById.get(emp.id) ?? staffInitialsBase(emp.display_name);
+                      return (
+                        <button
+                          key={emp.id}
+                          type="button"
+                          disabled={disabled}
+                          title={`+ créneau ${emp.display_name}`}
+                          className="flex flex-1 flex-col items-center gap-0.5 border-l border-slate-100 px-0.5 py-0.5 first:border-l-0 hover:bg-slate-100/80 disabled:pointer-events-none"
+                          onClick={(e) => { e.stopPropagation(); openCreateSlot(day, emp.id); }}
+                        >
+                          <span className={`h-1 w-full rounded-full ${layer} opacity-80`} />
+                          <span className="text-[9px] font-semibold text-slate-600 normal-case">{initials}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                {wd.openingBands.length === 0 ? (
-                  <div className="text-[10px] font-medium text-rose-700">Fermé</div>
-                ) : null}
-              </div>
               );
             })}
           </div>
 
+          {/* ── Corps : axe horaire + colonnes jour → sous-colonnes employé ── */}
           <div className="grid" style={{ gridTemplateColumns: gridColsTemplate }}>
-            <div
-              className="flex flex-col border-r-2 border-slate-200 bg-slate-50/80"
-              style={{ height: COL_H }}
-            >
+            {/* Axe horaire */}
+            <div className="flex flex-col border-r-2 border-slate-200 bg-slate-50/80" style={{ height: COL_H }}>
               <div className="relative min-h-0 h-full">
                 {hourTicks.map((h) => {
                   const minute = h * 60;
@@ -712,155 +690,115 @@ export function ManualWeekPlanner({
               </div>
             </div>
 
+            {/* Colonnes jour */}
             {visibleDayIndices.map((di) => {
               const day = weekDays[di]!;
               const wd = resolvedWeekDays[di]!;
               const dayShifts = shiftsForCalendarDay(shifts, day);
-              const stepM = Math.max(30, Math.min(90, Math.ceil(rangeSpan / 14)));
-              const hc = headcountAt(shifts, day, minM, maxM, stepM);
-              const laneByShift = assignShiftLanesForDay(
-                dayShifts,
-                day,
-                minM,
-                maxM,
-                (s) => {
-                  const e = getEffectiveTimes(s);
-                  return { start: e.start, end: e.end };
-                }
-              );
 
               return (
                 <div
                   key={wd.ymd}
-                  className={`flex flex-col border-l-2 border-slate-200 ${
-                    wd.openingBands.length === 0 ? "bg-rose-50/50" : "bg-slate-50/40"
+                  className={`flex border-l-2 border-slate-200 ${
+                    wd.openingBands.length === 0 ? "bg-rose-50/50" : ""
                   }`}
                   style={{ height: COL_H }}
                 >
-                  <div className="relative min-h-0 h-full overflow-hidden">
-                    {hourTicks.map((h) => {
-                      const minute = h * 60;
-                      if (minute < minM || minute > maxM) return null;
-                      const pct = ((minute - minM) / rangeSpan) * 100;
-                      return (
-                        <div
-                          key={`g-${h}`}
-                          className="pointer-events-none absolute left-0 right-0 border-t border-slate-200/60"
-                          style={{ top: `${pct}%` }}
-                        />
-                      );
-                    })}
+                  {/* Sous-colonne par employé */}
+                  {sortedStaff.map((emp) => {
+                    const empShifts = dayShifts.filter((s) => s.staff_member_id === emp.id);
+                    const idx = staffColor.get(emp.id) ?? 0;
+                    const layer = STAFF_LAYER_CLASS[idx % STAFF_LAYER_CLASS.length];
+                    return (
+                      <div
+                        key={emp.id}
+                        className="relative flex-1 min-w-0 h-full border-l border-slate-100/70 first:border-l-0"
+                      >
+                        {/* Lignes heure */}
+                        {hourTicks.map((h) => {
+                          const minute = h * 60;
+                          if (minute < minM || minute > maxM) return null;
+                          const pct = ((minute - minM) / rangeSpan) * 100;
+                          return (
+                            <div
+                              key={`g-${h}`}
+                              className="pointer-events-none absolute left-0 right-0 border-t border-slate-200/60"
+                              style={{ top: `${pct}%` }}
+                            />
+                          );
+                        })}
 
-                    {dayShifts.map((s) => {
-                      const eff = getEffectiveTimes(s);
-                      const seg = segmentPctInRange(
-                        new Date(eff.start),
-                        new Date(eff.end),
-                        day,
-                        minM,
-                        maxM
-                      );
-                      if (!seg) return null;
-                      const laneInfo = laneByShift.get(s.id);
-                      const maxLanes = laneInfo?.maxLanes ?? 1;
-                      const lane = laneInfo?.lane ?? 0;
-                      const gapPx = 2;
-                      const wPct = 100 / maxLanes;
-                      const leftPct = (100 * lane) / maxLanes;
-                      const idx = staffColor.get(s.staff_member_id) ?? 0;
-                      const layer = STAFF_LAYER_CLASS[idx % STAFF_LAYER_CLASS.length];
-                      const br = s.break_minutes != null ? ` · pause ${s.break_minutes} min` : "";
-                      return (
-                        <div
-                          key={s.id}
-                          data-manual-shift
-                          className={`absolute z-20 box-border flex flex-col items-center justify-center overflow-hidden rounded border border-white/25 ${layer} px-0.5 text-white shadow-sm ${
-                            disabled ? "opacity-50" : ""
-                          } ${
-                            shiftActionsMenu?.shiftId === s.id ? "ring-2 ring-white ring-offset-1 ring-offset-black/20" : ""
-                          }`}
-                          style={{
-                            top: `${seg.top}%`,
-                            height: `${Math.max(seg.height, 2.5)}%`,
-                            minHeight: "10px",
-                            left: `calc(${leftPct}% + ${gapPx / 2}px)`,
-                            width: `calc(${wPct}% - ${gapPx}px)`,
-                          }}
-                          title={`${s.staff_display_name} · ${formatRangeLabel(eff.start, eff.end)}${br} · clic : actions · double-clic : éditer`}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            if (!disabled) openEditShift(s);
-                          }}
-                        >
-                          <div className="pointer-events-none flex min-h-0 w-full flex-col items-center justify-center gap-0.5 px-0.5 py-0.5 text-center">
-                            <span className="w-full truncate text-[8px] font-bold leading-none drop-shadow-sm">
-                              {staffInitials(s.staff_display_name)}
-                            </span>
-                            <span className="w-full truncate text-[7px] font-semibold leading-tight opacity-95 drop-shadow-sm">
-                              {formatRangeLabel(eff.start, eff.end)}
-                            </span>
-                          </div>
-                          <div
-                            className="absolute left-0 right-0 top-0 z-30 h-2 cursor-ns-resize hover:bg-white/25"
-                            onPointerDown={(e) => {
-                              if (disabled) return;
-                              e.stopPropagation();
-                              beginDrag(e, s, day, "resize-start");
-                            }}
-                          />
-                          <div
-                            className="absolute inset-x-0 top-2 bottom-2 z-30 cursor-grab active:cursor-grabbing"
-                            onPointerDown={(e) => {
-                              if (disabled) return;
-                              e.stopPropagation();
-                              beginDrag(e, s, day, "move");
-                            }}
-                          />
-                          <div
-                            className="absolute bottom-0 left-0 right-0 z-30 h-2 cursor-ns-resize hover:bg-white/25"
-                            onPointerDown={(e) => {
-                              if (disabled) return;
-                              e.stopPropagation();
-                              beginDrag(e, s, day, "resize-end");
-                            }}
-                          />
-                        </div>
-                      );
-                    })}
-
-                    {hc.map((n, i) => {
-                      const topPct = ((i * stepM) / rangeSpan) * 100;
-                      const hPct = (stepM / rangeSpan) * 100;
-                      const tStart = minM + i * stepM;
-                      const tEnd = Math.min(minM + (i + 1) * stepM, maxM);
-                      const labelStart = `${Math.floor(tStart / 60)}h${String(tStart % 60).padStart(2, "0")}`;
-                      const labelEnd = `${Math.floor(tEnd / 60)}h${String(tEnd % 60).padStart(2, "0")}`;
-                      return (
-                        <div
-                          key={`hc-${i}`}
-                          className="pointer-events-none absolute left-0 right-0 z-40 flex items-start justify-end pr-0.5 pt-px"
-                          style={{ top: `${topPct}%`, height: `${hPct}%` }}
-                          title={`${labelStart}–${labelEnd} · ${n} présent(s)`}
-                        >
-                          <span className="rounded bg-white/95 px-0.5 py-px text-[8px] font-bold tabular-nums leading-none text-indigo-800 shadow-sm ring-1 ring-indigo-200/80">
-                            {n}
-                          </span>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      disabled={disabled || staff.length === 0}
-                      className="absolute bottom-1 left-1/2 z-[35] -translate-x-1/2 rounded-md border border-slate-200/90 bg-white/95 px-2 py-0.5 text-[10px] font-semibold text-slate-700 shadow-sm backdrop-blur-[2px] hover:bg-white disabled:pointer-events-none disabled:opacity-40"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openCreateSlot(day);
-                      }}
-                    >
-                      + Créneau
-                    </button>
-                  </div>
+                        {/* Créneaux de cet employé ce jour */}
+                        {empShifts.map((s) => {
+                          const eff = getEffectiveTimes(s);
+                          const seg = segmentPctInRange(
+                            new Date(eff.start),
+                            new Date(eff.end),
+                            day,
+                            minM,
+                            maxM
+                          );
+                          if (!seg) return null;
+                          const br = s.break_minutes != null ? ` · pause ${s.break_minutes} min` : "";
+                          return (
+                            <div
+                              key={s.id}
+                              data-manual-shift
+                              className={`absolute z-20 box-border flex flex-col items-center justify-center overflow-hidden rounded border border-white/25 ${layer} px-0.5 text-white shadow-sm ${
+                                disabled ? "opacity-50" : ""
+                              } ${
+                                shiftActionsMenu?.shiftId === s.id
+                                  ? "ring-2 ring-white ring-offset-1 ring-offset-black/20"
+                                  : ""
+                              }`}
+                              style={{
+                                top: `${seg.top}%`,
+                                height: `${Math.max(seg.height, 2.5)}%`,
+                                minHeight: "10px",
+                                left: "2px",
+                                right: "2px",
+                              }}
+                              title={`${s.staff_display_name} · ${formatRangeLabel(eff.start, eff.end)}${br}`}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                if (!disabled) openEditShift(s);
+                              }}
+                            >
+                              <div className="pointer-events-none flex min-h-0 w-full flex-col items-center justify-center gap-0.5 px-0.5 py-0.5 text-center">
+                                <span className="w-full truncate text-[7px] font-semibold leading-tight opacity-95 drop-shadow-sm">
+                                  {formatRangeLabel(eff.start, eff.end)}
+                                </span>
+                              </div>
+                              <div
+                                className="absolute left-0 right-0 top-0 z-30 h-2 cursor-ns-resize hover:bg-white/25"
+                                onPointerDown={(e) => {
+                                  if (disabled) return;
+                                  e.stopPropagation();
+                                  beginDrag(e, s, day, "resize-start");
+                                }}
+                              />
+                              <div
+                                className="absolute inset-x-0 top-2 bottom-2 z-30 cursor-grab active:cursor-grabbing"
+                                onPointerDown={(e) => {
+                                  if (disabled) return;
+                                  e.stopPropagation();
+                                  beginDrag(e, s, day, "move");
+                                }}
+                              />
+                              <div
+                                className="absolute bottom-0 left-0 right-0 z-30 h-2 cursor-ns-resize hover:bg-white/25"
+                                onPointerDown={(e) => {
+                                  if (disabled) return;
+                                  e.stopPropagation();
+                                  beginDrag(e, s, day, "resize-end");
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -868,23 +806,6 @@ export function ManualWeekPlanner({
         </div>
       </div>
       )}
-
-      <div className="flex flex-col gap-3 text-xs text-slate-600 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {staff.map((m) => {
-            const idx = staffColor.get(m.id) ?? 0;
-            const layer = STAFF_LAYER_CLASS[idx % STAFF_LAYER_CLASS.length];
-            return (
-              <span key={m.id} className="inline-flex items-center gap-1">
-                <span className={`h-3 w-3 rounded-sm ${layer}`} />
-                <span className="text-slate-700">{m.display_name}</span>
-                <span className="text-slate-400">({staffInitials(m.display_name)})</span>
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
       {sheet ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/35 p-4">
           <div className={`${uiCard} w-full max-w-md shadow-xl`}>

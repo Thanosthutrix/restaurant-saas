@@ -22,6 +22,7 @@ export function DishListRow({
   suggestionAvailable,
   categoryPath,
   showCategoryInRow = true,
+  canWrite = true,
 }: {
   dish: Dish;
   compCount: number;
@@ -29,6 +30,7 @@ export function DishListRow({
   categoryPath?: string | null;
   /** Si la liste est déjà groupée par rubrique, masquer le chemin sur la ligne. */
   showCategoryInRow?: boolean;
+  canWrite?: boolean;
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -101,25 +103,27 @@ export function DishListRow({
             {ttc.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} TTC
           </span>
         )}
-        {suggestionAvailable && (
+        {canWrite && suggestionAvailable && (
           <button type="button" onClick={handleSuggest} className={`${uiBtnPrimarySm} !px-2 !py-1 text-xs`}>
             Suggérer une base
           </button>
         )}
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-          title="Supprimer le plat"
-          aria-label={`Supprimer le plat « ${dish.name} »`}
-        >
-          {deleting ? (
-            <span className="block h-4 w-4 animate-pulse text-center text-xs text-slate-400">…</span>
-          ) : (
-            <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
-          )}
-        </button>
+        {canWrite && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+            title="Supprimer le plat"
+            aria-label={`Supprimer le plat « ${dish.name} »`}
+          >
+            {deleting ? (
+              <span className="block h-4 w-4 animate-pulse text-center text-xs text-slate-400">…</span>
+            ) : (
+              <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

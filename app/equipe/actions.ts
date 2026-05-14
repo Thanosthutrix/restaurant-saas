@@ -3,9 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
-import { isAppRole } from "@/lib/auth/appRoles";
+import { isAppRole, ALL_SHELL_NAV_KEYS } from "@/lib/auth/appRoles";
 import { consumeStaffInvite, createStaffInviteRecord, getStaffInviteByToken } from "@/lib/staff/inviteDb";
 import { generateAutoSimulationShifts } from "@/lib/staff/autoSimulation";
+import {
+  buildPlanningAiActivityDigest,
+  generateAiPlanningSimulationShifts,
+} from "@/lib/staff/aiPlanningSimulation";
 import { resolveWeekPlanningDays } from "@/lib/staff/planningResolve";
 import { netPlannedMinutes } from "@/lib/staff/timeHelpers";
 import { addDays, parseISODateLocal, toISODateString } from "@/lib/staff/weekUtils";
@@ -120,6 +124,34 @@ export async function updateStaffAppRoleAction(
   const { error } = await supabaseServer
     .from("staff_members")
     .update({ app_role: role })
+    .eq("id", staffMemberId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/**
+ * Met à jour la liste de pages accessibles pour un collaborateur.
+ * Remplace (ou efface) `app_nav_keys` ; prend le dessus sur `app_role`.
+ */
+export async function updateStaffNavPermissionsAction(
+  restaurantId: string,
+  staffMemberId: string,
+  navKeys: string[]
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "staff.manage");
+  if (!gate.ok) return gate;
+
+  const valid = navKeys.filter((k) => (ALL_SHELL_NAV_KEYS as string[]).includes(k));
+
+  const { error } = await supabaseServer
+    .from("staff_members")
+    .update({ app_nav_keys: valid.length > 0 ? valid : null })
     .eq("id", staffMemberId)
     .eq("restaurant_id", restaurantId);
 
@@ -453,6 +485,118 @@ export async function generateAutoSimulationShiftsAction(
 
   revalidatePath("/equipe");
   return { ok: true, generatedCount: generated.length };
+}
+
+export async function generateAiPlanningSimulationShiftsAction(
+  restaurantId: string,
+  weekMondayYmd: string
+): Promise<
+  | { ok: true; generatedCount: number; narrativeFr: string | null; usedFallbackAuto: boolean }
+  | { ok: false; error: string }
+> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  const ymd = weekMondayYmd.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return { ok: false, error: "Semaine invalide." };
+
+  const monday = parseISODateLocal(ymd);
+  if (!monday) return { ok: false, error: "Semaine invalide." };
+
+  const weekEndExclusive = addDays(monday, 7);
+  const weekFromYmd = toISODateString(monday);
+  const weekToYmdExclusive = toISODateString(weekEndExclusive);
+
+  const [{ data: restRow, error: restErr }, staff, hourMaps, staffTargetsWeekly, overrides, activityDigest] =
+    await Promise.all([
+      supabaseServer
+        .from("restaurants")
+        .select("name, activity_type, avg_covers, service_type")
+        .eq("id", restaurantId)
+        .maybeSingle(),
+      listStaffMembers(restaurantId, true),
+      getRestaurantPlanningHourMaps(restaurantId),
+      getRestaurantPlanningStaffTargetsWeekly(restaurantId),
+      listPlanningDayOverridesInRange(restaurantId, weekFromYmd, weekToYmdExclusive),
+      buildPlanningAiActivityDigest(restaurantId),
+    ]);
+
+  if (restErr || !restRow) return { ok: false, error: "Restaurant introuvable." };
+
+  const resolvedWeekDays = resolveWeekPlanningDays(
+    monday,
+    hourMaps.opening,
+    hourMaps.staffExtra,
+    staffTargetsWeekly,
+    overrides
+  );
+
+  const profile = {
+    name: String((restRow as { name?: string }).name ?? "").trim() || "Restaurant",
+    activity_type: (restRow as { activity_type?: string | null }).activity_type ?? null,
+    avg_covers: (restRow as { avg_covers?: number | null }).avg_covers ?? null,
+    service_type: (restRow as { service_type?: string | null }).service_type ?? null,
+  };
+
+  const ai = await generateAiPlanningSimulationShifts({
+    restaurantName: profile.name,
+    weekMondayYmd: ymd,
+    profile,
+    activityDigest,
+    resolvedWeekDays,
+    staff,
+    hourMaps,
+    staffTargetsWeekly,
+  });
+
+  if (!ai.ok) return { ok: false, error: ai.error };
+
+  let sim = await getPlanningWeekSimulation(restaurantId, ymd);
+  if (!sim) {
+    const { data, error } = await supabaseServer
+      .from("planning_week_simulations")
+      .insert({ restaurant_id: restaurantId, week_monday: ymd })
+      .select("id")
+      .single();
+    if (error?.code === "23505") {
+      sim = await getPlanningWeekSimulation(restaurantId, ymd);
+    } else if (error || !data) {
+      return { ok: false, error: error?.message ?? "Impossible de créer la simulation." };
+    } else {
+      sim = { id: String((data as { id: string }).id), week_monday: ymd };
+    }
+  }
+  if (!sim) return { ok: false, error: "Simulation introuvable." };
+
+  const { error: delErr } = await supabaseServer
+    .from("planning_simulation_shifts")
+    .delete()
+    .eq("simulation_id", sim.id);
+
+  if (delErr) return { ok: false, error: delErr.message };
+
+  const generated = ai.shifts;
+  if (generated.length === 0) {
+    revalidatePath("/equipe");
+    return { ok: true, generatedCount: 0, narrativeFr: ai.narrativeFr, usedFallbackAuto: ai.usedFallbackAuto };
+  }
+
+  const rows = generated.map((g) => ({
+    simulation_id: sim.id,
+    staff_member_id: g.staff_member_id,
+    starts_at: g.starts_at,
+    ends_at: g.ends_at,
+    break_minutes: g.break_minutes,
+    notes: g.notes,
+  }));
+
+  const { error: insErr } = await supabaseServer.from("planning_simulation_shifts").insert(rows);
+  if (insErr) return { ok: false, error: insErr.message };
+
+  revalidatePath("/equipe");
+  return { ok: true, generatedCount: generated.length, narrativeFr: ai.narrativeFr, usedFallbackAuto: ai.usedFallbackAuto };
 }
 
 export async function createSimulationShiftAction(
@@ -1000,5 +1144,28 @@ export async function acceptStaffInviteAction(
   revalidatePath("/dashboard");
   revalidatePath("/equipe");
   revalidatePath("/equipe/mon-planning");
+  return { ok: true };
+}
+
+/** Permet à un collaborateur de choisir son code couleur dans le planning (0-9). */
+export async function updateMyStaffColorAction(
+  restaurantId: string,
+  colorIndex: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  if (colorIndex < 0 || colorIndex > 9 || !Number.isInteger(colorIndex)) {
+    return { ok: false, error: "Index couleur invalide." };
+  }
+  const supabase = (await import("@/lib/supabaseServer")).supabaseServer;
+  const { error } = await supabase
+    .from("staff_members")
+    .update({ color_index: colorIndex })
+    .eq("restaurant_id", restaurantId)
+    .eq("user_id", user.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath("/equipe/mon-planning");
+  revalidatePath("/dashboard");
   return { ok: true };
 }

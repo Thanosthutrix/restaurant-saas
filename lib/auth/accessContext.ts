@@ -5,7 +5,7 @@ import {
   getAccessibleRestaurantsForUser,
   type Restaurant,
 } from "@/lib/auth";
-import { ALL_SHELL_NAV_KEYS, type ShellNavKey, navKeysForAppRole } from "@/lib/auth/appRoles";
+import { ALL_SHELL_NAV_KEYS, type ShellNavKey, resolveNavKeys } from "@/lib/auth/appRoles";
 import { getStaffMembershipForAccess } from "@/lib/staff/staffDb";
 
 export type ShellAccessContext = {
@@ -48,7 +48,7 @@ export const getShellAccessContext = cache(async function getShellAccessContext(
     restaurants: [{ id: sm.restaurant_id, name: sm.restaurant_name }],
     currentRestaurant: sm.restaurant,
     currentRestaurantId: sm.restaurant_id,
-    allowedNavKeys: navKeysForAppRole(sm.app_role),
+    allowedNavKeys: resolveNavKeys(sm.app_nav_keys, sm.app_role),
     isOwner: false,
   };
 });

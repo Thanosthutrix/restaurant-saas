@@ -11,6 +11,7 @@ import {
 } from "@/lib/catalog/restaurantCategories";
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
 import { getRestaurantForPage } from "@/lib/auth";
+import { getNavAccessLevel } from "@/lib/auth/requireNavAccess";
 import { buildTemplateSuggestionsFromRows } from "@/lib/templates/templateSuggestions";
 import { CreateDishForm } from "./CreateDishForm";
 import { DishesNestedCategoryTiles } from "./DishesNestedCategoryTiles";
@@ -25,6 +26,8 @@ export default async function DishesPage({ searchParams }: Props) {
   const initialDishName = typeof params.name === "string" ? params.name : "";
   const returnTo = typeof params.returnTo === "string" ? params.returnTo : "";
   if (!restaurant) redirect("/onboarding");
+  const access = await getNavAccessLevel("dishes");
+  const canWrite = access === "full";
 
   const [{ data: dishes, error }, invRes, catRes] = await Promise.all([
     getDishes(restaurant.id),
@@ -92,18 +95,20 @@ export default async function DishesPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <CreateDishForm initialName={initialDishName} returnTo={returnTo} />
+      {canWrite && <CreateDishForm initialName={initialDishName} returnTo={returnTo} />}
 
-      <p className="flex flex-wrap gap-x-4 gap-y-2">
-        <Link href="/dishes/import-menu" className={uiBackLink}>
-          Importer des plats depuis une photo de carte →
-        </Link>
-        <Link href="/account#rubriques" className={uiBackLink}>
-          Rubriques (carte & stock) →
-        </Link>
-      </p>
+      {canWrite && (
+        <p className="flex flex-wrap gap-x-4 gap-y-2">
+          <Link href="/dishes/import-menu" className={uiBackLink}>
+            Importer des plats depuis une photo de carte →
+          </Link>
+          <Link href="/account#rubriques" className={uiBackLink}>
+            Rubriques (carte & stock) →
+          </Link>
+        </p>
+      )}
 
-      <DishTemplateSuggestionsBlock restaurantId={restaurant.id} suggestions={suggestions} />
+      {canWrite && <DishTemplateSuggestionsBlock restaurantId={restaurant.id} suggestions={suggestions} />}
 
       {!dishes?.length ? (
         <p className={uiLead}>
@@ -115,6 +120,7 @@ export default async function DishesPage({ searchParams }: Props) {
           directMap={directMap}
           dishExtras={dishExtras}
           uncategorized={uncategorized}
+          canWrite={canWrite}
         />
       )}
     </div>

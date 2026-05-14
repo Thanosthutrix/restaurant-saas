@@ -22,6 +22,7 @@ import { DayClockShell } from "@/components/staff/DayClockShell";
 import { getStaffMemberByUserAndRestaurant, listWorkShiftsInRange } from "@/lib/staff/staffDb";
 import { addDays, mondayOfWeekContaining } from "@/lib/staff/weekUtils";
 import { ALL_SHELL_NAV_KEYS, type ShellNavKey } from "@/lib/auth/appRoles";
+import { listColdHygieneElements } from "@/lib/hygiene/hygieneDb";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -134,6 +135,12 @@ export default async function DashboardPage() {
     getShellAccessContext(user.id),
   ]);
 
+  const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
+  const hasHygieneAccess = accessContext?.isOwner || allowed.includes("hygiene");
+  const coldElements = hasHygieneAccess
+    ? await listColdHygieneElements(restaurant.id)
+    : [];
+
   const myShiftsForClock =
     staffForClock != null
       ? shiftsWeek.filter((s) => s.staff_member_id === staffForClock.id)
@@ -154,7 +161,6 @@ export default async function DashboardPage() {
   const lastFiveServices = (recentServices ?? []).slice(0, 5);
   const inventoryCount = stockSummary?.inventoryCount ?? 0;
   const belowMinStockCount = stockSummary?.belowMinStockCount ?? 0;
-  const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
   const isOwner = accessContext?.isOwner ?? false;
 
   const visibleQuickActions = quickActions.filter((action) => allowed.includes(action.navKey));
@@ -167,7 +173,7 @@ export default async function DashboardPage() {
   const cardBase = "rounded-2xl border border-slate-100 bg-white shadow-sm";
 
   return (
-    <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock}>
+    <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock} coldElements={coldElements}>
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">

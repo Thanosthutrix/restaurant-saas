@@ -121,18 +121,12 @@ export async function listColdHygieneElements(restaurantId: string): Promise<Hyg
 
 /**
  * Tous les équipements froids (actifs ET inactifs) pour le relevé de température.
- * Un équipement peut être désactivé du planning de nettoyage tout en nécessitant
- * un suivi quotidien de température.
+ * Utilise un filtre en mémoire sur les catégories froides pour éviter tout problème
+ * de casse ou d'encodage avec le filtre SQL.
  */
 export async function listAllColdHygieneElements(restaurantId: string): Promise<HygieneElement[]> {
-  const { data, error } = await supabaseServer
-    .from("hygiene_elements")
-    .select("*")
-    .eq("restaurant_id", restaurantId)
-    .in("category", ["chambre_froide", "frigo", "congelateur"])
-    .order("name");
-  if (error || !data) return [];
-  return (data as Record<string, unknown>[]).map(mapElement);
+  const all = await listHygieneElements(restaurantId);
+  return all.filter((e) => isColdHygieneCategory(e.category));
 }
 
 function mapColdReading(row: Record<string, unknown>): HygieneColdTemperatureReading {

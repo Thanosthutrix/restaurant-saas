@@ -8,7 +8,7 @@ import { findPendingArrival, findPendingClockOut, formatMyShiftLineFr } from "@/
 import type { WorkShiftWithDetails } from "@/lib/staff/types";
 import type { HygieneElement } from "@/lib/hygiene/types";
 import { HYGIENE_CATEGORY_LABEL_FR } from "@/lib/hygiene/types";
-import { uiBtnPrimarySm, uiBtnSecondary, uiInput, uiLabel } from "@/components/ui/premium";
+import { uiBtnPrimarySm, uiInput, uiLabel } from "@/components/ui/premium";
 
 type Props = {
   restaurantId: string;
@@ -32,6 +32,9 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
   const [temps, setTemps] = useState<Map<string, string>>(
     () => new Map(coldElements.map((el) => [el.id, ""]))
   );
+  const [comments, setComments] = useState<Map<string, string>>(
+    () => new Map(coldElements.map((el) => [el.id, ""]))
+  );
 
   const pendingClockOutShift = useMemo(() => findPendingClockOut(myShifts), [myShifts]);
   const pendingArrivalShift = useMemo(() => {
@@ -47,6 +50,7 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
     setError(null);
     if (coldElements.length > 0) {
       setTemps(new Map(coldElements.map((el) => [el.id, ""])));
+      setComments(new Map(coldElements.map((el) => [el.id, ""])));
       setPendingShiftId(shiftId);
       setShowTempModal(true);
     } else {
@@ -91,11 +95,12 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
     start(async () => {
       for (const el of coldElements) {
         const tempRaw = temps.get(el.id) ?? "";
+        const comment = (comments.get(el.id) ?? "").trim();
         const r = await logColdTemperatureReadingAction(restaurantId, el.id, {
           eventKind: "opening",
           temperatureCelsiusRaw: tempRaw,
           initials: "",
-          comment: null,
+          comment: comment || null,
         });
         if (!r.ok) {
           setError(`${el.name} : ${r.error}`);
@@ -178,20 +183,42 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
                     <p className="mb-2 text-xs text-slate-500">
                       {catLabel}{el.area_label ? ` · ${el.area_label}` : ""}
                     </p>
-                    <div>
-                      <label className={`${uiLabel} text-[11px]`} htmlFor={`temp-${el.id}`}>
-                        Température (°C) <span className="text-rose-500">*</span>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className={`${uiLabel} text-[11px]`} htmlFor={`temp-${el.id}`}>
+                          Température (°C) <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          id={`temp-${el.id}`}
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          placeholder="ex. 3,5 ou -18"
+                          className={`${uiInput} mt-0.5 w-full tabular-nums`}
+                          value={val}
+                          onChange={(e) =>
+                            setTemps((prev) => {
+                              const next = new Map(prev);
+                              next.set(el.id, e.target.value);
+                              return next;
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <label className={`${uiLabel} text-[11px]`} htmlFor={`comment-${el.id}`}>
+                        Anomalie / commentaire <span className="text-slate-400">(optionnel)</span>
                       </label>
                       <input
-                        id={`temp-${el.id}`}
+                        id={`comment-${el.id}`}
                         type="text"
-                        inputMode="decimal"
                         autoComplete="off"
-                        placeholder="ex. 3,5 ou -18"
-                        className={`${uiInput} mt-0.5 w-full tabular-nums`}
-                        value={val}
+                        placeholder="ex. légère vibration, porte mal fermée…"
+                        className={`${uiInput} mt-0.5 w-full`}
+                        value={comments.get(el.id) ?? ""}
                         onChange={(e) =>
-                          setTemps((prev) => {
+                          setComments((prev) => {
                             const next = new Map(prev);
                             next.set(el.id, e.target.value);
                             return next;

@@ -3,26 +3,23 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { clockInAction, clockOutAction } from "@/app/equipe/actions";
-import { logColdTemperatureReadingAction } from "@/app/hygiene/actions";
+import { submitOpeningTemperatureLogAction } from "@/app/hygiene/haccp/actions";
 import { findPendingArrival, findPendingClockOut, formatMyShiftLineFr } from "@/lib/staff/dayClock";
 import type { WorkShiftWithDetails } from "@/lib/staff/types";
-import type { HygieneElement } from "@/lib/hygiene/types";
-import { HYGIENE_CATEGORY_LABEL_FR } from "@/lib/hygiene/types";
+import type { TemperaturePoint } from "@/lib/haccpTemperature/types";
+import { TEMPERATURE_POINT_TYPE_LABEL_FR } from "@/lib/haccpTemperature/types";
+import { classifyTemperatureStatus, parseTemperatureInput } from "@/lib/haccpTemperature/rules";
 import { uiBtnPrimarySm, uiInput, uiLabel } from "@/components/ui/premium";
 
 type Props = {
   restaurantId: string;
   myShifts: WorkShiftWithDetails[];
-  /** Équipements froids à relever à l'ouverture (vide = pas de relevé requis). */
-  coldElements?: HygieneElement[];
+  /** Points de mesure HACCP actifs pour le relevé d'ouverture (vide = pas de relevé requis). */
+  temperaturePoints?: TemperaturePoint[];
   children: React.ReactNode;
 };
 
-/**
- * Bandeau « Je démarre ma journée » avec modale de relevés de températures obligatoires
- * si des équipements froids sont configurés et que l'utilisateur a accès à l'hygiène.
- */
-export function DayClockShell({ restaurantId, myShifts, coldElements = [], children }: Props) {
+export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], children }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +27,10 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
   const [pendingShiftId, setPendingShiftId] = useState<string | null>(null);
 
   const [temps, setTemps] = useState<Map<string, string>>(
-    () => new Map(coldElements.map((el) => [el.id, ""]))
+    () => new Map(temperaturePoints.map((p) => [p.id, ""]))
   );
   const [comments, setComments] = useState<Map<string, string>>(
-    () => new Map(coldElements.map((el) => [el.id, ""]))
+    () => new Map(temperaturePoints.map((p) => [p.id, ""]))
   );
 
   const pendingClockOutShift = useMemo(() => findPendingClockOut(myShifts), [myShifts]);
@@ -42,15 +39,13 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
     return findPendingArrival(myShifts, new Date());
   }, [myShifts, pendingClockOutShift]);
 
-  function refresh() {
-    router.refresh();
-  }
+  function refresh() { router.refresh(); }
 
   function onStartDayClick(shiftId: string) {
     setError(null);
-    if (coldElements.length > 0) {
-      setTemps(new Map(coldElements.map((el) => [el.id, ""])));
-      setComments(new Map(coldElements.map((el) => [el.id, ""])));
+    if (temperaturePoints.length > 0) {
+      setTemps(new Map(temperaturePoints.map((p) => [p.id, ""])));
+      setComments(new Map(temperaturePoints.map((p) => [p.id, ""])));
       setPendingShiftId(shiftId);
       setShowTempModal(true);
     } else {
@@ -76,11 +71,16 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
   }
 
   function allFilled(): boolean {
-    for (const el of coldElements) {
-      const t = temps.get(el.id) ?? "";
-      if (!t.trim()) return false;
-    }
-    return true;
+    return temperaturePoints.every((p) => (temps.get(p.id) ?? "").trim() !== "");
+  }
+
+  /** Retourne le statut de température en temps réel pour un point (pour colorier le champ). */
+  function getTempStatus(point: TemperaturePoint): "normal" | "alert" | "critical" | "empty" {
+    const raw = temps.get(point.id) ?? "";
+    if (!raw.trim()) return "empty";
+    const parsed = parseTemperatureInput(raw);
+    if (!parsed.ok) return "critical";
+    return classifyTemperatureStatus(parsed.value, point.min_threshold, point.max_threshold);
   }
 
   function onSubmitTemps() {
@@ -93,17 +93,13 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
     }
 
     start(async () => {
-      for (const el of coldElements) {
-        const tempRaw = temps.get(el.id) ?? "";
-        const comment = (comments.get(el.id) ?? "").trim();
-        const r = await logColdTemperatureReadingAction(restaurantId, el.id, {
-          eventKind: "opening",
-          temperatureCelsiusRaw: tempRaw,
-          initials: "",
-          comment: comment || null,
+      for (const point of temperaturePoints) {
+        const r = await submitOpeningTemperatureLogAction(restaurantId, point.id, {
+          temperatureRaw: temps.get(point.id) ?? "",
+          comment: (comments.get(point.id) ?? "").trim() || null,
         });
         if (!r.ok) {
-          setError(`${el.name} : ${r.error}`);
+          setError(`${point.name} : ${r.error}`);
           return;
         }
       }
@@ -157,72 +153,95 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
         </div>
       ) : null}
 
-      {/* Modale relevés de température — obligatoires avant de pointer */}
+      {/* Modale relevés de température HACCP — obligatoires avant de pointer */}
       {showTempModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            {/* En-tête */}
             <div className="border-b border-slate-100 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-900">
                 Relevés de température — ouverture
               </h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Renseignez la température de chaque équipement froid avant de démarrer votre journée.
+                Renseignez la température de chaque point de mesure avant de démarrer votre journée.
               </p>
             </div>
 
-            {/* Liste des équipements */}
             <div className="max-h-[55vh] overflow-y-auto px-5 py-4 space-y-3">
-              {coldElements.map((el) => {
-                const catLabel =
-                  HYGIENE_CATEGORY_LABEL_FR[el.category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ?? el.category;
-                const val = temps.get(el.id) ?? "";
+              {temperaturePoints.map((point) => {
+                const tempVal = temps.get(point.id) ?? "";
+                const commentVal = comments.get(point.id) ?? "";
+                const status = getTempStatus(point);
+                const isAnomaly = status === "alert" || status === "critical";
+                const inputBorder =
+                  status === "critical"
+                    ? "border-rose-400 focus:ring-rose-400"
+                    : status === "alert"
+                    ? "border-amber-400 focus:ring-amber-400"
+                    : "";
+
                 return (
-                  <div key={el.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-sm font-medium text-slate-900">{el.name}</p>
-                    <p className="mb-2 text-xs text-slate-500">
-                      {catLabel}{el.area_label ? ` · ${el.area_label}` : ""}
-                    </p>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className={`${uiLabel} text-[11px]`} htmlFor={`temp-${el.id}`}>
-                          Température (°C) <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          id={`temp-${el.id}`}
-                          type="text"
-                          inputMode="decimal"
-                          autoComplete="off"
-                          placeholder="ex. 3,5 ou -18"
-                          className={`${uiInput} mt-0.5 w-full tabular-nums`}
-                          value={val}
-                          onChange={(e) =>
-                            setTemps((prev) => {
-                              const next = new Map(prev);
-                              next.set(el.id, e.target.value);
-                              return next;
-                            })
-                          }
-                        />
-                      </div>
+                  <div
+                    key={point.id}
+                    className={`rounded-xl border p-3 ${isAnomaly ? "border-amber-200 bg-amber-50/50" : "border-slate-200 bg-white"}`}
+                  >
+                    <div className="mb-2">
+                      <p className="text-sm font-medium text-slate-900">{point.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {TEMPERATURE_POINT_TYPE_LABEL_FR[point.point_type]}
+                        {point.location ? ` · ${point.location}` : ""}
+                        {" · "}
+                        <span className="font-medium">
+                          {point.min_threshold} à {point.max_threshold} °C
+                        </span>
+                      </p>
                     </div>
-                    <div className="mt-2">
-                      <label className={`${uiLabel} text-[11px]`} htmlFor={`comment-${el.id}`}>
-                        Anomalie / commentaire <span className="text-slate-400">(optionnel)</span>
+
+                    <div>
+                      <label className={`${uiLabel} text-[11px]`} htmlFor={`temp-${point.id}`}>
+                        Température (°C) <span className="text-rose-500">*</span>
                       </label>
                       <input
-                        id={`comment-${el.id}`}
+                        id={`temp-${point.id}`}
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        placeholder={`${point.min_threshold} à ${point.max_threshold} °C`}
+                        className={`${uiInput} mt-0.5 w-full tabular-nums ${inputBorder}`}
+                        value={tempVal}
+                        onChange={(e) =>
+                          setTemps((prev) => { const n = new Map(prev); n.set(point.id, e.target.value); return n; })
+                        }
+                      />
+                      {status === "critical" && (
+                        <p className="mt-0.5 text-[11px] font-medium text-rose-700">
+                          ⚠ Hors plage — commentaire obligatoire.
+                        </p>
+                      )}
+                      {status === "alert" && (
+                        <p className="mt-0.5 text-[11px] font-medium text-amber-700">
+                          ⚠ Proche du seuil — un commentaire est recommandé.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-2">
+                      <label className={`${uiLabel} text-[11px]`} htmlFor={`comment-${point.id}`}>
+                        Anomalie / commentaire{" "}
+                        {isAnomaly ? (
+                          <span className="text-rose-500">*</span>
+                        ) : (
+                          <span className="text-slate-400">(optionnel)</span>
+                        )}
+                      </label>
+                      <input
+                        id={`comment-${point.id}`}
                         type="text"
                         autoComplete="off"
-                        placeholder="ex. légère vibration, porte mal fermée…"
+                        placeholder={isAnomaly ? "Décrivez l'anomalie constatée…" : "ex. légère vibration, porte mal fermée…"}
                         className={`${uiInput} mt-0.5 w-full`}
-                        value={comments.get(el.id) ?? ""}
+                        value={commentVal}
                         onChange={(e) =>
-                          setComments((prev) => {
-                            const next = new Map(prev);
-                            next.set(el.id, e.target.value);
-                            return next;
-                          })
+                          setComments((prev) => { const n = new Map(prev); n.set(point.id, e.target.value); return n; })
                         }
                       />
                     </div>
@@ -237,7 +256,6 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
               </p>
             )}
 
-            {/* Pied */}
             <div className="border-t border-slate-100 px-5 py-4">
               <button
                 type="button"
@@ -249,7 +267,7 @@ export function DayClockShell({ restaurantId, myShifts, coldElements = [], child
               </button>
               {!allFilled() && (
                 <p className="mt-2 text-center text-xs text-slate-400">
-                  Tous les champs sont obligatoires.
+                  Tous les champs de température sont obligatoires.
                 </p>
               )}
             </div>

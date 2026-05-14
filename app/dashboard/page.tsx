@@ -22,7 +22,7 @@ import { DayClockShell } from "@/components/staff/DayClockShell";
 import { getStaffMemberByUserAndRestaurant, listWorkShiftsInRange } from "@/lib/staff/staffDb";
 import { addDays, mondayOfWeekContaining } from "@/lib/staff/weekUtils";
 import { ALL_SHELL_NAV_KEYS, type ShellNavKey } from "@/lib/auth/appRoles";
-import { listAllColdHygieneElements } from "@/lib/hygiene/hygieneDb";
+import { listTemperaturePoints } from "@/lib/haccpTemperature/haccpTemperatureDb";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -137,8 +137,8 @@ export default async function DashboardPage() {
 
   const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
   const hasHygieneAccess = accessContext?.isOwner || allowed.includes("hygiene");
-  const coldElements = hasHygieneAccess
-    ? await listAllColdHygieneElements(restaurant.id)
+  const temperaturePoints = hasHygieneAccess
+    ? (await listTemperaturePoints(restaurant.id)).filter((p) => p.active)
     : [];
 
   const myShiftsForClock =
@@ -173,7 +173,7 @@ export default async function DashboardPage() {
   const cardBase = "rounded-2xl border border-slate-100 bg-white shadow-sm";
 
   return (
-    <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock} coldElements={coldElements}>
+    <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock} temperaturePoints={temperaturePoints}>
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">

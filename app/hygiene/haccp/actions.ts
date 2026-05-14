@@ -189,3 +189,113 @@ export async function submitTemperatureLogAction(
   revalidatePath("/hygiene/haccp/registre");
   return { ok: true };
 }
+
+/**
+ * Enregistre un relevé de température à l'ouverture (démarrage de journée).
+ * Retrouve ou crée la tâche du matin pour ce point, puis insère le log.
+ * Retourne un avertissement si la valeur est hors plage (alerte / critique).
+ */
+export async function submitOpeningTemperatureLogAction(
+  restaurantId: string,
+  pointId: string,
+  params: {
+    temperatureRaw: string;
+    comment: string | null;
+  }
+): Promise<{ ok: true; logStatus: string } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
+
+  const point = await getTemperaturePoint(restaurantId, pointId);
+  if (!point || !point.active) return { ok: false, error: "Point de mesure introuvable." };
+
+  const parsed = parseTemperatureInput(params.temperatureRaw);
+  if (!parsed.ok) return parsed;
+
+  const logStatus = classifyTemperatureStatus(parsed.value, point.min_threshold, point.max_threshold);
+
+  if (requiresCorrectiveFields(logStatus) && !params.comment?.trim()) {
+    return {
+      ok: false,
+      error: `Température ${logStatus === "critical" ? "hors plage" : "en alerte"} — un commentaire est obligatoire.`,
+    };
+  }
+
+  // Trouver ou créer la tâche du matin pour aujourd'hui
+  const todayUtc = new Date().toISOString().slice(0, 10);
+  const morningPeriodKey =
+    point.recurrence_type === "per_service" ? `ps:${todayUtc}:1` : `d:${todayUtc}`;
+
+  const { data: existingTask } = await supabaseServer
+    .from("temperature_tasks")
+    .select("id, status")
+    .eq("temperature_point_id", pointId)
+    .eq("period_key", morningPeriodKey)
+    .maybeSingle();
+
+  let taskId: string | null = null;
+
+  if (existingTask) {
+    const t = existingTask as { id: string; status: string };
+    if (t.status === "completed") {
+      // Tâche déjà faite — on insère quand même un log libre (sans task_id)
+      taskId = null;
+    } else {
+      taskId = t.id;
+    }
+  } else {
+    // Créer la tâche manuellement
+    const dueAt =
+      point.recurrence_type === "per_service"
+        ? `${todayUtc}T12:00:00.000Z`
+        : `${todayUtc}T23:59:59.000Z`;
+    const { data: newTask, error: createErr } = await supabaseServer
+      .from("temperature_tasks")
+      .insert({
+        restaurant_id: restaurantId,
+        temperature_point_id: pointId,
+        period_key: morningPeriodKey,
+        due_at: dueAt,
+        status: "pending",
+      })
+      .select("id")
+      .maybeSingle();
+    if (createErr && (createErr as { code?: string }).code !== "23505") {
+      return { ok: false, error: createErr.message };
+    }
+    taskId = newTask ? String((newTask as { id: string }).id) : null;
+  }
+
+  const display = displayFromUser(user);
+
+  const { error: insErr } = await supabaseServer.from("temperature_logs").insert({
+    restaurant_id: restaurantId,
+    temperature_point_id: pointId,
+    task_id: taskId,
+    value: parsed.value,
+    log_status: logStatus,
+    recorded_by_user_id: user.id,
+    recorded_by_display: display,
+    comment: params.comment?.trim() || null,
+    corrective_action: null,
+    product_impact: null,
+  });
+  if (insErr) return { ok: false, error: insErr.message };
+
+  // Marquer la tâche comme complétée
+  if (taskId) {
+    await supabaseServer
+      .from("temperature_tasks")
+      .update({ status: "completed" })
+      .eq("id", taskId)
+      .eq("restaurant_id", restaurantId);
+  }
+
+  revalidatePath("/hygiene/haccp");
+  revalidatePath("/hygiene/haccp/check");
+  revalidatePath("/hygiene/haccp/registre");
+  return { ok: true, logStatus };
+}

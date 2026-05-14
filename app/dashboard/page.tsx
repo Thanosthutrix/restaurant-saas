@@ -22,7 +22,7 @@ import { DayClockShell } from "@/components/staff/DayClockShell";
 import { getStaffMemberByUserAndRestaurant, listWorkShiftsInRange } from "@/lib/staff/staffDb";
 import { addDays, mondayOfWeekContaining } from "@/lib/staff/weekUtils";
 import { ALL_SHELL_NAV_KEYS, type ShellNavKey } from "@/lib/auth/appRoles";
-import { listColdHygieneElements } from "@/lib/hygiene/hygieneDb";
+import { listAllColdHygieneElements } from "@/lib/hygiene/hygieneDb";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -138,7 +138,7 @@ export default async function DashboardPage() {
   const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
   const hasHygieneAccess = accessContext?.isOwner || allowed.includes("hygiene");
   const coldElements = hasHygieneAccess
-    ? await listColdHygieneElements(restaurant.id)
+    ? await listAllColdHygieneElements(restaurant.id)
     : [];
 
   const myShiftsForClock =

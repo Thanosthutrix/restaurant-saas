@@ -113,10 +113,26 @@ export function isColdHygieneCategory(category: string): boolean {
   return (HYGIENE_COLD_ELEMENT_CATEGORIES as readonly string[]).includes(category);
 }
 
-/** Éléments actifs de type chambre froide / frigo / congélateur. */
+/** Éléments actifs de type chambre froide / frigo / congélateur (planning de nettoyage). */
 export async function listColdHygieneElements(restaurantId: string): Promise<HygieneElement[]> {
   const all = await listHygieneElements(restaurantId);
   return all.filter((e) => e.active && isColdHygieneCategory(e.category));
+}
+
+/**
+ * Tous les équipements froids (actifs ET inactifs) pour le relevé de température.
+ * Un équipement peut être désactivé du planning de nettoyage tout en nécessitant
+ * un suivi quotidien de température.
+ */
+export async function listAllColdHygieneElements(restaurantId: string): Promise<HygieneElement[]> {
+  const { data, error } = await supabaseServer
+    .from("hygiene_elements")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .in("category", ["chambre_froide", "frigo", "congelateur"])
+    .order("name");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map(mapElement);
 }
 
 function mapColdReading(row: Record<string, unknown>): HygieneColdTemperatureReading {

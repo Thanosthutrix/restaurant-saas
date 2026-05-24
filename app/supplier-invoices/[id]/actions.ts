@@ -311,8 +311,24 @@ async function applyInvoiceCostsToValidatedReceptions(invoiceId: string, restaur
 
 export async function markSupplierInvoiceReviewedAction(
   invoiceId: string,
-  restaurantId: string
+  restaurantId: string,
+  options?: { withoutDeliveryNote?: boolean }
 ): Promise<{ success: true } | { success: false; error: string }> {
+  const { data: linked, error: linkedErr } = await supabaseServer
+    .from("supplier_invoice_delivery_notes")
+    .select("id")
+    .eq("supplier_invoice_id", invoiceId)
+    .limit(1);
+  if (linkedErr) return { success: false, error: linkedErr.message };
+
+  const hasLinkedReception = Boolean(linked?.length);
+  if (!hasLinkedReception && !options?.withoutDeliveryNote) {
+    return {
+      success: false,
+      error: "Aucun BL lié. Validez explicitement sans bon de livraison si la facture ne correspond à aucune réception.",
+    };
+  }
+
   try {
     await applyInvoiceCostsToValidatedReceptions(invoiceId, restaurantId);
   } catch (e) {

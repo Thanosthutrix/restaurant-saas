@@ -11,6 +11,7 @@ import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidge
 import { HeaderUserAvatar } from "@/components/app/HeaderUserAvatar";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { type ShellNavKey, canAccessPage } from "@/lib/auth/appRoles";
+import { prefetchRoutesWhenIdle } from "@/lib/ui/deferIdle";
 
 type ShellClientPayload = Pick<
   AppShellHeaderBootstrap,
@@ -23,27 +24,19 @@ const sidebarIdle =
   "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.99]";
 const sidebarActive = "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100";
 const navGroupOrder = ["Accueil", "Exploitation", "Cuisine", "Achats & stock", "Registres", "Équipe & compte"];
-const priorityPrefetchKeys = new Set<ShellNavKey>([
-  "dashboard",
-  "salle",
-  "caisse",
-  "cuisine",
-  "achats",
-  "registres",
-  "orders",
-  "livraison",
-  "supplier_invoices",
-  "equipe_manage",
-]);
+/** Routes les plus fréquentes — prefetch différé pour ne pas saturer le réseau au chargement. */
+const hotPrefetchKeys = new Set<ShellNavKey>(["dashboard", "salle", "caisse", "cuisine"]);
 
 function NavLinks({
   pathname,
   allowedNavKeys,
   onNavigate,
+  onPrefetch,
 }: {
   pathname: string | null;
   allowedNavKeys?: ShellNavKey[] | null;
   onNavigate?: () => void;
+  onPrefetch?: (href: string) => void;
 }) {
   const items =
     allowedNavKeys != null && allowedNavKeys.length > 0
@@ -72,6 +65,8 @@ function NavLinks({
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
+                onMouseEnter={() => onPrefetch?.(item.href)}
+                onFocus={() => onPrefetch?.(item.href)}
                 className={`${sidebarLinkBase} ${active ? sidebarActive : sidebarIdle}`}
               >
                 <Icon className="h-[1.125rem] w-[1.125rem] shrink-0 opacity-90" aria-hidden />
@@ -127,6 +122,10 @@ export function PremiumAppShell({
     };
   }, [bare, headerBootstrap]);
 
+  const prefetchRoute = (href: string) => {
+    router.prefetch(href);
+  };
+
   useEffect(() => {
     if (bare || prefetchedRef.current) return;
     const allowedKeys = shellPayload?.allowedNavKeys;
@@ -134,17 +133,10 @@ export function PremiumAppShell({
 
     prefetchedRef.current = true;
     const urls = SHELL_NAV_ITEMS.filter(
-      (item) => priorityPrefetchKeys.has(item.navKey) && allowedKeys.includes(item.navKey)
+      (item) => hotPrefetchKeys.has(item.navKey) && allowedKeys.includes(item.navKey)
     ).map((item) => item.href);
 
-    const run = () => {
-      for (const href of urls) {
-        router.prefetch(href);
-      }
-    };
-
-    const timeoutId = window.setTimeout(run, 800);
-    return () => window.clearTimeout(timeoutId);
+    return prefetchRoutesWhenIdle((href) => router.prefetch(href), urls);
   }, [bare, router, shellPayload?.allowedNavKeys]);
 
   if (bare) {
@@ -157,7 +149,7 @@ export function PremiumAppShell({
       {mobileNavOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/20 lg:hidden"
           aria-label="Fermer le menu"
           onClick={() => setMobileNavOpen(false)}
         />
@@ -173,7 +165,11 @@ export function PremiumAppShell({
             Restaurant SaaS
           </Link>
         </div>
-        <NavLinks pathname={pathname} allowedNavKeys={shellPayload?.allowedNavKeys} />
+        <NavLinks
+          pathname={pathname}
+          allowedNavKeys={shellPayload?.allowedNavKeys}
+          onPrefetch={prefetchRoute}
+        />
         <div className="mt-auto border-t border-slate-100 p-3">
           <form action={signOut}>
             <button
@@ -218,6 +214,7 @@ export function PremiumAppShell({
           pathname={pathname}
           allowedNavKeys={shellPayload?.allowedNavKeys}
           onNavigate={() => setMobileNavOpen(false)}
+          onPrefetch={prefetchRoute}
         />
         <div className="mt-auto border-t border-slate-100 p-3">
           <form action={signOut}>
@@ -233,7 +230,7 @@ export function PremiumAppShell({
       </aside>
 
       <div className="min-w-0 lg:pl-64">
-        <header className="sticky top-0 z-[45] border-b border-slate-100/80 bg-white/80 backdrop-blur-md">
+        <header className="sticky top-0 z-[45] border-b border-slate-100/80 bg-white/95 supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:backdrop-blur-sm">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
               <button

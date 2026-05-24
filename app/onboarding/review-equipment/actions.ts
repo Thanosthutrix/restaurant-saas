@@ -11,6 +11,7 @@ import {
   type HygieneRecurrenceType,
   type HygieneRiskLevel,
 } from "@/lib/hygiene/types";
+import { getHygieneProtocolPreset } from "@/lib/hygiene/protocolPresets";
 import type { EquipmentAreaKind } from "@/lib/equipment-inventory-analysis";
 
 export type EquipmentApplyPayload = {
@@ -55,16 +56,6 @@ function normalizeRecurrence(raw: string): HygieneRecurrenceType {
 
 function normalizeRisk(raw: string): HygieneRiskLevel {
   return raw === "critical" || raw === "important" || raw === "standard" ? raw : "standard";
-}
-
-function defaultProtocol(category: HygieneElementCategory | null): string {
-  if (category === "frigo" || category === "congelateur" || category === "chambre_froide") {
-    return "Nettoyer les surfaces accessibles, joints et poignées. Relever la température si concerné.";
-  }
-  if (category === "piano_plaque" || category === "four" || category === "hotte") {
-    return "Dégraisser les surfaces, retirer les résidus alimentaires, puis rincer/essuyer.";
-  }
-  return "Nettoyer selon le plan de nettoyage, puis contrôler visuellement.";
 }
 
 async function diningTableExists(restaurantId: string, label: string): Promise<boolean> {
@@ -123,21 +114,22 @@ export async function applyOnboardingEquipmentInventory(
     }
 
     if (row.create_hygiene_element && hygieneCategory) {
+      const preset = getHygieneProtocolPreset(hygieneCategory);
       const { error } = await supabaseServer.from("hygiene_elements").insert({
         restaurant_id: restaurant.id,
         name,
         category: hygieneCategory,
         area_label: row.area_label.trim(),
-        description: row.notes?.trim() || null,
+        description: row.notes?.trim() || preset.description,
         risk_level: normalizeRisk(row.risk_level),
         recurrence_type: normalizeRecurrence(row.recurrence_type),
         recurrence_day_of_week: null,
         recurrence_day_of_month: null,
-        cleaning_protocol: defaultProtocol(hygieneCategory),
-        disinfection_protocol: "Désinfecter si surface de contact alimentaire ou contact client.",
-        product_used: null,
-        dosage: null,
-        contact_time: null,
+        cleaning_protocol: preset.cleaning_protocol,
+        disinfection_protocol: preset.disinfection_protocol,
+        product_used: preset.product_used,
+        dosage: preset.dosage,
+        contact_time: preset.contact_time,
         active: true,
       });
       if (error) errors.push(`${name}: élément hygiène impossible (${error.message}).`);

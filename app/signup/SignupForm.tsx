@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { formatAuthClientError } from "@/lib/supabase/authErrors";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock } from "@/components/ui/premium";
 
 export function SignupForm({ nextUrl }: { nextUrl?: string }) {
@@ -20,7 +21,7 @@ export function SignupForm({ nextUrl }: { nextUrl?: string }) {
     const { error: err } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(formatAuthClientError(err.message));
       return;
     }
     router.push(nextUrl ?? "/onboarding");

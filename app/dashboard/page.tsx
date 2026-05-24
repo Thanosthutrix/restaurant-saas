@@ -23,6 +23,8 @@ import { getStaffMemberByUserAndRestaurant, listWorkShiftsInRange } from "@/lib/
 import { addDays, mondayOfWeekContaining } from "@/lib/staff/weekUtils";
 import { ALL_SHELL_NAV_KEYS, type ShellNavKey } from "@/lib/auth/appRoles";
 import { listTemperaturePoints } from "@/lib/haccpTemperature/haccpTemperatureDb";
+import { loadDashboardHygieneTileData } from "@/lib/dashboard/hygieneTileData";
+import { DashboardHygieneTile } from "@/components/dashboard/DashboardHygieneTile";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -137,9 +139,12 @@ export default async function DashboardPage() {
 
   const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
   const hasHygieneAccess = accessContext?.isOwner || allowed.includes("hygiene");
-  const temperaturePoints = hasHygieneAccess
-    ? (await listTemperaturePoints(restaurant.id)).filter((p) => p.active)
-    : [];
+  const [temperaturePoints, hygieneTile] = hasHygieneAccess
+    ? await Promise.all([
+        listTemperaturePoints(restaurant.id).then((points) => points.filter((p) => p.active)),
+        loadDashboardHygieneTileData(restaurant.id),
+      ])
+    : [[], null];
 
   const myShiftsForClock =
     staffForClock != null
@@ -219,6 +224,14 @@ export default async function DashboardPage() {
             })}
           </div>
         </section>
+
+        {hasHygieneAccess && hygieneTile ? (
+          <DashboardHygieneTile
+            score={hygieneTile.score}
+            scoreDetail={hygieneTile.scoreDetail}
+            tasks={hygieneTile.tasks}
+          />
+        ) : null}
 
         {/* Stats */}
       {showStats && (

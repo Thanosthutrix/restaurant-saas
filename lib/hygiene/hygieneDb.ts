@@ -235,6 +235,12 @@ export type HygieneTaskWithElement = HygieneTask & {
   element_name: string;
   element_category: string;
   area_label: string;
+  element_description: string | null;
+  cleaning_protocol: string;
+  disinfection_protocol: string;
+  product_used: string | null;
+  dosage: string | null;
+  contact_time: string | null;
 };
 
 async function enrichTasksWithElements(
@@ -244,11 +250,24 @@ async function enrichTasksWithElements(
   const ids = [...new Set(rows.map((r) => String(r.element_id)))];
   const { data: els } = await supabaseServer
     .from("hygiene_elements")
-    .select("id, name, category, area_label")
+    .select(
+      "id, name, category, area_label, description, cleaning_protocol, disinfection_protocol, product_used, dosage, contact_time"
+    )
     .in("id", ids);
   const byId = new Map(
     (els ?? []).map((e) => {
-      const x = e as { id: string; name: string; category: string; area_label: string };
+      const x = e as {
+        id: string;
+        name: string;
+        category: string;
+        area_label: string;
+        description: string | null;
+        cleaning_protocol: string;
+        disinfection_protocol: string;
+        product_used: string | null;
+        dosage: string | null;
+        contact_time: string | null;
+      };
       return [x.id, x] as const;
     })
   );
@@ -260,6 +279,12 @@ async function enrichTasksWithElements(
       element_name: el?.name ?? "—",
       element_category: el?.category ?? "",
       area_label: el?.area_label ?? "",
+      element_description: el?.description ?? null,
+      cleaning_protocol: el?.cleaning_protocol ?? "",
+      disinfection_protocol: el?.disinfection_protocol ?? "",
+      product_used: el?.product_used ?? null,
+      dosage: el?.dosage ?? null,
+      contact_time: el?.contact_time ?? null,
     };
   });
 }

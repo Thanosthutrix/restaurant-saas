@@ -10,6 +10,7 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { isStaleAuthSessionError } from "@/lib/supabase/authErrors";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export const ACTIVE_RESTAURANT_COOKIE = "active_restaurant_id" as const;
@@ -82,7 +83,16 @@ function mapRestaurantFromRow(row: RestaurantRow): Restaurant {
  */
 export const getCurrentUser = cache(async function getCurrentUser() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error) {
+    if (isStaleAuthSessionError(error)) {
+      await supabase.auth.signOut();
+    }
+    return null;
+  }
   return user;
 });
 

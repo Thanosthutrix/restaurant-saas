@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { formatAuthClientError } from "@/lib/supabase/authErrors";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock, uiTextLink } from "@/components/ui/premium";
 
 export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerError?: string | null }) {
@@ -21,7 +22,7 @@ export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerErr
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      setError(formatAuthClientError(err.message));
       return;
     }
     router.push(nextUrl);

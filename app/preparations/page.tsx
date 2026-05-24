@@ -11,9 +11,19 @@ import {
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { PreparationsClient } from "./PreparationsClient";
 
-export default async function PreparationsPage() {
+type Search = { lot?: string; recordId?: string };
+
+export default async function PreparationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Search>;
+}) {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
+
+  const sp = await searchParams;
+  const initialLotSearch = typeof sp.lot === "string" ? sp.lot : "";
+  const initialRecordId = typeof sp.recordId === "string" ? sp.recordId : null;
 
   const [preps, dishes, awaitingEnd, awaiting2h, recordsWithLot] = await Promise.all([
     listPreparationInventoryItems(restaurant.id),
@@ -42,6 +52,8 @@ export default async function PreparationsPage() {
         awaitingTempEnd={awaitingEnd}
         awaiting2h={awaiting2h}
         recordsWithLot={recordsWithLot}
+        initialLotSearch={initialLotSearch}
+        initialRecordId={initialRecordId}
       />
 
       <p className="text-center text-sm">

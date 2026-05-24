@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { PreparationCandidateDish, PreparationCandidatePrep, PreparationRecord } from "@/lib/preparations/types";
 import {
@@ -69,6 +69,8 @@ type Props = {
   awaiting2h: PreparationRecord[];
   /** Derniers lots (filtrage instantané dans le champ, comme les composants dans un plat). */
   recordsWithLot: PreparationRecord[];
+  initialLotSearch?: string;
+  initialRecordId?: string | null;
 };
 
 export function PreparationsClient({
@@ -78,6 +80,8 @@ export function PreparationsClient({
   awaitingTempEnd,
   awaiting2h,
   recordsWithLot,
+  initialLotSearch = "",
+  initialRecordId = null,
 }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -97,10 +101,31 @@ export function PreparationsClient({
   const [inventoryFilter, setInventoryFilter] = useState("");
   const [dishFilter, setDishFilter] = useState("");
 
-  const [lotSearchInput, setLotSearchInput] = useState("");
+  const [lotSearchInput, setLotSearchInput] = useState(initialLotSearch);
   const [lookupRecord, setLookupRecord] = useState<PreparationRecord | null>(null);
   const [lookupHint, setLookupHint] = useState<"none" | "notfound" | "done" | "need_first" | "found">("none");
   const [lastLotAck, setLastLotAck] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialRecordId) {
+      const rec = recordsWithLot.find((r) => r.id === initialRecordId);
+      if (rec) {
+        setLookupRecord(rec);
+        setLookupHint(rec.temp_2h_recorded_at ? "done" : rec.temp_end_recorded_at ? "found" : "need_first");
+        if (rec.lot_reference) setLotSearchInput(rec.lot_reference);
+        return;
+      }
+    }
+    if (initialLotSearch.trim()) {
+      setLotSearchInput(initialLotSearch);
+      const norm = normalizeSearch(initialLotSearch);
+      const match = recordsWithLot.find((r) => matchesLotRecord(r, norm));
+      if (match) {
+        setLookupRecord(match);
+        setLookupHint(match.temp_2h_recorded_at ? "done" : match.temp_end_recorded_at ? "found" : "need_first");
+      }
+    }
+  }, [initialLotSearch, initialRecordId, recordsWithLot]);
 
   const lotSearchNorm = normalizeSearch(lotSearchInput);
   const lotMatches = useMemo(() => {

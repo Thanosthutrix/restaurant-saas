@@ -5,9 +5,18 @@ import { listHygieneElements, listHygieneRecurrencePresets } from "@/lib/hygiene
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HygieneElementsClient } from "./HygieneElementsClient";
 
-export default async function HygieneElementsPage() {
+type Search = { elementId?: string };
+
+export default async function HygieneElementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Search>;
+}) {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
+
+  const sp = await searchParams;
+  const initialElementId = typeof sp.elementId === "string" ? sp.elementId : null;
 
   const [elements, presets] = await Promise.all([
     listHygieneElements(restaurant.id),
@@ -32,6 +41,7 @@ export default async function HygieneElementsPage() {
         restaurantId={restaurant.id}
         elements={elements}
         presets={presets}
+        initialElementId={initialElementId}
       />
     </div>
   );

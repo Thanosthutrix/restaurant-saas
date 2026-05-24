@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Cloud, CloudRain, CloudSun, Loader2, Sun } from "lucide-react";
+import { Cloud, CloudRain, CloudSun, Sun } from "lucide-react";
 import type { DailyWeatherPoint } from "@/lib/calendar/openMeteo";
+import { runWhenIdle } from "@/lib/ui/deferIdle";
 
 type ApiOk = { days: DailyWeatherPoint[]; restaurantId: string };
 type ApiErr = { error: string; restaurantId?: string };
@@ -74,7 +75,7 @@ export function HeaderWeatherWidget({
     initialWeather && initialWeather.days?.length ? initialWeather : null
   );
   const [err, setErr] = useState<ApiErr | null>(() => (initialHint ? hintToErr(initialHint) : null));
-  const [loading, setLoading] = useState(() => !fromLayout);
+  const [fetchStarted, setFetchStarted] = useState(fromLayout || Boolean(initialWeather || initialHint));
 
   useEffect(() => {
     if (fromLayout) {
@@ -88,15 +89,15 @@ export function HeaderWeatherWidget({
         setData(null);
         setErr(null);
       }
-      setLoading(false);
       return;
     }
 
     let cancelled = false;
     const ac = new AbortController();
-    (async () => {
-      setLoading(true);
-      setErr(null);
+
+    const load = async () => {
+      if (cancelled) return;
+      setFetchStarted(true);
       try {
         const res = await fetch("/api/weather/header", { signal: ac.signal });
         const json = (await res.json()) as ApiOk & ApiErr;
@@ -105,7 +106,6 @@ export function HeaderWeatherWidget({
           if (res.status === 401 || res.status === 404) {
             setData(null);
             setErr(null);
-            setLoading(false);
             return;
           }
           setErr({
@@ -123,25 +123,30 @@ export function HeaderWeatherWidget({
       } catch (e) {
         if ((e as Error).name === "AbortError") return;
         if (!cancelled) setErr({ error: "network" });
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    })();
+    };
+
+    const cancelIdle = runWhenIdle(() => {
+      void load();
+    });
+
     return () => {
       cancelled = true;
       ac.abort();
+      cancelIdle();
     };
   }, [fromLayout, initialWeather, initialHint, pathname]);
 
-  if (loading) {
+  if (!fetchStarted && !data && !err) {
+    return null;
+  }
+
+  if (fetchStarted && !data && !err) {
     return (
       <div
-        className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/90 px-2 py-1.5 text-slate-400 sm:px-3"
+        className="hidden h-9 w-[4.5rem] rounded-xl border border-transparent sm:block"
         aria-hidden
-      >
-        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-        <span className="hidden text-xs font-medium sm:inline">Météo…</span>
-      </div>
+      />
     );
   }
 

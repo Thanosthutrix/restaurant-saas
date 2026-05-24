@@ -254,18 +254,15 @@ export default async function SupplierInvoicePage({ params }: Props) {
           <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4">
             <h2 className="mb-2 text-sm font-medium text-emerald-950">Validation comptable</h2>
             <p className="mb-3 text-sm text-emerald-900">
-              Après rapprochement des BL et contrôle des écarts, marquez la facture comme prête pour transfert comptable.
+              {invoice.delivery_notes.length > 0
+                ? "Après rapprochement des BL et contrôle des écarts, marquez la facture comme prête pour transfert comptable."
+                : "Contrôlez les montants et lignes de la facture, puis validez pour le transfert comptable — avec ou sans BL lié."}
             </p>
             <MarkInvoiceReviewedButton
               invoiceId={invoice.id}
               restaurantId={restaurant.id}
-              disabled={invoice.delivery_notes.length === 0}
+              hasLinkedReceptions={invoice.delivery_notes.length > 0}
             />
-            {invoice.delivery_notes.length === 0 ? (
-              <p className="mt-2 text-xs text-emerald-900">
-                Liez au moins une réception avant de valider cette facture.
-              </p>
-            ) : null}
           </div>
         ) : (
           <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4">

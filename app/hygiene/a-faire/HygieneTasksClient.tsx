@@ -13,6 +13,7 @@ import {
   HYGIENE_RISK_LABEL_FR,
 } from "@/lib/hygiene/types";
 import { completeHygieneTaskAction } from "../actions";
+import { HygieneProtocolPanel } from "@/components/hygiene/HygieneProtocolPanel";
 import {
   uiBtnPrimarySm,
   uiBtnSecondary,
@@ -179,6 +180,14 @@ export function HygieneTasksClient({
           <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
             <h3 className="text-sm font-semibold text-slate-900">Valider la tâche</h3>
             <p className="mt-1 text-sm text-slate-600">{modalTask.element_name}</p>
+            <HygieneProtocolPanel
+              description={modalTask.element_description}
+              cleaningProtocol={modalTask.cleaning_protocol}
+              disinfectionProtocol={modalTask.disinfection_protocol}
+              productUsed={modalTask.product_used}
+              dosage={modalTask.dosage}
+              contactTime={modalTask.contact_time}
+            />
             {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
             <div className="mt-3">
               <label className={uiLabel} htmlFor="hygiene-task-action-type">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition, useEffect } from "react";
 import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { HygieneElement, HygieneRecurrencePreset } from "@/lib/hygiene/types";
@@ -22,33 +22,39 @@ import {
   createManualHygieneTaskAction,
   logHygieneElementDoneAction,
 } from "../actions";
+import { applyHygieneProtocolPreset, getHygieneProtocolPreset } from "@/lib/hygiene/protocolPresets";
+import { HygieneProtocolPanel } from "@/components/hygiene/HygieneProtocolPanel";
 import { uiBtnPrimarySm, uiBtnSecondary, uiCard, uiInput, uiLabel, uiSelect } from "@/components/ui/premium";
 
 type Props = {
   restaurantId: string;
   elements: HygieneElement[];
   presets: HygieneRecurrencePreset[];
+  initialElementId?: string | null;
 };
+
+const defaultCategory = "plan_travail" as (typeof HYGIENE_ELEMENT_CATEGORIES)[number];
+const defaultPreset = getHygieneProtocolPreset(defaultCategory);
 
 const emptyForm = {
   id: null as string | null,
   name: "",
-  category: "plan_travail" as (typeof HYGIENE_ELEMENT_CATEGORIES)[number],
+  category: defaultCategory,
   area_label: "",
-  description: "",
-  risk_level: "standard" as (typeof HYGIENE_RISK_LEVELS)[number],
+  description: defaultPreset.description,
+  risk_level: defaultPreset.suggested_risk_level as (typeof HYGIENE_RISK_LEVELS)[number],
   recurrence_type: "daily" as (typeof HYGIENE_RECURRENCE_TYPES)[number],
   recurrence_day_of_week: null as number | null,
   recurrence_day_of_month: null as number | null,
-  cleaning_protocol: "",
-  disinfection_protocol: "",
-  product_used: "",
-  dosage: "",
-  contact_time: "",
+  cleaning_protocol: defaultPreset.cleaning_protocol,
+  disinfection_protocol: defaultPreset.disinfection_protocol,
+  product_used: defaultPreset.product_used,
+  dosage: defaultPreset.dosage,
+  contact_time: defaultPreset.contact_time,
   active: true,
 };
 
-export function HygieneElementsClient({ restaurantId, elements, presets }: Props) {
+export function HygieneElementsClient({ restaurantId, elements, presets, initialElementId }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [filter, setFilter] = useState("");
@@ -83,16 +89,25 @@ export function HygieneElementsClient({ restaurantId, elements, presets }: Props
     );
   }, [elements, filter]);
 
-  function applyPresetForCategory(cat: string) {
+  function applyPresetForCategory(cat: string, includeProtocol: boolean) {
     const p = presetByCategory.get(cat);
-    if (!p) return;
-    setForm((f) => ({
-      ...f,
-      category: cat as typeof f.category,
-      recurrence_type: p.default_recurrence_type as typeof f.recurrence_type,
-      recurrence_day_of_week: p.recurrence_day_of_week,
-      recurrence_day_of_month: p.recurrence_day_of_month,
-    }));
+    setForm((f) => {
+      let next = {
+        ...f,
+        category: cat as typeof f.category,
+        ...(p
+          ? {
+              recurrence_type: p.default_recurrence_type as typeof f.recurrence_type,
+              recurrence_day_of_week: p.recurrence_day_of_week,
+              recurrence_day_of_month: p.recurrence_day_of_month,
+            }
+          : {}),
+      };
+      if (includeProtocol) {
+        next = applyHygieneProtocolPreset(next);
+      }
+      return next;
+    });
   }
 
   function edit(el: HygieneElement) {
@@ -116,6 +131,12 @@ export function HygieneElementsClient({ restaurantId, elements, presets }: Props
       active: el.active,
     });
   }
+
+  useEffect(() => {
+    if (!initialElementId) return;
+    const el = elements.find((e) => e.id === initialElementId);
+    if (el) edit(el);
+  }, [initialElementId, elements]);
 
   function submit() {
     setError(null);
@@ -192,8 +213,7 @@ export function HygieneElementsClient({ restaurantId, elements, presets }: Props
                 value={form.category}
                 onChange={(e) => {
                   const cat = e.target.value;
-                  setForm((f) => ({ ...f, category: cat as typeof f.category }));
-                  applyPresetForCategory(cat);
+                  applyPresetForCategory(cat, !form.id);
                 }}
               >
                 {HYGIENE_ELEMENT_CATEGORIES.map((c) => (
@@ -286,9 +306,18 @@ export function HygieneElementsClient({ restaurantId, elements, presets }: Props
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={uiLabel}>Protocole nettoyage</label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className={uiLabel}>Protocole nettoyage</label>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
+                  onClick={() => setForm((f) => applyHygieneProtocolPreset(f))}
+                >
+                  Appliquer le protocole type
+                </button>
+              </div>
               <textarea
-                className={`${uiInput} mt-1 min-h-[4rem] w-full`}
+                className={`${uiInput} mt-1 min-h-[6rem] w-full font-mono text-xs leading-relaxed`}
                 value={form.cleaning_protocol}
                 onChange={(e) => setForm((f) => ({ ...f, cleaning_protocol: e.target.value }))}
               />
@@ -296,7 +325,7 @@ export function HygieneElementsClient({ restaurantId, elements, presets }: Props
             <div className="sm:col-span-2">
               <label className={uiLabel}>Protocole désinfection</label>
               <textarea
-                className={`${uiInput} mt-1 min-h-[4rem] w-full`}
+                className={`${uiInput} mt-1 min-h-[6rem] w-full font-mono text-xs leading-relaxed`}
                 value={form.disinfection_protocol}
                 onChange={(e) => setForm((f) => ({ ...f, disinfection_protocol: e.target.value }))}
               />
@@ -426,6 +455,14 @@ export function HygieneElementsClient({ restaurantId, elements, presets }: Props
           <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
             <h3 className="text-sm font-semibold text-slate-900">Marquer comme fait</h3>
             <p className="mt-1 text-sm text-slate-600">{doneModalEl.name}</p>
+            <HygieneProtocolPanel
+              description={doneModalEl.description}
+              cleaningProtocol={doneModalEl.cleaning_protocol}
+              disinfectionProtocol={doneModalEl.disinfection_protocol}
+              productUsed={doneModalEl.product_used}
+              dosage={doneModalEl.dosage}
+              contactTime={doneModalEl.contact_time}
+            />
             <p className="mt-1 text-xs text-slate-500">
               Enregistrement immédiat au registre avec votre nom et l’heure. La photo est facultative.
             </p>

@@ -1,16 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist } from "next/font/google";
 import { PremiumAppShell } from "@/components/app/PremiumAppShell";
 import { buildShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -38,7 +33,7 @@ export default async function RootLayout({
   return (
     <html lang="fr" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${geistSans.variable} font-sans antialiased`}
       >
         <PremiumAppShell headerBootstrap={headerBootstrap}>{children}</PremiumAppShell>
       </body>

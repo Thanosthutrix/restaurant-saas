@@ -8,6 +8,7 @@ import { listSchoolVacationPeriods } from "@/lib/franceCalendars/schoolVacations
 import {
   getRestaurantPlanningBandPresets,
   getRestaurantPlanningHourMaps,
+  getRestaurantPlanningPeakBandsWeekly,
   getRestaurantPlanningStaffTargetsWeekly,
   listPlanningDayOverridesInRange,
 } from "@/lib/staff/staffDb";
@@ -29,9 +30,10 @@ export default async function EditRestaurantPage({ params }: Props) {
   const templates = getRestaurantTemplates();
   const { suggestions } = await getTemplateSuggestions(restaurant.id);
 
-  const [hourMaps, staffTargetsWeekly, overrides, bandPresets] = await Promise.all([
+  const [hourMaps, staffTargetsWeekly, peakBandsWeekly, overrides, bandPresets] = await Promise.all([
     getRestaurantPlanningHourMaps(restaurant.id),
     getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
+    getRestaurantPlanningPeakBandsWeekly(restaurant.id),
     listPlanningDayOverridesInRange(restaurant.id, "2020-01-01", "2040-01-01"),
     getRestaurantPlanningBandPresets(restaurant.id),
   ]);
@@ -74,13 +76,14 @@ export default async function EditRestaurantPage({ params }: Props) {
         <div className="mt-10 border-t border-slate-200 pt-8">
           <h2 className="mb-1 text-lg font-semibold text-slate-900">Planning et horaires</h2>
           <p className="mb-6 text-sm text-slate-500">
-            Modèle hebdomadaire, objectifs d’effectif par jour, et exceptions (fermetures, jours spéciaux).
+            Modèle hebdomadaire, objectifs d’effectif, plages de pointe, et exceptions (fermetures, jours spéciaux).
           </p>
           <RestaurantPlanningSection
             restaurantId={restaurant.id}
             openingHours={hourMaps.opening}
             staffExtraBands={hourMaps.staffExtra}
             staffTargetsWeekly={staffTargetsWeekly}
+            peakBandsWeekly={peakBandsWeekly}
             overrides={overrides}
             effectiveSchoolZone={effectiveSchoolZone}
             zoneIsAssumed={restaurant.school_zone == null}

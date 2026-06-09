@@ -3,18 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown, Droplets, Thermometer } from "lucide-react";
+import type { DashboardHygieneTaskItem } from "@/lib/dashboard/hygieneTileTypes";
 import { uiCard } from "@/components/ui/premium";
-
-export type DashboardHygieneTaskItem = {
-  id: string;
-  kind: "cleaning" | "temperature";
-  title: string;
-  subtitle: string;
-  dueLabel: string;
-  riskLabel?: string;
-  href: string;
-  overdue: boolean;
-};
 
 type Props = {
   score: number;

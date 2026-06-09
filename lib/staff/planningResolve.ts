@@ -3,6 +3,7 @@ import {
   type PlanningDayKey,
   type TimeBand,
   PLANNING_DAY_KEYS,
+  minutesFromMidnight,
   normalizeClockToHhMm,
 } from "@/lib/staff/planningHoursTypes";
 import { addDays, toISODateString } from "@/lib/staff/weekUtils";
@@ -75,6 +76,71 @@ export function parseStaffTargetsWeeklyJson(raw: unknown): Partial<Record<Planni
 
 const ovMap = (overrides: PlanningDayOverrideRow[]) => new Map(overrides.map((r) => [r.day, r]));
 
+/** Une exception remplace le modèle hebdo (horaires + effectif du jour type). */
+export function planningDayOverrideReplacesWeeklyModel(ov: PlanningDayOverrideRow): boolean {
+  if (ov.is_closed) return true;
+  const custom = parseTimeBandsArray(ov.opening_bands_override);
+  const hasExplicitOpening = custom != null && custom.length > 0;
+  const isCalendarOverride =
+    ov.calendar_source === "public_holiday" || ov.calendar_source === "school_vacation";
+  return hasExplicitOpening || isCalendarOverride;
+}
+
+function overrideReplacesWeeklyModel(ov: PlanningDayOverrideRow): boolean {
+  return planningDayOverrideReplacesWeeklyModel(ov);
+}
+
+/** ~1 personne / 4 h de plage ouverte, minimum 1. */
+function suggestStaffTargetFromBands(openingBands: TimeBand[], staffExtraBands: TimeBand[]): number | null {
+  const bands = [...openingBands, ...staffExtraBands];
+  if (bands.length === 0) return null;
+  let totalMin = 0;
+  for (const b of bands) {
+    const a = minutesFromMidnight(b.start);
+    const e = minutesFromMidnight(b.end);
+    if (a != null && e != null && e > a) totalMin += e - a;
+  }
+  const hours = totalMin / 60;
+  if (hours <= 0) return null;
+  return Math.max(1, Math.ceil(hours / 4));
+}
+
+function resolveStaffTargetForDay(
+  ov: PlanningDayOverrideRow | undefined,
+  dayKey: PlanningDayKey,
+  weeklyStaff: Partial<Record<PlanningDayKey, number>>,
+  openingBands: TimeBand[],
+  staffExtraBands: TimeBand[]
+): number | null {
+  if (ov?.is_closed) {
+    return ov.staff_target_override != null && Number.isFinite(ov.staff_target_override)
+      ? ov.staff_target_override
+      : null;
+  }
+
+  if (ov?.staff_target_override != null && Number.isFinite(ov.staff_target_override)) {
+    return ov.staff_target_override;
+  }
+
+  if (ov && overrideReplacesWeeklyModel(ov)) {
+    return suggestStaffTargetFromBands(openingBands, staffExtraBands);
+  }
+
+  const wT = weeklyStaff[dayKey];
+  return wT != null && Number.isFinite(wT) ? wT : null;
+}
+
+function resolveStaffExtraBandsForDay(
+  dayKey: PlanningDayKey,
+  ov: PlanningDayOverrideRow | undefined,
+  weeklyStaffExtra: OpeningHoursMap
+): TimeBand[] {
+  if (ov && overrideReplacesWeeklyModel(ov)) {
+    return [];
+  }
+  return [...(weeklyStaffExtra[dayKey] ?? [])].map((b) => ({ ...b }));
+}
+
 /**
  * Résout pour chaque jour de la semaine affichée : plages d’ouverture et effectif cible
  * (modèle hebdo + exceptions ponctuelles).
@@ -95,34 +161,23 @@ export function resolveWeekPlanningDays(
     const ov = map.get(ymd);
 
     let openingBands: TimeBand[];
-    let staffTarget: number | null;
     const exceptionLabel: string | null = ov?.label?.trim() || null;
 
     if (ov?.is_closed) {
       openingBands = [];
-      staffTarget =
-        ov.staff_target_override != null && Number.isFinite(ov.staff_target_override)
-          ? ov.staff_target_override
-          : null;
     } else if (ov) {
       const custom = parseTimeBandsArray(ov.opening_bands_override);
-      /** Plages explicites uniquement si au moins une plage valide ; sinon modèle magasin (`planning_opening_hours`). */
+      /** Plages explicites uniquement si au moins une plage valide ; sinon modèle magasin. */
       openingBands =
         custom != null && custom.length > 0 ? custom : [...(weeklyOpen[dayKey] ?? [])];
-      const wT = weeklyStaff[dayKey];
-      staffTarget =
-        ov.staff_target_override != null && Number.isFinite(ov.staff_target_override)
-          ? ov.staff_target_override
-          : wT != null && Number.isFinite(wT)
-            ? wT
-            : null;
     } else {
       openingBands = [...(weeklyOpen[dayKey] ?? [])];
-      const wT = weeklyStaff[dayKey];
-      staffTarget = wT != null && Number.isFinite(wT) ? wT : null;
     }
 
-    const staffExtraBands = [...(weeklyStaffExtra[dayKey] ?? [])].map((b) => ({ ...b }));
+    const staffExtraBands = ov?.is_closed
+      ? []
+      : resolveStaffExtraBandsForDay(dayKey, ov, weeklyStaffExtra);
+    const staffTarget = resolveStaffTargetForDay(ov, dayKey, weeklyStaff, openingBands, staffExtraBands);
 
     out.push({ ymd, dayKey, date, openingBands, staffExtraBands, staffTarget, exceptionLabel });
   }

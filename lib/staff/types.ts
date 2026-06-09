@@ -1,3 +1,5 @@
+import type { PlanningDayKey } from "@/lib/staff/planningHoursTypes";
+
 export type StaffMember = {
   id: string;
   restaurant_id: string;
@@ -13,6 +15,8 @@ export type StaffMember = {
   contract_type: string | null;
   /** Volume horaire cible hebdomadaire. */
   target_weekly_hours: number | null;
+  /** Plafond d’heures nettes planifiables par jour (null = illimité). */
+  max_daily_hours: number | null;
   /** Report cumulé (minutes) : contrat − prévu sur les semaines prises en compte. */
   planning_carryover_minutes: number;
   /** Notes internes planning. */
@@ -23,10 +27,21 @@ export type StaffMember = {
   availability_json: Record<string, unknown> | null;
   /** Prépa / travail hors service client (même structure jour → plages). */
   planning_prep_bands_json: Record<string, unknown> | null;
+  /** Jours de repos fixes récurrents (ex. ["mon"]). */
+  planning_fixed_rest_days: PlanningDayKey[];
+  /** Nombre de jours de repos souhaités par semaine. */
+  planning_weekly_rest_days: number;
+  /** SOFT : préférer 2 jours de repos consécutifs. */
+  planning_require_consecutive_rest: boolean;
+  /** Schéma de shift par défaut (continuous / split / flexible). */
+  planning_default_shift_pattern: ShiftPattern | null;
   active: boolean;
   created_at: string;
   updated_at: string;
 };
+
+/** Schéma de shift par défaut d'un collaborateur. */
+export type ShiftPattern = "continuous" | "split" | "flexible";
 
 export type WorkShift = {
   id: string;

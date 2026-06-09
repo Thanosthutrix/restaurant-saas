@@ -9,7 +9,7 @@ import {
   ensureTemperatureTasksForRestaurant,
   listPendingTemperatureTasks,
 } from "@/lib/haccpTemperature/haccpTemperatureDb";
-import type { DashboardHygieneTaskItem } from "@/components/dashboard/DashboardHygieneTile";
+import type { DashboardHygieneTaskItem } from "@/lib/dashboard/hygieneTileTypes";
 import { HYGIENE_RISK_LABEL_FR, type HygieneRiskLevel } from "@/lib/hygiene/types";
 
 function formatDueLabel(iso: string, now: Date): { label: string; overdue: boolean } {

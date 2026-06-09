@@ -4,7 +4,9 @@ import { FranceCalendarGuidedPanel } from "@/components/staff/FranceCalendarGuid
 import { PlanningBandPresetsEditor } from "@/components/staff/PlanningBandPresetsEditor";
 import { OpeningHoursEditor } from "@/components/staff/OpeningHoursEditor";
 import { PlanningOverridesPanel } from "@/components/staff/PlanningOverridesPanel";
+import { PeakBandsWeeklyEditor } from "@/components/staff/PeakBandsWeeklyEditor";
 import { StaffTargetsWeeklyEditor } from "@/components/staff/StaffTargetsWeeklyEditor";
+import type { PeakBandsWeeklyMap } from "@/lib/staff/planningPeakBands";
 import type { PublicHolidayEntry } from "@/lib/franceCalendars/publicHolidays";
 import type { SchoolVacationPeriod } from "@/lib/franceCalendars/schoolVacations";
 import type { PlanningBandPreset } from "@/lib/staff/planningBandPresets";
@@ -18,6 +20,7 @@ type Props = {
   /** Plages travail sans service client (modèle établissement). */
   staffExtraBands: OpeningHoursMap;
   staffTargetsWeekly: Partial<Record<PlanningDayKey, number>>;
+  peakBandsWeekly: PeakBandsWeeklyMap;
   overrides: PlanningDayOverrideRow[];
   effectiveSchoolZone: "A" | "B" | "C";
   zoneIsAssumed: boolean;
@@ -32,6 +35,7 @@ export function RestaurantPlanningSection({
   openingHours,
   staffExtraBands,
   staffTargetsWeekly,
+  peakBandsWeekly,
   overrides,
   effectiveSchoolZone,
   zoneIsAssumed,
@@ -79,6 +83,13 @@ export function RestaurantPlanningSection({
         <h2 className="text-base font-semibold text-slate-900">Objectifs d’effectif (modèle)</h2>
         <div className="mt-4">
           <StaffTargetsWeeklyEditor restaurantId={restaurantId} initial={staffTargetsWeekly} />
+        </div>
+      </section>
+
+      <section className={uiCard}>
+        <h2 className="text-base font-semibold text-slate-900">Plages de pointe (modèle)</h2>
+        <div className="mt-4">
+          <PeakBandsWeeklyEditor restaurantId={restaurantId} initial={peakBandsWeekly} />
         </div>
       </section>
 

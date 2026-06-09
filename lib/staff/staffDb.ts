@@ -2,7 +2,8 @@ import { getRestaurantById, type Restaurant } from "@/lib/auth";
 import type { PlanningDayOverrideRow } from "@/lib/staff/planningResolve";
 import { parsePlanningBandPresetsJson } from "@/lib/staff/planningBandPresets";
 import { parseStaffTargetsWeeklyJson } from "@/lib/staff/planningResolve";
-import { parseOpeningHoursJson } from "@/lib/staff/planningHoursTypes";
+import { parseOpeningHoursJson, PLANNING_DAY_KEYS, type PlanningDayKey } from "@/lib/staff/planningHoursTypes";
+import { parsePeakBandsWeeklyJson } from "@/lib/staff/planningPeakBands";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { toPlanningYmdFromUnknown } from "@/lib/staff/weekUtils";
 import type { StaffMember, WorkShift, WorkShiftWithDetails } from "./types";
@@ -28,6 +29,12 @@ function mapStaff(row: Record<string, unknown>): StaffMember {
         ? null
         : String(row.contract_type).trim(),
     target_weekly_hours: target,
+    max_daily_hours: (() => {
+      const md = row.max_daily_hours;
+      if (md == null || md === "") return null;
+      const n = Number(md);
+      return Number.isFinite(n) && n >= 0 ? Math.round(n * 10) / 10 : null;
+    })(),
     planning_carryover_minutes: (() => {
       const c = row.planning_carryover_minutes;
       if (c == null || c === "") return 0;
@@ -46,6 +53,27 @@ function mapStaff(row: Record<string, unknown>): StaffMember {
       row.planning_prep_bands_json != null && typeof row.planning_prep_bands_json === "object"
         ? (row.planning_prep_bands_json as Record<string, unknown>)
         : null,
+    planning_fixed_rest_days: (() => {
+      const raw = row.planning_fixed_rest_days;
+      if (!Array.isArray(raw)) return [];
+      return raw.filter((d): d is PlanningDayKey =>
+        (PLANNING_DAY_KEYS as readonly string[]).includes(String(d))
+      );
+    })(),
+    planning_weekly_rest_days: (() => {
+      const raw = row.planning_weekly_rest_days;
+      if (raw == null || raw === "") return 2;
+      const n = Number(raw);
+      return Number.isFinite(n) && n >= 0 && n <= 7 ? Math.round(n) : 2;
+    })(),
+    planning_require_consecutive_rest:
+      row.planning_require_consecutive_rest == null
+        ? true
+        : Boolean(row.planning_require_consecutive_rest),
+    planning_default_shift_pattern: (() => {
+      const v = String(row.planning_default_shift_pattern ?? "").trim();
+      return v === "continuous" || v === "split" || v === "flexible" ? v : null;
+    })(),
     color_index: (() => {
       const c = row.color_index;
       if (c == null || c === "") return null;
@@ -205,6 +233,30 @@ export async function getRestaurantPlanningStaffTargetsWeekly(restaurantId: stri
   return parseStaffTargetsWeeklyJson(
     (data as { planning_staff_targets_weekly?: unknown }).planning_staff_targets_weekly
   );
+}
+
+export async function getRestaurantPlanningPeakBandsWeekly(restaurantId: string) {
+  const { data, error } = await supabaseServer
+    .from("restaurants")
+    .select("planning_peak_bands_weekly")
+    .eq("id", restaurantId)
+    .maybeSingle();
+  if (error || !data) return parsePeakBandsWeeklyJson(null);
+  return parsePeakBandsWeeklyJson(
+    (data as { planning_peak_bands_weekly?: unknown }).planning_peak_bands_weekly
+  );
+}
+
+/** Talon de sécurité (effectif minimum simultané). Défaut 2 si non configuré. */
+export async function getRestaurantPlanningSecurityFloor(restaurantId: string): Promise<number> {
+  const { data, error } = await supabaseServer
+    .from("restaurants")
+    .select("planning_security_floor")
+    .eq("id", restaurantId)
+    .maybeSingle();
+  if (error || !data) return 2;
+  const n = Number((data as { planning_security_floor?: unknown }).planning_security_floor);
+  return Number.isFinite(n) && n >= 1 ? Math.round(n) : 2;
 }
 
 export async function getRestaurantPlanningBandPresets(restaurantId: string) {

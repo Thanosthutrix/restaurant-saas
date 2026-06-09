@@ -7,12 +7,15 @@ import { resolveWeekPlanningDays } from "@/lib/staff/planningResolve";
 import {
   getPlanningWeekSimulation,
   getRestaurantPlanningHourMaps,
+  getRestaurantPlanningPeakBandsWeekly,
+  getRestaurantPlanningSecurityFloor,
   getRestaurantPlanningStaffTargetsWeekly,
   listPlanningDayOverridesInRange,
   listSimulationShiftsWithDetails,
   listStaffMembers,
   listWorkShiftsInRange,
 } from "@/lib/staff/staffDb";
+import { hydratePlanningWizard } from "@/lib/staff/wizard/hydratePlanningWizard";
 import { addDays, mondayFromWeekParam, toISODateString } from "@/lib/staff/weekUtils";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { EquipePlanningClient } from "./EquipePlanningClient";
@@ -39,14 +42,23 @@ export default async function EquipePage({ searchParams }: Props) {
   const weekFromYmd = toISODateString(monday);
   const weekToYmdExclusive = toISODateString(weekEndExclusive);
 
-  const [staff, shifts, hourMaps, staffTargetsWeekly, overrides, weekSim] = await Promise.all([
-    listStaffMembers(restaurant.id, true),
-    listWorkShiftsInRange(restaurant.id, rangeStartIso, rangeEndExclusiveIso),
-    getRestaurantPlanningHourMaps(restaurant.id),
-    getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
-    listPlanningDayOverridesInRange(restaurant.id, weekFromYmd, weekToYmdExclusive),
-    getPlanningWeekSimulation(restaurant.id, weekFromYmd),
-  ]);
+  const [staff, shifts, hourMaps, staffTargetsWeekly, peakBandsWeekly, overrides, weekSim, securityFloor] =
+    await Promise.all([
+      listStaffMembers(restaurant.id, true),
+      listWorkShiftsInRange(restaurant.id, rangeStartIso, rangeEndExclusiveIso),
+      getRestaurantPlanningHourMaps(restaurant.id),
+      getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
+      getRestaurantPlanningPeakBandsWeekly(restaurant.id),
+      listPlanningDayOverridesInRange(restaurant.id, weekFromYmd, weekToYmdExclusive),
+      getPlanningWeekSimulation(restaurant.id, weekFromYmd),
+      getRestaurantPlanningSecurityFloor(restaurant.id),
+    ]);
+
+  // Hydratation complète du wizard (OBJECTIF 1) : pré-remplissage avec provenance par champ.
+  const wizardData = await hydratePlanningWizard(restaurant.id, weekFromYmd, {
+    templateSlug: restaurant.template_slug ?? null,
+    schoolZone: restaurant.school_zone ?? null,
+  });
 
   const weekMondayStr = weekFromYmd;
   const simulationId = weekSim?.id ?? null;
@@ -106,9 +118,12 @@ export default async function EquipePage({ searchParams }: Props) {
         planningOpeningHours={hourMaps.opening}
         planningStaffExtraBands={hourMaps.staffExtra}
         planningStaffTargetsWeekly={staffTargetsWeekly}
+        planningPeakBandsWeekly={peakBandsWeekly}
         planningDayOverrides={overrides}
         planningAlerts={planningAlerts}
         simulationAlerts={simulationAlerts}
+        planningSecurityFloor={securityFloor}
+        wizardData={wizardData}
       />
     </div>
   );

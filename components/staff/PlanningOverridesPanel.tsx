@@ -6,7 +6,7 @@ import {
   deletePlanningDayOverrideAction,
   upsertPlanningDayOverrideAction,
 } from "@/app/restaurants/actions";
-import type { PlanningDayOverrideRow } from "@/lib/staff/planningResolve";
+import { planningDayOverrideReplacesWeeklyModel, type PlanningDayOverrideRow } from "@/lib/staff/planningResolve";
 import { uiBtnPrimarySm, uiInput, uiLabel } from "@/components/ui/premium";
 
 type Props = {
@@ -21,10 +21,13 @@ function formatEtpDisplay(n: number): string {
 
 function etpCell(o: PlanningDayOverrideRow): string {
   if (o.is_closed) return "—";
-  if (o.staff_target_override == null || !Number.isFinite(o.staff_target_override)) {
-    return "Modèle hebdo";
+  if (o.staff_target_override != null && Number.isFinite(o.staff_target_override)) {
+    return formatEtpDisplay(o.staff_target_override);
   }
-  return formatEtpDisplay(o.staff_target_override);
+  if (planningDayOverrideReplacesWeeklyModel(o)) {
+    return "Auto (plages exception)";
+  }
+  return "Modèle hebdo";
 }
 
 export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {

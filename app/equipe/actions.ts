@@ -5,12 +5,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { isAppRole, ALL_SHELL_NAV_KEYS } from "@/lib/auth/appRoles";
 import { consumeStaffInvite, createStaffInviteRecord, getStaffInviteByToken } from "@/lib/staff/inviteDb";
-import { generateAutoSimulationShifts } from "@/lib/staff/autoSimulation";
+import { generateAutoSimulationShifts, type PlanningGenerationShortfall } from "@/lib/staff/autoSimulation";
 import {
   buildPlanningAiActivityDigest,
   generateAiPlanningSimulationShifts,
 } from "@/lib/staff/aiPlanningSimulation";
-import { resolveWeekPlanningDays } from "@/lib/staff/planningResolve";
+import { resolveWeekPlanningDays, parseStaffTargetsWeeklyJson } from "@/lib/staff/planningResolve";
+import type { PlanningDraftBriefPayload } from "@/lib/staff/planningDraftBrief";
 import { netPlannedMinutes } from "@/lib/staff/timeHelpers";
 import { addDays, parseISODateLocal, toISODateString } from "@/lib/staff/weekUtils";
 import {
@@ -28,7 +29,10 @@ import {
 import {
   CONTRACT_TYPES,
   isContractType,
+  minutesFromMidnight,
+  normalizeClockToHhMm,
   parseOpeningHoursJson,
+  type TimeBand,
 } from "@/lib/staff/planningHoursTypes";
 import { supabaseServer } from "@/lib/supabaseServer";
 
@@ -43,6 +47,22 @@ async function assertRestaurantOwner(userId: string, restaurantId: string): Prom
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseWizardOpeningBands(raw: unknown): TimeBand[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: TimeBand[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return null;
+    const start = normalizeClockToHhMm(String((item as { start?: unknown }).start ?? ""));
+    const end = normalizeClockToHhMm(String((item as { end?: unknown }).end ?? ""));
+    if (!start || !end) return null;
+    const startM = minutesFromMidnight(start);
+    const endM = minutesFromMidnight(end);
+    if (startM == null || endM == null || endM <= startM) return null;
+    out.push({ start, end });
+  }
+  return out;
+}
 
 /** Parse `AAAA-MM-JJTHH:mm` comme heure locale (formulaire datetime-local). */
 function parseLocalDateTimeInput(s: string): Date {
@@ -262,8 +282,10 @@ export async function updateStaffPlanningProfileAction(
   restaurantId: string,
   staffMemberId: string,
   payload: {
+    roleLabel: string | null;
     contractType: string | null;
     targetWeeklyHours: number | null;
+    maxDailyHours: number | null;
     planningNotes: string | null;
     availability: unknown;
     prepBands: unknown;
@@ -288,6 +310,16 @@ export async function updateStaffPlanningProfileAction(
     target = Math.round(n * 10) / 10;
   }
 
+  let maxDaily: number | null = null;
+  if (payload.maxDailyHours != null) {
+    const n = Number(payload.maxDailyHours);
+    if (!Number.isFinite(n) || n < 0 || n > 16) {
+      return { ok: false, error: "Plafond journalier invalide (0 à 16 h, ou vide)." };
+    }
+    maxDaily = n === 0 ? null : Math.round(n * 10) / 10;
+  }
+
+  const roleLabel = payload.roleLabel?.trim() || null;
   const notes = payload.planningNotes?.trim() || null;
   const availability = parseOpeningHoursJson(payload.availability);
   const prepBands = parseOpeningHoursJson(payload.prepBands);
@@ -295,8 +327,10 @@ export async function updateStaffPlanningProfileAction(
   const { error } = await supabaseServer
     .from("staff_members")
     .update({
+      role_label: roleLabel,
       contract_type: ct,
       target_weekly_hours: target,
+      max_daily_hours: maxDaily,
       planning_notes: notes,
       availability_json: availability,
       planning_prep_bands_json: prepBands,
@@ -404,6 +438,241 @@ export async function createWeekSimulationAction(
 }
 
 /**
+ * Enregistre le brief questionnaire (objectifs, exceptions, absences) puis génère l’ébauche.
+ */
+export async function applyPlanningDraftBriefAndGenerateAction(
+  restaurantId: string,
+  brief: PlanningDraftBriefPayload,
+  opts?: { persistMaxDailyHours?: boolean }
+): Promise<
+  | { ok: true; generatedCount: number; shortfalls: PlanningGenerationShortfall[]; summaryFr: string | null }
+  | { ok: false; error: string }
+> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  const ymd = brief.weekMondayYmd.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return { ok: false, error: "Semaine invalide." };
+  if (!Array.isArray(brief.days) || brief.days.length === 0) {
+    return { ok: false, error: "Aucun jour dans le brief." };
+  }
+
+  const isOwner = await assertRestaurantOwner(user.id, restaurantId);
+
+  if (brief.updateWeeklyTargets && isOwner) {
+    const parsed = parseStaffTargetsWeeklyJson(brief.weeklyTargets);
+    const { error: tgtErr } = await supabaseServer
+      .from("restaurants")
+      .update({ planning_staff_targets_weekly: parsed })
+      .eq("id", restaurantId)
+      .eq("owner_id", user.id);
+    if (tgtErr) return { ok: false, error: tgtErr.message };
+  }
+
+  const monday = parseISODateLocal(ymd);
+  if (!monday) return { ok: false, error: "Semaine invalide." };
+
+  const weekEndExclusive = addDays(monday, 7);
+  const weekFromYmd = toISODateString(monday);
+  const weekToYmdExclusive = toISODateString(weekEndExclusive);
+
+  const existingOverrides = await listPlanningDayOverridesInRange(
+    restaurantId,
+    weekFromYmd,
+    weekToYmdExclusive
+  );
+  const existingByDay = new Map(existingOverrides.map((o) => [o.day, o]));
+
+  for (const day of brief.days) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day.ymd)) {
+      return { ok: false, error: `Date invalide : ${day.ymd}` };
+    }
+
+    let staffT: number | null = null;
+    if (!day.isClosed && day.staffTargetOverride != null) {
+      const n = Number(day.staffTargetOverride);
+      if (!Number.isFinite(n) || n < 0 || n > 500) {
+        return { ok: false, error: `Effectif invalide pour ${day.ymd}.` };
+      }
+      staffT = Math.round(n * 100) / 100;
+    }
+
+    const existing = existingByDay.get(day.ymd);
+    const labelFromBrief = day.label?.trim() || null;
+    const parsedOpeningOverride =
+      !day.isClosed && Array.isArray(day.openingBandsOverride)
+        ? parseWizardOpeningBands(day.openingBandsOverride)
+        : null;
+    if (!day.isClosed && Array.isArray(day.openingBandsOverride) && parsedOpeningOverride == null) {
+      return { ok: false, error: `Horaires invalides pour ${day.ymd}.` };
+    }
+    const openingBandsOverride = day.isClosed
+      ? null
+      : parsedOpeningOverride
+        ? parsedOpeningOverride
+        : existing?.opening_bands_override ?? null;
+
+    const { error: ovErr } = await supabaseServer.from("restaurant_planning_day_overrides").upsert(
+      {
+        restaurant_id: restaurantId,
+        day: day.ymd,
+        is_closed: day.isClosed,
+        opening_bands_override: openingBandsOverride,
+        staff_target_override: staffT,
+        label: labelFromBrief ?? existing?.label?.trim() ?? null,
+        calendar_source: existing?.calendar_source ?? null,
+      },
+      { onConflict: "restaurant_id,day" }
+    );
+    if (ovErr) return { ok: false, error: ovErr.message };
+  }
+
+  const [staff, hourMaps, staffTargetsWeekly, overrides] = await Promise.all([
+    listStaffMembers(restaurantId, true),
+    getRestaurantPlanningHourMaps(restaurantId),
+    getRestaurantPlanningStaffTargetsWeekly(restaurantId),
+    listPlanningDayOverridesInRange(restaurantId, weekFromYmd, weekToYmdExclusive),
+  ]);
+
+  const resolvedWeekDays = resolveWeekPlanningDays(
+    monday,
+    hourMaps.opening,
+    hourMaps.staffExtra,
+    staffTargetsWeekly,
+    overrides
+  );
+
+  const excluded = Array.isArray(brief.unavailableStaffIds)
+    ? brief.unavailableStaffIds.filter((id) => UUID_RE.test(id))
+    : [];
+
+  const contractOverrides = brief.contractWeeklyHoursByStaffId ?? {};
+  const staffForGen = staff.map((s) => {
+    const h = contractOverrides[s.id];
+    if (h != null && Number.isFinite(h) && h > 0) {
+      return { ...s, target_weekly_hours: Math.round(h * 10) / 10 };
+    }
+    return s;
+  });
+
+  let generated: ReturnType<typeof generateAutoSimulationShifts>["shifts"];
+  let shortfalls: PlanningGenerationShortfall[];
+  let summaryFr: string | null;
+  try {
+    ({ shifts: generated, shortfalls, summaryFr } = generateAutoSimulationShifts({
+      resolvedWeekDays,
+      staff: staffForGen,
+      excludedStaffIds: excluded,
+      options: {
+        securityFloor: brief.securityFloor,
+        peakBandsByDay: brief.peakBandsByDay ?? {},
+        allowWeeklyOvertime: brief.allowWeeklyOvertime ?? {
+          enabled: false,
+          maxOvertimePercent: 0,
+          staffIds: [],
+        },
+        prioritizeRoleBalance: brief.prioritizeRoleBalance,
+        maxDailyHoursByStaffId: brief.maxDailyHoursByStaffId ?? {},
+        weeklyHoursBonusByStaffId: brief.weeklyHoursBonusByStaffId ?? {},
+        absentStaffIdsByYmd: brief.absentStaffIdsByYmd ?? {},
+        fixedRestDaysByStaffId: brief.fixedRestDaysByStaffId ?? {},
+        weeklyRestDaysByStaffId: brief.weeklyRestDaysByStaffId ?? {},
+      },
+    }));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erreur interne lors de la génération.";
+    return { ok: false, error: `Génération échouée : ${msg}` };
+  }
+
+  let sim = await getPlanningWeekSimulation(restaurantId, ymd);
+  if (!sim) {
+    const { data, error } = await supabaseServer
+      .from("planning_week_simulations")
+      .insert({ restaurant_id: restaurantId, week_monday: ymd })
+      .select("id")
+      .single();
+    if (error?.code === "23505") {
+      sim = await getPlanningWeekSimulation(restaurantId, ymd);
+    } else if (error || !data) {
+      return { ok: false, error: error?.message ?? "Impossible de créer la simulation." };
+    } else {
+      sim = { id: String((data as { id: string }).id), week_monday: ymd };
+    }
+  }
+  if (!sim) return { ok: false, error: "Simulation introuvable." };
+
+  const { error: delErr } = await supabaseServer
+    .from("planning_simulation_shifts")
+    .delete()
+    .eq("simulation_id", sim.id);
+
+  if (delErr) return { ok: false, error: delErr.message };
+
+  if (generated.length === 0) {
+    revalidatePath("/equipe");
+    revalidatePath(`/restaurants/${restaurantId}/edit`);
+    return { ok: true, generatedCount: 0, shortfalls, summaryFr };
+  }
+
+  const noteSuffix = brief.prioritizeRoleBalance ? " · Équilibre postes" : "";
+  const rows = generated.map((g) => ({
+    simulation_id: sim.id,
+    staff_member_id: g.staff_member_id,
+    starts_at: g.starts_at,
+    ends_at: g.ends_at,
+    break_minutes: g.break_minutes,
+    notes: g.notes ? `${g.notes}${noteSuffix}` : noteSuffix.trim() || null,
+  }));
+
+  const { error: insErr } = await supabaseServer.from("planning_simulation_shifts").insert(rows);
+  if (insErr) return { ok: false, error: insErr.message };
+
+  if (brief.applyCarryoverAfterGenerate) {
+    const excludedSet = new Set(excluded);
+    for (const m of staff) {
+      if (!m.active || excludedSet.has(m.id)) continue;
+      const target = m.target_weekly_hours;
+      if (target == null || !Number.isFinite(target) || target <= 0) continue;
+      const targetMin = Math.round(target * 60);
+      let plannedNet = 0;
+      for (const g of generated) {
+        if (g.staff_member_id !== m.id) continue;
+        plannedNet += netPlannedMinutes(g.starts_at, g.ends_at, g.break_minutes);
+      }
+      const delta = targetMin - plannedNet;
+      const newCarry = m.planning_carryover_minutes + delta;
+      await supabaseServer
+        .from("staff_members")
+        .update({ planning_carryover_minutes: newCarry })
+        .eq("id", m.id)
+        .eq("restaurant_id", restaurantId);
+    }
+  }
+
+  if (opts?.persistMaxDailyHours && brief.maxDailyHoursByStaffId) {
+    for (const [staffId, hours] of Object.entries(brief.maxDailyHoursByStaffId)) {
+      if (!UUID_RE.test(staffId)) continue;
+      let maxDaily: number | null = null;
+      if (hours != null && Number.isFinite(hours) && hours > 0) {
+        maxDaily = Math.min(16, Math.round(hours * 10) / 10);
+      }
+      const { error: mdErr } = await supabaseServer
+        .from("staff_members")
+        .update({ max_daily_hours: maxDaily })
+        .eq("id", staffId)
+        .eq("restaurant_id", restaurantId);
+      if (mdErr) return { ok: false, error: mdErr.message };
+    }
+  }
+
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true, generatedCount: generated.length, shortfalls, summaryFr };
+}
+
+/**
  * Remplit le brouillon de simulation à partir des horaires d’ouverture, objectifs d’effectif (par jour)
  * et disponibilités / volumes cibles des fiches équipe. Efface les créneaux simulés existants puis régénère.
  */
@@ -440,7 +709,7 @@ export async function generateAutoSimulationShiftsAction(
     staffTargetsWeekly,
     overrides
   );
-  const generated = generateAutoSimulationShifts({ resolvedWeekDays, staff });
+  const { shifts: generated } = generateAutoSimulationShifts({ resolvedWeekDays, staff });
 
   let sim = await getPlanningWeekSimulation(restaurantId, ymd);
   if (!sim) {

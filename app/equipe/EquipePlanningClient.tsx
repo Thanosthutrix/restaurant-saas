@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { StaffPlanningProfileForm } from "@/components/staff/StaffPlanningProfileForm";
 import { ManualWeekPlanner, PlanningHoursRecap } from "@/components/staff/ManualWeekPlanner";
+import { PlanningHydratedWizard } from "@/components/staff/PlanningHydratedWizard";
+import { PlanningMatrixView } from "@/components/staff/PlanningMatrixView";
 import type { PlanningAlert } from "@/lib/staff/planningAlerts";
+import type { WizardData } from "@/lib/staff/wizard/wizardDataTypes";
 import {
   resolveWeekPlanningDays,
   type PlanningDayOverrideRow,
   type WeekResolvedDay,
 } from "@/lib/staff/planningResolve";
 import type { OpeningHoursMap, PlanningDayKey } from "@/lib/staff/planningHoursTypes";
+import type { PeakBandsWeeklyMap } from "@/lib/staff/planningPeakBands";
 import type { StaffMember, WorkShiftWithDetails } from "@/lib/staff/types";
 import { addDays, parseISODateLocal, toISODateString } from "@/lib/staff/weekUtils";
 import {
@@ -29,7 +33,6 @@ import {
   createWeekSimulationAction,
   createWorkShiftAction,
   deactivateStaffMemberAction,
-  generateAutoSimulationShiftsAction,
   linkMyAccountToStaffAction,
   publishWeekSimulationAction,
   updateStaffNavPermissionsAction,
@@ -218,9 +221,12 @@ type Props = {
   planningOpeningHours: OpeningHoursMap;
   planningStaffExtraBands: OpeningHoursMap;
   planningStaffTargetsWeekly: Partial<Record<PlanningDayKey, number>>;
+  planningPeakBandsWeekly: PeakBandsWeeklyMap;
   planningDayOverrides: PlanningDayOverrideRow[];
   planningAlerts: PlanningAlert[];
   simulationAlerts: PlanningAlert[];
+  planningSecurityFloor: number;
+  wizardData: WizardData;
 };
 
 export function EquipePlanningClient({
@@ -239,11 +245,14 @@ export function EquipePlanningClient({
   planningDayOverrides,
   planningAlerts,
   simulationAlerts,
+  planningSecurityFloor,
+  wizardData,
 }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [draftWarning, setDraftWarning] = useState<string | null>(null);
   const [planningMode, setPlanningMode] = useState<PlanningMode>(initialPlanningMode);
   const [optimisticSimulationId, setOptimisticSimulationId] = useState<string | null>(null);
 
@@ -260,6 +269,8 @@ export function EquipePlanningClient({
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
   /** Lien d'invitation généré, affiché dans la tuile pour copie manuelle. */
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [draftWizardOpen, setDraftWizardOpen] = useState(false);
+  const [showMatrix, setShowMatrix] = useState(false);
 
   const monday = useMemo(() => parseISODateLocal(weekMondayIso), [weekMondayIso]);
 
@@ -434,32 +445,32 @@ export function EquipePlanningClient({
     });
   }
 
-  function runAutoSimulation() {
+  function openDraftWizard() {
     if (staff.length === 0) {
       setError("Ajoutez au moins un collaborateur actif pour générer une ébauche.");
       return;
     }
-    if (effectiveSimulationId) {
-      if (!confirm("Remplacer tous les créneaux du brouillon par une nouvelle ébauche ?")) return;
-    }
     setError(null);
     setSuccessMsg(null);
-    start(async () => {
-      const r = await generateAutoSimulationShiftsAction(restaurantId, weekMondayIso);
-      if (!r.ok) { setError(r.error); return; }
-      setOptimisticSimulationId(null);
-      setPlanningMode("simulation");
-      if (r.generatedCount === 0) {
-        setSuccessMsg(
-          "Aucun créneau généré : vérifiez les horaires d'ouverture, les objectifs d'effectif et les disponibilités."
-        );
-      } else {
-        setSuccessMsg(
-          `Ébauche générée : ${r.generatedCount} créneau${r.generatedCount === 1 ? "" : "x"} (modifiables avant publication).`
-        );
-      }
-      router.replace(`/equipe?week=${encodeURIComponent(weekMondayIso)}&planning=sim`);
-    });
+    setDraftWarning(null);
+    setDraftWizardOpen(true);
+  }
+
+  function handleDraftGenerated(result: { generatedCount: number; summaryFr: string | null }) {
+    setOptimisticSimulationId(null);
+    setPlanningMode("simulation");
+    setDraftWarning(result.summaryFr);
+    if (result.generatedCount === 0) {
+      setSuccessMsg(
+        "Aucun créneau généré : vérifiez les horaires d'ouverture, les objectifs d'effectif et les disponibilités."
+      );
+    } else {
+      setSuccessMsg(
+        `Ébauche générée : ${result.generatedCount} créneau${result.generatedCount === 1 ? "" : "x"} (modifiables avant publication).`
+      );
+    }
+    router.replace(`/equipe?week=${encodeURIComponent(weekMondayIso)}&planning=sim`);
+    refresh();
   }
 
   function addShift() {
@@ -524,6 +535,11 @@ export function EquipePlanningClient({
   return (
     <div className="space-y-8">
       {successMsg ? <p className={uiSuccess}>{successMsg}</p> : null}
+      {draftWarning ? (
+        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {draftWarning}
+        </p>
+      ) : null}
       {error && (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>
       )}
@@ -604,11 +620,16 @@ export function EquipePlanningClient({
         {/* Ébauche de planning (mode brouillon uniquement) */}
         {planningMode === "simulation" && (
           <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+            <p className="w-full text-xs text-slate-500">
+              L’ébauche ouvre un questionnaire en 5 étapes : effectifs,{" "}
+              <strong className="font-medium text-slate-700">plages de pointe</strong> (midi / soir), absences et
+              options, puis génération automatique.
+            </p>
             <button
               type="button"
               disabled={pending || staff.length === 0}
               className={uiBtnPrimarySm}
-              onClick={runAutoSimulation}
+              onClick={openDraftWizard}
             >
               Ébauche de planning
             </button>
@@ -642,8 +663,41 @@ export function EquipePlanningClient({
             showCarryoverActions={planningMode === "real"}
             onUpdated={refresh}
           />
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowMatrix((v) => !v)}
+              className={`${uiBtnOutlineSm}`}
+            >
+              {showMatrix ? "Masquer la vue matrice" : "Vue matrice (présence par tranche)"}
+            </button>
+            {showMatrix ? (
+              <PlanningMatrixView
+                shifts={displayShifts}
+                staff={staff}
+                resolvedWeekDays={resolvedWeekDaysForGrid}
+                securityFloor={planningSecurityFloor}
+              />
+            ) : null}
+          </div>
         </div>
       </section>
+
+      {draftWizardOpen ? (
+        <PlanningHydratedWizard
+          open={draftWizardOpen}
+          onClose={() => setDraftWizardOpen(false)}
+          restaurantId={restaurantId}
+          weekLabel={
+            monday
+              ? `Du ${monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au ${addDays(monday, 6).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
+              : weekMondayIso
+          }
+          wizardData={wizardData}
+          onGenerated={handleDraftGenerated}
+        />
+      ) : null}
 
       {/* ── Semaine affichée ──────────────────────────────────────────────── */}
       <section className={uiCard}>

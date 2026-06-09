@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { updateStaffPlanningProfileAction } from "@/app/equipe/actions";
 import type { StaffMember } from "@/lib/staff/types";
@@ -22,13 +23,18 @@ type Props = {
 };
 
 export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
+  const [roleLabel, setRoleLabel] = useState(member.role_label ?? "");
   const [contractType, setContractType] = useState<string>(member.contract_type ?? "");
   const [targetHours, setTargetHours] = useState<string>(
     member.target_weekly_hours != null ? String(member.target_weekly_hours) : ""
+  );
+  const [maxDailyHours, setMaxDailyHours] = useState<string>(
+    member.max_daily_hours != null ? String(member.max_daily_hours) : ""
   );
   const [notes, setNotes] = useState(member.planning_notes ?? "");
 
@@ -109,8 +115,10 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
     setOk(null);
     start(async () => {
       const r = await updateStaffPlanningProfileAction(restaurantId, member.id, {
+        roleLabel: roleLabel.trim() || null,
         contractType: contractType || null,
         targetWeeklyHours: targetHours.trim() === "" ? null : Number(targetHours.replace(",", ".")),
+        maxDailyHours: maxDailyHours.trim() === "" ? null : Number(maxDailyHours.replace(",", ".")),
         planningNotes: notes.trim() || null,
         availability: availMap,
         prepBands: prepMap,
@@ -120,12 +128,37 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
         return;
       }
       setOk("Profil planning enregistré.");
+      router.refresh();
     });
   }
 
   return (
     <div className="mt-3 space-y-4 border-t border-slate-100 pt-3">
       <div className="grid gap-3 sm:grid-cols-3">
+        <div className="sm:col-span-3">
+          <label className={uiLabel} htmlFor={`role-${member.id}`}>
+            Poste
+          </label>
+          <input
+            id={`role-${member.id}`}
+            list={`role-suggestions-${member.id}`}
+            className={`${uiInput} mt-1 w-full text-sm`}
+            value={roleLabel}
+            onChange={(e) => setRoleLabel(e.target.value)}
+            placeholder="Ex. Glace, Vélo, Salle, Cuisine…"
+          />
+          <datalist id={`role-suggestions-${member.id}`}>
+            <option value="Glace" />
+            <option value="Vélo" />
+            <option value="Salle" />
+            <option value="Cuisine" />
+            <option value="Caisse" />
+            <option value="Gestion" />
+          </datalist>
+          <p className="mt-0.5 text-[10px] text-slate-500">
+            Repris automatiquement dans le wizard d&apos;ébauche de planning (étape Équipe).
+          </p>
+        </div>
         <div>
           <label className={uiLabel} htmlFor={`ct-${member.id}`}>
             Contrat
@@ -159,6 +192,23 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
             onChange={(e) => setTargetHours(e.target.value)}
             placeholder="ex. 35"
           />
+        </div>
+        <div>
+          <label className={uiLabel} htmlFor={`mdh-${member.id}`}>
+            Max. par jour (h)
+          </label>
+          <input
+            id={`mdh-${member.id}`}
+            type="number"
+            min={0}
+            max={16}
+            step={0.5}
+            className={`${uiInput} mt-1 w-full text-sm`}
+            value={maxDailyHours}
+            onChange={(e) => setMaxDailyHours(e.target.value)}
+            placeholder="Illimité"
+          />
+          <p className="mt-0.5 text-[10px] text-slate-500">Heures nettes max. planifiables sur une journée.</p>
         </div>
         <div className="sm:col-span-3">
           <label className={uiLabel} htmlFor={`pn-${member.id}`}>

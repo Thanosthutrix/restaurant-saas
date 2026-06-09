@@ -336,7 +336,7 @@ export async function generateAiPlanningSimulationShifts(params: {
   const staffById = new Map(active.map((s) => [s.id, s]));
   const resolvedByYmd = new Map(params.resolvedWeekDays.map((d) => [d.ymd, d]));
 
-  const engineShifts = generateAutoSimulationShifts({
+  const { shifts: engineShifts } = generateAutoSimulationShifts({
     resolvedWeekDays: params.resolvedWeekDays,
     staff: params.staff,
   });

@@ -20,6 +20,10 @@ import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestion
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
 import { analyzeRecipeImageFromBuffer, type RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
 import { parsePlanningBandPresetsJson } from "@/lib/staff/planningBandPresets";
+import {
+  parsePeakBandsWeeklyJson,
+  serializePeakBandsWeeklyJson,
+} from "@/lib/staff/planningPeakBands";
 import { parseStaffTargetsWeeklyJson, parseTimeBandsArray } from "@/lib/staff/planningResolve";
 import { buildTemplateSuggestionsFromRows, type TemplateSuggestions } from "@/lib/templates/templateSuggestions";
 
@@ -421,6 +425,40 @@ export async function updateRestaurantStaffTargetsWeeklyAction(
     .eq("owner_id", user.id);
 
   if (error) return { ok: false, error: error.message };
+  revalidatePath("/equipe");
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { ok: true };
+}
+
+/** Plages de pointe hebdomadaires (modèle établissement). Propriétaire uniquement. */
+export async function updateRestaurantPeakBandsWeeklyAction(
+  restaurantId: string,
+  raw: unknown
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) return { ok: false, error: "Accès refusé." };
+
+  const parsed = parsePeakBandsWeeklyJson(raw);
+  const { error } = await supabaseServer
+    .from("restaurants")
+    .update({ planning_peak_bands_weekly: serializePeakBandsWeeklyJson(parsed) })
+    .eq("id", restaurantId)
+    .eq("owner_id", user.id);
+
+  if (error) {
+    const msg = error.message ?? "";
+    if (msg.includes("planning_peak_bands_weekly") && msg.includes("schema cache")) {
+      return {
+        ok: false,
+        error:
+          "La colonne planning_peak_bands_weekly n’existe pas encore en base. Exécutez la migration : npm run db:apply-peak-bands (avec SUPABASE_DB_URL dans .env.local), ou collez le SQL de supabase/RUN_IN_SQL_EDITOR.sql dans le SQL Editor Supabase.",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
   revalidatePath("/equipe");
   revalidatePath(`/restaurants/${restaurantId}/edit`);
   return { ok: true };

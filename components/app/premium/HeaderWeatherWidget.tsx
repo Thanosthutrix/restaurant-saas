@@ -170,7 +170,7 @@ export function HeaderWeatherWidget({
   ) {
     return (
       <span
-        className="inline-flex max-w-[200px] items-center truncate rounded-xl border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[11px] font-medium text-slate-500 sm:max-w-none"
+        className="inline-flex max-w-[200px] items-center truncate rounded-xl border border-stone-100 bg-stone-50/80 px-2 py-1.5 text-[11px] font-medium text-stone-500 sm:max-w-none"
         title={
           err?.error === "network"
             ? "Vérifiez votre connexion"
@@ -193,28 +193,28 @@ export function HeaderWeatherWidget({
     <div className="group relative">
       <div
         tabIndex={0}
-        className="flex cursor-default items-center gap-2 rounded-xl border border-slate-200/90 bg-white/90 px-2 py-1.5 text-sm shadow-sm outline-none ring-indigo-500/0 transition hover:border-indigo-200 hover:bg-white hover:shadow-md focus-visible:ring-2 focus-visible:ring-indigo-500 sm:px-3"
+        className="flex cursor-default items-center gap-2 rounded-xl border border-stone-200/90 bg-white/90 px-2 py-1.5 text-sm shadow-sm outline-none ring-copper-600/0 transition hover:border-copper-200 hover:bg-white hover:shadow-md focus-visible:ring-2 focus-visible:ring-copper-600 sm:px-3"
         aria-haspopup="true"
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-copper-50 text-copper-700">
           <Icon className="h-4 w-4" aria-hidden />
         </span>
         <span className="min-w-0 text-left max-sm:sr-only">
-          <span className="block text-xs font-semibold leading-tight text-slate-900">
+          <span className="block text-xs font-semibold leading-tight text-stone-900">
             {today.tMax.toFixed(0)} °C max
           </span>
-          <span className="block max-w-[9rem] truncate text-[11px] leading-tight text-slate-500">
+          <span className="block max-w-[9rem] truncate text-[11px] leading-tight text-stone-500">
             {today.summaryFr}
           </span>
         </span>
       </div>
 
       <div
-        className="pointer-events-none invisible absolute right-0 top-full z-50 mt-1.5 w-[min(100vw-2rem,20rem)] origin-top scale-95 rounded-2xl border border-slate-100 bg-white p-2 opacity-0 shadow-lg shadow-slate-200/50 ring-1 ring-slate-100/80 transition-all duration-150 ease-out group-hover:pointer-events-auto group-hover:visible group-hover:scale-100 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:scale-100 group-focus-within:opacity-100"
+        className="pointer-events-none invisible absolute right-0 top-full z-50 mt-1.5 w-[min(100vw-2rem,20rem)] origin-top scale-95 rounded-2xl border border-stone-100 bg-white p-2 opacity-0 shadow-lg shadow-stone-200/50 ring-1 ring-stone-100/80 transition-all duration-150 ease-out group-hover:pointer-events-auto group-hover:visible group-hover:scale-100 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:scale-100 group-focus-within:opacity-100"
         role="menu"
         aria-label="Prévisions sur 7 jours"
       >
-        <p className="border-b border-slate-100 px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="border-b border-stone-100 px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
           7 prochains jours
         </p>
         <ul className="max-h-[min(70vh,22rem)] overflow-y-auto py-1">
@@ -223,25 +223,25 @@ export function HeaderWeatherWidget({
             return (
               <li
                 key={day.date}
-                className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm transition hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm transition hover:bg-stone-50"
                 role="menuitem"
               >
-                <RowIcon className="h-4 w-4 shrink-0 text-indigo-500" aria-hidden />
+                <RowIcon className="h-4 w-4 shrink-0 text-copper-600" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <span className="font-semibold text-slate-900">{formatDayLabel(day.date, i)}</span>
-                  <span className="block truncate text-xs text-slate-500">{day.summaryFr}</span>
+                  <span className="font-semibold text-stone-900">{formatDayLabel(day.date, i)}</span>
+                  <span className="block truncate text-xs text-stone-500">{day.summaryFr}</span>
                 </div>
-                <span className="shrink-0 tabular-nums text-sm font-semibold text-slate-700">
+                <span className="shrink-0 tabular-nums text-sm font-semibold text-stone-700">
                   {day.tMax.toFixed(0)}°
                 </span>
               </li>
             );
           })}
         </ul>
-        <div className="border-t border-slate-100 px-2 pt-2">
+        <div className="border-t border-stone-100 px-2 pt-2">
           <Link
             href="/insights/calendar"
-            className="block rounded-lg px-2 py-1.5 text-center text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50"
+            className="block rounded-lg px-2 py-1.5 text-center text-xs font-semibold text-copper-700 transition hover:bg-copper-50"
           >
             Calendrier complet →
           </Link>

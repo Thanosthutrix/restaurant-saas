@@ -232,27 +232,27 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
 
   if (!monday || resolvedWeekDays.length !== 7) {
     return (
-      <p className="text-sm text-slate-500">Semaine non disponible.</p>
+      <p className="text-sm text-stone-500">Semaine non disponible.</p>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
       <div className="min-w-0" style={{ minWidth: gridMinWidthPx }}>
         <div
-          className="grid border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600"
+          className="grid border-b border-stone-200 bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-600"
           style={{ gridTemplateColumns: gridColsTemplate }}
         >
-          <div className="px-1 py-2 text-center text-[10px] leading-tight text-slate-500">Heures</div>
+          <div className="px-1 py-2 text-center text-[10px] leading-tight text-stone-500">Heures</div>
           {visibleDayIndices.map((di) => {
             const wd = resolvedWeekDays[di]!;
             return (
               <div
                 key={wd.ymd}
-                className="border-l-2 border-slate-200 bg-slate-50/90 px-1 py-2 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]"
+                className="border-l-2 border-stone-200 bg-stone-50/90 px-1 py-2 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6)]"
               >
                 {PLANNING_DAY_LABELS_FR[wd.dayKey]}
-                <div className="font-normal text-[10px] text-slate-400">
+                <div className="font-normal text-[10px] text-stone-400">
                   {wd.date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                 </div>
                 {wd.openingBands.length === 0 ? (
@@ -264,7 +264,7 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
         </div>
 
         <div className="grid" style={{ gridTemplateColumns: gridColsTemplate }}>
-          <div className="flex flex-col border-r-2 border-slate-200 bg-slate-50/80" style={{ height: COL_H }}>
+          <div className="flex flex-col border-r-2 border-stone-200 bg-stone-50/80" style={{ height: COL_H }}>
             <div className="relative min-h-0 h-full">
               {hourTicks.map((h) => {
                 const minute = h * 60;
@@ -273,7 +273,7 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
                 return (
                   <div
                     key={h}
-                    className="absolute left-0 right-0 border-t border-slate-200/90 text-[9px] text-slate-500"
+                    className="absolute left-0 right-0 border-t border-stone-200/90 text-[9px] text-stone-500"
                     style={{ top: `${pct}%` }}
                   >
                     <span className="absolute -top-2 left-0.5 tabular-nums">
@@ -300,8 +300,8 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
             return (
               <div
                 key={wd.ymd}
-                className={`flex flex-col border-l-2 border-slate-200 ${
-                  wd.openingBands.length === 0 ? "bg-rose-50/50" : "bg-slate-50/40"
+                className={`flex flex-col border-l-2 border-stone-200 ${
+                  wd.openingBands.length === 0 ? "bg-rose-50/50" : "bg-stone-50/40"
                 }`}
                 style={{ height: COL_H }}
               >
@@ -313,7 +313,7 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
                     return (
                       <div
                         key={`g-${h}`}
-                        className="pointer-events-none absolute left-0 right-0 border-t border-slate-200/60"
+                        className="pointer-events-none absolute left-0 right-0 border-t border-stone-200/60"
                         style={{ top: `${pct}%` }}
                       />
                     );
@@ -367,7 +367,7 @@ export function PlanningWeekReadOnly({ weekMondayIso, staff, shifts, resolvedWee
           })}
         </div>
       </div>
-      <p className="border-t border-slate-100 px-3 py-2 text-center text-[11px] text-slate-500">
+      <p className="border-t border-stone-100 px-3 py-2 text-center text-[11px] text-stone-500">
         Vue équipe en lecture seule — les horaires sont gérés par le responsable sur « Équipe & planning ».
       </p>
     </div>

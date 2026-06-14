@@ -9,7 +9,7 @@ import type { WorkShiftWithDetails } from "@/lib/staff/types";
 import type { TemperaturePoint } from "@/lib/haccpTemperature/types";
 import { TEMPERATURE_POINT_TYPE_LABEL_FR } from "@/lib/haccpTemperature/types";
 import { classifyTemperatureStatus, parseTemperatureInput } from "@/lib/haccpTemperature/rules";
-import { uiBtnPrimarySm, uiInput, uiLabel } from "@/components/ui/premium";
+import { uiBtnTouch, uiInput, uiLabel } from "@/components/ui/premium";
 
 type Props = {
   restaurantId: string;
@@ -115,17 +115,17 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
       ) : null}
 
       {pendingArrivalShift ? (
-        <div className="mb-8 rounded-2xl border border-indigo-200 bg-indigo-50/80 p-5 shadow-sm">
-          <p className="text-sm text-slate-700">
+        <div className="mb-8 rounded-2xl border border-copper-200 bg-copper-50/80 p-5 shadow-sm">
+          <p className="text-sm text-stone-700">
             Créneau prévu :{" "}
-            <span className="font-medium text-slate-900">
+            <span className="font-medium text-stone-900">
               {formatMyShiftLineFr(pendingArrivalShift.starts_at, pendingArrivalShift.ends_at)}
             </span>
           </p>
           <button
             type="button"
             disabled={pending}
-            className={`mt-4 ${uiBtnPrimarySm} px-5 py-2.5 text-base`}
+            className={`mt-4 ${uiBtnTouch}`}
             onClick={() => onStartDayClick(pendingArrivalShift.id)}
           >
             Je démarre ma journée
@@ -137,14 +137,14 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
 
       {Boolean(pendingClockOutShift) ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
-          <div className="pointer-events-auto w-full max-w-lg rounded-t-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
-            <p className="text-center text-xs text-slate-600">
+          <div className="pointer-events-auto w-full max-w-lg rounded-t-2xl border border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
+            <p className="text-center text-xs text-stone-600">
               Journée en cours · {formatMyShiftLineFr(pendingClockOutShift!.starts_at, pendingClockOutShift!.ends_at)}
             </p>
             <button
               type="button"
               disabled={pending}
-              className="mt-2 w-full rounded-xl bg-slate-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+              className="mt-2 w-full rounded-xl bg-stone-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm hover:bg-stone-800 disabled:opacity-60"
               onClick={() => onEndDay(pendingClockOutShift!.id)}
             >
               Je termine ma journée
@@ -157,12 +157,12 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
       {showTempModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div className="shrink-0 border-b border-slate-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-slate-900">
+            <div className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white shadow-2xl">
+            <div className="shrink-0 border-b border-stone-100 px-5 py-4">
+              <h2 className="text-base font-semibold text-stone-900">
                 Relevés de température — ouverture
               </h2>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <p className="mt-0.5 text-sm text-stone-500">
                 Renseignez la température de chaque point de mesure avant de démarrer votre journée.
               </p>
             </div>
@@ -183,11 +183,11 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
                 return (
                   <div
                     key={point.id}
-                    className={`rounded-xl border p-3 ${isAnomaly ? "border-amber-200 bg-amber-50/50" : "border-slate-200 bg-white"}`}
+                    className={`rounded-xl border p-3 ${isAnomaly ? "border-amber-200 bg-amber-50/50" : "border-stone-200 bg-white"}`}
                   >
                     <div className="mb-2">
-                      <p className="text-sm font-medium text-slate-900">{point.name}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-stone-900">{point.name}</p>
+                      <p className="text-xs text-stone-500">
                         {TEMPERATURE_POINT_TYPE_LABEL_FR[point.point_type]}
                         {point.location ? ` · ${point.location}` : ""}
                         {" · "}
@@ -231,7 +231,7 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
                         {isAnomaly ? (
                           <span className="text-rose-500">*</span>
                         ) : (
-                          <span className="text-slate-400">(optionnel)</span>
+                          <span className="text-stone-400">(optionnel)</span>
                         )}
                       </label>
                       <input
@@ -263,17 +263,17 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
               </p>
             )}
 
-            <div className="shrink-0 border-t border-slate-100 px-5 py-4">
+            <div className="shrink-0 border-t border-stone-100 px-5 py-4">
               <button
                 type="button"
                 disabled={pending || !allFilled()}
-                className={`${uiBtnPrimarySm} w-full py-3 text-base disabled:opacity-40`}
+                className={`${uiBtnTouch} w-full disabled:opacity-40`}
                 onClick={onSubmitTemps}
               >
                 {pending ? "Enregistrement…" : "Valider les relevés et démarrer ma journée"}
               </button>
               {!allFilled() && (
-                <p className="mt-2 text-center text-xs text-slate-400">
+                <p className="mt-2 text-center text-xs text-stone-400">
                   Tous les champs de température sont obligatoires.
                 </p>
               )}

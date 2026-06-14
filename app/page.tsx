@@ -3,14 +3,14 @@ import { uiBtnPrimary, uiBtnSecondary } from "@/components/ui/premium";
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-stone-50 px-4">
       <main className="flex w-full max-w-md flex-col items-center gap-10 py-20">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
             Pilotage quotidien
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Restaurant SaaS</h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">Restaurant SaaS</h1>
+          <p className="mt-3 text-sm leading-relaxed text-stone-600">
             Services, plats, stock, fournisseurs et indicateurs — au même endroit.
           </p>
         </div>

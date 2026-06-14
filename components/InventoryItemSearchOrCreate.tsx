@@ -104,9 +104,9 @@ export function InventoryItemSearchOrCreate({
 
   if (selectedItem) {
     return (
-      <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3 shadow-sm">
-        <span className="text-sm text-slate-600">
-          Sélectionné : <strong className="text-slate-900">{selectedItem.name}</strong> ({selectedItem.unit})
+      <div className="flex flex-wrap items-end gap-2 rounded-xl border border-stone-100 bg-stone-50/80 p-3 shadow-sm">
+        <span className="text-sm text-stone-600">
+          Sélectionné : <strong className="text-stone-900">{selectedItem.name}</strong> ({selectedItem.unit})
         </span>
         <input
           type="text"
@@ -247,15 +247,15 @@ export function InventoryItemSearchOrCreate({
         autoComplete="off"
       />
       {hasMatches && (
-        <ul className="max-h-48 overflow-auto rounded-xl border border-slate-100 bg-white shadow-sm">
+        <ul className="max-h-48 overflow-auto rounded-xl border border-stone-100 bg-white shadow-sm">
           {matches.map((item) => (
             <li key={item.id}>
               <button
                 type="button"
                 onClick={() => setSelectedItem(item)}
-                className="w-full px-3 py-2 text-left text-sm transition hover:bg-indigo-50/60"
+                className="w-full px-3 py-2 text-left text-sm transition hover:bg-copper-50/60"
               >
-                {item.name} <span className="text-slate-500">({item.unit})</span>
+                {item.name} <span className="text-stone-500">({item.unit})</span>
               </button>
             </li>
           ))}

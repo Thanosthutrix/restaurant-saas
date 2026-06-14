@@ -54,33 +54,33 @@ export function ImportedMonthlyCaSection({
   return (
     <section className="space-y-4">
       <div className={uiCard}>
-        <h2 className="text-lg font-semibold text-slate-900">CA importé (photos & relevés)</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Les montants saisis <strong className="font-medium text-slate-800">avant ou en parallèle</strong> de
+        <h2 className="text-lg font-semibold text-stone-900">CA importé (photos & relevés)</h2>
+        <p className="mt-2 text-sm leading-relaxed text-stone-600">
+          Les montants saisis <strong className="font-medium text-stone-800">avant ou en parallèle</strong> de
           l&apos;usage quotidien — extraits de vos documents à l&apos;intégration — sont enregistrés{" "}
-          <strong className="font-medium text-slate-800">mois par mois</strong>. Le bloc « détail par plat » plus bas
-          dans cette page repose sur les <strong className="font-medium text-slate-800">services</strong> saisis dans
+          <strong className="font-medium text-stone-800">mois par mois</strong>. Le bloc « détail par plat » plus bas
+          dans cette page repose sur les <strong className="font-medium text-stone-800">services</strong> saisis dans
           l&apos;application (autre niveau de précision).
         </p>
-        <p className="mt-2 text-sm text-slate-600">
-          Quand le relevé photo contient un <strong className="font-medium text-slate-800">détail</strong> (lignes
+        <p className="mt-2 text-sm text-stone-600">
+          Quand le relevé photo contient un <strong className="font-medium text-stone-800">détail</strong> (lignes
           plats, familles, montants), il est affiché sous chaque mois. Les totaux ci‑dessus restent la référence
-          mensuelle ; le détail est une <strong className="font-medium text-slate-800">lecture du document</strong>{" "}
+          mensuelle ; le détail est une <strong className="font-medium text-stone-800">lecture du document</strong>{" "}
           (non reliée automatiquement à votre carte).
         </p>
-        <p className="mt-2 text-sm text-slate-600">
-          Ils servent de <strong className="font-medium text-slate-800">référence de CA</strong> pour
+        <p className="mt-2 text-sm text-stone-600">
+          Ils servent de <strong className="font-medium text-stone-800">référence de CA</strong> pour
           la dynamique dans le temps, y compris pour les mois sans utilisation de l&apos;app.
         </p>
         <p className="mt-3 flex flex-wrap gap-2 text-sm">
           <Link
             href="/insights/revenue"
-            className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+            className="font-medium text-copper-700 underline underline-offset-2 hover:text-copper-800"
           >
             Voir l&apos;historique CA importé (tableau détaillé)
           </Link>
-          <span className="text-slate-400">·</span>
-          <span className="text-slate-600">
+          <span className="text-stone-400">·</span>
+          <span className="text-stone-600">
             {inRangeCount > 0
               ? `${inRangeCount} mois concernés par la période filtrée ci‑dessus (sur ${sorted.length} mois en base).`
               : `Aucun mois importé ne tombe dans la période ${rangeFrom} → ${rangeTo} ; les barres montrent tout l&apos;historique disponible.`}
@@ -90,18 +90,18 @@ export function ImportedMonthlyCaSection({
 
       {sorted.length === 0 ? (
         <div className={uiCard}>
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-stone-700">
             Aucun CA mensuel importé pour l&apos;instant. Vous pouvez l&apos;ajouter depuis le parcours
             d&apos;intégration (documents de chiffre d&apos;affaires) ; les montants apparaîtront ici et sur{" "}
-            <Link href="/insights/revenue" className="font-medium text-indigo-600 underline">
+            <Link href="/insights/revenue" className="font-medium text-copper-700 underline">
               CA importé
             </Link>
             .
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500 sm:hidden">
+        <div className="overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
+          <p className="border-b border-stone-100 px-4 py-2 text-xs text-stone-500 sm:hidden">
             Faites défiler horizontalement si besoin.
           </p>
           <div className="overflow-x-auto p-4">
@@ -114,41 +114,41 @@ export function ImportedMonthlyCaSection({
                   <div key={r.id} className="min-w-[280px]">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium capitalize text-slate-900">
+                        <span className="font-medium capitalize text-stone-900">
                           {formatMonthFr(r.month)}
                         </span>
                         {inRange ? (
-                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800">
+                          <span className="rounded-full bg-copper-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-copper-800">
                             Période analyse
                           </span>
                         ) : (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
                             Hors plage filtre
                           </span>
                         )}
                       </div>
-                      <span className="tabular-nums text-sm font-semibold text-slate-900">
+                      <span className="tabular-nums text-sm font-semibold text-stone-900">
                         {formatEur(r.revenue_ttc ?? null)}
-                        <span className="ml-2 font-normal text-slate-500">TTC</span>
+                        <span className="ml-2 font-normal text-stone-500">TTC</span>
                         {r.revenue_ht != null ? (
                           <>
-                            <span className="mx-1 text-slate-300">·</span>
+                            <span className="mx-1 text-stone-300">·</span>
                             {formatEur(r.revenue_ht)}
-                            <span className="ml-1 font-normal text-slate-500">HT</span>
+                            <span className="ml-1 font-normal text-stone-500">HT</span>
                           </>
                         ) : null}
                       </span>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100">
                       <div
                         className={`h-full rounded-full ${
-                          inRange ? "bg-indigo-500" : "bg-slate-400/70"
+                          inRange ? "bg-copper-600" : "bg-stone-400/70"
                         }`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
                     {(r.source_label?.trim() || r.notes?.trim()) && (
-                      <p className="mt-1.5 text-xs text-slate-500">
+                      <p className="mt-1.5 text-xs text-stone-500">
                         {[r.source_label?.trim(), r.notes?.trim()].filter(Boolean).join(" · ")}
                       </p>
                     )}

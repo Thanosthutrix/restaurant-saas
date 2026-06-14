@@ -9,7 +9,7 @@ const TYPE_DOT: Record<
   { dotClass: string; label: string }
 > = {
   ingredient: { dotClass: "bg-amber-500", label: "Matière première" },
-  prep: { dotClass: "bg-indigo-500", label: "Préparation" },
+  prep: { dotClass: "bg-copper-600", label: "Préparation" },
   resale: { dotClass: "bg-emerald-500", label: "Revente" },
 };
 
@@ -51,7 +51,7 @@ function StockLevelBar({ stock, minQty, targetQty }: BarProps) {
 
   return (
     <div
-      className="relative h-2 w-full min-w-[5.5rem] max-w-[7.5rem] shrink-0 overflow-hidden rounded-full bg-slate-200/90"
+      className="relative h-2 w-full min-w-[5.5rem] max-w-[7.5rem] shrink-0 overflow-hidden rounded-full bg-stone-200/90"
       title={
         minN != null && targetN != null
           ? `Stock ${formatQty(stock)} — seuil min ${formatQty(minN)}, cible ${formatQty(targetN)}`
@@ -66,14 +66,14 @@ function StockLevelBar({ stock, minQty, targetQty }: BarProps) {
       />
       {minPct != null && minPct > 0 ? (
         <span
-          className="pointer-events-auto absolute top-0 z-10 h-full w-px -translate-x-px bg-slate-700/70"
+          className="pointer-events-auto absolute top-0 z-10 h-full w-px -translate-x-px bg-stone-700/70"
           style={{ left: `${minPct}%` }}
           title={`Seuil minimum : ${formatQty(minN!)}`}
         />
       ) : null}
       {targetPct != null && targetPct > 0 ? (
         <span
-          className="pointer-events-auto absolute top-0 z-10 h-full w-px bg-slate-900/35"
+          className="pointer-events-auto absolute top-0 z-10 h-full w-px bg-stone-900/35"
           style={
             targetPct >= 99.5
               ? { right: 0 }
@@ -102,7 +102,7 @@ export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedSt
       : null;
 
   const typeInfo = TYPE_DOT[item.item_type] ?? {
-    dotClass: "bg-slate-400",
+    dotClass: "bg-stone-400",
     label: item.item_type,
   };
 
@@ -120,17 +120,17 @@ export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedSt
             aria-label={typeInfo.label}
             role="img"
           />
-          <span className="truncate font-semibold text-slate-900">{item.name}</span>
+          <span className="truncate font-semibold text-stone-900">{item.name}</span>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
           <StockLevelBar stock={stock} minQty={minN} targetQty={targetN} />
           <span
-            className={`whitespace-nowrap text-sm tabular-nums ${mismatch ? "text-amber-800" : "text-slate-700"}`}
+            className={`whitespace-nowrap text-sm tabular-nums ${mismatch ? "text-amber-800" : "text-stone-700"}`}
             title={qtyTitle}
           >
             {formatQty(stock)}
-            <span className="ml-1 text-slate-500">{item.unit}</span>
+            <span className="ml-1 text-stone-500">{item.unit}</span>
           </span>
         </div>
       </Link>

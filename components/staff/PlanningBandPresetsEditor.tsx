@@ -91,8 +91,8 @@ export function PlanningBandPresetsEditor({ restaurantId, initial }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-600">
-        Créez des <strong className="font-medium text-slate-800">modèles nommés</strong> (ex. « Été renforcé », « Férié
+      <p className="text-xs text-stone-600">
+        Créez des <strong className="font-medium text-stone-800">modèles nommés</strong> (ex. « Été renforcé », « Férié
         service midi ») : vous pourrez les appliquer aux jours fériés et aux vacances scolaires dans le calendrier
         ci-dessous, en plus du modèle hebdomadaire habituel.
       </p>
@@ -101,10 +101,10 @@ export function PlanningBandPresetsEditor({ restaurantId, initial }: Props) {
 
       <div className="space-y-4">
         {presets.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucun modèle. Ajoutez-en un pour proposer des plages hors horaires types.</p>
+          <p className="text-sm text-stone-500">Aucun modèle. Ajoutez-en un pour proposer des plages hors horaires types.</p>
         ) : (
           presets.map((p) => (
-            <div key={p.id} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+            <div key={p.id} className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-[12rem] flex-1">
                   <label className={uiLabel} htmlFor={`preset-label-${p.id}`}>
@@ -132,7 +132,7 @@ export function PlanningBandPresetsEditor({ restaurantId, initial }: Props) {
                 <label className={uiLabel} htmlFor={`preset-etp-${p.id}`}>
                   ETP cible (optionnel)
                 </label>
-                <p className="mt-0.5 text-[11px] text-slate-500">
+                <p className="mt-0.5 text-[11px] text-stone-500">
                   Équivalent temps plein appliqué avec ce modèle au calendrier (fériés / vacances). Laisser vide pour
                   reprendre l’objectif du jour type.
                 </p>
@@ -171,7 +171,7 @@ export function PlanningBandPresetsEditor({ restaurantId, initial }: Props) {
                       disabled={pending}
                       onChange={(e) => updateBand(p.id, i, "start", e.target.value)}
                     />
-                    <span className="text-slate-400">→</span>
+                    <span className="text-stone-400">→</span>
                     <input
                       type="time"
                       className={`${uiInput} w-[7rem]`}

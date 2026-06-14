@@ -30,7 +30,7 @@ function mergeFiles(current: File[], list: FileList | null): File[] {
 function FilesList({ files, onRemove }: { files: File[]; onRemove: (index: number) => void }) {
   if (files.length === 0) return null;
   return (
-    <ul className="space-y-1 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm text-slate-700">
+    <ul className="space-y-1 rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2 text-sm text-stone-700">
       {files.map((file, index) => (
         <li key={fileKey(file)} className="flex items-center justify-between gap-2">
           <span className="min-w-0 truncate" title={file.name}>
@@ -93,10 +93,10 @@ export function UploadRevenueStatementsClient() {
       <div>
         <h2 className={uiSectionTitleSm}>Chiffre d’affaires passé</h2>
         <p className={`mt-1 ${uiMuted}`}>
-          Comme dans l’<strong className="font-medium text-slate-800">assistant d’import IA</strong> : relevés mensuels,
+          Comme dans l’<strong className="font-medium text-stone-800">assistant d’import IA</strong> : relevés mensuels,
           exports caisse ou tableaux de CA (image ou PDF). Chaque fichier est traité séparément. Les montants alimentent
           la page{" "}
-          <Link href="/insights/revenue" className="font-medium text-indigo-600 underline underline-offset-2">
+          <Link href="/insights/revenue" className="font-medium text-copper-700 underline underline-offset-2">
             CA mensuel importé
           </Link>
           .

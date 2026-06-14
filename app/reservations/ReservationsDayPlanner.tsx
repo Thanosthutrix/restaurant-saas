@@ -20,7 +20,7 @@ const STATUS_BAR: Record<ReservationStatus, string> = {
   pending: "bg-amber-500",
   confirmed: "bg-sky-500",
   seated: "bg-emerald-500",
-  completed: "bg-slate-400",
+  completed: "bg-stone-400",
   cancelled: "bg-rose-400",
   no_show: "bg-orange-500",
 };
@@ -29,7 +29,7 @@ const STATUS_RING: Record<ReservationStatus, string> = {
   pending: "ring-amber-200",
   confirmed: "ring-sky-200",
   seated: "ring-emerald-200",
-  completed: "ring-slate-200",
+  completed: "ring-stone-200",
   cancelled: "ring-rose-200",
   no_show: "ring-orange-200",
 };
@@ -38,7 +38,7 @@ const STATUS_BG: Record<ReservationStatus, string> = {
   pending: "bg-amber-50/95",
   confirmed: "bg-sky-50/95",
   seated: "bg-emerald-50/95",
-  completed: "bg-slate-50",
+  completed: "bg-stone-50",
   cancelled: "bg-rose-50/90",
   no_show: "bg-orange-50/90",
 };
@@ -216,16 +216,16 @@ export function ReservationsDayPlanner({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <label className="flex cursor-pointer items-center gap-2 text-slate-700">
+        <label className="flex cursor-pointer items-center gap-2 text-stone-700">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded border-stone-300"
             checked={focusActive}
             onChange={(e) => onFocusActiveChange(e.target.checked)}
           />
           <span>Mettre en avant les réservations actives (masquer terminées &amp; annulées)</span>
         </label>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-stone-500">
           {prepared.length} sur {rows.length} affichée{prepared.length > 1 ? "s" : ""}
           {visualRows.length > 0 ? ` · ${windowLabel}` : ""}
           {laneCount > 1 ? ` · ${laneCount} colonnes` : ""}
@@ -233,11 +233,11 @@ export function ReservationsDayPlanner({
       </div>
 
       <div
-        className="flex overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50/80 to-white shadow-inner"
+        className="flex overflow-hidden rounded-2xl border border-stone-200 bg-gradient-to-b from-stone-50/80 to-white shadow-inner"
         style={{ maxHeight: "min(78vh, 900px)" }}
       >
         <div
-          className="sticky left-0 z-30 shrink-0 select-none border-r border-slate-200 bg-white/95 backdrop-blur-sm"
+          className="sticky left-0 z-30 shrink-0 select-none border-r border-stone-200 bg-white/95 backdrop-blur-sm"
           style={{ width: 50, minHeight: totalH, position: "relative" }}
         >
           {gridTickMins.map(({ m, showLabel }) => (
@@ -247,7 +247,7 @@ export function ReservationsDayPlanner({
               style={{ top: topY(m) - 1, transform: "translateY(-0.25em)" }}
             >
               {showLabel ? (
-                <span className="text-[10px] font-semibold leading-none text-slate-600">
+                <span className="text-[10px] font-semibold leading-none text-stone-600">
                   {m % 60 === 0 ? `${Math.floor(m / 60) % 24}h` : labelClock(m)}
                 </span>
               ) : null}
@@ -264,7 +264,7 @@ export function ReservationsDayPlanner({
               <div
                 key={`g-${m}`}
                 className={`pointer-events-none absolute left-0 right-0 ${
-                  m % 60 === 0 ? "border-b border-slate-200" : "border-b border-slate-100/60 border-dotted"
+                  m % 60 === 0 ? "border-b border-stone-200" : "border-b border-stone-100/60 border-dotted"
                 }`}
                 style={{ top: topY(m), height: 0 }}
               />
@@ -283,9 +283,9 @@ export function ReservationsDayPlanner({
                 const top = topY(aV);
                 const hPx = Math.max(44, (dMin / 60) * PX_PER_H - 1);
                 const lane = laneById.get(r.id) ?? 0;
-                const stBar = STATUS_BAR[r.status] ?? "bg-slate-400";
+                const stBar = STATUS_BAR[r.status] ?? "bg-stone-400";
                 const stBg = STATUS_BG[r.status] ?? "bg-white";
-                const stRing = STATUS_RING[r.status] ?? "ring-slate-200";
+                const stRing = STATUS_RING[r.status] ?? "ring-stone-200";
                 const label = who(r);
                 const pax = r.party_size;
                 const shortH = hPx < 64;
@@ -330,20 +330,20 @@ export function ReservationsDayPlanner({
                             {initials(label)}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-bold leading-tight text-slate-900">
+                            <p className="truncate text-xs font-bold leading-tight text-stone-900">
                               <Link
                                 href={`/reservations/${r.id}/modifier?date=${encodeURIComponent(ymd)}`}
-                                className="text-indigo-800 hover:underline"
+                                className="text-copper-800 hover:underline"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {label}
                               </Link>
                             </p>
-                            <p className="whitespace-nowrap text-[10px] font-medium text-slate-600">
+                            <p className="whitespace-nowrap text-[10px] font-medium text-stone-600">
                               {timeParisShort(r.starts_at)} – {timeParisShort(r.ends_at)} · {pax} pers.
                               {!shortH && r.notes ? " · " : null}
                               {!shortH && r.notes ? (
-                                <span className="text-slate-500">
+                                <span className="text-stone-500">
                                   {r.notes.length > 40 ? r.notes.slice(0, 40) + "…" : r.notes}
                                 </span>
                               ) : null}
@@ -369,10 +369,10 @@ export function ReservationsDayPlanner({
                         </div>
                       )}
                       {shortH && (
-                        <p className="mt-0.5 text-[9px] text-slate-500">
+                        <p className="mt-0.5 text-[9px] text-stone-500">
                           {durationMin(r.starts_at, r.ends_at)} min ·
                           <select
-                            className="ml-0.5 max-w-[6rem] rounded border border-slate-200 bg-white py-0 text-[9px] align-middle"
+                            className="ml-0.5 max-w-[6rem] rounded border border-stone-200 bg-white py-0 text-[9px] align-middle"
                             value={r.status}
                             disabled={pending}
                             onChange={(e) => onStatus(r.id, e.target.value as ReservationStatus)}

@@ -17,7 +17,8 @@ type TaskInsert = {
 export function buildTemperatureTaskInsertsForPoint(
   point: TemperaturePoint,
   windowStart: Date,
-  windowEnd: Date
+  windowEnd: Date,
+  closedDays: number[] = []
 ): TaskInsert[] {
   if (!point.active) return [];
 
@@ -26,6 +27,7 @@ export function buildTemperatureTaskInsertsForPoint(
 
   if (point.recurrence_type === "daily") {
     for (const d of days) {
+      if (isClosedDay(d, closedDays)) continue;
       out.push({
         restaurant_id: point.restaurant_id,
         temperature_point_id: point.id,
@@ -39,6 +41,7 @@ export function buildTemperatureTaskInsertsForPoint(
 
   if (point.recurrence_type === "per_service") {
     for (const d of days) {
+      if (isClosedDay(d, closedDays)) continue;
       out.push({
         restaurant_id: point.restaurant_id,
         temperature_point_id: point.id,
@@ -58,4 +61,10 @@ export function buildTemperatureTaskInsertsForPoint(
   }
 
   return out;
+}
+
+function isClosedDay(dayIso: string, closedDays: number[]): boolean {
+  if (closedDays.length === 0) return false;
+  const dow = new Date(`${dayIso}T12:00:00.000Z`).getUTCDay();
+  return closedDays.includes(dow);
 }

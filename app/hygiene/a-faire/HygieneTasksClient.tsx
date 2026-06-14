@@ -15,8 +15,8 @@ import {
 import { completeHygieneTaskAction } from "../actions";
 import { HygieneProtocolPanel } from "@/components/hygiene/HygieneProtocolPanel";
 import {
-  uiBtnPrimarySm,
-  uiBtnSecondary,
+  uiBtnTouch,
+  uiBtnTouchSecondary,
   uiCard,
   uiInput,
   uiLabel,
@@ -26,7 +26,7 @@ import {
 function riskBadgeClass(r: string): string {
   if (r === "critical") return "bg-rose-100 text-rose-900 ring-1 ring-rose-200";
   if (r === "important") return "bg-amber-100 text-amber-900 ring-1 ring-amber-200";
-  return "bg-slate-100 text-slate-800 ring-1 ring-slate-200";
+  return "bg-stone-100 text-stone-800 ring-1 ring-stone-200";
 }
 
 export function HygieneTasksClient({
@@ -107,22 +107,22 @@ export function HygieneTasksClient({
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Échues ou à faire</h2>
+        <h2 className="mb-3 text-sm font-semibold text-stone-900">Échues ou à faire</h2>
         {due.length === 0 ? (
-          <p className="text-sm text-slate-500">Rien en retard pour l’instant.</p>
+          <p className="text-sm text-stone-500">Rien en retard pour l’instant.</p>
         ) : (
           <ul className="space-y-2">
             {due.map((t) => (
               <li key={t.id} className={uiCard}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium text-slate-900">{t.element_name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-medium text-stone-900">{t.element_name}</p>
+                    <p className="text-xs text-stone-500">
                       {HYGIENE_CATEGORY_LABEL_FR[t.element_category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ??
                         t.element_category}{" "}
                       · {t.area_label || "—"}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-stone-500">
                       Échéance :{" "}
                       {new Date(t.due_at).toLocaleString("fr-FR", {
                         day: "numeric",
@@ -140,7 +140,7 @@ export function HygieneTasksClient({
                     {t.risk_level === "critical" && (
                       <span className="text-xs font-medium text-rose-700">Photo requise</span>
                     )}
-                    <button type="button" className={uiBtnPrimarySm} onClick={() => openModal(t)}>
+                    <button type="button" className={uiBtnTouch} onClick={() => openModal(t)}>
                       Valider
                     </button>
                   </div>
@@ -152,14 +152,14 @@ export function HygieneTasksClient({
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">À venir</h2>
+        <h2 className="mb-3 text-sm font-semibold text-stone-900">À venir</h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucune tâche planifiée à venir dans la fenêtre chargée.</p>
+          <p className="text-sm text-stone-500">Aucune tâche planifiée à venir dans la fenêtre chargée.</p>
         ) : (
           <ul className="space-y-2">
             {upcoming.map((t) => (
-              <li key={t.id} className={`${uiCard} text-sm text-slate-600`}>
-                <span className="font-medium text-slate-800">{t.element_name}</span> ·{" "}
+              <li key={t.id} className={`${uiCard} text-sm text-stone-600`}>
+                <span className="font-medium text-stone-800">{t.element_name}</span> ·{" "}
                 {new Date(t.due_at).toLocaleString("fr-FR", {
                   day: "numeric",
                   month: "short",
@@ -178,8 +178,8 @@ export function HygieneTasksClient({
       {modalTask && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
-            <h3 className="text-sm font-semibold text-slate-900">Valider la tâche</h3>
-            <p className="mt-1 text-sm text-slate-600">{modalTask.element_name}</p>
+            <h3 className="text-sm font-semibold text-stone-900">Valider la tâche</h3>
+            <p className="mt-1 text-sm text-stone-600">{modalTask.element_name}</p>
             <HygieneProtocolPanel
               description={modalTask.element_description}
               cleaningProtocol={modalTask.cleaning_protocol}
@@ -247,14 +247,14 @@ export function HygieneTasksClient({
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  className={`${uiBtnSecondary} inline-flex items-center gap-2`}
+                  className={`${uiBtnTouchSecondary} inline-flex items-center gap-2`}
                   onClick={() => photoInputRef.current?.click()}
                 >
                   <Camera className="h-4 w-4 shrink-0" aria-hidden />
                   Prendre une photo
                 </button>
                 {file && (
-                  <span className="text-xs text-slate-600">
+                  <span className="text-xs text-stone-600">
                     {file.name}
                     <button
                       type="button"
@@ -271,13 +271,13 @@ export function HygieneTasksClient({
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" disabled={pending} className={uiBtnPrimarySm} onClick={submitComplete}>
+              <button type="button" disabled={pending} className={uiBtnTouch} onClick={submitComplete}>
                 {pending ? "Envoi…" : "Confirmer"}
               </button>
               <button
                 type="button"
                 disabled={pending}
-                className={uiBtnSecondary}
+                className={uiBtnTouchSecondary}
                 onClick={() => {
                   setModalTask(null);
                   setInitials("");

@@ -76,12 +76,12 @@ export default async function CalendarInsightsPage({
       </div>
 
       <div className={uiCard}>
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-sm leading-relaxed text-stone-600">
             Croise vos journées de service (CA estimé, quantités vendues) avec les{" "}
-            <strong className="font-medium text-slate-800">jours fériés</strong>, les{" "}
-            <strong className="font-medium text-slate-800">vacances scolaires</strong>{" "}
+            <strong className="font-medium text-stone-800">jours fériés</strong>, les{" "}
+            <strong className="font-medium text-stone-800">vacances scolaires</strong>{" "}
             (zone A/B/C) et la{" "}
-            <strong className="font-medium text-slate-800">météo</strong> (Open-Meteo). Les
+            <strong className="font-medium text-stone-800">météo</strong> (Open-Meteo). Les
             pistes d’analyse sont indicatives.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -118,14 +118,14 @@ export default async function CalendarInsightsPage({
         <CalendarRangeForm from={from} to={to} />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500 sm:hidden">
+      <div className="overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
+          <p className="border-b border-stone-100 px-4 py-2 text-xs text-stone-500 sm:hidden">
             Faites défiler horizontalement pour voir toutes les colonnes.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[960px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-stone-200 bg-stone-50/90 text-xs font-semibold uppercase tracking-wide text-stone-500">
                   <th className="whitespace-nowrap px-4 py-3 font-medium">Jour</th>
                   <th className="whitespace-nowrap px-4 py-3 text-right font-medium">CA HT (est.)</th>
                   <th className="whitespace-nowrap px-4 py-3 text-right font-medium">Qté vendue</th>
@@ -136,16 +136,16 @@ export default async function CalendarInsightsPage({
                   <th className="min-w-[14rem] px-4 py-3 font-medium">Pistes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-100">
                 {displayRows.map((r) => (
                   <tr
                     key={r.date}
-                    className="align-top transition-colors hover:bg-slate-50/80"
+                    className="align-top transition-colors hover:bg-stone-50/80"
                   >
-                    <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+                    <td className="whitespace-nowrap px-4 py-3 font-medium text-stone-900">
                       {formatDayFr(r.date)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-slate-800">
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-stone-800">
                       {r.sales?.revenueHt != null
                         ? formatEur(r.sales.revenueHt)
                         : r.sales?.serviceCount
@@ -157,45 +157,45 @@ export default async function CalendarInsightsPage({
                         </span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-stone-600">
                       {r.sales && r.sales.qtySold > 0 ? r.sales.qtySold : "—"}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-stone-600">
                       {r.sales && r.sales.serviceCount > 0 ? r.sales.serviceCount : "—"}
                     </td>
-                    <td className="max-w-[10rem] px-4 py-3 text-slate-700">
+                    <td className="max-w-[10rem] px-4 py-3 text-stone-700">
                       {r.publicHoliday ? (
                         <span className="rounded-md bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-900">
                           {r.publicHoliday}
                         </span>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-stone-400">—</span>
                       )}
                     </td>
-                    <td className="max-w-[12rem] px-4 py-3 text-slate-700">
+                    <td className="max-w-[12rem] px-4 py-3 text-stone-700">
                       {r.schoolVacation ? (
                         <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-900">
                           {r.schoolVacation}
                         </span>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-stone-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-stone-700">
                       {r.weather ? (
                         <div>
-                          <span className="font-medium text-slate-800">
+                          <span className="font-medium text-stone-800">
                             {r.weather.summaryFr}
                           </span>
-                          <span className="mt-0.5 block text-xs text-slate-500">
+                          <span className="mt-0.5 block text-xs text-stone-500">
                             {r.weather.tMax.toFixed(1)} °C max · pluie {r.weather.precip.toFixed(1)} mm
                           </span>
                         </div>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-stone-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs leading-relaxed text-slate-600">
+                    <td className="px-4 py-3 text-xs leading-relaxed text-stone-600">
                       {r.hint}
                     </td>
                   </tr>
@@ -204,7 +204,7 @@ export default async function CalendarInsightsPage({
             </table>
           </div>
       </div>
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-stone-500">
         * CA incomplet : prix de vente ou montants ticket manquants sur certaines lignes. Vacances scolaires :
         données embarquées (à mettre à jour chaque année). Météo : Open-Meteo, fuseau Europe/Paris ; prévisions
         jusqu’à ~16 jours.

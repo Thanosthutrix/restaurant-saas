@@ -10,7 +10,7 @@ import {
   requiresCorrectiveFields,
 } from "@/lib/haccpTemperature/rules";
 import { submitTemperatureLogAction } from "../actions";
-import { uiBtnPrimarySm, uiBtnSecondary, uiCard, uiInput, uiLabel } from "@/components/ui/premium";
+import { uiBtnTouch, uiBtnTouchSecondary, uiCard, uiInput, uiLabel } from "@/components/ui/premium";
 
 type Props = {
   restaurantId: string;
@@ -78,7 +78,7 @@ export function HaccpCheckClient({ restaurantId, tasks }: Props) {
   return (
     <div className="space-y-4">
       {tasks.length === 0 ? (
-        <p className="text-sm text-slate-500">Aucune tâche en attente. Les relevés apparaissent selon vos points actifs.</p>
+        <p className="text-sm text-stone-500">Aucune tâche en attente. Les relevés apparaissent selon vos points actifs.</p>
       ) : (
         <ul className="space-y-2">
           {tasks.map((t) => {
@@ -87,12 +87,12 @@ export function HaccpCheckClient({ restaurantId, tasks }: Props) {
               <li key={t.id} className={uiCard}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="font-medium text-slate-900">{t.point_name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-medium text-stone-900">{t.point_name}</p>
+                    <p className="text-xs text-stone-500">
                       {TEMPERATURE_POINT_TYPE_LABEL_FR[t.point_type]} · {t.location || "—"} · seuils {t.min_threshold}–
                       {t.max_threshold} °C
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-stone-500">
                       Échéance :{" "}
                       {new Date(t.due_at).toLocaleString("fr-FR", {
                         day: "numeric",
@@ -107,7 +107,7 @@ export function HaccpCheckClient({ restaurantId, tasks }: Props) {
                       </span>
                     )}
                   </div>
-                  <button type="button" className={uiBtnPrimarySm} onClick={() => openModal(t)}>
+                  <button type="button" className={uiBtnTouch} onClick={() => openModal(t)}>
                     Saisir
                   </button>
                 </div>
@@ -120,8 +120,8 @@ export function HaccpCheckClient({ restaurantId, tasks }: Props) {
       {modalTask && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
-            <h3 className="text-sm font-semibold text-slate-900">Relevé — {modalTask.point_name}</h3>
-            <p className="mt-1 text-xs text-slate-500">
+            <h3 className="text-sm font-semibold text-stone-900">Relevé — {modalTask.point_name}</h3>
+            <p className="mt-1 text-xs text-stone-500">
               Marge d’alerte : ±{HACCP_TEMPERATURE_ALERT_MARGIN_C} °C des seuils.
             </p>
             {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
@@ -185,10 +185,10 @@ export function HaccpCheckClient({ restaurantId, tasks }: Props) {
               />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" disabled={pending} className={uiBtnPrimarySm} onClick={submit}>
+              <button type="button" disabled={pending} className={uiBtnTouch} onClick={submit}>
                 {pending ? "Envoi…" : "Valider"}
               </button>
-              <button type="button" disabled={pending} className={uiBtnSecondary} onClick={closeModal}>
+              <button type="button" disabled={pending} className={uiBtnTouchSecondary} onClick={closeModal}>
                 Annuler
               </button>
             </div>

@@ -22,7 +22,7 @@ export function PurchasePriceSection({
 }) {
   return (
     <div className={uiCard}>
-      <h2 className="mb-1 text-sm font-semibold text-slate-900">Prix d’achat</h2>
+      <h2 className="mb-1 text-sm font-semibold text-stone-900">Prix d’achat</h2>
       <p className={`mb-3 ${uiMuted}`}>
         Les indicateurs ci-dessous viennent des mouvements d’achat avec coût unitaire (€ HT / {stockUnit}). Vous
         pouvez aussi renseigner un prix de référence dans « Modifier le composant » — il sert de repli à la
@@ -32,7 +32,7 @@ export function PurchasePriceSection({
       <dl className="mb-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
         <div className={uiCardMuted}>
           <dt className={uiMuted}>Dernier prix connu</dt>
-          <dd className="font-semibold text-slate-900">
+          <dd className="font-semibold text-stone-900">
             {stats.lastKnownUnitCost != null
               ? `${formatEur(stats.lastKnownUnitCost)} / ${stockUnit}`
               : "—"}
@@ -44,14 +44,14 @@ export function PurchasePriceSection({
               Prix de référence (fiche)
               {referenceIsBenchmark ? " — indicatif France" : ""}
             </dt>
-            <dd className="font-semibold text-slate-900">
+            <dd className="font-semibold text-stone-900">
               {formatEur(referenceUnitCostHt)} / {stockUnit}
             </dd>
           </div>
         ) : null}
         <div className={uiCardMuted}>
           <dt className={uiMuted}>Moyenne 3 mois (glissant)</dt>
-          <dd className="font-semibold text-slate-900">
+          <dd className="font-semibold text-stone-900">
             {stats.avgThreeMonthsWeighted != null
               ? `${formatEur(stats.avgThreeMonthsWeighted)} / ${stockUnit}`
               : "— (pas assez de données)"}
@@ -72,12 +72,12 @@ export function PurchasePriceSection({
           </thead>
           <tbody>
             {stats.monthlyBuckets.map((b) => (
-              <tr key={b.yearMonth} className="border-b border-slate-50">
-                <td className="py-2 pr-3 capitalize text-slate-800">{b.labelFr}</td>
-                <td className="py-2 pr-3 text-right text-slate-600">
+              <tr key={b.yearMonth} className="border-b border-stone-50">
+                <td className="py-2 pr-3 capitalize text-stone-800">{b.labelFr}</td>
+                <td className="py-2 pr-3 text-right text-stone-600">
                   {b.movementCount === 0 ? "—" : `${b.totalQty} ${stockUnit}`}
                 </td>
-                <td className="py-2 text-right text-slate-800">
+                <td className="py-2 text-right text-stone-800">
                   {b.weightedAvgUnitCost != null ? formatEur(b.weightedAvgUnitCost) : "—"}
                 </td>
               </tr>

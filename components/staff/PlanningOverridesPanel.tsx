@@ -115,16 +115,16 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-stone-500">
         Ajoutez une ligne par <strong>date</strong> (férié, fermeture, horaires spéciaux…). Vous pouvez fixer des
         plages et un <strong>ETP</strong> (équivalent temps plein) pour ce jour, ou reprendre le modèle hebdomadaire.
       </p>
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-100">
+      <div className="overflow-x-auto rounded-lg border border-stone-100">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-600">
+            <tr className="border-b border-stone-100 bg-stone-50 text-xs font-semibold text-stone-600">
               <th className="px-2 py-2">Date</th>
               <th className="px-2 py-2">Libellé</th>
               <th className="px-2 py-2">Statut</th>
@@ -132,10 +132,10 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
               <th className="px-2 py-2 text-right">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-stone-100">
             {overrides.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-2 py-4 text-slate-500">
+                <td colSpan={5} className="px-2 py-4 text-stone-500">
                   Aucune exception. Le modèle hebdo + objectifs s’appliquent toute l’année.
                 </td>
               </tr>
@@ -146,7 +146,7 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
                   <td className="px-2 py-2">
                     <span className="mr-1">{o.label ?? "—"}</span>
                     {o.calendar_source === "public_holiday" ? (
-                      <span className="inline-block rounded bg-indigo-100 px-1.5 py-0 text-[10px] font-medium text-indigo-900">
+                      <span className="inline-block rounded bg-copper-100 px-1.5 py-0 text-[10px] font-medium text-copper-900">
                         Férié
                       </span>
                     ) : null}
@@ -160,10 +160,10 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
                     {o.is_closed ? (
                       <span className="text-rose-700">Fermé</span>
                     ) : (
-                      <span className="text-slate-700">Ouvert (spécial)</span>
+                      <span className="text-stone-700">Ouvert (spécial)</span>
                     )}
                   </td>
-                  <td className="px-2 py-2 text-slate-700">{etpCell(o)}</td>
+                  <td className="px-2 py-2 text-stone-700">{etpCell(o)}</td>
                   <td className="px-2 py-2 text-right">
                     <button
                       type="button"
@@ -181,8 +181,8 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
         </table>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-slate-900">Nouvelle exception</h3>
+      <div className="rounded-xl border border-stone-200 bg-stone-50/50 p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-stone-900">Nouvelle exception</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={uiLabel} htmlFor="ov-day">
@@ -209,13 +209,13 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
             />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-stone-700">
           <input type="checkbox" checked={isClosed} onChange={(e) => setIsClosed(e.target.checked)} />
           Établissement fermé ce jour-là
         </label>
         {!isClosed ? (
           <>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
                 checked={inheritOpening}
@@ -266,7 +266,7 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
                 ))}
                 <button
                   type="button"
-                  className="text-xs font-medium text-indigo-700 hover:underline"
+                  className="text-xs font-medium text-copper-800 hover:underline"
                   onClick={() => setBandRows((r) => [...r, { start: "18:30", end: "23:00" }])}
                 >
                   + Plage (ex. service du soir)
@@ -275,7 +275,7 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
             ) : null}
           </>
         ) : null}
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-stone-700">
           <input type="checkbox" checked={inheritStaff} onChange={(e) => setInheritStaff(e.target.checked)} />
           Reprendre l’ETP du modèle hebdomadaire (jour type)
         </label>
@@ -284,7 +284,7 @@ export function PlanningOverridesPanel({ restaurantId, overrides }: Props) {
             <label className={uiLabel} htmlFor="ov-staff">
               ETP (équivalent temps plein) ce jour
             </label>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className="mt-0.5 text-[11px] text-stone-500">
               Nombre d’équivalents temps plein nécessaires pour couvrir la journée (ex. 4,5).
             </p>
             <input

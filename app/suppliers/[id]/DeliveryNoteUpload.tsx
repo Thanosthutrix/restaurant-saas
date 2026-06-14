@@ -98,7 +98,7 @@ export function DeliveryNoteUpload({ restaurantId, supplierId, purchaseOrders }:
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-500">
+        <label className="mb-1 block text-xs font-medium text-stone-500">
           Fichier du bon de livraison
         </label>
         <input
@@ -107,15 +107,15 @@ export function DeliveryNoteUpload({ restaurantId, supplierId, purchaseOrders }:
           accept=".pdf,image/*"
           onChange={handleFileChange}
           disabled={loading}
-          className="block w-full text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-3 file:py-1 file:text-sm file:font-medium file:text-slate-800"
+          className="block w-full text-sm text-stone-600 file:mr-2 file:rounded file:border-0 file:bg-stone-200 file:px-3 file:py-1 file:text-sm file:font-medium file:text-stone-800"
         />
         {/* Affichage du fichier sélectionné et état (debug visible) */}
-        <div className="mt-2 rounded border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs">
-          <p className="font-medium text-slate-700">
+        <div className="mt-2 rounded border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs">
+          <p className="font-medium text-stone-700">
             Fichier : {file ? file.name : "—"}
           </p>
           {file && (
-            <p className="mt-0.5 text-slate-600">
+            <p className="mt-0.5 text-stone-600">
               Taille : {formatFileSize(file.size)}
             </p>
           )}
@@ -126,14 +126,14 @@ export function DeliveryNoteUpload({ restaurantId, supplierId, purchaseOrders }:
       </div>
       {purchaseOrders.length > 0 && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">
+          <label className="mb-1 block text-xs font-medium text-stone-500">
             Associer à une commande (optionnel)
           </label>
           <select
             value={purchaseOrderId}
             onChange={(e) => setPurchaseOrderId(e.target.value)}
             disabled={loading}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           >
             <option value="">— Aucune —</option>
             {purchaseOrders.map((po) => (
@@ -175,7 +175,7 @@ export function DeliveryNoteUpload({ restaurantId, supplierId, purchaseOrders }:
       <button
         type="submit"
         disabled={loading || !file}
-        className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Upload en cours…" : "Enregistrer le BL"}
       </button>

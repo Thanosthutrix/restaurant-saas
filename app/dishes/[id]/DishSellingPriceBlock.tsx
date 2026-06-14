@@ -93,10 +93,10 @@ export function DishSellingPriceBlock({
 
   return (
     <div className={uiCard}>
-      <h2 className="mb-2 text-sm font-semibold text-slate-900">Marge (estimation)</h2>
+      <h2 className="mb-2 text-sm font-semibold text-stone-900">Marge (estimation)</h2>
       <p className={`mb-3 ${uiMuted}`}>
-        Prix carte saisi en <strong className="font-medium text-slate-700">TTC</strong> (comme affiché client).
-        Le <strong className="font-medium text-slate-700">HT</strong> est calculé selon le taux de TVA choisi ; la
+        Prix carte saisi en <strong className="font-medium text-stone-700">TTC</strong> (comme affiché client).
+        Le <strong className="font-medium text-stone-700">HT</strong> est calculé selon le taux de TVA choisi ; la
         marge compare ce HT au coût matière HT (recette × achats).
       </p>
       {foodCostError && <p className={`mb-2 ${uiWarn}`}>{foodCostError}</p>}
@@ -104,7 +104,7 @@ export function DishSellingPriceBlock({
       <div className="mb-3 grid gap-2 text-sm sm:grid-cols-2">
         <div className={uiCardMuted}>
           <div className={uiMuted}>Coût matière HT</div>
-          <div className="font-semibold text-slate-900">
+          <div className="font-semibold text-stone-900">
             {foodCostHt != null && costIsComplete
               ? formatEur(foodCostHt)
               : costIsComplete
@@ -121,7 +121,7 @@ export function DishSellingPriceBlock({
           <div className={uiMuted}>Marge HT / taux</div>
           <div
             className={`font-semibold ${
-              marginHt != null && marginHt > 0 ? "text-emerald-700" : "text-slate-900"
+              marginHt != null && marginHt > 0 ? "text-emerald-700" : "text-stone-900"
             }`}
           >
             {marginHt != null && marginPct != null
@@ -130,9 +130,9 @@ export function DishSellingPriceBlock({
           </div>
         </div>
       </div>
-      <div className="mb-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm">
+      <div className="mb-3 rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2 text-sm">
         <div className={uiMuted}>Prix de vente HT (calculé)</div>
-        <div className="font-semibold tabular-nums text-slate-900">
+        <div className="font-semibold tabular-nums text-stone-900">
           {savedHt != null ? formatEur(savedHt) : "—"}
         </div>
       </div>

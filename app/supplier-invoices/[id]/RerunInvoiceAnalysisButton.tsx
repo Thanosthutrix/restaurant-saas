@@ -37,7 +37,7 @@ export function RerunInvoiceAnalysisButton({ invoiceId, restaurantId, disabled }
         type="button"
         disabled={disabled || pending}
         onClick={handleClick}
-        className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+        className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-800 hover:bg-stone-50 disabled:opacity-50"
       >
         {pending ? "Analyse en cours…" : "Relancer l’analyse"}
       </button>

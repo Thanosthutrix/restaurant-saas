@@ -42,7 +42,7 @@ export default function AchatsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Espace métier</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-copper-700">Espace métier</p>
         <h1 className={`${uiPageTitle} mt-2`}>Achats & stock</h1>
         <p className={`${uiLead} mt-2 max-w-2xl`}>
           Le parcours achat est regroupé au même endroit : besoin, commande, réception, facture, puis transfert
@@ -54,14 +54,14 @@ export default function AchatsPage() {
         {flow.map((step, index) => (
           <Link key={step.href} href={step.href} className={`${uiCard} group block transition hover:-translate-y-0.5 hover:shadow-md`}>
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-sm font-semibold text-indigo-700">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-copper-50 text-sm font-semibold text-copper-800">
                 {index + 1}
               </span>
-              <ArrowUpRight className="h-5 w-5 text-slate-300 transition group-hover:text-indigo-500" aria-hidden />
+              <ArrowUpRight className="h-5 w-5 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
             </div>
-            <h2 className="mt-4 text-base font-semibold text-slate-900">{step.title}</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-500">{step.description}</p>
-            <p className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-indigo-600">
+            <h2 className="mt-4 text-base font-semibold text-stone-900">{step.title}</h2>
+            <p className="mt-1 text-sm leading-6 text-stone-500">{step.description}</p>
+            <p className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-copper-700">
               {step.cta}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </p>
@@ -70,7 +70,7 @@ export default function AchatsPage() {
       </section>
 
       <section className={uiCard} aria-labelledby="shortcuts-heading">
-        <h2 id="shortcuts-heading" className="text-sm font-semibold text-slate-900">
+        <h2 id="shortcuts-heading" className="text-sm font-semibold text-stone-900">
           Accès rapides achats
         </h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -80,13 +80,13 @@ export default function AchatsPage() {
               <Link
                 key={shortcut.href}
                 href={shortcut.href}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-100 hover:bg-white hover:text-indigo-700"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-700 transition hover:border-copper-100 hover:bg-white hover:text-copper-800"
               >
                 <span className="inline-flex items-center gap-3">
-                  <Icon className="h-4 w-4 text-slate-400" aria-hidden />
+                  <Icon className="h-4 w-4 text-stone-400" aria-hidden />
                   {shortcut.label}
                 </span>
-                <ArrowUpRight className="h-4 w-4 text-slate-300" aria-hidden />
+                <ArrowUpRight className="h-4 w-4 text-stone-300" aria-hidden />
               </Link>
             );
           })}

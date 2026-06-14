@@ -43,19 +43,19 @@ export function DiningOrderTicketLineRow({
   onToggleLinePrepared,
 }: LineRowProps) {
   return (
-    <li className="flex items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50/90 px-1.5 py-1">
+    <li className="flex items-center gap-2 rounded-lg border border-stone-100 bg-stone-50/90 px-2 py-1.5">
       <button
         type="button"
-        className="min-w-0 flex-1 truncate text-left text-xs leading-tight text-slate-900"
+        className="min-w-0 flex-1 truncate py-1.5 text-left text-sm leading-tight text-stone-900"
         disabled={pending}
         title="Remise"
         onClick={() => onDiscount(l)}
       >
         <span className="font-medium">{l.dishName}</span>
-        <span className="text-slate-500"> ×{l.qty}</span>
-        <span className="ml-1 tabular-nums text-slate-700">{fmtEur(l.lineTotalTtc)}</span>
+        <span className="text-stone-500"> ×{l.qty}</span>
+        <span className="ml-1 tabular-nums text-stone-700">{fmtEur(l.lineTotalTtc)}</span>
         {l.discountKind !== "none" ? (
-          <span className="ml-1 text-[10px] font-semibold text-amber-800">({discountBadge(l)})</span>
+          <span className="ml-1 text-[11px] font-semibold text-amber-800">({discountBadge(l)})</span>
         ) : null}
       </button>
       {onToggleLinePrepared ? (
@@ -66,17 +66,17 @@ export function DiningOrderTicketLineRow({
           onClick={() => onToggleLinePrepared(l.id, !l.isPrepared)}
           className={
             l.isPrepared
-              ? "shrink-0 rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-emerald-900 transition hover:bg-emerald-200 disabled:opacity-50"
-              : "shrink-0 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold leading-none text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
+              ? "flex h-10 shrink-0 items-center rounded-lg border border-emerald-300 bg-emerald-100 px-2.5 text-xs font-semibold leading-none text-emerald-900 transition hover:bg-emerald-200 disabled:opacity-50"
+              : "flex h-10 shrink-0 items-center rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-semibold leading-none text-stone-600 transition hover:bg-stone-100 disabled:opacity-50"
           }
         >
           Prêt
         </button>
       ) : null}
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
-          className="flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-stone-200 bg-white text-lg font-semibold text-stone-700 hover:bg-stone-50 active:scale-95 disabled:opacity-50"
           disabled={pending}
           onClick={() => onAdjust(l.id, -1)}
         >
@@ -84,7 +84,7 @@ export function DiningOrderTicketLineRow({
         </button>
         <button
           type="button"
-          className="flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-stone-200 bg-white text-lg font-semibold text-stone-700 hover:bg-stone-50 active:scale-95 disabled:opacity-50"
           disabled={pending}
           onClick={() => onAdjust(l.id, 1)}
         >
@@ -92,7 +92,7 @@ export function DiningOrderTicketLineRow({
         </button>
         <button
           type="button"
-          className="flex h-7 min-w-[1.75rem] items-center justify-center rounded border border-rose-200 bg-white px-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-rose-200 bg-white text-base font-semibold text-rose-700 hover:bg-rose-50 active:scale-95 disabled:opacity-50"
           disabled={pending}
           title="Retirer"
           onClick={() => onRemove(l.id)}
@@ -126,43 +126,46 @@ export function DiningOrderTicketFooterBar({
   onCancel,
 }: FooterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-slate-100 bg-slate-50/60 px-2 py-1.5">
-      <span className="text-xs font-semibold text-slate-600">Total</span>
-      <span className="text-sm font-bold tabular-nums text-slate-900">{fmtEur(totalTtc)}</span>
-      <span className="hidden min-[380px]:inline text-[10px] text-slate-400">|</span>
-      <div className="flex flex-1 flex-wrap items-center justify-end gap-1">
-        {DINING_PAYMENT_METHODS.map((m) => (
-          <button
-            key={m}
-            type="button"
-            disabled={pending}
-            onClick={() => onPaymentMethod(m)}
-            className={
-              paymentMethod === m
-                ? "rounded-md bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white"
-                : "rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
-            }
-          >
-            {PAYMENT_SHORT[m]}
-          </button>
-        ))}
+    <div className="space-y-2 border-t border-stone-100 bg-stone-50/60 px-2 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="text-sm font-semibold text-stone-600">Total</span>
+        <span className="text-xl font-bold tabular-nums text-stone-900">{fmtEur(totalTtc)}</span>
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5">
+          {DINING_PAYMENT_METHODS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              disabled={pending}
+              onClick={() => onPaymentMethod(m)}
+              className={
+                paymentMethod === m
+                  ? "copper-sheen flex h-10 items-center rounded-lg px-3 text-sm font-semibold text-white"
+                  : "flex h-10 items-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100"
+              }
+            >
+              {PAYMENT_SHORT[m]}
+            </button>
+          ))}
+        </div>
       </div>
-      <button
-        type="button"
-        className={`${uiBtnPrimary} shrink-0 px-3 py-1.5 text-xs font-semibold`}
-        disabled={pending || loading || linesCount === 0 || totalTtc < 0}
-        onClick={onSettle}
-      >
-        Encaisser
-      </button>
-      <button
-        type="button"
-        className="ml-auto text-[11px] font-medium text-rose-700 underline decoration-rose-200 underline-offset-1 hover:text-rose-900 disabled:opacity-50"
-        disabled={pending}
-        onClick={onCancel}
-      >
-        Annuler
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`${uiBtnPrimary} min-h-[52px] flex-1 text-base`}
+          disabled={pending || loading || linesCount === 0 || totalTtc < 0}
+          onClick={onSettle}
+        >
+          Encaisser
+        </button>
+        <button
+          type="button"
+          className="flex min-h-[52px] items-center rounded-xl px-3 text-sm font-medium text-rose-700 underline decoration-rose-200 underline-offset-2 hover:text-rose-900 disabled:opacity-50"
+          disabled={pending}
+          onClick={onCancel}
+        >
+          Annuler
+        </button>
+      </div>
     </div>
   );
 }
@@ -176,7 +179,7 @@ type CardProps = {
 
 export function DiningOrderTicketCard({ header, error, linesContent, footer }: CardProps) {
   return (
-    <div className="rounded-lg border border-slate-200/90 bg-white shadow-sm">
+    <div className="rounded-lg border border-stone-200/90 bg-white shadow-sm">
       {header}
       {error ? <p className={`${uiError} px-2 py-1 text-xs`}>{error}</p> : null}
       {linesContent}

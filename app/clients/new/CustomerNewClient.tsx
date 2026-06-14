@@ -78,7 +78,7 @@ export function CustomerNewClient({ restaurantId }: { restaurantId: string }) {
       {dupHint ? <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{dupHint}</p> : null}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Identité</h2>
+        <h2 className="text-sm font-semibold text-stone-900">Identité</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={uiLabel}>
             Nom affiché *
@@ -100,7 +100,7 @@ export function CustomerNewClient({ restaurantId }: { restaurantId: string }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Contact</h2>
+        <h2 className="text-sm font-semibold text-stone-900">Contact</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={uiLabel}>
             Email
@@ -140,7 +140,7 @@ export function CustomerNewClient({ restaurantId }: { restaurantId: string }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Adresse</h2>
+        <h2 className="text-sm font-semibold text-stone-900">Adresse</h2>
         <div className="grid gap-3">
           <label className={uiLabel}>
             Ligne 1
@@ -168,7 +168,7 @@ export function CustomerNewClient({ restaurantId }: { restaurantId: string }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Service & notes</h2>
+        <h2 className="text-sm font-semibold text-stone-900">Service & notes</h2>
         <label className={uiLabel}>
           Origine de la fiche
           <select name="source" className={uiInput} defaultValue="other">
@@ -189,21 +189,21 @@ export function CustomerNewClient({ restaurantId }: { restaurantId: string }) {
         </label>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-        <h2 className="text-sm font-semibold text-slate-900">Consentements (RGPD)</h2>
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="service_messages_opt_in" defaultChecked className="mt-1 h-4 w-4 rounded border-slate-300" />
+      <section className="space-y-3 rounded-xl border border-stone-100 bg-stone-50/80 p-4">
+        <h2 className="text-sm font-semibold text-stone-900">Consentements (RGPD)</h2>
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-stone-700">
+          <input type="checkbox" name="service_messages_opt_in" defaultChecked className="mt-1 h-4 w-4 rounded border-stone-300" />
           <span>
             Messages liés au service (réservations, rappels de créneau) — recommandé pour la bonne exécution du
             contrat.
           </span>
         </label>
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="marketing_opt_in" className="mt-1 h-4 w-4 rounded border-slate-300" />
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-stone-700">
+          <input type="checkbox" name="marketing_opt_in" className="mt-1 h-4 w-4 rounded border-stone-300" />
           <span>Communications commerciales (offres, actualités du lieu).</span>
         </label>
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="analytics_opt_in" className="mt-1 h-4 w-4 rounded border-slate-300" />
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-stone-700">
+          <input type="checkbox" name="analytics_opt_in" className="mt-1 h-4 w-4 rounded border-stone-300" />
           <span>Enquêtes de satisfaction et statistiques d’usage anonymisées.</span>
         </label>
       </section>

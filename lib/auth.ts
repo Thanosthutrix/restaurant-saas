@@ -30,6 +30,8 @@ export type Restaurant = {
   school_zone: "A" | "B" | "C" | null;
   address_text: string | null;
   school_zone_is_manual: boolean;
+  /** Jours de fermeture hebdomadaire : 0=dim, 1=lun, …, 6=sam. */
+  closed_days_of_week: number[];
   created_at: string;
   updated_at: string;
 };
@@ -73,6 +75,7 @@ function mapRestaurantFromRow(row: RestaurantRow): Restaurant {
         : null,
     address_text: row.address_text?.trim() || null,
     school_zone_is_manual: Boolean(row.school_zone_is_manual),
+    closed_days_of_week: [],
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

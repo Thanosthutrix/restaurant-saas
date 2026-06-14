@@ -184,7 +184,7 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
   if (missing) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm text-slate-700">Aucun tarif détecté à valider.</p>
+        <p className="text-sm text-stone-700">Aucun tarif détecté à valider.</p>
         <button type="button" onClick={finish} className={uiBtnPrimaryBlock}>
           Ouvrir le tableau de bord
         </button>
@@ -220,18 +220,18 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
         {rows.map((row, index) => (
           <div key={row.clientId} className={`${uiCard} space-y-3`}>
             <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-stone-700">
                 <input
                   type="checkbox"
                   checked={row.selected}
                   onChange={(e) => updateRow(index, { selected: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                  className="h-4 w-4 rounded border-stone-300 accent-copper-700"
                 />
                 Valider
               </label>
               <div className="min-w-[12rem] flex-1">
-                <p className="text-sm font-semibold text-slate-900">{row.label}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-sm font-semibold text-stone-900">{row.label}</p>
+                <p className="text-xs text-stone-500">
                   Facture : {row.quantity ?? "—"} {row.unit ?? ""} · PU {row.unit_price_ht ?? "—"} € · ligne{" "}
                   {row.line_total_ht ?? "—"} €
                 </p>
@@ -240,7 +240,7 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
 
             <div className="grid gap-3 md:grid-cols-[1fr_1fr_8rem_8rem_auto] md:items-end">
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-500">Ingrédient existant</span>
+                <span className="mb-1 block text-xs font-medium text-stone-500">Ingrédient existant</span>
                 <select
                   value={row.inventory_item_id}
                   onChange={(e) =>
@@ -266,7 +266,7 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-500">Ou créer l’ingrédient</span>
+                <span className="mb-1 block text-xs font-medium text-stone-500">Ou créer l’ingrédient</span>
                 <input
                   value={row.create_inventory_item_name}
                   onChange={(e) =>
@@ -283,7 +283,7 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-500">Prix HT/unité</span>
+                <span className="mb-1 block text-xs font-medium text-stone-500">Prix HT/unité</span>
                 <input
                   type="number"
                   min={0}
@@ -298,7 +298,7 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-500">Unité stock</span>
+                <span className="mb-1 block text-xs font-medium text-stone-500">Unité stock</span>
                 <select
                   value={row.unit_choice}
                   onChange={(e) =>
@@ -398,15 +398,15 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
                             className={`w-full rounded-md border px-2 py-1.5 text-left transition ${
                               selected
                                 ? "border-emerald-600 bg-emerald-100/90 text-emerald-950"
-                                : "border-emerald-100 bg-white/90 text-slate-800 hover:border-emerald-300"
+                                : "border-emerald-100 bg-white/90 text-stone-800 hover:border-emerald-300"
                             }`}
                           >
                             <span className="font-medium">{c.produitLabel}</span>
-                            <span className="text-slate-500"> — {c.famille}</span>
-                            <span className="block text-[11px] text-slate-600">
+                            <span className="text-stone-500"> — {c.famille}</span>
+                            <span className="block text-[11px] text-stone-600">
                               Moyenne base : {formatEur(c.catalogMeanEuroHt)} HT / {c.catalogNormalizedUnit}
                             </span>
-                            <span className="block text-[11px] text-slate-500">
+                            <span className="block text-[11px] text-stone-500">
                               Pour votre unité de stock ({STOCK_UNIT_LABEL_FR[row.unit_choice]}) : {formatEurRefUnit(c.price)} HT
                             </span>
                           </button>
@@ -418,9 +418,9 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
               </div>
             ) : null}
 
-            <div className="space-y-2 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2.5">
-              <p className="text-xs font-semibold text-indigo-950">Facture : unité de conditionnement → stock</p>
-              <p className="text-[11px] leading-snug text-indigo-900/95">
+            <div className="space-y-2 rounded-lg border border-copper-100 bg-copper-50/60 px-3 py-2.5">
+              <p className="text-xs font-semibold text-copper-950">Facture : unité de conditionnement → stock</p>
+              <p className="text-[11px] leading-snug text-copper-900/95">
                 Même principe que la réception : combien d’unités de stock (
                 <strong>{STOCK_UNIT_LABEL_FR[row.unit_choice]}</strong>) correspondent à <strong>1 unité livrée</strong>{" "}
                 telle qu’à la facture (ex. 1 sac = 20&nbsp;000 si le stock est en g pour un sac de 20&nbsp;kg). Laisser le
@@ -428,7 +428,7 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
               </p>
               <div className="grid gap-2 sm:grid-cols-2 sm:items-end">
                 <label className="block">
-                  <span className="mb-1 block text-[10px] font-medium text-indigo-900">Libellé unité facture / colis</span>
+                  <span className="mb-1 block text-[10px] font-medium text-copper-900">Libellé unité facture / colis</span>
                   <input
                     value={row.purchase_unit_label}
                     onChange={(e) => updateRow(index, { purchase_unit_label: e.target.value })}
@@ -437,7 +437,7 @@ export function ReviewPurchasePricesClient({ inventory }: { inventory: Inventory
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[10px] font-medium text-indigo-900">
+                  <span className="mb-1 block text-[10px] font-medium text-copper-900">
                     1 unité livrée = combien de {STOCK_UNIT_LABEL_FR[row.unit_choice]} ?
                   </span>
                   <input

@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { invalidateHygieneElementsCache, invalidateTemperaturePointsCache } from "@/lib/cacheInvalidation";
 import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getCurrentUser } from "@/lib/auth";
@@ -87,6 +88,13 @@ export async function ensureHygieneTasksAction(restaurantId: string): Promise<vo
   revalidatePath("/hygiene/a-faire");
 }
 
+/** Catégories "froid" dont le type de point HACCP correspondant. */
+const COLD_CATEGORY_POINT_TYPE: Record<string, string> = {
+  chambre_froide: "cold_storage",
+  frigo: "cold_storage",
+  congelateur: "freezer",
+};
+
 export async function upsertHygieneElementAction(
   restaurantId: string,
   payload: {
@@ -105,6 +113,15 @@ export async function upsertHygieneElementAction(
     dosage: string | null;
     contact_time: string | null;
     active: boolean;
+    temp_point_enabled: boolean;
+    temp_min_threshold: number | null;
+    temp_max_threshold: number | null;
+    temp_recurrence_type: "daily" | "per_service" | null;
+    secondary_recurrence_type: HygieneRecurrenceType | null;
+    secondary_recurrence_day_of_week: number | null;
+    secondary_recurrence_day_of_month: number | null;
+    secondary_cleaning_protocol: string;
+    secondary_disinfection_protocol: string;
   }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser();
@@ -114,6 +131,20 @@ export async function upsertHygieneElementAction(
 
   const name = payload.name.trim();
   if (!name) return { ok: false, error: "Le nom est obligatoire." };
+
+  const isCold = payload.category in COLD_CATEGORY_POINT_TYPE;
+  const tempEnabled = isCold && payload.temp_point_enabled;
+
+  if (tempEnabled) {
+    const min = payload.temp_min_threshold;
+    const max = payload.temp_max_threshold;
+    if (min == null || max == null || !Number.isFinite(min) || !Number.isFinite(max)) {
+      return { ok: false, error: "Renseignez les seuils de température (min et max)." };
+    }
+    if (min >= max) {
+      return { ok: false, error: "Le seuil minimum doit être inférieur au maximum." };
+    }
+  }
 
   const row = {
     restaurant_id: restaurantId,
@@ -131,8 +162,18 @@ export async function upsertHygieneElementAction(
     dosage: payload.dosage?.trim() || null,
     contact_time: payload.contact_time?.trim() || null,
     active: payload.active,
+    temp_point_enabled: tempEnabled,
+    temp_min_threshold: tempEnabled ? payload.temp_min_threshold : null,
+    temp_max_threshold: tempEnabled ? payload.temp_max_threshold : null,
+    temp_recurrence_type: tempEnabled ? (payload.temp_recurrence_type ?? "daily") : null,
+    secondary_recurrence_type: payload.secondary_recurrence_type || null,
+    secondary_recurrence_day_of_week: payload.secondary_recurrence_type === "weekly" ? payload.secondary_recurrence_day_of_week : null,
+    secondary_recurrence_day_of_month: payload.secondary_recurrence_type && ["monthly", "quarterly", "annual"].includes(payload.secondary_recurrence_type) ? payload.secondary_recurrence_day_of_month : null,
+    secondary_cleaning_protocol: payload.secondary_cleaning_protocol.trim(),
+    secondary_disinfection_protocol: payload.secondary_disinfection_protocol.trim(),
   };
 
+  let elementId: string;
   if (payload.id) {
     const { error } = await supabaseServer
       .from("hygiene_elements")
@@ -140,15 +181,91 @@ export async function upsertHygieneElementAction(
       .eq("id", payload.id)
       .eq("restaurant_id", restaurantId);
     if (error) return { ok: false, error: error.message };
+    elementId = payload.id;
   } else {
-    const { error } = await supabaseServer.from("hygiene_elements").insert(row);
-    if (error) return { ok: false, error: error.message };
+    const { data, error } = await supabaseServer
+      .from("hygiene_elements")
+      .insert(row)
+      .select("id")
+      .maybeSingle();
+    if (error || !data) return { ok: false, error: error?.message ?? "Erreur à la création." };
+    elementId = (data as { id: string }).id;
   }
+
+  // Synchroniser le temperature_point lié
+  await syncTemperaturePointForElement(restaurantId, elementId, payload.category, {
+    enabled: tempEnabled,
+    active: payload.active,
+    name,
+    location: payload.area_label.trim(),
+    min_threshold: payload.temp_min_threshold,
+    max_threshold: payload.temp_max_threshold,
+    recurrence_type: payload.temp_recurrence_type ?? "daily",
+  });
 
   revalidatePath("/hygiene");
   revalidatePath("/hygiene/elements");
   revalidatePath("/hygiene/a-faire");
+  revalidatePath("/dashboard");
   return { ok: true };
+}
+
+async function syncTemperaturePointForElement(
+  restaurantId: string,
+  elementId: string,
+  category: string,
+  opts: {
+    enabled: boolean;
+    active: boolean;
+    name: string;
+    location: string;
+    min_threshold: number | null;
+    max_threshold: number | null;
+    recurrence_type: "daily" | "per_service";
+  }
+): Promise<void> {
+  // Chercher un temperature_point déjà lié à cet élément
+  const { data: existing } = await supabaseServer
+    .from("temperature_points")
+    .select("id")
+    .eq("restaurant_id", restaurantId)
+    .eq("hygiene_element_id", elementId)
+    .maybeSingle();
+
+  const linkedId = existing ? (existing as { id: string }).id : null;
+
+  if (!opts.enabled) {
+    // Désactiver le point lié s'il existe
+    if (linkedId) {
+      await supabaseServer
+        .from("temperature_points")
+        .update({ active: false })
+        .eq("id", linkedId);
+    }
+    return;
+  }
+
+  const pointType = COLD_CATEGORY_POINT_TYPE[category] ?? "cold_storage";
+  const pointRow = {
+    restaurant_id: restaurantId,
+    name: opts.name,
+    point_type: pointType,
+    location: opts.location,
+    min_threshold: opts.min_threshold!,
+    max_threshold: opts.max_threshold!,
+    recurrence_type: opts.recurrence_type,
+    active: opts.active,
+    hygiene_element_id: elementId,
+  };
+
+  if (linkedId) {
+    await supabaseServer
+      .from("temperature_points")
+      .update(pointRow)
+      .eq("id", linkedId);
+  } else {
+    await supabaseServer.from("temperature_points").insert(pointRow);
+  }
 }
 
 export async function setHygieneElementActiveAction(
@@ -167,7 +284,40 @@ export async function setHygieneElementActiveAction(
     .eq("id", elementId)
     .eq("restaurant_id", restaurantId);
   if (error) return { ok: false, error: error.message };
+
+  // Propager l'activation/désactivation au temperature_point lié
+  await supabaseServer
+    .from("temperature_points")
+    .update({ active })
+    .eq("hygiene_element_id", elementId)
+    .eq("restaurant_id", restaurantId);
+
   revalidatePath("/hygiene/elements");
+  revalidatePath("/dashboard");
+  invalidateHygieneElementsCache();
+  invalidateTemperaturePointsCache();
+  return { ok: true };
+}
+
+export async function deleteHygieneElementAction(
+  restaurantId: string,
+  elementId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, restaurantId, "hygiene.mutate");
+  if (!gate.ok) return gate;
+
+  const { error } = await supabaseServer
+    .from("hygiene_elements")
+    .delete()
+    .eq("id", elementId)
+    .eq("restaurant_id", restaurantId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/hygiene/elements");
+  revalidatePath("/hygiene/a-faire");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 

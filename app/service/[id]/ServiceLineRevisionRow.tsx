@@ -95,11 +95,11 @@ export function ServiceLineRevisionRow({
 
   return (
     <tr
-      className={`border-b border-slate-100 ${isIgnored ? "opacity-60 bg-slate-50" : ""}`}
+      className={`border-b border-stone-100 ${isIgnored ? "opacity-60 bg-stone-50" : ""}`}
     >
-      <td className="py-2 pr-2 text-slate-500">{rowIndex + 1}</td>
-      <td className="py-2 pr-2 font-medium text-slate-900">{raw_label}</td>
-      <td className="py-2 pr-2 text-xs text-slate-600">{normalized_label || "—"}</td>
+      <td className="py-2 pr-2 text-stone-500">{rowIndex + 1}</td>
+      <td className="py-2 pr-2 font-medium text-stone-900">{raw_label}</td>
+      <td className="py-2 pr-2 text-xs text-stone-600">{normalized_label || "—"}</td>
       <td className="py-2 pr-2">
         <div className="flex items-center gap-1">
           <input
@@ -108,14 +108,14 @@ export function ServiceLineRevisionRow({
             value={qtyInput}
             onChange={(e) => setQtyInput(e.target.value)}
             disabled={isIgnored}
-            className="w-14 rounded border border-slate-300 px-2 py-1 text-sm disabled:opacity-50"
+            className="w-14 rounded border border-stone-300 px-2 py-1 text-sm disabled:opacity-50"
           />
           {!isIgnored && (
             <button
               type="button"
               disabled={savingQty}
               onClick={handleSaveQty}
-              className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100"
+              className="rounded border border-stone-300 px-2 py-0.5 text-xs hover:bg-stone-100"
             >
               {savingQty ? "…" : "Ok"}
             </button>
@@ -123,15 +123,15 @@ export function ServiceLineRevisionRow({
         </div>
       </td>
       <td className="py-2 pr-2">
-        {isIgnored && <span className="text-slate-500">Ignorée</span>}
+        {isIgnored && <span className="text-stone-500">Ignorée</span>}
         {isRecognized && <span className="text-emerald-600">Reconnu</span>}
         {isUnrecognized && <span className="text-amber-600">Non reconnu</span>}
       </td>
       <td className="py-2 pr-2">
         {dish ? (
-          <span className="text-slate-900">{dish.name}</span>
+          <span className="text-stone-900">{dish.name}</span>
         ) : (
-          <span className="text-slate-400">—</span>
+          <span className="text-stone-400">—</span>
         )}
       </td>
       <td className="py-2">
@@ -142,7 +142,7 @@ export function ServiceLineRevisionRow({
               type="button"
               disabled={loading}
               onClick={handleUnignore}
-              className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100 disabled:opacity-50"
+              className="rounded border border-stone-300 px-2 py-0.5 text-xs hover:bg-stone-100 disabled:opacity-50"
             >
               Réactiver
             </button>
@@ -153,7 +153,7 @@ export function ServiceLineRevisionRow({
                 type="button"
                 disabled={loading}
                 onClick={() => { setShowDishSelect(!showDishSelect); setShowNewDishInput(false); }}
-                className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100 disabled:opacity-50"
+                className="rounded border border-stone-300 px-2 py-0.5 text-xs hover:bg-stone-100 disabled:opacity-50"
               >
                 Changer le plat
               </button>
@@ -173,7 +173,7 @@ export function ServiceLineRevisionRow({
                 type="button"
                 disabled={loading}
                 onClick={() => { setShowDishSelect(!showDishSelect); setShowNewDishInput(false); }}
-                className="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-100 disabled:opacity-50"
+                className="rounded border border-stone-300 px-2 py-0.5 text-xs hover:bg-stone-100 disabled:opacity-50"
               >
                 Associer à un plat
               </button>
@@ -199,7 +199,7 @@ export function ServiceLineRevisionRow({
         {showDishSelect && (
           <div className="mt-2">
             <select
-              className="w-full max-w-xs rounded border border-slate-300 px-2 py-1 text-sm"
+              className="w-full max-w-xs rounded border border-stone-300 px-2 py-1 text-sm"
               value=""
               onChange={(e) => { const id = e.target.value; if (id) handleAssociate(id); }}
               aria-label="Choisir un plat"
@@ -218,7 +218,7 @@ export function ServiceLineRevisionRow({
               value={newDishName}
               onChange={(e) => setNewDishName(e.target.value)}
               placeholder="Nom du nouveau plat"
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
+              className="rounded border border-stone-300 px-2 py-1 text-sm"
             />
             <button
               type="button"

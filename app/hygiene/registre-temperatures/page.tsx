@@ -28,12 +28,12 @@ export default async function HygieneRegistreTemperaturesPage() {
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-slate-500">Aucun relevé enregistré pour l’instant.</p>
+        <p className="text-sm text-stone-500">Aucun relevé enregistré pour l’instant.</p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-stone-100 bg-white shadow-sm">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-stone-100 text-xs font-semibold uppercase tracking-wide text-stone-500">
                 <th className="px-3 py-2">Date et heure</th>
                 <th className="px-3 py-2">Équipement</th>
                 <th className="px-3 py-2">Moment</th>
@@ -44,8 +44,8 @@ export default async function HygieneRegistreTemperaturesPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-slate-50">
-                  <td className="px-3 py-2 whitespace-nowrap text-slate-700">
+                <tr key={r.id} className="border-b border-stone-50">
+                  <td className="px-3 py-2 whitespace-nowrap text-stone-700">
                     {new Date(r.recorded_at).toLocaleString("fr-FR", {
                       day: "numeric",
                       month: "short",
@@ -55,26 +55,26 @@ export default async function HygieneRegistreTemperaturesPage() {
                     })}
                   </td>
                   <td className="px-3 py-2">
-                    <span className="font-medium text-slate-900">{r.element_name}</span>
-                    <span className="block text-xs text-slate-500">
+                    <span className="font-medium text-stone-900">{r.element_name}</span>
+                    <span className="block text-xs text-stone-500">
                       {HYGIENE_CATEGORY_LABEL_FR[r.element_category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ??
                         r.element_category}
                       {r.area_label ? ` · ${r.area_label}` : ""}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-slate-700">
+                  <td className="px-3 py-2 text-stone-700">
                     {HYGIENE_COLD_EVENT_LABEL_FR[r.event_kind as HygieneColdEventKind]}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-900">
+                  <td className="px-3 py-2 text-right tabular-nums text-stone-900">
                     {r.temperature_celsius} °C
                   </td>
-                  <td className="px-3 py-2 text-slate-700">
+                  <td className="px-3 py-2 text-stone-700">
                     {r.recorded_by_initials ? (
                       <span className="font-medium">{r.recorded_by_initials}</span>
                     ) : null}
                     {r.recorded_by_display ? (
                       <span
-                        className={`${r.recorded_by_initials ? "mt-0.5 block " : ""}text-xs text-slate-500`}
+                        className={`${r.recorded_by_initials ? "mt-0.5 block " : ""}text-xs text-stone-500`}
                       >
                         {r.recorded_by_initials ? "Compte : " : ""}
                         {r.recorded_by_display}
@@ -82,7 +82,7 @@ export default async function HygieneRegistreTemperaturesPage() {
                     ) : null}
                     {!r.recorded_by_initials && !r.recorded_by_display ? "—" : null}
                   </td>
-                  <td className="max-w-[14rem] px-3 py-2 text-slate-600">{r.comment ?? "—"}</td>
+                  <td className="max-w-[14rem] px-3 py-2 text-stone-600">{r.comment ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

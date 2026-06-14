@@ -50,19 +50,19 @@ export default async function VentesInsightsPage({
         <div className="flex flex-wrap gap-2">
           <Link
             href="/insights/revenue"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
           >
             CA importé (historique)
           </Link>
           <Link
             href="/margins"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
           >
             Marges détaillées
           </Link>
           <Link
             href="/insights/calendar"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
           >
             Calendrier
           </Link>
@@ -70,12 +70,12 @@ export default async function VentesInsightsPage({
       </div>
 
       <div className={uiCard}>
-        <p className="text-sm leading-relaxed text-slate-600">
-          Deux niveaux : (1) le <strong className="font-medium text-slate-800">CA mensuel</strong> issu de vos
+        <p className="text-sm leading-relaxed text-stone-600">
+          Deux niveaux : (1) le <strong className="font-medium text-stone-800">CA mensuel</strong> issu de vos
           relevés importés (photos, avant ou pendant l&apos;adoption de l&apos;outil) — voir la section dédiée
-          ci‑dessous ; (2) l&apos;analyse <strong className="font-medium text-slate-800">par plat</strong> à partir
+          ci‑dessous ; (2) l&apos;analyse <strong className="font-medium text-stone-800">par plat</strong> à partir
           des services enregistrés dans l&apos;app (tickets / analyse), avec quantités, rubriques et{" "}
-          <strong className="font-medium text-slate-800">marges réalisées</strong> (même logique que la page
+          <strong className="font-medium text-stone-800">marges réalisées</strong> (même logique que la page
           Marges : valorisation HT, coût FIFO ventilé).
         </p>
         <form className="mt-4 flex flex-wrap items-end gap-3 text-sm" method="get" action="/insights/ventes">
@@ -91,9 +91,9 @@ export default async function VentesInsightsPage({
             Appliquer
           </button>
         </form>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-stone-500">
           Période :{" "}
-          <strong className="font-medium text-slate-700">
+          <strong className="font-medium text-stone-700">
             {from} → {to}
           </strong>
           · jusqu&apos;à {meta.serviceCount} services récents inclus dans la fenêtre (ordonnés du plus récent).
@@ -118,7 +118,7 @@ export default async function VentesInsightsPage({
 
       {rows.length === 0 ? (
         <div className={uiCard}>
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-stone-700">
             Aucune vente détaillée par plat sur cette période : les graphiques et tableaux ci‑dessous restent
             vides tant que vous n&apos;avez pas enregistré de services avec lignes rattachées à des plats. Le CA
             mensuel importé (section ci‑dessus) peut toutefois documenter les mois passés, même sans ce détail.
@@ -126,14 +126,14 @@ export default async function VentesInsightsPage({
         </div>
       ) : (
         <>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-stone-900">
             Détail par plat (services enregistrés dans l&apos;app)
           </h2>
-          <p className="-mt-2 text-sm text-slate-600">
+          <p className="-mt-2 text-sm text-stone-600">
             Une fois le restaurant pilote avec des tickets analysés, cette partie enrichit le CA importé avec des{" "}
-            <strong className="font-medium text-slate-800">rubriques</strong>,{" "}
-            <strong className="font-medium text-slate-800">quantités</strong> et{" "}
-            <strong className="font-medium text-slate-800">marges</strong> par ligne.
+            <strong className="font-medium text-stone-800">rubriques</strong>,{" "}
+            <strong className="font-medium text-stone-800">quantités</strong> et{" "}
+            <strong className="font-medium text-stone-800">marges</strong> par ligne.
           </p>
           <SalesInsightsClient
             rows={rows}

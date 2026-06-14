@@ -55,20 +55,20 @@ export default async function SupplierInvoicesPage() {
 
       <div className="grid gap-3 sm:grid-cols-4">
         <div className={uiCard}>
-          <p className="text-xs font-medium text-slate-500">À traiter</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{draftCount}</p>
+          <p className="text-xs font-medium text-stone-500">À traiter</p>
+          <p className="mt-1 text-2xl font-semibold text-stone-900">{draftCount}</p>
         </div>
         <div className={uiCard}>
-          <p className="text-xs font-medium text-slate-500">À contrôler</p>
+          <p className="text-xs font-medium text-stone-500">À contrôler</p>
           <p className="mt-1 text-2xl font-semibold text-amber-800">{linkedCount}</p>
         </div>
         <div className={uiCard}>
-          <p className="text-xs font-medium text-slate-500">Prêtes comptable</p>
+          <p className="text-xs font-medium text-stone-500">Prêtes comptable</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-800">{reviewedCount}</p>
         </div>
         <div className={uiCard}>
-          <p className="text-xs font-medium text-slate-500">BL validés sans facture</p>
-          <p className="mt-1 text-2xl font-semibold text-indigo-800">{awaitingDeliveryNotes.length}</p>
+          <p className="text-xs font-medium text-stone-500">BL validés sans facture</p>
+          <p className="mt-1 text-2xl font-semibold text-copper-800">{awaitingDeliveryNotes.length}</p>
         </div>
       </div>
 
@@ -98,22 +98,22 @@ export default async function SupplierInvoicesPage() {
         {awaitingDeliveryNotes.length === 0 ? (
           <p className={`mt-2 ${uiLead}`}>Aucun BL validé en attente de facture.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-slate-100">
+          <ul className="mt-3 divide-y divide-stone-100">
             {awaitingDeliveryNotes.slice(0, 12).map((dn) => {
               const supplier = supplierById.get(dn.supplier_id);
               const displayDate = dn.delivery_date ?? dn.created_at;
               return (
                 <li key={dn.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{supplier?.name ?? "Fournisseur"}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm font-semibold text-stone-900">{supplier?.name ?? "Fournisseur"}</p>
+                    <p className="text-xs text-stone-500">
                       {displayDate
                         ? new Date(displayDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
                         : "—"}{" "}
                       · {dn.lines_count} ligne{dn.lines_count !== 1 ? "s" : ""} · BL validé
                     </p>
                   </div>
-                  <Link href={`/receiving/${dn.id}`} className="text-sm font-semibold text-indigo-700 underline">
+                  <Link href={`/receiving/${dn.id}`} className="text-sm font-semibold text-copper-800 underline">
                     Ouvrir le BL
                   </Link>
                 </li>
@@ -137,13 +137,13 @@ export default async function SupplierInvoicesPage() {
               const supplier = supplierById.get(inv.supplier_id);
               return (
                 <li key={inv.id}>
-                  <Link href={`/supplier-invoices/${inv.id}`} className={`${uiCard} block transition hover:border-indigo-200 hover:shadow-md`}>
+                  <Link href={`/supplier-invoices/${inv.id}`} className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md`}>
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <p className="font-semibold text-slate-900">
+                        <p className="font-semibold text-stone-900">
                           {inv.invoice_number || "Facture sans numéro"}
                         </p>
-                        <p className="mt-0.5 text-sm text-slate-500">
+                        <p className="mt-0.5 text-sm text-stone-500">
                           {supplier?.name ?? "Fournisseur"} ·{" "}
                           {inv.invoice_date
                             ? new Date(inv.invoice_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })

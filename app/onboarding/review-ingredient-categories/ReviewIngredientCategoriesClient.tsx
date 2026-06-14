@@ -144,7 +144,7 @@ export function ReviewIngredientCategoriesClient() {
   if (missing) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm text-slate-700">Aucune rubrique composant à valider.</p>
+        <p className="text-sm text-stone-700">Aucune rubrique composant à valider.</p>
         <button type="button" onClick={finish} className={uiBtnPrimaryBlock}>
           Continuer
         </button>
@@ -187,17 +187,17 @@ export function ReviewIngredientCategoriesClient() {
         ) : (
           rows.map((row, index) => (
             <div key={row.clientId} className={`${uiCard} grid gap-3 sm:grid-cols-[auto_1fr_1fr_auto] sm:items-end`}>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:pb-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-stone-700 sm:pb-2">
                 <input
                   type="checkbox"
                   checked={row.selected}
                   onChange={(e) => updateRow(index, { selected: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                  className="h-4 w-4 rounded border-stone-300 accent-copper-700"
                 />
                 Valider
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium text-slate-500">Composant</span>
+                <span className="block text-xs font-medium text-stone-500">Composant</span>
                 <input
                   value={row.ingredient_name}
                   onChange={(e) =>
@@ -210,7 +210,7 @@ export function ReviewIngredientCategoriesClient() {
                 />
               </label>
               <label className="space-y-1">
-                <span className="block text-xs font-medium text-slate-500">Rubrique stock</span>
+                <span className="block text-xs font-medium text-stone-500">Rubrique stock</span>
                 <input
                   value={row.suggested_category}
                   onChange={(e) => updateRow(index, { suggested_category: e.target.value })}

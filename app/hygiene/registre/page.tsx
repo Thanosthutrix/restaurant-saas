@@ -29,12 +29,12 @@ export default async function HygieneRegistrePage() {
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-slate-500">Aucune tâche validée pour l’instant.</p>
+        <p className="text-sm text-stone-500">Aucune tâche validée pour l’instant.</p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-stone-100 bg-white shadow-sm">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-stone-100 text-xs font-semibold uppercase tracking-wide text-stone-500">
                 <th className="px-3 py-2">Réalisé le</th>
                 <th className="px-3 py-2">Élément</th>
                 <th className="px-3 py-2">Criticité</th>
@@ -48,8 +48,8 @@ export default async function HygieneRegistrePage() {
               {rows.map((r) => {
                 const url = getHygieneProofPublicUrl(r.proof_photo_path);
                 return (
-                  <tr key={r.id} className="border-b border-slate-50">
-                    <td className="px-3 py-2 whitespace-nowrap text-slate-700">
+                  <tr key={r.id} className="border-b border-stone-50">
+                    <td className="px-3 py-2 whitespace-nowrap text-stone-700">
                       {r.completed_at
                         ? new Date(r.completed_at).toLocaleString("fr-FR", {
                             day: "numeric",
@@ -61,41 +61,41 @@ export default async function HygieneRegistrePage() {
                         : "—"}
                     </td>
                     <td className="px-3 py-2">
-                      <span className="font-medium text-slate-900">{r.element_name}</span>
-                      <span className="block text-xs text-slate-500">
+                      <span className="font-medium text-stone-900">{r.element_name}</span>
+                      <span className="block text-xs text-stone-500">
                         {HYGIENE_CATEGORY_LABEL_FR[r.element_category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ??
                           r.element_category}
                         {r.area_label ? ` · ${r.area_label}` : ""}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-slate-700">{HYGIENE_RISK_LABEL_FR[r.risk_level]}</td>
-                    <td className="px-3 py-2 text-slate-700">
+                    <td className="px-3 py-2 text-stone-700">{HYGIENE_RISK_LABEL_FR[r.risk_level]}</td>
+                    <td className="px-3 py-2 text-stone-700">
                       {r.cleaning_action_type
                         ? HYGIENE_CLEANING_ACTION_LABEL_FR[r.cleaning_action_type as HygieneCleaningActionType]
                         : "—"}
                     </td>
-                    <td className="px-3 py-2 text-slate-700">
+                    <td className="px-3 py-2 text-stone-700">
                       <span className="font-medium">{r.completed_by_initials ?? "—"}</span>
                       {r.completed_by_display ? (
-                        <span className="mt-0.5 block text-xs font-normal text-slate-500">
+                        <span className="mt-0.5 block text-xs font-normal text-stone-500">
                           Compte : {r.completed_by_display}
                         </span>
                       ) : null}
                     </td>
-                    <td className="max-w-[12rem] px-3 py-2 text-slate-600">{r.completion_comment ?? "—"}</td>
+                    <td className="max-w-[12rem] px-3 py-2 text-stone-600">{r.completion_comment ?? "—"}</td>
                     <td className="px-3 py-2">
                       {url ? (
                         <a
                           href={url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-block h-12 w-12 overflow-hidden rounded border border-slate-200 bg-slate-100"
+                          className="inline-block h-12 w-12 overflow-hidden rounded border border-stone-200 bg-stone-100"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={url} alt="" className="h-full w-full object-cover" />
                         </a>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-stone-400">—</span>
                       )}
                     </td>
                   </tr>

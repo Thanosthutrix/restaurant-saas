@@ -90,11 +90,11 @@ export function OrderSuggestionsClient({ suggestions: initialSuggestions, restau
 
   if (suggestions.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
-        <p className="mb-2 text-slate-600">
+      <div className="rounded-lg border border-stone-200 bg-white p-6">
+        <p className="mb-2 text-stone-600">
           Aucune commande suggérée pour le moment.
         </p>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-stone-500">
           Pour qu’un composant apparaisse ici : choisir un fournisseur, renseigner l’unité d’achat et surtout <strong>la conversion</strong> (1 unité achetée = combien d’unités de stock). Sans conversion, aucune suggestion n’est proposée pour éviter des quantités incorrectes.
         </p>
       </div>
@@ -110,10 +110,10 @@ export function OrderSuggestionsClient({ suggestions: initialSuggestions, restau
         return (
           <section
             key={supplier.id}
-            className="rounded-lg border border-slate-200 bg-white p-4"
+            className="rounded-lg border border-stone-200 bg-white p-4"
           >
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="text-lg font-semibold text-stone-900">
                 {supplier.name}
               </h2>
               <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export function OrderSuggestionsClient({ suggestions: initialSuggestions, restau
                   Jour de commande
                 </span>
               ) : (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-stone-500">
                   Pas un jour de commande
                 </span>
               )}
@@ -140,7 +140,7 @@ export function OrderSuggestionsClient({ suggestions: initialSuggestions, restau
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                  <tr className="border-b border-stone-200 text-left text-stone-500">
                     <th className="pb-2 pr-2">Composant</th>
                     <th className="pb-2 pr-2 text-right">Stock actuel</th>
                     <th className="pb-2 pr-2 text-right">Besoin</th>
@@ -151,17 +151,17 @@ export function OrderSuggestionsClient({ suggestions: initialSuggestions, restau
                 </thead>
                 <tbody>
                   {lines.map((line) => (
-                    <tr key={line.inventory_item_id} className="border-b border-slate-100">
-                      <td className="py-2 pr-2 font-medium text-slate-800">
+                    <tr key={line.inventory_item_id} className="border-b border-stone-100">
+                      <td className="py-2 pr-2 font-medium text-stone-800">
                         {line.name}
                       </td>
-                      <td className="py-2 pr-2 text-right text-slate-600">
+                      <td className="py-2 pr-2 text-right text-stone-600">
                         {line.current_stock_qty} {line.unit}
                       </td>
-                      <td className="py-2 pr-2 text-right text-slate-600">
+                      <td className="py-2 pr-2 text-right text-stone-600">
                         {line.need_stock_qty} {line.unit}
                       </td>
-                      <td className="py-2 pr-2 text-right text-slate-600">
+                      <td className="py-2 pr-2 text-right text-stone-600">
                         {line.min_stock_qty ?? "—"}
                       </td>
                       <td className="py-2 pr-2 text-right">
@@ -177,10 +177,10 @@ export function OrderSuggestionsClient({ suggestions: initialSuggestions, restau
                               parseInt(e.target.value, 10) || 0
                             )
                           }
-                          className="w-16 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                          className="w-16 rounded border border-stone-300 px-2 py-1 text-right text-sm"
                         />
                       </td>
-                      <td className="py-2 text-slate-600">
+                      <td className="py-2 text-stone-600">
                         {line.purchase_unit ?? "unité(s)"}
                       </td>
                     </tr>
@@ -190,20 +190,20 @@ export function OrderSuggestionsClient({ suggestions: initialSuggestions, restau
             </div>
 
             <div className="mt-4">
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Message prêt à envoyer (modifiable)
               </label>
               <textarea
                 value={message}
                 onChange={(e) => setMessageForSupplier(supplier.id, e.target.value)}
                 rows={8}
-                className="w-full rounded border border-slate-300 bg-white p-3 font-mono text-sm text-slate-800"
+                className="w-full rounded border border-stone-300 bg-white p-3 font-mono text-sm text-stone-800"
               />
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => navigator.clipboard.writeText(message)}
-                  className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                  className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800"
                 >
                   Copier le message
                 </button>

@@ -43,7 +43,7 @@ function mergeFiles(current: File[], list: FileList | null): File[] {
 function FilesList({ files, onRemove }: { files: File[]; onRemove: (index: number) => void }) {
   if (files.length === 0) return null;
   return (
-    <ul className="space-y-1 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm text-slate-700">
+    <ul className="space-y-1 rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2 text-sm text-stone-700">
       {files.map((file, index) => (
         <li key={fileKey(file)} className="flex items-center justify-between gap-2">
           <span className="min-w-0 truncate" title={file.name}>
@@ -76,7 +76,7 @@ function SupplierPicker({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
+        <span className="mb-1 block text-xs font-medium text-stone-500">{label}</span>
         <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className={`w-full ${uiSelect}`}>
           <option value="">Nouveau fournisseur…</option>
           {suppliers.map((supplier) => (
@@ -87,13 +87,13 @@ function SupplierPicker({
         </select>
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-slate-500">Nom si nouveau fournisseur</span>
+        <span className="mb-1 block text-xs font-medium text-stone-500">Nom si nouveau fournisseur</span>
         <input
           value={supplierName}
           onChange={(e) => setSupplierName(e.target.value)}
           placeholder="ex. Métro, Transgourmet, boulanger…"
           disabled={Boolean(supplierId)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm"
         />
       </label>
     </div>
@@ -298,7 +298,7 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
         <div>
           <h2 className={uiSectionTitleSm}>Factures, BL et CA</h2>
           <p className={`mt-1 ${uiMuted}`}>
-            <span className="font-medium text-slate-800">Factures fournisseurs (recommandé)</span> : l’IA lit les lignes
+            <span className="font-medium text-stone-800">Factures fournisseurs (recommandé)</span> : l’IA lit les lignes
             produits (libellé, quantités, prix HT) et en déduit des propositions de{" "}
             <strong>tarifs d’achat de référence</strong> sur la page suivante, en les rattachant à vos ingrédients
             existants quand c’est possible. Vous pouvez laisser le fournisseur vide : chaque fichier est alors attribué
@@ -320,7 +320,7 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
         ) : null}
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Bons de livraison</h3>
+          <h3 className="text-sm font-semibold text-stone-900">Bons de livraison</h3>
           <SupplierPicker
             label="Fournisseur des BL"
             suppliers={suppliers}
@@ -347,7 +347,7 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
         </section>
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Factures fournisseurs → tarifs + fiche fournisseur</h3>
+          <h3 className="text-sm font-semibold text-stone-900">Factures fournisseurs → tarifs + fiche fournisseur</h3>
           <p className={uiMuted}>
             Après import, si l’analyse a trouvé des montants, vous serez redirigé vers l’écran de validation des{" "}
             <strong>tarifs d’achat</strong> (session en cours). L’analyse des PDF et images de facture suppose une clé
@@ -361,7 +361,7 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
             supplierName={invoiceSupplierName}
             setSupplierName={setInvoiceSupplierName}
           />
-          <p className="text-[11px] leading-snug text-slate-600">
+          <p className="text-[11px] leading-snug text-stone-600">
             Laissez la liste sur « Nouveau fournisseur » et le nom vide : chaque fichier est analysé, le fournisseur est{" "}
             <strong>rapproché</strong> (nom, SIRET dans les notes, similarité) ou <strong>créé</strong> avec les données
             lues sur la facture. Sinon, choisissez un fournisseur ou saisissez un nom pour attribuer toutes les factures à
@@ -385,7 +385,7 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
         </section>
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Relevés mensuels de CA</h3>
+          <h3 className="text-sm font-semibold text-stone-900">Relevés mensuels de CA</h3>
           <p className={uiMuted}>
             Import image ou PDF : relevé mensuel, export caisse ou tableau de CA. Vous pouvez en sélectionner plusieurs :
             chaque fichier est traité dans une requête séparée pour éviter les erreurs de taille.

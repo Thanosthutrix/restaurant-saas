@@ -101,7 +101,7 @@ function AddChildForm({
   };
 
   return (
-    <form onSubmit={submit} className={`mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3`}>
+    <form onSubmit={submit} className={`mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-stone-100 bg-stone-50/80 p-3`}>
       {error ? <p className={`w-full ${uiError}`}>{error}</p> : null}
       <label className="flex flex-col gap-1">
         <span className={uiLabel}>Nom de la sous-rubrique</span>
@@ -193,7 +193,7 @@ function CategoryRow({
   return (
     <li className="list-none">
       <div
-        className="flex flex-wrap items-center gap-2 border-b border-slate-100 py-2"
+        className="flex flex-wrap items-center gap-2 border-b border-stone-100 py-2"
         style={{ paddingLeft: depth * 16 }}
       >
         {editing ? (
@@ -221,10 +221,10 @@ function CategoryRow({
           </form>
         ) : (
           <>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-inner ring-1 ring-indigo-100/90">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-copper-50 text-copper-700 shadow-inner ring-1 ring-copper-100/90">
               <CategoryPictogram title={node.name} depth={depth} />
             </span>
-            <span className="min-w-0 flex-1 font-medium text-slate-900">{node.name}</span>
+            <span className="min-w-0 flex-1 font-medium text-stone-900">{node.name}</span>
             <AppliesSelect categoryId={node.id} restaurantId={restaurantId} value={node.applies_to} />
             <button type="button" className={uiBtnOutlineSm} onClick={() => setEditing(true)}>
               Renommer
@@ -244,7 +244,7 @@ function CategoryRow({
         </div>
       ) : null}
       {node.children.length > 0 ? (
-        <ul className="border-l border-slate-100">
+        <ul className="border-l border-stone-100">
           {node.children.map((ch) => (
             <CategoryRow key={ch.id} node={ch} depth={depth + 1} restaurantId={restaurantId} />
           ))}
@@ -282,7 +282,7 @@ function AddRootForm({ restaurantId }: { restaurantId: string }) {
 
   return (
     <div className={uiCard}>
-      <h2 className="mb-2 text-sm font-semibold text-slate-900">Nouvelle rubrique racine</h2>
+      <h2 className="mb-2 text-sm font-semibold text-stone-900">Nouvelle rubrique racine</h2>
       <p className={`mb-3 text-xs ${uiLead}`}>
         Ex. « Vin », « Légumes » — puis ajoutez des sous-rubriques (région, couleur…).
       </p>

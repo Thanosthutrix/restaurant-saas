@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidateInventoryCache } from "@/lib/cacheInvalidation";
 import { assertCategoryAssignable } from "@/app/categories/actions";
 import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { supabaseServer } from "@/lib/supabaseServer";
@@ -166,6 +167,7 @@ export async function createInventoryItem(params: {
   revalidatePath("/inventory/[id]", "page");
   revalidatePath("/orders/suggestions", "page");
   revalidatePath("/dashboard", "page");
+  invalidateInventoryCache();
   return { ok: true, data: { id: newId, appliedBenchmark } };
 }
 
@@ -374,6 +376,7 @@ export async function updateInventoryItem(params: {
   revalidatePath("/inventory/[id]", "page");
   revalidatePath("/dishes/[id]", "page");
   revalidatePath("/orders/suggestions", "page");
+  invalidateInventoryCache();
   revalidatePath("/dashboard", "page");
   revalidatePath("/margins", "page");
   return { ok: true };
@@ -403,6 +406,7 @@ export async function updateInventoryItemCategory(params: {
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${itemId}`);
   revalidatePath("/orders/suggestions", "page");
+  invalidateInventoryCache();
   return { ok: true };
 }
 
@@ -463,6 +467,7 @@ export async function updateInventoryItemSupplier(params: {
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${itemId}`);
   revalidatePath("/orders/suggestions", "page");
+  invalidateInventoryCache();
   return { ok: true };
 }
 

@@ -18,7 +18,7 @@ export default async function OpenTableOrderPage({ params }: Props) {
           {error?.message ?? "Impossible d’ouvrir la commande pour cette table."}
         </p>
         <p className="mt-4">
-          <a href="/salle" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+          <a href="/salle" className="text-sm font-semibold text-copper-700 hover:text-copper-600">
             ← Retour à la salle
           </a>
         </p>

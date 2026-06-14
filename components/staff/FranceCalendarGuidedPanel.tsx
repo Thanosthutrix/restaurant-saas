@@ -240,11 +240,11 @@ export function FranceCalendarGuidedPanel({
   const periods = schoolPeriodsByYear[year] ?? [];
 
   return (
-    <div className="space-y-6 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+    <div className="space-y-6 rounded-xl border border-copper-100 bg-copper-50/40 p-4">
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">Calendrier France (fériés et vacances scolaires)</h3>
-        <p className="mt-1 text-xs text-slate-600">
-          Définissez d’abord des <strong className="font-medium text-slate-800">modèles de plages</strong> au-dessus si
+        <h3 className="text-sm font-semibold text-stone-900">Calendrier France (fériés et vacances scolaires)</h3>
+        <p className="mt-1 text-xs text-stone-600">
+          Définissez d’abord des <strong className="font-medium text-stone-800">modèles de plages</strong> au-dessus si
           besoin (ex. été chargé). Ici, pour chaque jour férié ou période de vacances, choisissez fermeture, reprise du
           modèle hebdomadaire, ou ouverture avec le modèle hebdo ou un de vos modèles nommés.
         </p>
@@ -257,8 +257,8 @@ export function FranceCalendarGuidedPanel({
           formulaire du haut de page pour des dates de vacances adaptées.
         </p>
       ) : (
-        <p className="text-xs text-slate-600">
-          Zone vacances scolaires utilisée : <strong className="font-medium text-slate-800">{effectiveZone}</strong>
+        <p className="text-xs text-stone-600">
+          Zone vacances scolaires utilisée : <strong className="font-medium text-stone-800">{effectiveZone}</strong>
         </p>
       )}
 
@@ -286,21 +286,21 @@ export function FranceCalendarGuidedPanel({
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Jours fériés (métropole)</h4>
-        <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-stone-600">Jours fériés (métropole)</h4>
+        <div className="overflow-x-auto rounded-lg border border-stone-100 bg-white">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-600">
+              <tr className="border-b border-stone-100 bg-stone-50 text-xs font-semibold text-stone-600">
                 <th className="px-3 py-2">Date</th>
                 <th className="px-3 py-2">Nom</th>
                 <th className="px-3 py-2">Comportement</th>
                 <th className="px-3 py-2">Si ouvert — plages</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {holidays.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-3 py-4 text-slate-500">
+                  <td colSpan={4} className="px-3 py-4 text-stone-500">
                     Aucun jour férié pour cette année.
                   </td>
                 </tr>
@@ -317,8 +317,8 @@ export function FranceCalendarGuidedPanel({
                   const plageVal = ferieOpenPlageValue(h, overrideByDay, bandPresets);
                   return (
                     <tr key={h.date} className="align-top">
-                      <td className="px-3 py-2 tabular-nums text-slate-800">{formatDayFrLong(h.date)}</td>
-                      <td className="px-3 py-2 text-slate-700">{h.name}</td>
+                      <td className="px-3 py-2 tabular-nums text-stone-800">{formatDayFrLong(h.date)}</td>
+                      <td className="px-3 py-2 text-stone-700">{h.name}</td>
                       <td className="px-3 py-2">
                         {manualOther ? (
                           <span className="text-xs text-amber-800">Exception manuelle — voir le tableau ci-dessous</span>
@@ -339,7 +339,7 @@ export function FranceCalendarGuidedPanel({
                       </td>
                       <td className="px-3 py-2">
                         {manualOther || mode !== "open" ? (
-                          <span className="text-slate-400">—</span>
+                          <span className="text-stone-400">—</span>
                         ) : (
                           <select
                             className={`${uiInput} max-w-[min(100%,16rem)] text-xs`}
@@ -371,25 +371,25 @@ export function FranceCalendarGuidedPanel({
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Vacances scolaires</h4>
-        <p className="text-xs text-slate-500">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-stone-600">Vacances scolaires</h4>
+        <p className="text-xs text-stone-500">
           Ouvert : par défaut horaires du modèle hebdomadaire chaque jour. Vous pouvez appliquer un{" "}
           <strong className="font-medium">modèle de plages</strong> (ex. été renforcé) à toute la période.
         </p>
-        <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
+        <div className="overflow-x-auto rounded-lg border border-stone-100 bg-white">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-600">
+              <tr className="border-b border-stone-100 bg-stone-50 text-xs font-semibold text-stone-600">
                 <th className="px-3 py-2">Période</th>
                 <th className="px-3 py-2">Libellé</th>
                 <th className="px-3 py-2">Ouvert</th>
                 <th className="px-3 py-2">Si ouvert — plages</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {periods.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-3 py-4 text-slate-500">
+                  <td colSpan={4} className="px-3 py-4 text-stone-500">
                     Aucune période de vacances pour cette année et cette zone.
                   </td>
                 </tr>
@@ -443,16 +443,16 @@ function VacationPeriodRow({
 
   return (
     <tr className="align-top">
-      <td className="px-3 py-2 tabular-nums text-slate-800">
+      <td className="px-3 py-2 tabular-nums text-stone-800">
         {formatDayFrShort(period.start)} → {formatDayFrShort(period.end)}
       </td>
-      <td className="px-3 py-2 text-slate-700">{period.name}</td>
+      <td className="px-3 py-2 text-stone-700">{period.name}</td>
       <td className="px-3 py-2">
         <label className="inline-flex cursor-pointer items-center gap-2">
           <input
             ref={ref}
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+            className="h-4 w-4 rounded border-stone-300 text-copper-700"
             checked={checked}
             disabled={pending}
             onChange={(e) => {
@@ -461,7 +461,7 @@ function VacationPeriodRow({
               else onSave(period, true, vacationOpenPlageValue(period, overrideByDay, bandPresets));
             }}
           />
-          <span className="text-xs text-slate-600">Ouvert</span>
+          <span className="text-xs text-stone-600">Ouvert</span>
         </label>
         {indeterminate ? (
           <p className="mt-1 text-[11px] text-amber-800">Partiellement fermé — cochez pour réaligner toute la période.</p>
@@ -469,7 +469,7 @@ function VacationPeriodRow({
       </td>
       <td className="px-3 py-2">
         {!checked ? (
-          <span className="text-slate-400">—</span>
+          <span className="text-stone-400">—</span>
         ) : (
           <select
             className={`${uiInput} max-w-[min(100%,16rem)] text-xs`}

@@ -133,7 +133,7 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
   }
 
   return (
-    <div className="mt-3 space-y-4 border-t border-slate-100 pt-3">
+    <div className="mt-3 space-y-4 border-t border-stone-100 pt-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="sm:col-span-3">
           <label className={uiLabel} htmlFor={`role-${member.id}`}>
@@ -155,7 +155,7 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
             <option value="Caisse" />
             <option value="Gestion" />
           </datalist>
-          <p className="mt-0.5 text-[10px] text-slate-500">
+          <p className="mt-0.5 text-[10px] text-stone-500">
             Repris automatiquement dans le wizard d&apos;ébauche de planning (étape Équipe).
           </p>
         </div>
@@ -208,7 +208,7 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
             onChange={(e) => setMaxDailyHours(e.target.value)}
             placeholder="Illimité"
           />
-          <p className="mt-0.5 text-[10px] text-slate-500">Heures nettes max. planifiables sur une journée.</p>
+          <p className="mt-0.5 text-[10px] text-stone-500">Heures nettes max. planifiables sur une journée.</p>
         </div>
         <div className="sm:col-span-3">
           <label className={uiLabel} htmlFor={`pn-${member.id}`}>
@@ -224,26 +224,26 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
         </div>
       </div>
 
-      <details className="rounded-lg border border-slate-100 bg-white px-2 py-1">
-        <summary className="cursor-pointer text-sm font-medium text-slate-800">
+      <details className="rounded-lg border border-stone-100 bg-white px-2 py-1">
+        <summary className="cursor-pointer text-sm font-medium text-stone-800">
           Horaires habituels / souhaités (optionnel)
         </summary>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-stone-500">
           Utilisé par la génération automatique du planning : si au moins un jour a une plage, les jours sans plage =
           indisponibles ce jour-là. Si tout est vide, la personne est considérée disponible sur toute l’ouverture. Les
           créneaux publiés restent ceux que vous saisissez ou validez ailleurs.
         </p>
         <div className="mt-2 grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
           {PLANNING_DAY_KEYS.map((key) => (
-            <div key={key} className="rounded border border-slate-100 p-2">
+            <div key={key} className="rounded border border-stone-100 p-2">
               <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-semibold text-slate-700">{PLANNING_DAY_LABELS_FR[key]}</span>
+                <span className="text-xs font-semibold text-stone-700">{PLANNING_DAY_LABELS_FR[key]}</span>
                 <button type="button" className={uiBtnOutlineSm} onClick={() => addBand(key)}>
                   +
                 </button>
               </div>
               {(availMap[key]?.length ?? 0) === 0 ? (
-                <p className="text-[10px] text-slate-400">Non renseigné</p>
+                <p className="text-[10px] text-stone-400">Non renseigné</p>
               ) : (
                 (availMap[key] ?? []).map((band, i) => (
                   <div key={i} className="mt-1 flex flex-wrap items-center gap-1">
@@ -275,26 +275,26 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
         </div>
       </details>
 
-      <details className="rounded-lg border border-slate-100 bg-white px-2 py-1">
-        <summary className="cursor-pointer text-sm font-medium text-slate-800">
+      <details className="rounded-lg border border-stone-100 bg-white px-2 py-1">
+        <summary className="cursor-pointer text-sm font-medium text-stone-800">
           Prépa & travail hors service client (optionnel)
         </summary>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-stone-500">
           Plages en dehors de l’ouverture au public (mise en place, réception, inventaire…). Elles s’ajoutent aux
           disponibilités « service » pour les alertes et la génération auto. Si au moins un jour a une plage ici, un jour
           sans plage = pas de prépa ce jour-là.
         </p>
         <div className="mt-2 grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
           {PLANNING_DAY_KEYS.map((key) => (
-            <div key={`prep-${key}`} className="rounded border border-slate-100 p-2">
+            <div key={`prep-${key}`} className="rounded border border-stone-100 p-2">
               <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-semibold text-slate-700">{PLANNING_DAY_LABELS_FR[key]}</span>
+                <span className="text-xs font-semibold text-stone-700">{PLANNING_DAY_LABELS_FR[key]}</span>
                 <button type="button" className={uiBtnOutlineSm} onClick={() => addPrepBand(key)}>
                   +
                 </button>
               </div>
               {(prepMap[key]?.length ?? 0) === 0 ? (
-                <p className="text-[10px] text-slate-400">Aucune plage hors client</p>
+                <p className="text-[10px] text-stone-400">Aucune plage hors client</p>
               ) : (
                 (prepMap[key] ?? []).map((band, i) => (
                   <div key={i} className="mt-1 flex flex-wrap items-center gap-1">

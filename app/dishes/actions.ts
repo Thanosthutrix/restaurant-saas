@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidateDishesCache, invalidateInventoryCache } from "@/lib/cacheInvalidation";
 import { redirect } from "next/navigation";
 import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { createDish } from "@/lib/db";
@@ -23,8 +24,10 @@ export async function createDishAction(formData: FormData) {
   const mode = productionMode === "resale" ? "resale" : "prepared";
   const { data, error } = await createDish(restaurant.id, name, mode);
   if (error || !data) return;
+  invalidateDishesCache();
   if (mode === "resale") {
     revalidatePath("/inventory");
+    invalidateInventoryCache();
   }
 
   const returnTo = (formData.get("returnTo") as string)?.trim();

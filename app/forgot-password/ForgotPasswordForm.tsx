@@ -33,7 +33,7 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm leading-relaxed text-slate-700">
+        <p className="text-sm leading-relaxed text-stone-700">
           Si un compte existe pour cette adresse, vous recevrez un e-mail avec un lien pour choisir un nouveau mot de
           passe. Pensez à vérifier les courriers indésirables.
         </p>

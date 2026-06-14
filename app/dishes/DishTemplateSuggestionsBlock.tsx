@@ -80,7 +80,7 @@ export function DishTemplateSuggestionsBlock({
   return (
     <div className={`${uiCard} mb-0`}>
       <div className="mb-2 flex items-start justify-between gap-3">
-        <h2 className="text-sm font-semibold text-slate-900">Suggestions du template</h2>
+        <h2 className="text-sm font-semibold text-stone-900">Suggestions du template</h2>
         <button
           type="button"
           onClick={handleDismiss}
@@ -98,9 +98,9 @@ export function DishTemplateSuggestionsBlock({
           const isMissing = missingDishNames.has(d.name.trim().toLowerCase());
           return (
             <li key={d.name} className="flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-800">{d.name}</span>
+              <span className="font-medium text-stone-800">{d.name}</span>
               <span className="flex items-center gap-2">
-                <span className="text-slate-500">
+                <span className="text-stone-500">
                   {d.production_mode === "resale" ? "Revente" : "Préparé"}
                 </span>
                 {isMissing ? (

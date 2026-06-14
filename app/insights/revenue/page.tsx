@@ -65,13 +65,13 @@ export default async function InsightsRevenuePage() {
         <div className="flex flex-wrap gap-2">
           <Link
             href="/margins"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
           >
             Marges réalisées
           </Link>
           <Link
             href="/insights/calendar"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
           >
             Calendrier pilotage
           </Link>
@@ -79,24 +79,24 @@ export default async function InsightsRevenuePage() {
       </div>
 
       <div className={uiCard}>
-        <p className="text-sm leading-relaxed text-slate-600">
+        <p className="text-sm leading-relaxed text-stone-600">
           Les montants ci-dessous proviennent des{" "}
-          <strong className="font-medium text-slate-800">documents de CA</strong> importés pendant
+          <strong className="font-medium text-stone-800">documents de CA</strong> importés pendant
           l&apos;onboarding (lecture assistée). Ils sont enregistrés en base par mois et servent de{" "}
-          <strong className="font-medium text-slate-800">référence historique</strong> pour analyser la
+          <strong className="font-medium text-stone-800">référence historique</strong> pour analyser la
           dynamique et, plus tard, la croiser avec vos marges et objectifs.
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          Lorsque le document photo contient un <strong className="font-medium text-slate-800">détail par plat</strong>
+        <p className="mt-3 text-sm leading-relaxed text-stone-600">
+          Lorsque le document photo contient un <strong className="font-medium text-stone-800">détail par plat</strong>
           , rubrique ou ligne de vente, l&apos;IA tente de l&apos;extraire : voir le bloc &quot;Données extraites du
           relevé&quot; sous chaque mois. Ce n&apos;est pas rattaché à votre carte actuelle (pas de matching automatique
           des plats) — c&apos;est une lecture du document.
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">
+        <p className="mt-3 text-sm leading-relaxed text-stone-600">
           Pour croiser avec l&apos;analyse par plat et les marges issues des services enregistrés dans l&apos;app, ouvrez{" "}
           <Link
             href="/insights/ventes"
-            className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+            className="font-medium text-copper-700 underline underline-offset-2 hover:text-copper-800"
           >
             Analyse des ventes
           </Link>
@@ -112,7 +112,7 @@ export default async function InsightsRevenuePage() {
 
       {!error && (!rows || rows.length === 0) && (
         <div className={uiCard}>
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-stone-700">
             Aucun CA mensuel enregistré pour l&apos;instant. Importez des relevés depuis le parcours
             d&apos;intégration (étape documents de chiffre d&apos;affaires) pour alimenter cet écran.
           </p>
@@ -120,14 +120,14 @@ export default async function InsightsRevenuePage() {
       )}
 
       {!error && rows && rows.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500 sm:hidden">
+        <div className="overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
+          <p className="border-b border-stone-100 px-4 py-2 text-xs text-stone-500 sm:hidden">
             Faites défiler horizontalement pour voir toutes les colonnes.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-stone-200 bg-stone-50/90 text-xs font-semibold uppercase tracking-wide text-stone-500">
                   <th className="whitespace-nowrap px-4 py-3 font-medium">Mois</th>
                   <th className="whitespace-nowrap px-4 py-3 text-right font-medium">CA TTC</th>
                   <th className="whitespace-nowrap px-4 py-3 text-right font-medium">CA HT</th>
@@ -136,24 +136,24 @@ export default async function InsightsRevenuePage() {
                   <th className="min-w-[12rem] px-4 py-3 font-medium">Notes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-100">
                 {rows.map((r) => {
                   const prev = prevById.get(r.id);
                   const evo = momEvolutionLabel(r, prev);
                   const showExtract = hasImportedRevenueDetail(r.analysis_result_json);
                   return (
                     <Fragment key={r.id}>
-                      <tr className="align-top transition-colors hover:bg-slate-50/80">
-                        <td className="whitespace-nowrap px-4 py-3 font-medium capitalize text-slate-900">
+                      <tr className="align-top transition-colors hover:bg-stone-50/80">
+                        <td className="whitespace-nowrap px-4 py-3 font-medium capitalize text-stone-900">
                           {formatMonthFr(r.month)}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-800">
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-stone-800">
                           {formatEur(r.revenue_ttc)}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-800">
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-stone-800">
                           {formatEur(r.revenue_ht)}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        <td className="whitespace-nowrap px-4 py-3 text-stone-700">
                           {evo ? (
                             <span
                               className={
@@ -161,25 +161,25 @@ export default async function InsightsRevenuePage() {
                                   ? "font-medium text-emerald-700"
                                   : evo.startsWith("-")
                                     ? "font-medium text-rose-700"
-                                    : "text-slate-600"
+                                    : "text-stone-600"
                               }
                             >
                               {evo}
                             </span>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-stone-400">—</span>
                           )}
                         </td>
-                        <td className="max-w-[14rem] px-4 py-3 text-slate-700">
+                        <td className="max-w-[14rem] px-4 py-3 text-stone-700">
                           {r.source_label?.trim() ? r.source_label : "—"}
                         </td>
-                        <td className="max-w-[20rem] px-4 py-3 text-xs leading-relaxed text-slate-600">
+                        <td className="max-w-[20rem] px-4 py-3 text-xs leading-relaxed text-stone-600">
                           {r.notes?.trim() ? r.notes : "—"}
                         </td>
                       </tr>
                       {showExtract ? (
-                        <tr className="bg-slate-50/70">
-                          <td colSpan={6} className="border-b border-slate-100 px-4 py-3 align-top">
+                        <tr className="bg-stone-50/70">
+                          <td colSpan={6} className="border-b border-stone-100 px-4 py-3 align-top">
                             <ImportedRevenueDetailBlock analysisJson={r.analysis_result_json} />
                           </td>
                         </tr>
@@ -193,11 +193,11 @@ export default async function InsightsRevenuePage() {
         </div>
       )}
 
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-stone-500">
         Variation mois à mois calculée sur le premier montant disponible (TTC, sinon HT) par rapport au mois
         calendaire précédent présent dans l&apos;historique. Pour un CA détaillé jour par jour à partir des
         services scannés, utilisez le{" "}
-        <Link href="/insights/calendar" className="font-medium text-slate-700 underline underline-offset-2">
+        <Link href="/insights/calendar" className="font-medium text-stone-700 underline underline-offset-2">
           pilotage calendrier
         </Link>
         . Les relevés importés avant l&apos;extraction enrichie peuvent n&apos;avoir que les totaux ; réimportez une

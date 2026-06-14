@@ -29,7 +29,7 @@ export default async function HaccpHubPage() {
           <li>
             <Link
               href="/hygiene/haccp/points"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Points de mesure
             </Link>
@@ -37,7 +37,7 @@ export default async function HaccpHubPage() {
           <li>
             <Link
               href="/hygiene/haccp/check"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Relevés à faire
               {pendingCount > 0 && (
@@ -50,7 +50,7 @@ export default async function HaccpHubPage() {
           <li className="sm:col-span-2">
             <Link
               href="/hygiene/haccp/registre"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Registre des relevés
             </Link>
@@ -58,7 +58,7 @@ export default async function HaccpHubPage() {
         </ul>
       </section>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-stone-500">
         Les seuils et la marge d’« alerte » (proche limite) sont configurables par point. Les actions correctives sont
         exigées si la mesure est en alerte ou critique.
       </p>

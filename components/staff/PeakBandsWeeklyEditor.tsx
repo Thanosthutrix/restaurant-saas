@@ -87,7 +87,7 @@ export function PeakBandsWeeklyEditor({ restaurantId, initial }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-stone-500">
         Créneaux où l’effectif minimum doit être renforcé (rush midi, service du soir…). Ce modèle{" "}
         <strong>préremplit l’étape Pointe</strong> du questionnaire d’ébauche de planning sur la page Équipe.
       </p>
@@ -96,9 +96,9 @@ export function PeakBandsWeeklyEditor({ restaurantId, initial }: Props) {
 
       <div className="space-y-4">
         {PLANNING_DAY_KEYS.map((dayKey) => (
-          <div key={dayKey} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+          <div key={dayKey} className="rounded-xl border border-stone-100 bg-stone-50/60 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-900">{PLANNING_DAY_LABELS_FR[dayKey]}</p>
+              <p className="text-sm font-semibold text-stone-900">{PLANNING_DAY_LABELS_FR[dayKey]}</p>
               <button
                 type="button"
                 disabled={pending}
@@ -110,7 +110,7 @@ export function PeakBandsWeeklyEditor({ restaurantId, initial }: Props) {
               </button>
             </div>
             {days[dayKey].length === 0 ? (
-              <p className="mt-2 text-xs text-slate-500">Aucune plage — suggestion automatique à l’ébauche.</p>
+              <p className="mt-2 text-xs text-stone-500">Aucune plage — suggestion automatique à l’ébauche.</p>
             ) : (
               <ul className="mt-2 space-y-2">
                 {days[dayKey].map((b, i) => (
@@ -122,7 +122,7 @@ export function PeakBandsWeeklyEditor({ restaurantId, initial }: Props) {
                       value={b.start}
                       onChange={(e) => patchBand(dayKey, i, { start: e.target.value })}
                     />
-                    <span className="text-slate-400">→</span>
+                    <span className="text-stone-400">→</span>
                     <input
                       type="time"
                       disabled={pending}
@@ -130,7 +130,7 @@ export function PeakBandsWeeklyEditor({ restaurantId, initial }: Props) {
                       value={b.end}
                       onChange={(e) => patchBand(dayKey, i, { end: e.target.value })}
                     />
-                    <label className="flex items-center gap-1 text-xs text-slate-600">
+                    <label className="flex items-center gap-1 text-xs text-stone-600">
                       Min.
                       <input
                         type="number"
@@ -147,7 +147,7 @@ export function PeakBandsWeeklyEditor({ restaurantId, initial }: Props) {
                     <button
                       type="button"
                       disabled={pending}
-                      className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-rose-600"
+                      className="rounded p-1 text-stone-400 hover:bg-stone-200 hover:text-rose-600"
                       aria-label="Supprimer la plage"
                       onClick={() => removeBand(dayKey, i)}
                     >

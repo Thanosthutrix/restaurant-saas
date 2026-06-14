@@ -31,7 +31,7 @@ export default async function JoinPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4 py-12">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <Link href="/" className={uiLinkSubtle}>

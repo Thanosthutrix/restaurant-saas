@@ -93,11 +93,11 @@ export function ClientsListClient({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-600">
-          <span className="font-semibold text-slate-900 tabular-nums">{totalActive}</span> fiche
+        <p className="text-sm text-stone-600">
+          <span className="font-semibold text-stone-900 tabular-nums">{totalActive}</span> fiche
           {totalActive > 1 ? "s" : ""} active{totalActive > 1 ? "s" : ""}
           {totalApprox !== totalActive ? (
-            <span className="text-slate-400"> · {totalApprox} résultat(s) filtré(s)</span>
+            <span className="text-stone-400"> · {totalApprox} résultat(s) filtré(s)</span>
           ) : null}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -116,24 +116,24 @@ export function ClientsListClient({
       </div>
 
       <form onSubmit={onFilterSubmit} className={`${uiCard} space-y-4`}>
-        <p className="text-sm font-semibold text-slate-800">Filtres</p>
+        <p className="text-sm font-semibold text-stone-800">Filtres</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-xs font-medium text-slate-600">
+          <label className="block text-xs font-medium text-stone-600">
             Recherche
             <input
               name="q"
               type="search"
               defaultValue={initialQuery}
               placeholder="Nom, email, téléphone, ville…"
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
             />
           </label>
-          <label className="block text-xs font-medium text-slate-600">
+          <label className="block text-xs font-medium text-stone-600">
             Tri
             <select
               name="sort"
               defaultValue={initialSort}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -142,12 +142,12 @@ export function ClientsListClient({
               ))}
             </select>
           </label>
-          <label className="block text-xs font-medium text-slate-600">
+          <label className="block text-xs font-medium text-stone-600">
             Origine
             <select
               name="source"
               defaultValue={initialSource}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
             >
               {SOURCE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -156,12 +156,12 @@ export function ClientsListClient({
               ))}
             </select>
           </label>
-          <label className="flex cursor-pointer items-end gap-2 pb-2 text-sm text-slate-700">
+          <label className="flex cursor-pointer items-end gap-2 pb-2 text-sm text-stone-700">
             <input
               type="checkbox"
               name="marketing"
               defaultChecked={initialMarketingOnly}
-              className="h-4 w-4 rounded border-slate-300"
+              className="h-4 w-4 rounded border-stone-300"
             />
             Opt-in marketing
           </label>
@@ -169,12 +169,12 @@ export function ClientsListClient({
 
         {tags.length > 0 ? (
           <fieldset>
-            <legend className="text-xs font-medium text-slate-600">Étiquettes (toutes requises)</legend>
+            <legend className="text-xs font-medium text-stone-600">Étiquettes (toutes requises)</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {tags.map((t) => (
                 <label
                   key={t.id}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium"
                   style={{ borderColor: t.color }}
                 >
                   <input
@@ -182,7 +182,7 @@ export function ClientsListClient({
                     name="tag"
                     value={t.id}
                     defaultChecked={initialTagIds.includes(t.id)}
-                    className="h-3.5 w-3.5 rounded border-slate-300"
+                    className="h-3.5 w-3.5 rounded border-stone-300"
                   />
                   <span style={{ color: t.color }}>{t.label}</span>
                 </label>
@@ -190,7 +190,7 @@ export function ClientsListClient({
             </div>
           </fieldset>
         ) : (
-          <p className="text-xs text-slate-500">Aucune étiquette : créez-en depuis une fiche client ou les réglages futurs.</p>
+          <p className="text-xs text-stone-500">Aucune étiquette : créez-en depuis une fiche client ou les réglages futurs.</p>
         )}
 
         <button type="submit" className={uiBtnPrimarySm}>
@@ -198,10 +198,10 @@ export function ClientsListClient({
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-stone-100 bg-stone-50/90 text-xs font-semibold uppercase tracking-wide text-stone-500">
               <th className="px-4 py-3">Client</th>
               <th className="px-4 py-3">Contact</th>
               <th className="px-4 py-3">Étiquettes</th>
@@ -209,32 +209,32 @@ export function ClientsListClient({
               <th className="w-10 px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-stone-100">
             {initialRows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-stone-500">
                   Aucun client ne correspond aux critères.
                 </td>
               </tr>
             ) : (
               initialRows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/80">
+                <tr key={row.id} className="hover:bg-stone-50/80">
                   <td className="px-4 py-3">
-                    <Link href={`/clients/${row.id}`} className="font-medium text-indigo-700 hover:underline">
+                    <Link href={`/clients/${row.id}`} className="font-medium text-copper-800 hover:underline">
                       {row.display_name}
                     </Link>
                     {row.company_name ? (
-                      <div className="text-xs text-slate-500">{row.company_name}</div>
+                      <div className="text-xs text-stone-500">{row.company_name}</div>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-stone-600">
                     <div>{row.email ?? "—"}</div>
                     <div className="tabular-nums">{row.phone ?? ""}</div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {row.tags.length === 0 ? (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-stone-400">—</span>
                       ) : (
                         row.tags.map((t) => (
                           <span
@@ -248,11 +248,11 @@ export function ClientsListClient({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-slate-800">{row.visit_count}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-stone-800">{row.visit_count}</td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/clients/${row.id}`}
-                      className="text-indigo-600 hover:text-indigo-500"
+                      className="text-copper-700 hover:text-copper-600"
                       aria-label={`Ouvrir ${row.display_name}`}
                     >
                       →

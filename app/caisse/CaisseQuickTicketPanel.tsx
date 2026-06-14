@@ -212,14 +212,14 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
   const customerEmail = snapshot?.customerEmail ?? null;
 
   const header = (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-1.5">
-      <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-900" title={ticketLabel}>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-stone-100 px-2 py-1.5">
+      <p className="min-w-0 flex-1 truncate text-xs font-semibold text-stone-900" title={ticketLabel}>
         {ticketLabel}
       </p>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
         <Link
           href={`/salle/commande/${orderId}?from=caisse`}
-          className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50"
+          className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-copper-700 hover:bg-copper-50"
         >
           Fiche
         </Link>
@@ -234,7 +234,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
         </button>
         <button
           type="button"
-          className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
           disabled={pending}
           title="Masquer ce ticket pour en saisir un autre (les commandes ouvertes restent dans En cours)"
           onClick={() => onReset()}
@@ -284,17 +284,17 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
 
   return (
     <>
-      <div className="sticky top-0 z-40 -mx-4 mb-2 border-b border-indigo-100 bg-white/95 px-4 pb-2 pt-1 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85">
+      <div className="sticky top-0 z-40 -mx-4 mb-2 border-b border-copper-100 bg-white/95 px-4 pb-2 pt-1 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85">
         <div className="mx-auto max-w-3xl space-y-1.5">
           {info ? <p className={`px-0.5 text-xs ${uiSuccess}`}>{info}</p> : null}
           {lines.length > 0 && customerEmail ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1.5">
-              <p className="min-w-0 flex-1 text-[10px] text-slate-600">E-mail « commande prête » (notification client)</p>
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/80 px-2 py-1.5">
+              <p className="min-w-0 flex-1 text-[10px] text-stone-600">E-mail « commande prête » (notification client)</p>
               <button
                 type="button"
                 disabled={pending}
                 onClick={sendReadyEmailManual}
-                className="shrink-0 rounded-md border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-800 hover:bg-indigo-50 disabled:opacity-50"
+                className="shrink-0 rounded-md border border-copper-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-copper-800 hover:bg-copper-50 disabled:opacity-50"
               >
                 Notifier
               </button>

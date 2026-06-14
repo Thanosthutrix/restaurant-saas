@@ -122,19 +122,19 @@ function NavPermissionsEditor({
 
   const levelStyles: Record<Level, Record<Level, string>> = {
     none: {
-      none: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
-      readonly: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
-      full: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+      none: "bg-stone-100 text-stone-700 ring-1 ring-stone-200",
+      readonly: "text-stone-400 hover:text-stone-600 hover:bg-stone-50",
+      full: "text-stone-400 hover:text-stone-600 hover:bg-stone-50",
     },
     readonly: {
-      none: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+      none: "text-stone-400 hover:text-stone-600 hover:bg-stone-50",
       readonly: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
-      full: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
+      full: "text-stone-400 hover:text-stone-600 hover:bg-stone-50",
     },
     full: {
-      none: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
-      readonly: "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
-      full: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200",
+      none: "text-stone-400 hover:text-stone-600 hover:bg-stone-50",
+      readonly: "text-stone-400 hover:text-stone-600 hover:bg-stone-50",
+      full: "bg-copper-50 text-copper-800 ring-1 ring-copper-200",
     },
   };
 
@@ -144,7 +144,7 @@ function NavPermissionsEditor({
       <div className="space-y-4">
         {NAV_KEY_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
               {group.label}
             </p>
             <div className="space-y-1.5">
@@ -154,9 +154,9 @@ function NavPermissionsEditor({
                 if (hasReadonly) {
                   const level = getPageLevel(baseKey);
                   return (
-                    <div key={key} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-slate-50">
-                      <span className="text-xs text-slate-700">{NAV_KEY_LABELS_FR[baseKey]}</span>
-                      <div className="flex shrink-0 rounded-lg bg-slate-100 p-0.5 gap-0.5">
+                    <div key={key} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-stone-50">
+                      <span className="text-xs text-stone-700">{NAV_KEY_LABELS_FR[baseKey]}</span>
+                      <div className="flex shrink-0 rounded-lg bg-stone-100 p-0.5 gap-0.5">
                         {(["none", "readonly", "full"] as Level[]).map((lvl) => (
                           <button
                             key={lvl}
@@ -175,11 +175,11 @@ function NavPermissionsEditor({
                 return (
                   <label
                     key={key}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs text-stone-700 hover:bg-stone-50"
                   >
                     <input
                       type="checkbox"
-                      className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-3.5 w-3.5 rounded border-stone-300 text-copper-700 focus:ring-copper-600"
                       checked={checked.has(key)}
                       disabled={pending}
                       onChange={() => toggle(key)}
@@ -547,12 +547,12 @@ export function EquipePlanningClient({
       {/* ── Planning ──────────────────────────────────────────────────────── */}
       <section className={uiCard}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-900">Planning</h2>
+          <h2 className="text-sm font-semibold text-stone-900">Planning</h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={pending}
-              className={planningMode === "real" ? `${uiBtnPrimarySm} ring-2 ring-indigo-300` : uiBtnOutlineSm}
+              className={planningMode === "real" ? `${uiBtnPrimarySm} ring-2 ring-copper-300` : uiBtnOutlineSm}
               onClick={() => navigatePlanningMode("real")}
             >
               Planning réel
@@ -578,10 +578,10 @@ export function EquipePlanningClient({
           </div>
         </div>
 
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-stone-500">
           <Link
             href={`/restaurants/${restaurantId}/edit`}
-            className="font-medium text-indigo-700 underline underline-offset-2"
+            className="font-medium text-copper-800 underline underline-offset-2"
           >
             Horaires, prépa hors client, objectifs et exceptions
           </Link>{" "}
@@ -600,7 +600,7 @@ export function EquipePlanningClient({
                       ? "text-red-900"
                       : a.level === "warning"
                         ? "text-amber-950"
-                        : "text-slate-700"
+                        : "text-stone-700"
                   }
                 >
                   <span className="font-semibold">
@@ -619,10 +619,10 @@ export function EquipePlanningClient({
 
         {/* Ébauche de planning (mode brouillon uniquement) */}
         {planningMode === "simulation" && (
-          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-            <p className="w-full text-xs text-slate-500">
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-4">
+            <p className="w-full text-xs text-stone-500">
               L’ébauche ouvre un questionnaire en 5 étapes : effectifs,{" "}
-              <strong className="font-medium text-slate-700">plages de pointe</strong> (midi / soir), absences et
+              <strong className="font-medium text-stone-700">plages de pointe</strong> (midi / soir), absences et
               options, puis génération automatique.
             </p>
             <button
@@ -642,7 +642,7 @@ export function EquipePlanningClient({
         )}
 
         {/* Grille */}
-        <div className="mt-6 border-t border-slate-100 pt-6">
+        <div className="mt-6 border-t border-stone-100 pt-6">
           <ManualWeekPlanner
             restaurantId={restaurantId}
             weekMondayIso={weekMondayIso}
@@ -701,12 +701,12 @@ export function EquipePlanningClient({
 
       {/* ── Semaine affichée ──────────────────────────────────────────────── */}
       <section className={uiCard}>
-        <h2 className="text-sm font-semibold text-slate-900">Semaine affichée</h2>
+        <h2 className="text-sm font-semibold text-stone-900">Semaine affichée</h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link href={equipeWeekHref(prevWeek)} className={`${uiBtnSecondary} text-sm`} scroll={false}>
             ← Semaine précédente
           </Link>
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium text-stone-700">
             {monday
               ? `Du ${monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au ${addDays(monday, 6).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
               : weekMondayIso}
@@ -719,7 +719,7 @@ export function EquipePlanningClient({
 
       {/* ── Collaborateurs ────────────────────────────────────────────────── */}
       <section className={uiCard}>
-        <h2 className="text-sm font-semibold text-slate-900">Collaborateurs</h2>
+        <h2 className="text-sm font-semibold text-stone-900">Collaborateurs</h2>
 
         {/* Ajout */}
         <div className="mt-3 flex flex-wrap gap-2">
@@ -742,7 +742,7 @@ export function EquipePlanningClient({
 
         {/* Liste */}
         {staff.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">Aucun collaborateur. Ajoutez-en au moins un pour planifier.</p>
+          <p className="mt-4 text-sm text-stone-500">Aucun collaborateur. Ajoutez-en au moins un pour planifier.</p>
         ) : (
           <ul className="mt-4 flex flex-wrap gap-2">
             {staff.map((m) => {
@@ -753,12 +753,12 @@ export function EquipePlanningClient({
                   <button
                     type="button"
                     onClick={() => setExpandedStaffId(m.id)}
-                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-slate-50 transition-colors"
+                    className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-stone-50 transition-colors"
                   >
                     <span className={`h-3 w-3 flex-none rounded-full ${colorClass}`} />
-                    <span className="font-medium text-slate-900">{m.display_name}</span>
+                    <span className="font-medium text-stone-900">{m.display_name}</span>
                     {m.role_label && (
-                      <span className="text-xs text-slate-500">{m.role_label}</span>
+                      <span className="text-xs text-stone-500">{m.role_label}</span>
                     )}
                   </button>
                 </li>
@@ -770,7 +770,7 @@ export function EquipePlanningClient({
 
       {/* ── Nouveau créneau (replié par défaut) ──────────────────────────── */}
       <details className={uiCard}>
-        <summary className="cursor-pointer select-none text-sm font-semibold text-slate-900">
+        <summary className="cursor-pointer select-none text-sm font-semibold text-stone-900">
           Ajouter un créneau manuellement
         </summary>
 
@@ -865,12 +865,12 @@ export function EquipePlanningClient({
               <div className="flex items-center gap-3">
                 <span className={`h-4 w-4 flex-none rounded-full ${colorClass}`} />
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-slate-900">{m.display_name}</p>
-                  {m.role_label && <p className="text-xs text-slate-500">{m.role_label}</p>}
+                  <p className="font-semibold text-stone-900">{m.display_name}</p>
+                  {m.role_label && <p className="text-xs text-stone-500">{m.role_label}</p>}
                 </div>
                 <button
                   type="button"
-                  className="ml-auto rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"
+                  className="ml-auto rounded-lg px-2 py-1 text-xs text-stone-500 hover:bg-stone-100"
                   onClick={() => { setExpandedStaffId(null); setInviteLink(null); }}
                 >
                   Fermer
@@ -908,7 +908,7 @@ export function EquipePlanningClient({
                     </div>
                     {inviteLink && expandedStaffId === m.id && (
                       <div className="space-y-1">
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-stone-500">
                           Copiez ce lien et envoyez-le au collaborateur (valable 7 jours) :
                         </p>
                         <div className="flex gap-2">
@@ -953,12 +953,12 @@ export function EquipePlanningClient({
               </div>
 
               {/* Contrat / disponibilités */}
-              <div className="mt-4 border-t border-slate-100 pt-4">
+              <div className="mt-4 border-t border-stone-100 pt-4">
                 <StaffPlanningProfileForm restaurantId={restaurantId} member={m} />
               </div>
 
               {/* Désactivation */}
-              <div className="mt-4 border-t border-slate-100 pt-4">
+              <div className="mt-4 border-t border-stone-100 pt-4">
                 <button
                   type="button"
                   disabled={pending}

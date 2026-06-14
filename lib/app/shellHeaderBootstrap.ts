@@ -21,6 +21,8 @@ export type AppShellHeaderBootstrap = {
     | null;
   /** Vide si aucun accès restaurant ; sinon filtre le menu latéral. */
   allowedNavKeys: ShellNavKey[];
+  /** Tâches hygiène + relevés température en attente (badge sidebar). Null si non applicable. */
+  hygienePendingCount?: number | null;
   /**
    * Profil de l'utilisateur connecté tel qu'affiché dans l'avatar du header.
    * `staffMemberId` + `colorIndex` uniquement pour les collaborateurs (null pour les propriétaires).
@@ -102,6 +104,21 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     };
   }
 
+  // Badge hygiène (compté seulement si l'utilisateur voit l'entrée Hygiène).
+  let hygienePendingCount: number | null = null;
+  const canSeeHygiene =
+    access.isOwner ||
+    access.allowedNavKeys.includes("hygiene") ||
+    access.allowedNavKeys.includes("cuisine");
+  if (access.currentRestaurantId && canSeeHygiene) {
+    try {
+      const { cachedCountHygienePending } = await import("@/lib/cache");
+      hygienePendingCount = await cachedCountHygienePending(access.currentRestaurantId);
+    } catch {
+      hygienePendingCount = null;
+    }
+  }
+
   return {
     restaurants: rows,
     currentRestaurantId: access.currentRestaurantId,
@@ -109,6 +126,7 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     weather: null,
     weatherHint: null,
     allowedNavKeys: access.allowedNavKeys,
+    hygienePendingCount,
     userProfile,
   };
 }

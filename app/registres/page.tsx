@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getRecentDeliveryNotesForRestaurant, getSupplierInvoicesForRestaurant, getSuppliers } from "@/lib/db";
+import { getRecentDeliveryNotesForRestaurant, getSupplierInvoicesForRestaurant } from "@/lib/db";
+import { cachedGetSuppliers } from "@/lib/cache";
 import { listHygieneRegister } from "@/lib/hygiene/hygieneDb";
 import { listTemperatureLogs } from "@/lib/haccpTemperature/haccpTemperatureDb";
 import { listPreparationRegister } from "@/lib/preparations/preparationsDb";
@@ -50,7 +51,7 @@ export default async function RegistresPage({ searchParams }: { searchParams: Pr
   const [notesRes, invoicesRes, suppliersRes, cleaningRows, tempRows, prepRows] = await Promise.all([
     getRecentDeliveryNotesForRestaurant(restaurant.id, 150),
     getSupplierInvoicesForRestaurant(restaurant.id, { includeFileFields: false }),
-    getSuppliers(restaurant.id, true),
+    cachedGetSuppliers(restaurant.id, true),
     listHygieneRegister(restaurant.id, 200),
     listTemperatureLogs(restaurant.id, { limit: 200 }),
     listPreparationRegister(restaurant.id, 200),
@@ -123,7 +124,7 @@ export default async function RegistresPage({ searchParams }: { searchParams: Pr
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-500">Chargement des registres…</div>
+        <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-stone-500">Chargement des registres…</div>
       }
     >
       <RegistresClient

@@ -26,7 +26,7 @@ export default async function LoginPage({ searchParams }: Props) {
     error && typeof error === "string" && LOGIN_ERROR_MESSAGES[error] ? LOGIN_ERROR_MESSAGES[error] : null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4 py-12">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Link href="/" className={uiLinkSubtle}>
@@ -36,7 +36,7 @@ export default async function LoginPage({ searchParams }: Props) {
         </div>
         {deleted === "1" ? (
           <p className={uiInfoBanner}>
-            <span className="font-semibold text-slate-800">Compte supprimé.</span> Vos données ont été effacées. Vous
+            <span className="font-semibold text-stone-800">Compte supprimé.</span> Vos données ont été effacées. Vous
             pouvez créer un nouveau compte si besoin.
           </p>
         ) : null}

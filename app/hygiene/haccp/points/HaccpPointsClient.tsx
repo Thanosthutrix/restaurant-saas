@@ -87,7 +87,7 @@ export function HaccpPointsClient({ restaurantId, points }: Props) {
 
       {showForm && (
         <div className={`${uiCard} space-y-3`}>
-          <h2 className="text-sm font-semibold text-slate-900">{form.id ? "Modifier" : "Créer"} un point</h2>
+          <h2 className="text-sm font-semibold text-stone-900">{form.id ? "Modifier" : "Créer"} un point</h2>
           {error && <p className="text-sm text-rose-700">{error}</p>}
           <div>
             <label className={uiLabel} htmlFor="tp-name">
@@ -178,7 +178,7 @@ export function HaccpPointsClient({ restaurantId, points }: Props) {
               ))}
             </select>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700">
             <input
               type="checkbox"
               checked={form.active}
@@ -210,8 +210,8 @@ export function HaccpPointsClient({ restaurantId, points }: Props) {
         {points.map((p) => (
           <li key={p.id} className={`${uiCard} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
             <div>
-              <p className="font-medium text-slate-900">{p.name}</p>
-              <p className="text-xs text-slate-500">
+              <p className="font-medium text-stone-900">{p.name}</p>
+              <p className="text-xs text-stone-500">
                 {TEMPERATURE_POINT_TYPE_LABEL_FR[p.point_type]} · {p.location || "—"} ·{" "}
                 {p.min_threshold}–{p.max_threshold} °C · {TEMPERATURE_RECURRENCE_LABEL_FR[p.recurrence_type]}
               </p>
@@ -239,7 +239,7 @@ export function HaccpPointsClient({ restaurantId, points }: Props) {
       </ul>
 
       {points.length === 0 && !showForm && (
-        <p className="text-sm text-slate-500">Aucun point. Créez-en un pour générer des relevés.</p>
+        <p className="text-sm text-stone-500">Aucun point. Créez-en un pour générer des relevés.</p>
       )}
     </div>
   );

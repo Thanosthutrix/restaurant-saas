@@ -23,7 +23,7 @@ const SERVICE_TYPES = [
 ];
 
 const inputClass =
-  "w-full rounded border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+  "w-full rounded border border-stone-300 px-3 py-2 text-stone-900 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600";
 
 type Phase = "form" | "review";
 
@@ -160,10 +160,10 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
 
   if (phase === "review") {
     return (
-      <div className="space-y-6 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="space-y-6 rounded-lg border border-stone-200 bg-white p-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Valider les plats détectés</h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <h2 className="text-lg font-semibold text-stone-900">Valider les plats détectés</h2>
+          <p className="mt-1 text-xs text-stone-500">
             Ajustez rubrique, prix TTC, TVA et type puis enregistrez, ou passez cette étape.
           </p>
         </div>
@@ -185,7 +185,7 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
           <button
             type="button"
             onClick={() => void goDashboard()}
-            className="w-full rounded bg-slate-900 py-2 font-medium text-white hover:bg-slate-800"
+            className="w-full rounded bg-stone-900 py-2 font-medium text-white hover:bg-stone-800"
           >
             Ouvrir le tableau de bord
           </button>
@@ -193,7 +193,7 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
           <button
             type="button"
             onClick={() => void goDashboard()}
-            className="w-full rounded border border-slate-200 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="w-full rounded border border-stone-200 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
           >
             Passer sans créer de plats
           </button>
@@ -203,10 +203,10 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-stone-200 bg-white p-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="name" className="mb-1 block text-sm font-medium text-stone-700">
           Nom du restaurant *
         </label>
         <input
@@ -220,7 +220,7 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
         />
       </div>
       <div>
-        <label htmlFor="address" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="address" className="mb-1 block text-sm font-medium text-stone-700">
           Adresse de l&apos;établissement
         </label>
         <textarea
@@ -231,12 +231,12 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
           placeholder="12 rue de la République, 75001 Paris"
           className={`${inputClass} min-h-[4rem] resize-y`}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-stone-500">
           Optionnel : météo et calendrier. Si renseignée, adresse géocodable en France (Base Adresse Nationale).
         </p>
       </div>
       <div>
-        <label htmlFor="profile" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="profile" className="mb-1 block text-sm font-medium text-stone-700">
           Type d&apos;établissement et modèle de départ
         </label>
         <select
@@ -253,15 +253,15 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
           <option value={RESTAURANT_PROFILE_OTHER}>Autre — aucun modèle</option>
         </select>
         {selectedTemplate ? (
-          <p className="mt-1 text-xs text-slate-500">{selectedTemplate.description}</p>
+          <p className="mt-1 text-xs text-stone-500">{selectedTemplate.description}</p>
         ) : (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-stone-500">
             Aucun composant ni plat prérempli — vous les ajouterez dans l&apos;application.
           </p>
         )}
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Type de service</label>
+        <label className="mb-1 block text-sm font-medium text-stone-700">Type de service</label>
         <select
           value={serviceType}
           onChange={(e) => setServiceType(e.target.value)}
@@ -290,7 +290,7 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded bg-slate-900 py-2 font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+        className="w-full rounded bg-stone-900 py-2 font-medium text-white hover:bg-stone-800 disabled:opacity-50"
       >
         {loading
           ? menuFiles.length > 0

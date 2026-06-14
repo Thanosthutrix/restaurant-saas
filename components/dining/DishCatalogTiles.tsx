@@ -25,10 +25,10 @@ export function DishCatalogTileButton({ dish, disabled, onClick }: DishCatalogTi
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-left text-sm shadow-sm ring-1 ring-slate-100/80 transition hover:border-indigo-200 hover:bg-indigo-50/40 disabled:opacity-60"
+      className="flex min-h-[52px] w-full items-center justify-between gap-3 rounded-xl border border-stone-200/80 bg-white px-4 py-3 text-left text-base shadow-sm ring-1 ring-stone-100/80 transition hover:border-copper-200 hover:bg-copper-50/40 active:scale-[0.99] disabled:opacity-60"
     >
-      <span className="min-w-0 font-semibold text-slate-900">{dish.name}</span>
-      <span className="shrink-0 tabular-nums text-slate-700">{fmtDishPriceTtc(dish)}</span>
+      <span className="min-w-0 font-semibold text-stone-900">{dish.name}</span>
+      <span className="shrink-0 tabular-nums text-stone-700">{fmtDishPriceTtc(dish)}</span>
     </button>
   );
 }

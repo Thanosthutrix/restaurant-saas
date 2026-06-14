@@ -139,12 +139,12 @@ export function SupplierOrderSendPanel({
     : null;
 
   return (
-    <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
+    <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-medium text-slate-900">Envoi fournisseur</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Méthode préférée : <span className="font-semibold text-slate-700">{METHOD_LABELS[preferredOrderMethod]}</span>
+          <h2 className="text-sm font-medium text-stone-900">Envoi fournisseur</h2>
+          <p className="mt-1 text-xs text-stone-500">
+            Méthode préférée : <span className="font-semibold text-stone-700">{METHOD_LABELS[preferredOrderMethod]}</span>
           </p>
           {sentDate ? (
             <p className="mt-1 text-xs font-medium text-emerald-700">
@@ -157,7 +157,7 @@ export function SupplierOrderSendPanel({
         <button
           type="button"
           onClick={copyMessage}
-          className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
         >
           Copier le message
         </button>
@@ -168,7 +168,7 @@ export function SupplierOrderSendPanel({
           type="button"
           disabled={pending || !supplierEmail}
           onClick={sendEmail}
-          className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+          className="rounded bg-copper-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-copper-600 disabled:opacity-50"
           title={supplierEmail ? `Envoyer à ${supplierEmail}` : "Renseignez l’e-mail sur la fiche fournisseur"}
         >
           {pending ? "Envoi…" : "Envoyer par e-mail"}
@@ -195,7 +195,7 @@ export function SupplierOrderSendPanel({
           type="button"
           disabled={pending}
           onClick={() => markManual("phone")}
-          className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
         >
           Marquer téléphone
         </button>
@@ -203,7 +203,7 @@ export function SupplierOrderSendPanel({
           type="button"
           disabled={pending}
           onClick={() => markManual("portal")}
-          className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
         >
           Marquer portail
         </button>

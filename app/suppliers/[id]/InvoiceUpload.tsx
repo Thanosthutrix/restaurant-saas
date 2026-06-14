@@ -65,7 +65,7 @@ export function InvoiceUpload({ restaurantId, supplierId }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-slate-500">
+        <label className="mb-1 block text-xs font-medium text-stone-500">
           Fichier facture
         </label>
         <input
@@ -78,12 +78,12 @@ export function InvoiceUpload({ restaurantId, supplierId }: Props) {
             setSuccess(null);
           }}
           disabled={loading}
-          className="block w-full text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-3 file:py-1 file:text-sm"
+          className="block w-full text-sm text-stone-600 file:mr-2 file:rounded file:border-0 file:bg-stone-200 file:px-3 file:py-1 file:text-sm"
         />
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">
+          <label className="mb-1 block text-xs font-medium text-stone-500">
             N° facture (optionnel)
           </label>
           <input
@@ -91,18 +91,18 @@ export function InvoiceUpload({ restaurantId, supplierId }: Props) {
             value={invoiceNumber}
             onChange={(e) => setInvoiceNumber(e.target.value)}
             placeholder="ex. FAC-2024-001"
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">
+          <label className="mb-1 block text-xs font-medium text-stone-500">
             Date facture (optionnel)
           </label>
           <input
             type="date"
             value={invoiceDate}
             onChange={(e) => setInvoiceDate(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           />
         </div>
       </div>
@@ -124,7 +124,7 @@ export function InvoiceUpload({ restaurantId, supplierId }: Props) {
       <button
         type="submit"
         disabled={loading || !file}
-        className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+        className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
       >
         {loading ? "Enregistrement et analyse…" : "Enregistrer la facture"}
       </button>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidateSuppliersCache } from "@/lib/cacheInvalidation";
 import { createSupplier, updateSupplier, createDeliveryNote, populateDeliveryNoteLinesFromPurchaseOrder, getDeliveryNoteByPurchaseOrderId, createSupplierInvoice } from "@/lib/db";
 import type { PreferredOrderMethod } from "@/lib/db";
 import { runSupplierInvoiceAnalysis } from "@/lib/run-supplier-invoice-analysis";
@@ -35,6 +36,7 @@ export async function createSupplierAction(formData: FormData): Promise<ActionRe
   revalidatePath("/suppliers/[id]", "page");
   revalidatePath("/inventory");
   revalidatePath("/orders/suggestions");
+  invalidateSuppliersCache();
   return { ok: true };
 }
 
@@ -63,6 +65,7 @@ export async function updateSupplierAction(supplierId: string, formData: FormDat
   revalidatePath("/suppliers");
   revalidatePath(`/suppliers/${supplierId}`);
   revalidatePath("/orders/suggestions");
+  invalidateSuppliersCache();
   return { ok: true };
 }
 

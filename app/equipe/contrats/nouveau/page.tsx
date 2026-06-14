@@ -25,7 +25,7 @@ export default async function NewHcrContractPage() {
         ← Contrats HCR
       </Link>
       <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Nouveau contrat</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-copper-700">Nouveau contrat</p>
         <h1 className={`mt-2 ${uiPageTitle}`}>Assistant de génération HCR</h1>
         <p className={`mt-2 max-w-3xl ${uiLead}`}>
           Complétez les informations obligatoires, sélectionnez les clauses, puis exportez le contrat en PDF.

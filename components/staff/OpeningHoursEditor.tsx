@@ -90,14 +90,14 @@ export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" 
 
   const intro =
     variant === "staffExtra" ? (
-      <p className="text-xs text-slate-500">
-        Ajoutez les plages où l’effectif peut être planifié <strong className="font-medium text-slate-700">sans service au public</strong>{" "}
+      <p className="text-xs text-stone-500">
+        Ajoutez les plages où l’effectif peut être planifié <strong className="font-medium text-stone-700">sans service au public</strong>{" "}
         (préparation, réception marchandises, nettoyage, etc.). Elles s’affichent en ambre sur la grille et s’ajoutent aux
         plages « service » pour les alertes et la génération automatique. Les plages par collaborateur (fiche équipe)
         restent possibles en complément.
       </p>
     ) : (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-stone-500">
         Définissez les plages où l’établissement est ouvert au public (midi, soir, etc.). Elles apparaissent en vert sur la
         grille et servent aux alertes « hors horaires ».
       </p>
@@ -111,15 +111,15 @@ export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" 
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PLANNING_DAY_KEYS.map((key) => (
-          <div key={key} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+          <div key={key} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-slate-800">{PLANNING_DAY_LABELS_FR[key]}</span>
+              <span className="text-sm font-semibold text-stone-800">{PLANNING_DAY_LABELS_FR[key]}</span>
               <button type="button" className={uiBtnOutlineSm} onClick={() => addBand(key)}>
                 + Plage
               </button>
             </div>
             {(map[key]?.length ?? 0) === 0 ? (
-              <p className="mt-2 text-xs text-slate-400">Fermé — ajoutez une plage si besoin.</p>
+              <p className="mt-2 text-xs text-stone-400">Fermé — ajoutez une plage si besoin.</p>
             ) : (
               <div className="mt-2 space-y-2">
                 {(map[key] ?? []).map((band, i) => (

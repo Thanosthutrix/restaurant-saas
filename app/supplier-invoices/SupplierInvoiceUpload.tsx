@@ -74,14 +74,14 @@ export function SupplierInvoiceUpload({ restaurantId, suppliers }: Props) {
   }
 
   if (suppliers.length === 0) {
-    return <p className="text-sm text-slate-500">Créez d’abord un fournisseur pour importer une facture.</p>;
+    return <p className="text-sm text-stone-500">Créez d’abord un fournisseur pour importer une facture.</p>;
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-500">Fournisseur</span>
+          <span className="mb-1 block text-xs font-medium text-stone-500">Fournisseur</span>
           <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className={`w-full ${uiSelect}`}>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>
@@ -91,7 +91,7 @@ export function SupplierInvoiceUpload({ restaurantId, suppliers }: Props) {
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-500">Fichier facture</span>
+          <span className="mb-1 block text-xs font-medium text-stone-500">Fichier facture</span>
           <input
             ref={inputRef}
             type="file"
@@ -102,17 +102,17 @@ export function SupplierInvoiceUpload({ restaurantId, suppliers }: Props) {
               setError(null);
               setSuccess(null);
             }}
-            className="block w-full text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-3 file:py-1 file:text-sm"
+            className="block w-full text-sm text-stone-600 file:mr-2 file:rounded file:border-0 file:bg-stone-200 file:px-3 file:py-1 file:text-sm"
           />
         </label>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-500">N° facture (optionnel)</span>
+          <span className="mb-1 block text-xs font-medium text-stone-500">N° facture (optionnel)</span>
           <input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className={`w-full ${uiInput}`} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-500">Date facture (optionnel)</span>
+          <span className="mb-1 block text-xs font-medium text-stone-500">Date facture (optionnel)</span>
           <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className={`w-full ${uiInput}`} />
         </label>
       </div>

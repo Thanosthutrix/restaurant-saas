@@ -105,10 +105,10 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
   const forfaitJoursDisabled = status !== "executive";
 
   return (
-    <aside className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+    <aside className="space-y-3 rounded-2xl border border-stone-100 bg-stone-50/80 p-4">
       <div>
-        <h2 className="text-sm font-semibold text-slate-900">Clauses additionnelles</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <h2 className="text-sm font-semibold text-stone-900">Clauses additionnelles</h2>
+        <p className="mt-1 text-xs text-stone-500">
           Cochez les clauses à injecter dans le contrat généré.
         </p>
       </div>
@@ -130,7 +130,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
                 disabled={clauseDisabled}
                 onChange={(e) => onChange({ ...clauses, [key]: e.target.checked })}
               />
-              <span className="flex flex-1 flex-wrap items-center gap-2 font-medium text-slate-700">
+              <span className="flex flex-1 flex-wrap items-center gap-2 font-medium text-stone-700">
                 {label}
                 {key === "exclusivite" && isPartTime ? (
                   <span className="inline-flex rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">
@@ -138,12 +138,12 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
                   </span>
                 ) : null}
                 {key === "heuresComplementaires" && complementaryHoursDisabled ? (
-                  <span className="inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                  <span className="inline-flex rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-semibold text-stone-600">
                     Réservé au temps partiel
                   </span>
                 ) : null}
                 {key === "forfaitJours" && forfaitJoursDisabled ? (
-                  <span className="inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                  <span className="inline-flex rounded bg-stone-100 px-1.5 py-0.5 text-[11px] font-semibold text-stone-600">
                     Réservé aux cadres
                   </span>
                 ) : null}
@@ -166,15 +166,15 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
                       onChange({ ...clauses, trialPeriodValue: Number(e.target.value) })
                     }
                   />
-                  <span className="text-xs font-medium text-slate-600">{trialLimit.unit}</span>
+                  <span className="text-xs font-medium text-stone-600">{trialLimit.unit}</span>
                 </div>
-                <p className={`text-xs ${trialPeriodExceeded ? "text-rose-600" : "text-slate-500"}`}>
+                <p className={`text-xs ${trialPeriodExceeded ? "text-rose-600" : "text-stone-500"}`}>
                   {trialLimit.label}
                 </p>
               </div>
             ) : null}
             {key === "logement" && clauses.logement ? (
-              <div className="mt-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 space-y-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="housing-address">
                   Adresse précise <span className="text-rose-600">*</span>
                 </label>
@@ -229,7 +229,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "transport" && clauses.transport ? (
-              <div className="mt-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 space-y-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="transport-coverage-percent">
                   Taux de prise en charge employeur (%)
                 </label>
@@ -264,7 +264,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "materiel" && clauses.materiel ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="provided-equipment">
                   Matériel fourni <span className="text-rose-600">*</span>
                 </label>
@@ -280,7 +280,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "dedit" && clauses.dedit ? (
-              <div className="mt-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 space-y-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="training-name">
                   Formation financée <span className="text-rose-600">*</span>
                 </label>
@@ -330,7 +330,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "nonCompete" && clauses.nonCompete ? (
-              <div className="mt-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 space-y-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="non-compete-duration">
                   Durée en mois <span className="text-rose-600">*</span>
                 </label>
@@ -391,7 +391,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "delegation" && clauses.delegation ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="delegation-missions">
                   Missions déléguées <span className="text-rose-600">*</span>
                 </label>
@@ -405,7 +405,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "videosurveillance" && clauses.videosurveillance ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="cctv-locations">
                   Zones concernées <span className="text-rose-600">*</span>
                 </label>
@@ -419,7 +419,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "permis" && clauses.permis ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="required-driver-license">Permis requis</label>
                 <input
                   id="required-driver-license"
@@ -431,7 +431,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "confidentialiteRenforcee" && clauses.confidentialiteRenforcee ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="protected-savoir-faire">
                   Savoir-faire protégé <span className="text-rose-600">*</span>
                 </label>
@@ -445,7 +445,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "tenueTravail" && clauses.tenueTravail ? (
-              <div className="mt-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 space-y-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="uniform-list">
                   Tenues fournies ou imposées <span className="text-rose-600">*</span>
                 </label>
@@ -472,7 +472,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "heuresComplementaires" && clauses.heuresComplementaires && !complementaryHoursDisabled ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="complementary-hours">Plafond heures complémentaires (%)</label>
                 <input
                   id="complementary-hours"
@@ -491,7 +491,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "forfaitJours" && clauses.forfaitJours && !forfaitJoursDisabled ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="forfait-days">Forfait jours maximum</label>
                 <input
                   id="forfait-days"
@@ -504,7 +504,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "remunerationVariable" && clauses.remunerationVariable ? (
-              <div className="mt-2 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 space-y-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="variable-bonus-max">
                   Plafond de prime variable en € <span className="text-rose-600">*</span>
                 </label>
@@ -531,7 +531,7 @@ export function HcrClauseSidebar({ clauses, trialLimit, weeklyHours, status, onC
               </div>
             ) : null}
             {key === "responsabiliteCaisse" && clauses.responsabiliteCaisse ? (
-              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mt-2 rounded-xl border border-stone-100 bg-stone-50 p-3">
                 <label className={uiLabel} htmlFor="pos-terminal">
                   Identifiant caisse / TPE <span className="text-rose-600">*</span>
                 </label>

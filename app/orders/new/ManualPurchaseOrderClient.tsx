@@ -146,7 +146,7 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
 
   if (suppliers.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="rounded-lg border border-stone-200 bg-white p-4">
         <p className={uiLead}>Créez d’abord au moins un fournisseur actif pour pouvoir préparer une commande.</p>
       </div>
     );
@@ -155,9 +155,9 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
       <div className="space-y-4">
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <section className="rounded-lg border border-stone-200 bg-white p-4">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Fournisseur</span>
+            <span className="mb-1 block text-xs font-medium text-stone-500">Fournisseur</span>
             <select
               value={supplierId}
               onChange={(e) => {
@@ -174,15 +174,15 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
             </select>
           </label>
           {supplier ? (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-stone-500">
               Canal préféré : {supplier.preferred_order_method}
               {supplier.email ? ` · ${supplier.email}` : ""}
             </p>
           ) : null}
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-900">Ajouter des produits</h2>
+        <section className="rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-semibold text-stone-900">Ajouter des produits</h2>
           <input
             type="search"
             value={search}
@@ -192,19 +192,19 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
             autoComplete="off"
           />
           {matches.length > 0 ? (
-            <ul className="mt-2 max-h-72 overflow-auto rounded-xl border border-slate-100 bg-white shadow-sm">
+            <ul className="mt-2 max-h-72 overflow-auto rounded-xl border border-stone-100 bg-white shadow-sm">
               {matches.map((item) => (
                 <li key={item.id}>
                   <button
                     type="button"
                     onClick={() => addItem(item)}
-                    className="flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50/60"
+                    className="flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-copper-50/60"
                   >
                     <span>
-                      <span className="font-medium text-slate-900">{item.name}</span>
-                      <span className="ml-1 text-slate-500">({item.unit})</span>
+                      <span className="font-medium text-stone-900">{item.name}</span>
+                      <span className="ml-1 text-stone-500">({item.unit})</span>
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-stone-500">
                       {item.supplier_id === supplierId ? "fournisseur choisi" : "autre fournisseur / non lié"}
                       {item.supplier_sku ? ` · réf. ${item.supplier_sku}` : ""}
                     </span>
@@ -213,19 +213,19 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
               ))}
             </ul>
           ) : search.trim() ? (
-            <p className="mt-2 text-xs text-slate-500">Aucun produit trouvé.</p>
+            <p className="mt-2 text-xs text-stone-500">Aucun produit trouvé.</p>
           ) : null}
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Lignes de commande</h2>
+        <section className="rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-stone-900">Lignes de commande</h2>
           {lines.length === 0 ? (
             <p className={uiLead}>Aucun produit ajouté.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                  <tr className="border-b border-stone-200 text-left text-stone-500">
                     <th className="pb-2 pr-2">Produit</th>
                     <th className="pb-2 pr-2 text-right">Quantité achat</th>
                     <th className="pb-2 pr-2">Unité achat</th>
@@ -237,10 +237,10 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
                     const item = itemById.get(line.inventoryItemId);
                     if (!item) return null;
                     return (
-                      <tr key={line.inventoryItemId} className="border-b border-slate-100">
-                        <td className="py-2 pr-2 font-medium text-slate-800">
+                      <tr key={line.inventoryItemId} className="border-b border-stone-100">
+                        <td className="py-2 pr-2 font-medium text-stone-800">
                           {item.name}
-                          {item.supplier_sku ? <span className="ml-1 text-slate-500">(réf. {item.supplier_sku})</span> : null}
+                          {item.supplier_sku ? <span className="ml-1 text-stone-500">(réf. {item.supplier_sku})</span> : null}
                         </td>
                         <td className="py-2 pr-2 text-right">
                           <input
@@ -251,7 +251,7 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
                             className={`w-24 text-right ${uiInput}`}
                           />
                         </td>
-                        <td className="py-2 pr-2 text-slate-600">{item.purchase_unit ?? "unité(s)"}</td>
+                        <td className="py-2 pr-2 text-stone-600">{item.purchase_unit ?? "unité(s)"}</td>
                         <td className="py-2 text-right">
                           <button type="button" onClick={() => removeLine(line.inventoryItemId)} className={uiBtnOutlineSm}>
                             Retirer
@@ -267,16 +267,16 @@ export function ManualPurchaseOrderClient({ restaurantId, restaurantName, suppli
         </section>
       </div>
 
-      <aside className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 lg:sticky lg:top-4 lg:self-start">
+      <aside className="space-y-3 rounded-lg border border-stone-200 bg-white p-4 lg:sticky lg:top-4 lg:self-start">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Message fournisseur</h2>
-          <p className="mt-1 text-xs text-slate-500">Prérempli comme pour les suggestions, modifiable avant création.</p>
+          <h2 className="text-sm font-semibold text-stone-900">Message fournisseur</h2>
+          <p className="mt-1 text-xs text-stone-500">Prérempli comme pour les suggestions, modifiable avant création.</p>
         </div>
         <textarea
           value={message}
           onChange={(e) => setCustomMessage(e.target.value)}
           rows={14}
-          className="w-full rounded border border-slate-300 bg-white p-3 font-mono text-sm text-slate-800"
+          className="w-full rounded border border-stone-300 bg-white p-3 font-mono text-sm text-stone-800"
         />
         {error ? <p className={uiError}>{error}</p> : null}
         <button type="button" disabled={pending || lines.length === 0} onClick={createOrder} className={`w-full ${uiBtnPrimary}`}>

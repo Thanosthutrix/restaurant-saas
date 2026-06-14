@@ -28,30 +28,30 @@ export default async function ReceptionTraceabilityRegisterPage({
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-5xl px-4 py-6">
         <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1">
           <Link
             href="/livraison"
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Livraison
           </Link>
         </div>
 
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h1 className="text-xl font-semibold text-slate-900">Registre photos traçabilité</h1>
-          <p className="mt-1 text-sm text-slate-500">
+        <div className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h1 className="text-xl font-semibold text-stone-900">Registre photos traçabilité</h1>
+          <p className="mt-1 text-sm text-stone-500">
             Photos prises à la réception (par ligne de BL), filtrables par période, type d’élément et n° de lot.
           </p>
         </div>
 
         <form
           method="get"
-          className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4"
+          className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-stone-200 bg-white p-4"
         >
           <div>
-            <label htmlFor="reg-from" className="mb-1 block text-xs font-medium text-slate-500">
+            <label htmlFor="reg-from" className="mb-1 block text-xs font-medium text-stone-500">
               Du
             </label>
             <input
@@ -59,11 +59,11 @@ export default async function ReceptionTraceabilityRegisterPage({
               name="from"
               type="date"
               defaultValue={fromDate ?? ""}
-              className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="rounded border border-stone-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
-            <label htmlFor="reg-to" className="mb-1 block text-xs font-medium text-slate-500">
+            <label htmlFor="reg-to" className="mb-1 block text-xs font-medium text-stone-500">
               Au
             </label>
             <input
@@ -71,18 +71,18 @@ export default async function ReceptionTraceabilityRegisterPage({
               name="to"
               type="date"
               defaultValue={toDate ?? ""}
-              className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="rounded border border-stone-300 px-2 py-1.5 text-sm"
             />
           </div>
           <div>
-            <label htmlFor="reg-type" className="mb-1 block text-xs font-medium text-slate-500">
+            <label htmlFor="reg-type" className="mb-1 block text-xs font-medium text-stone-500">
               Type
             </label>
             <select
               id="reg-type"
               name="type"
               defaultValue={elementType}
-              className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="rounded border border-stone-300 px-2 py-1.5 text-sm"
             >
               <option value="all">Tous</option>
               {TRACEABILITY_ELEMENT_TYPES.map((t) => (
@@ -93,7 +93,7 @@ export default async function ReceptionTraceabilityRegisterPage({
             </select>
           </div>
           <div className="min-w-[10rem] flex-1">
-            <label htmlFor="reg-lot" className="mb-1 block text-xs font-medium text-slate-500">
+            <label htmlFor="reg-lot" className="mb-1 block text-xs font-medium text-stone-500">
               N° lot (contient)
             </label>
             <input
@@ -102,12 +102,12 @@ export default async function ReceptionTraceabilityRegisterPage({
               type="text"
               placeholder="ex. L2024"
               defaultValue={lotSearch ?? ""}
-              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
             />
           </div>
           <button
             type="submit"
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800"
           >
             Filtrer
           </button>
@@ -120,14 +120,14 @@ export default async function ReceptionTraceabilityRegisterPage({
         )}
 
         {!error && rows.length === 0 && (
-          <p className="text-sm text-slate-600">Aucune photo enregistrée pour ces critères.</p>
+          <p className="text-sm text-stone-600">Aucune photo enregistrée pour ces critères.</p>
         )}
 
         {!error && rows.length > 0 && (
-          <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded border border-stone-200 bg-white">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-500">
+                <tr className="border-b border-stone-200 text-left text-stone-500">
                   <th className="p-2">Date / heure</th>
                   <th className="p-2">Type</th>
                   <th className="p-2">Fournisseur</th>
@@ -142,8 +142,8 @@ export default async function ReceptionTraceabilityRegisterPage({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100">
-                    <td className="p-2 whitespace-nowrap text-slate-700">
+                  <tr key={r.id} className="border-b border-stone-100">
+                    <td className="p-2 whitespace-nowrap text-stone-700">
                       {r.created_at
                         ? new Date(r.created_at).toLocaleString("fr-FR", {
                             day: "numeric",
@@ -154,7 +154,7 @@ export default async function ReceptionTraceabilityRegisterPage({
                           })
                         : "—"}
                     </td>
-                    <td className="p-2 text-slate-700">
+                    <td className="p-2 text-stone-700">
                       {TRACEABILITY_ELEMENT_TYPES.includes(
                         r.element_type as (typeof TRACEABILITY_ELEMENT_TYPES)[number]
                       )
@@ -163,17 +163,17 @@ export default async function ReceptionTraceabilityRegisterPage({
                           ]
                         : r.element_type}
                     </td>
-                    <td className="p-2 text-slate-700">{r.supplier_name ?? "—"}</td>
-                    <td className="p-2 text-slate-600">
+                    <td className="p-2 text-stone-700">{r.supplier_name ?? "—"}</td>
+                    <td className="p-2 text-stone-600">
                       {r.delivery_date
                         ? new Date(r.delivery_date + "T12:00:00").toLocaleDateString("fr-FR")
                         : "—"}
                       {r.bl_number ? ` · ${r.bl_number}` : ""}
                     </td>
-                    <td className="p-2 max-w-[12rem] text-slate-700">{r.line_label}</td>
-                    <td className="p-2 max-w-[12rem] text-slate-600">{r.product_name ?? "—"}</td>
-                    <td className="p-2 font-mono text-xs text-slate-800">{r.lot_number ?? "—"}</td>
-                    <td className="p-2 text-slate-700">
+                    <td className="p-2 max-w-[12rem] text-stone-700">{r.line_label}</td>
+                    <td className="p-2 max-w-[12rem] text-stone-600">{r.product_name ?? "—"}</td>
+                    <td className="p-2 font-mono text-xs text-stone-800">{r.lot_number ?? "—"}</td>
+                    <td className="p-2 text-stone-700">
                       {r.expiry_date
                         ? new Date(r.expiry_date + "T12:00:00").toLocaleDateString("fr-FR")
                         : "—"}
@@ -184,19 +184,19 @@ export default async function ReceptionTraceabilityRegisterPage({
                           href={r.file_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-block h-14 w-14 overflow-hidden rounded border border-slate-200 bg-slate-100"
+                          className="inline-block h-14 w-14 overflow-hidden rounded border border-stone-200 bg-stone-100"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={r.file_url} alt="" className="h-full w-full object-cover" />
                         </a>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-stone-400">—</span>
                       )}
                     </td>
                     <td className="p-2">
                       <Link
                         href={`/receiving/${r.delivery_note_id}`}
-                        className="text-indigo-700 underline decoration-indigo-300"
+                        className="text-copper-800 underline decoration-copper-300"
                       >
                         Ouvrir
                       </Link>
@@ -205,7 +205,7 @@ export default async function ReceptionTraceabilityRegisterPage({
                 ))}
               </tbody>
             </table>
-            <p className="border-t border-slate-100 px-3 py-2 text-xs text-slate-500">
+            <p className="border-t border-stone-100 px-3 py-2 text-xs text-stone-500">
               Affichage limité aux 500 entrées les plus récentes.
             </p>
           </div>

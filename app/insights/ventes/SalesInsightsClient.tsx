@@ -82,8 +82,8 @@ export function SalesInsightsClient({
         <section className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">CA par rubrique</h2>
-              <p className="text-sm text-slate-600">
+              <h2 className="text-lg font-semibold text-stone-900">CA par rubrique</h2>
+              <p className="text-sm text-stone-600">
                 Répartition du chiffre d&apos;affaires HT sur la période (services importés).
               </p>
             </div>
@@ -94,28 +94,28 @@ export function SalesInsightsClient({
                 key={c.categoryPath}
                 type="button"
                 onClick={() => setCategoryFilter(c.categoryPath)}
-                className={`rounded-2xl border p-4 text-left shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/40 ${
+                className={`rounded-2xl border p-4 text-left shadow-sm transition hover:border-copper-200 hover:bg-copper-50/40 ${
                   categoryFilter === c.categoryPath
-                    ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-100"
-                    : "border-slate-100 bg-white"
+                    ? "border-copper-300 bg-copper-50/60 ring-1 ring-copper-100"
+                    : "border-stone-100 bg-white"
                 }`}
               >
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
                   Rubrique
                 </p>
-                <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900">
+                <p className="mt-1 line-clamp-2 text-sm font-semibold text-stone-900">
                   {c.categoryPath}
                 </p>
-                <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-stone-900">
                   {formatEur(c.revenueHt)}
                 </p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500"
+                    className="h-full rounded-full bg-gradient-to-r from-copper-600 to-violet-500"
                     style={{ width: `${Math.max(8, (c.revenueHt / maxRev) * 100)}%` }}
                   />
                 </div>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-stone-500">
                   {c.qtySold} unités · marge cumulée {formatEur(c.marginHtSum || null)}
                 </p>
               </button>
@@ -127,19 +127,19 @@ export function SalesInsightsClient({
       {/* Top 10 visuel */}
       {topPlats.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-slate-900">Top 10 — CA par plat</h2>
-          <div className="space-y-2 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-stone-900">Top 10 — CA par plat</h2>
+          <div className="space-y-2 rounded-2xl border border-stone-100 bg-white p-4 shadow-sm">
             {topPlats.map((r, i) => (
               <div key={r.dishId} className="flex items-center gap-3 text-sm">
-                <span className="w-6 shrink-0 tabular-nums text-slate-400">{i + 1}</span>
+                <span className="w-6 shrink-0 tabular-nums text-stone-400">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-medium text-slate-900">{r.dishName}</span>
-                    <span className="shrink-0 tabular-nums font-semibold text-slate-800">
+                    <span className="truncate font-medium text-stone-900">{r.dishName}</span>
+                    <span className="shrink-0 tabular-nums font-semibold text-stone-800">
                       {formatEur(r.revenueHt)}
                     </span>
                   </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-stone-100">
                     <div
                       className="h-full rounded-full bg-emerald-500/90"
                       style={{
@@ -159,8 +159,8 @@ export function SalesInsightsClient({
 
       {/* Suggestions */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-slate-900">Suggestions</h2>
-        <p className="text-sm text-slate-600">
+        <h2 className="text-lg font-semibold text-stone-900">Suggestions</h2>
+        <p className="text-sm text-stone-600">
           Indicateurs automatiques à partir des ventes et des marges réalisées (FIFO). À adapter à votre
           politique commerciale.
         </p>
@@ -200,17 +200,17 @@ export function SalesInsightsClient({
       <section className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Détail par plat</h2>
-            <p className="text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-stone-900">Détail par plat</h2>
+            <p className="text-sm text-stone-600">
               Triez et filtrez par rubrique. Les marges suivent la même logique que l&apos;écran{" "}
-              <Link href="/margins" className="font-medium text-indigo-600 underline underline-offset-2">
+              <Link href="/margins" className="font-medium text-copper-700 underline underline-offset-2">
                 Marges
               </Link>
               .
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
+            <label className="flex flex-col gap-1 text-xs font-medium text-stone-600">
               <span className="flex items-center gap-1">
                 <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
                 Rubrique
@@ -218,7 +218,7 @@ export function SalesInsightsClient({
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>
@@ -227,7 +227,7 @@ export function SalesInsightsClient({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-slate-600">
+            <label className="flex flex-col gap-1 text-xs font-medium text-stone-600">
               <span className="flex items-center gap-1">
                 <ArrowDownWideNarrow className="h-3.5 w-3.5" aria-hidden />
                 Trier par
@@ -235,7 +235,7 @@ export function SalesInsightsClient({
               <select
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
+                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm"
               >
                 <option value="revenue">CA HT décroissant</option>
                 <option value="qty">Quantités vendues</option>
@@ -246,11 +246,11 @@ export function SalesInsightsClient({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-stone-200 bg-stone-50/90 text-xs font-semibold uppercase tracking-wide text-stone-500">
                   <th className="px-4 py-3 font-medium">Plat</th>
                   <th className="px-4 py-3 font-medium">Rubrique</th>
                   <th className="px-4 py-3 text-right font-medium">Qté</th>
@@ -260,13 +260,13 @@ export function SalesInsightsClient({
                   <th className="px-4 py-3 font-medium">Recette</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-100">
                 {filtered.map((r) => (
-                  <tr key={r.dishId} className="align-top hover:bg-slate-50/80">
+                  <tr key={r.dishId} className="align-top hover:bg-stone-50/80">
                     <td className="px-4 py-3">
                       <Link
                         href={`/dishes/${r.dishId}`}
-                        className="font-medium text-indigo-700 hover:underline"
+                        className="font-medium text-copper-800 hover:underline"
                       >
                         {r.dishName}
                       </Link>
@@ -274,13 +274,13 @@ export function SalesInsightsClient({
                         <p className="mt-0.5 text-xs text-amber-800/90">{r.note}</p>
                       ) : null}
                     </td>
-                    <td className="max-w-[14rem] px-4 py-3 text-slate-700">
+                    <td className="max-w-[14rem] px-4 py-3 text-stone-700">
                       <span className="line-clamp-2">{r.categoryPath}</span>
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-800">
+                    <td className="px-4 py-3 text-right tabular-nums text-stone-800">
                       {r.qtySold}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium text-slate-900">
+                    <td className="px-4 py-3 text-right tabular-nums font-medium text-stone-900">
                       {formatEur(r.revenueHt)}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -290,16 +290,16 @@ export function SalesInsightsClient({
                             ? "font-semibold text-emerald-700"
                             : r.marginPct != null && r.marginPct < 50
                               ? "font-semibold text-rose-700"
-                              : "text-slate-800"
+                              : "text-stone-800"
                         }
                       >
                         {formatPct(r.marginPct)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">
+                    <td className="px-4 py-3 text-right tabular-nums text-stone-700">
                       {formatEur(r.marginHt)}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
+                    <td className="px-4 py-3 text-xs text-stone-600">
                       {r.recipeStatus === "validated"
                         ? "Validée"
                         : r.recipeStatus === "draft"
@@ -314,7 +314,7 @@ export function SalesInsightsClient({
             </table>
           </div>
           {filtered.length === 0 && (
-            <p className="px-4 py-8 text-center text-sm text-slate-500">
+            <p className="px-4 py-8 text-center text-sm text-stone-500">
               Aucun plat dans cette sélection.
             </p>
           )}
@@ -340,16 +340,16 @@ function SuggestionCard({
   return (
     <div className={`rounded-2xl border p-4 shadow-sm ${accent}`}>
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 text-slate-800 shadow-sm">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 text-stone-800 shadow-sm">
           <Icon className="h-5 w-5" aria-hidden />
         </span>
         <div>
-          <h3 className="font-semibold text-slate-900">{title}</h3>
-          <p className="text-xs text-slate-600">{subtitle}</p>
+          <h3 className="font-semibold text-stone-900">{title}</h3>
+          <p className="text-xs text-stone-600">{subtitle}</p>
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">Rien à signaler avec les seuils actuels.</p>
+        <p className="mt-4 text-sm text-stone-500">Rien à signaler avec les seuils actuels.</p>
       ) : (
         <ul className="mt-4 space-y-2">
           {rows.map((r) => (
@@ -359,11 +359,11 @@ function SuggestionCard({
             >
               <Link
                 href={`/dishes/${r.dishId}`}
-                className="min-w-0 flex-1 truncate font-medium text-indigo-800 hover:underline"
+                className="min-w-0 flex-1 truncate font-medium text-copper-800 hover:underline"
               >
                 {r.dishName}
               </Link>
-              <span className="shrink-0 tabular-nums text-xs text-slate-600">
+              <span className="shrink-0 tabular-nums text-xs text-stone-600">
                 {r.qtySold} u. · {formatEur(r.revenueHt)} · {formatPct(r.marginPct)}
               </span>
             </li>

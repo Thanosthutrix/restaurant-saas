@@ -12,9 +12,9 @@ import {
   getRestaurantPlanningStaffTargetsWeekly,
   listPlanningDayOverridesInRange,
   listSimulationShiftsWithDetails,
-  listStaffMembers,
   listWorkShiftsInRange,
 } from "@/lib/staff/staffDb";
+import { cachedListStaffMembers } from "@/lib/cache";
 import { hydratePlanningWizard } from "@/lib/staff/wizard/hydratePlanningWizard";
 import { addDays, mondayFromWeekParam, toISODateString } from "@/lib/staff/weekUtils";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
@@ -44,7 +44,7 @@ export default async function EquipePage({ searchParams }: Props) {
 
   const [staff, shifts, hourMaps, staffTargetsWeekly, peakBandsWeekly, overrides, weekSim, securityFloor] =
     await Promise.all([
-      listStaffMembers(restaurant.id, true),
+      cachedListStaffMembers(restaurant.id),
       listWorkShiftsInRange(restaurant.id, rangeStartIso, rangeEndExclusiveIso),
       getRestaurantPlanningHourMaps(restaurant.id),
       getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
@@ -99,9 +99,12 @@ export default async function EquipePage({ searchParams }: Props) {
         </p>
       </div>
 
-      <p className="text-sm">
-        <Link href="/equipe/mon-planning" className="font-medium text-indigo-700 underline">
+      <p className="flex flex-wrap gap-4 text-sm">
+        <Link href="/equipe/mon-planning" className="font-medium text-copper-800 underline">
           Mon planning (collaborateur)
+        </Link>
+        <Link href="/equipe/contrats" className="font-medium text-copper-800 underline">
+          Contrats HCR
         </Link>
       </p>
 

@@ -83,7 +83,7 @@ export default async function DishDetailPage({ params }: Props) {
       </div>
 
       <div className={uiCard}>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{dish.name}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-stone-900">{dish.name}</h1>
         <p className={`mt-1 ${uiLead}`}>
           Mode : {dish.production_mode === "resale" ? "Revente" : dish.production_mode === "prepared" ? "Préparé" : "Non défini"}
           {" · "}
@@ -153,11 +153,11 @@ export default async function DishDetailPage({ params }: Props) {
 
       {canWrite && exploded.length > 0 && (
         <div className={uiCard}>
-          <h2 className="mb-2 text-sm font-semibold text-slate-900">
+          <h2 className="mb-2 text-sm font-semibold text-stone-900">
             Consommation dépliée (base pour stock)
           </h2>
           <p className={`mb-2 ${uiMuted}`}>Agrégation des composants finaux (préparations développées).</p>
-          <ul className="space-y-1 text-sm text-slate-700">
+          <ul className="space-y-1 text-sm text-stone-700">
             {exploded.map((e) => (
               <li key={e.inventoryItemId}>
                 {e.name} : {e.qty} {e.unit}

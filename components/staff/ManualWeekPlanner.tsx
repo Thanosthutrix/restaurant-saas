@@ -600,10 +600,10 @@ export function ManualWeekPlanner({
       {err ? <p className="text-sm text-rose-700">{err}</p> : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-stone-700">
           <input
             type="checkbox"
-            className="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            className="h-4 w-4 shrink-0 rounded border-stone-300 text-copper-700 focus:ring-copper-600"
             checked={hideClosedDays}
             onChange={(e) => setHideClosedDays(e.target.checked)}
           />
@@ -612,28 +612,28 @@ export function ManualWeekPlanner({
       </div>
 
       {visibleDayIndices.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-6 text-center text-sm text-slate-600">
+        <div className="rounded-xl border border-stone-200 bg-stone-50/80 px-4 py-6 text-center text-sm text-stone-600">
           Aucun jour ouvert à afficher. Décochez « Masquer les jours fermés » ou vérifiez les horaires du restaurant.
         </div>
       ) : (
-      <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
+      <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-stone-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
         <div className="min-w-0" style={{ minWidth: Math.max(620, gridMinWidthPx) }}>
 
           {/* ── En-tête : jour + initiales des employés ── */}
           <div
-            className="grid border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600"
+            className="grid border-b border-stone-200 bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-600"
             style={{ gridTemplateColumns: gridColsTemplate }}
           >
-            <div className="px-1 py-2 text-center text-[10px] leading-tight text-slate-500">Heures</div>
+            <div className="px-1 py-2 text-center text-[10px] leading-tight text-stone-500">Heures</div>
             {visibleDayIndices.map((di) => {
               const wd = resolvedWeekDays[di]!;
               const day = weekDays[di]!;
               return (
-                <div key={wd.ymd} className="border-l-2 border-slate-200">
+                <div key={wd.ymd} className="border-l-2 border-stone-200">
                   {/* Ligne jour */}
                   <div className="px-1 py-1 text-center">
                     {PLANNING_DAY_LABELS_FR[wd.dayKey]}
-                    <div className="font-normal text-[10px] text-slate-400">
+                    <div className="font-normal text-[10px] text-stone-400">
                       {wd.date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                     </div>
                     {wd.openingBands.length === 0 ? (
@@ -641,7 +641,7 @@ export function ManualWeekPlanner({
                     ) : null}
                   </div>
                   {/* Sous-en-têtes employés */}
-                  <div className="flex border-t border-slate-200/60">
+                  <div className="flex border-t border-stone-200/60">
                     {sortedStaff.map((emp) => {
                       const idx = staffColor.get(emp.id) ?? 0;
                       const layer = STAFF_LAYER_CLASS[idx % STAFF_LAYER_CLASS.length];
@@ -652,11 +652,11 @@ export function ManualWeekPlanner({
                           type="button"
                           disabled={disabled}
                           title={`+ créneau ${emp.display_name}`}
-                          className="flex flex-1 flex-col items-center gap-0.5 border-l border-slate-100 px-0.5 py-0.5 first:border-l-0 hover:bg-slate-100/80 disabled:pointer-events-none"
+                          className="flex flex-1 flex-col items-center gap-0.5 border-l border-stone-100 px-0.5 py-0.5 first:border-l-0 hover:bg-stone-100/80 disabled:pointer-events-none"
                           onClick={(e) => { e.stopPropagation(); openCreateSlot(day, emp.id); }}
                         >
                           <span className={`h-1 w-full rounded-full ${layer} opacity-80`} />
-                          <span className="text-[9px] font-semibold text-slate-600 normal-case">{initials}</span>
+                          <span className="text-[9px] font-semibold text-stone-600 normal-case">{initials}</span>
                         </button>
                       );
                     })}
@@ -669,7 +669,7 @@ export function ManualWeekPlanner({
           {/* ── Corps : axe horaire + colonnes jour → sous-colonnes employé ── */}
           <div className="grid" style={{ gridTemplateColumns: gridColsTemplate }}>
             {/* Axe horaire */}
-            <div className="flex flex-col border-r-2 border-slate-200 bg-slate-50/80" style={{ height: COL_H }}>
+            <div className="flex flex-col border-r-2 border-stone-200 bg-stone-50/80" style={{ height: COL_H }}>
               <div className="relative min-h-0 h-full">
                 {hourTicks.map((h) => {
                   const minute = h * 60;
@@ -678,7 +678,7 @@ export function ManualWeekPlanner({
                   return (
                     <div
                       key={h}
-                      className="absolute left-0 right-0 border-t border-slate-200/90 text-[9px] text-slate-500"
+                      className="absolute left-0 right-0 border-t border-stone-200/90 text-[9px] text-stone-500"
                       style={{ top: `${pct}%` }}
                     >
                       <span className="absolute -top-2 left-0.5 tabular-nums">
@@ -699,7 +699,7 @@ export function ManualWeekPlanner({
               return (
                 <div
                   key={wd.ymd}
-                  className={`flex border-l-2 border-slate-200 ${
+                  className={`flex border-l-2 border-stone-200 ${
                     wd.openingBands.length === 0 ? "bg-rose-50/50" : ""
                   }`}
                   style={{ height: COL_H }}
@@ -712,7 +712,7 @@ export function ManualWeekPlanner({
                     return (
                       <div
                         key={emp.id}
-                        className="relative flex-1 min-w-0 h-full border-l border-slate-100/70 first:border-l-0"
+                        className="relative flex-1 min-w-0 h-full border-l border-stone-100/70 first:border-l-0"
                       >
                         {/* Lignes heure */}
                         {hourTicks.map((h) => {
@@ -722,7 +722,7 @@ export function ManualWeekPlanner({
                           return (
                             <div
                               key={`g-${h}`}
-                              className="pointer-events-none absolute left-0 right-0 border-t border-slate-200/60"
+                              className="pointer-events-none absolute left-0 right-0 border-t border-stone-200/60"
                               style={{ top: `${pct}%` }}
                             />
                           );
@@ -809,10 +809,10 @@ export function ManualWeekPlanner({
       {sheet ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/35 p-4">
           <div className={`${uiCard} w-full max-w-md shadow-xl`}>
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="text-sm font-semibold text-stone-900">
               {sheet.mode === "create" ? "Nouveau créneau" : "Modifier le créneau"}
             </h3>
-            <p className="mt-1 text-xs text-slate-500">Pas de 15 minutes.</p>
+            <p className="mt-1 text-xs text-stone-500">Pas de 15 minutes.</p>
             {sheet.mode === "create" ? (
               <div className="mt-3">
                 <label className={uiLabel} htmlFor="man-staff">
@@ -875,20 +875,20 @@ export function ManualWeekPlanner({
       {shiftActionsMenu && shiftForActionsMenu ? (
         <div
           data-shift-actions-popover
-          className="fixed z-[250] flex min-w-[11rem] flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+          className="fixed z-[250] flex min-w-[11rem] flex-col gap-2 rounded-xl border border-stone-200 bg-white p-2 shadow-xl"
           style={{
             left: shiftActionsMenu.x,
             top: shiftActionsMenu.y,
             transform: "translate(-50%, 10px)",
           }}
         >
-          <p className="px-0.5 text-[11px] font-medium text-slate-600">
+          <p className="px-0.5 text-[11px] font-medium text-stone-600">
             {shiftForActionsMenu.staff_display_name}
           </p>
           <button
             type="button"
             disabled={disabled}
-            className="min-h-11 w-full touch-manipulation rounded-lg border-2 border-indigo-200/90 bg-white px-3 py-2 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-50 disabled:opacity-40"
+            className="min-h-11 w-full touch-manipulation rounded-lg border-2 border-copper-200/90 bg-white px-3 py-2 text-sm font-semibold text-copper-900 shadow-sm hover:bg-copper-50 disabled:opacity-40"
             onClick={() => void duplicateShiftToNextDay(shiftForActionsMenu)}
           >
             Demain (copie)
@@ -913,7 +913,7 @@ export function ManualWeekPlanner({
 
       {dragHud ? (
         <div
-          className="pointer-events-none fixed z-[200] max-w-[min(100vw-1rem,14rem)] rounded-md border border-white/25 bg-slate-900/95 px-2.5 py-1.5 text-center text-xs font-semibold tabular-nums text-white shadow-lg"
+          className="pointer-events-none fixed z-[200] max-w-[min(100vw-1rem,14rem)] rounded-md border border-white/25 bg-stone-900/95 px-2.5 py-1.5 text-center text-xs font-semibold tabular-nums text-white shadow-lg"
           style={{
             left: dragHud.x,
             top: dragHud.y,
@@ -977,10 +977,10 @@ export function PlanningHoursRecap({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-xl border border-slate-100">
+      <div className="overflow-x-auto rounded-xl border border-stone-100">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/90 text-xs font-semibold uppercase text-slate-500">
+            <tr className="border-b border-stone-100 bg-stone-50/90 text-xs font-semibold uppercase text-stone-500">
               <th className="px-3 py-2">Collaborateur</th>
               <th className="px-3 py-2">Prévu net (sem.)</th>
               <th className="px-3 py-2">Contrat (h/sem.)</th>
@@ -989,7 +989,7 @@ export function PlanningHoursRecap({
               <th className="px-3 py-2">Après report*</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-stone-100">
             {staff.map((m) => {
               const planned = byStaff.get(m.id) ?? 0;
               const target = m.target_weekly_hours;
@@ -1000,14 +1000,14 @@ export function PlanningHoursRecap({
               const after = targetMin != null ? carry + (targetMin - planned) : carry;
               return (
                 <tr key={m.id}>
-                  <td className="px-3 py-2 font-medium text-slate-900">{m.display_name}</td>
-                  <td className="px-3 py-2 tabular-nums text-slate-700">{formatMinutesHuman(planned)}</td>
-                  <td className="px-3 py-2 text-slate-600">{target != null ? `${target} h` : "—"}</td>
-                  <td className="px-3 py-2 tabular-nums text-slate-700">
+                  <td className="px-3 py-2 font-medium text-stone-900">{m.display_name}</td>
+                  <td className="px-3 py-2 tabular-nums text-stone-700">{formatMinutesHuman(planned)}</td>
+                  <td className="px-3 py-2 text-stone-600">{target != null ? `${target} h` : "—"}</td>
+                  <td className="px-3 py-2 tabular-nums text-stone-700">
                     {delta == null ? "—" : formatMinutesHuman(delta)}
                   </td>
-                  <td className="px-3 py-2 tabular-nums text-slate-700">{formatMinutesHuman(carry)}</td>
-                  <td className="px-3 py-2 tabular-nums text-indigo-800">
+                  <td className="px-3 py-2 tabular-nums text-stone-700">{formatMinutesHuman(carry)}</td>
+                  <td className="px-3 py-2 tabular-nums text-copper-800">
                     {targetMin == null ? "—" : formatMinutesHuman(after)}
                   </td>
                 </tr>
@@ -1016,7 +1016,7 @@ export function PlanningHoursRecap({
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] leading-snug text-slate-500">
+      <p className="text-[11px] leading-snug text-stone-500">
         * « Après report » = solde actuel + (contrat − prévu net). Le bouton enregistre cette différence dans le solde
         (report). Évitez de l’appliquer deux fois pour la même semaine.
       </p>

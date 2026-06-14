@@ -22,7 +22,7 @@ import { DayClockShell } from "@/components/staff/DayClockShell";
 import { getStaffMemberByUserAndRestaurant, listWorkShiftsInRange } from "@/lib/staff/staffDb";
 import { addDays, mondayOfWeekContaining } from "@/lib/staff/weekUtils";
 import { ALL_SHELL_NAV_KEYS, type ShellNavKey } from "@/lib/auth/appRoles";
-import { listTemperaturePoints } from "@/lib/haccpTemperature/haccpTemperatureDb";
+import { cachedListTemperaturePoints } from "@/lib/cache";
 import { loadDashboardHygieneTileData } from "@/lib/dashboard/hygieneTileData";
 import { DashboardHygieneTile } from "@/components/dashboard/DashboardHygieneTile";
 
@@ -44,7 +44,7 @@ function StatTile({
   value,
   hint,
   icon: Icon,
-  iconClass = "bg-indigo-50 text-indigo-600",
+  iconClass = "bg-copper-50 text-copper-700",
 }: {
   label: string;
   value: string | number;
@@ -53,12 +53,12 @@ function StatTile({
   iconClass?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+    <div className="rounded-2xl border border-stone-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-slate-900">{value}</p>
-          {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</p>
+          <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-stone-900">{value}</p>
+          {hint ? <p className="mt-1 text-xs text-stone-500">{hint}</p> : null}
         </div>
         <div className={`shrink-0 rounded-xl p-2.5 ${iconClass}`}>
           <Icon className="h-5 w-5" aria-hidden />
@@ -138,21 +138,24 @@ export default async function DashboardPage() {
   ]);
 
   const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
-  const hasHygieneAccess = accessContext?.isOwner || allowed.includes("hygiene");
-  const [temperaturePoints, hygieneTile] = hasHygieneAccess
-    ? await Promise.all([
-        listTemperaturePoints(restaurant.id).then((points) => points.filter((p) => p.active)),
-        loadDashboardHygieneTileData(restaurant.id),
-      ])
-    : [[], null];
+  const hasHygieneAccess = accessContext?.isOwner || allowed.includes("hygiene") || allowed.includes("cuisine");
+  const serviceIds = (recentServices ?? []).map((s) => s.id);
+
+  const [hygieneResults, { data: aggregates }] = await Promise.all([
+    hasHygieneAccess
+      ? Promise.all([
+          cachedListTemperaturePoints(restaurant.id).then((points) => points.filter((p) => p.active)),
+          loadDashboardHygieneTileData(restaurant.id),
+        ])
+      : Promise.resolve([[], null] as [never[], null]),
+    getServiceSalesAggregate(serviceIds),
+  ]);
+  const [temperaturePoints, hygieneTile] = hygieneResults;
 
   const myShiftsForClock =
     staffForClock != null
       ? shiftsWeek.filter((s) => s.staff_member_id === staffForClock.id)
       : [];
-
-  const serviceIds = (recentServices ?? []).map((s) => s.id);
-  const { data: aggregates } = await getServiceSalesAggregate(serviceIds);
 
   let totalSalesRecent = 0;
   let totalLinesRecent = 0;
@@ -175,18 +178,18 @@ export default async function DashboardPage() {
   const showRecentServices = isOwner || allowed.includes("dashboard_recent_services");
   const showStockAlert = isOwner || allowed.includes("dashboard_stock_alert");
 
-  const cardBase = "rounded-2xl border border-slate-100 bg-white shadow-sm";
+  const cardBase = "rounded-2xl border border-stone-100 bg-white shadow-sm";
 
   return (
     <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock} temperaturePoints={temperaturePoints}>
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
             Tableau de bord
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            <span className="font-medium text-slate-700">{restaurant.name}</span>
-            <span className="text-slate-400"> · </span>
+          <p className="mt-1 text-sm text-stone-500">
+            <span className="font-medium text-stone-700">{restaurant.name}</span>
+            <span className="text-stone-400"> · </span>
             activité récente
           </p>
         </header>
@@ -194,10 +197,10 @@ export default async function DashboardPage() {
         <section aria-labelledby="quick-actions-heading">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
             <div>
-              <h2 id="quick-actions-heading" className="text-sm font-semibold text-slate-900">
+              <h2 id="quick-actions-heading" className="text-sm font-semibold text-stone-900">
                 Où voulez-vous aller ?
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-stone-500">
                 Les accès rapides suivent les grandes zones du restaurant.
               </p>
             </div>
@@ -209,16 +212,16 @@ export default async function DashboardPage() {
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="group rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-100 hover:shadow-md"
+                  className="group rounded-2xl border border-stone-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-copper-100 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-700">
+                    <div className="rounded-xl bg-copper-50 p-2.5 text-copper-800">
                       <Icon className="h-5 w-5" aria-hidden />
                     </div>
-                    <ArrowUpRight className="h-4 w-4 text-slate-300 transition group-hover:text-indigo-500" aria-hidden />
+                    <ArrowUpRight className="h-4 w-4 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
                   </div>
-                  <p className="mt-3 text-sm font-semibold text-slate-900">{action.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{action.description}</p>
+                  <p className="mt-3 text-sm font-semibold text-stone-900">{action.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-stone-500">{action.description}</p>
                 </Link>
               );
             })}
@@ -239,27 +242,27 @@ export default async function DashboardPage() {
         <h2 className="sr-only">Statistiques</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile
-            label="Services (échantillon)"
+            label="Services récents"
             value={recentServices?.length ?? 0}
-            hint="10 derniers chargés"
+            hint="Les 10 derniers"
             icon={CalendarDays}
           />
           <StatTile
-            label="Quantités vendues"
+            label="Plats vendus"
             value={totalSalesRecent}
             hint="Sur ces services"
             icon={UtensilsCrossed}
           />
           <StatTile
-            label="Lignes de ticket"
+            label="Ventes enregistrées"
             value={totalLinesRecent}
-            hint="Lignes de vente comptées"
+            hint="Lignes de tickets"
             icon={Layers}
           />
           <StatTile
-            label="Références stock"
+            label="Produits en stock"
             value={inventoryCount}
-            hint="Composants suivis"
+            hint="Ingrédients suivis"
             icon={Package}
           />
         </div>
@@ -272,7 +275,7 @@ export default async function DashboardPage() {
           role="status"
         >
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden />
-          <span className="font-semibold">{belowMinStockCount} composant(s) sous le seuil.</span>
+          <span className="font-semibold">{belowMinStockCount} produit(s) bientôt en rupture.</span>
           <Link
             href="/inventory"
             className="ml-auto inline-flex items-center gap-1 font-semibold text-amber-950 underline decoration-amber-400 underline-offset-2 hover:text-amber-800"
@@ -286,16 +289,16 @@ export default async function DashboardPage() {
       {/* Derniers services — tableau */}
       {showRecentServices && lastFiveServices.length > 0 ? (
         <section className={cardBase} aria-labelledby="services-heading">
-          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-100 px-4 py-4 sm:px-6">
             <div>
-              <h2 id="services-heading" className="text-sm font-semibold text-slate-900">
+              <h2 id="services-heading" className="text-sm font-semibold text-stone-900">
                 Derniers services
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">Accès rapide aux tickets récents</p>
+              <p className="mt-0.5 text-xs text-stone-500">Accès rapide aux tickets récents</p>
             </div>
             <Link
               href="/services"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-copper-700 hover:text-copper-600"
             >
               Tout l’historique
               <ArrowUpRight className="h-4 w-4" aria-hidden />
@@ -304,7 +307,7 @@ export default async function DashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-stone-100 bg-stone-50/90 text-xs font-semibold uppercase tracking-wide text-stone-500">
                   <th className="px-4 py-3 sm:px-6">Date</th>
                   <th className="px-4 py-3 sm:px-6">Service</th>
                   <th className="px-4 py-3 text-right sm:px-6">Qté vendue</th>
@@ -312,29 +315,29 @@ export default async function DashboardPage() {
                   <th className="w-12 px-4 py-3 sm:px-6" aria-hidden />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-100">
                 {lastFiveServices.map((s) => {
                   const agg = aggregates?.get(s.id) ?? { lines: 0, totalQty: 0 };
                   return (
-                    <tr key={s.id} className="transition-colors hover:bg-slate-50/80">
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900 sm:px-6">
+                    <tr key={s.id} className="transition-colors hover:bg-stone-50/80">
+                      <td className="whitespace-nowrap px-4 py-3 font-medium text-stone-900 sm:px-6">
                         {formatDate(s.service_date)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 sm:px-6">
-                        <span className="inline-flex rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                      <td className="px-4 py-3 text-stone-600 sm:px-6">
+                        <span className="inline-flex rounded-lg bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-700">
                           {formatServiceTypeLong(s.service_type)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-800 sm:px-6">
+                      <td className="px-4 py-3 text-right tabular-nums text-stone-800 sm:px-6">
                         {agg.totalQty}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-500 sm:px-6">
+                      <td className="px-4 py-3 text-right tabular-nums text-stone-500 sm:px-6">
                         {agg.lines}
                       </td>
                       <td className="px-4 py-3 sm:px-6">
                         <Link
                           href={`/service/${s.id}`}
-                          className="inline-flex rounded-lg p-1.5 text-indigo-600 transition hover:bg-indigo-50"
+                          className="inline-flex rounded-lg p-1.5 text-copper-700 transition hover:bg-copper-50"
                           aria-label={`Ouvrir le service du ${formatDate(s.service_date)}`}
                         >
                           <ArrowUpRight className="h-4 w-4" />

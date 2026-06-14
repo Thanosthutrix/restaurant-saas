@@ -66,10 +66,10 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
   return (
     <div className="space-y-8">
       {coldElements.length === 0 ? (
-        <div className={`${uiCard} text-sm text-slate-600`}>
+        <div className={`${uiCard} text-sm text-stone-600`}>
           <p>
             Aucun équipement froid actif (chambre froide, frigo, congélateur). Ajoutez-en dans{" "}
-            <Link href="/hygiene/elements" className="font-medium text-indigo-700 underline">
+            <Link href="/hygiene/elements" className="font-medium text-copper-800 underline">
               Éléments à nettoyer
             </Link>{" "}
             en choisissant la catégorie correspondante.
@@ -80,8 +80,8 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
           {coldElements.map((el) => (
             <li key={el.id} className={`${uiCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
               <div>
-                <p className="font-medium text-slate-900">{el.name}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-medium text-stone-900">{el.name}</p>
+                <p className="text-xs text-stone-500">
                   {HYGIENE_CATEGORY_LABEL_FR[el.category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ?? el.category}
                   {el.area_label ? ` · ${el.area_label}` : ""}
                 </p>
@@ -102,24 +102,24 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
       {recentReadings.length > 0 && (
         <section>
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-900">Derniers relevés</h2>
+            <h2 className="text-sm font-semibold text-stone-900">Derniers relevés</h2>
             <Link
               href="/hygiene/registre-temperatures"
-              className="text-sm font-medium text-indigo-700 underline"
+              className="text-sm font-medium text-copper-800 underline"
             >
               Voir le registre complet
             </Link>
           </div>
           <ul className="space-y-2 text-sm">
             {recentReadings.map((r) => (
-              <li key={r.id} className="rounded-lg border border-slate-100 bg-white px-3 py-2 text-slate-700">
-                <span className="font-medium text-slate-900">{r.element_name}</span>
-                <span className="text-slate-500">
+              <li key={r.id} className="rounded-lg border border-stone-100 bg-white px-3 py-2 text-stone-700">
+                <span className="font-medium text-stone-900">{r.element_name}</span>
+                <span className="text-stone-500">
                   {" "}
                   · {HYGIENE_COLD_EVENT_LABEL_FR[r.event_kind]} ·{" "}
                   <span className="tabular-nums">{r.temperature_celsius} °C</span>
                 </span>
-                <span className="ml-2 text-xs text-slate-500">
+                <span className="ml-2 text-xs text-stone-500">
                   {new Date(r.recorded_at).toLocaleString("fr-FR", {
                     day: "numeric",
                     month: "short",
@@ -136,7 +136,7 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
       {modal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className={`${uiCard} w-full max-w-md shadow-xl`}>
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="text-sm font-semibold text-stone-900">
               {HYGIENE_COLD_EVENT_LABEL_FR[modal.eventKind]} — {modal.element.name}
             </h3>
             {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
@@ -154,7 +154,7 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
                 onChange={(e) => setTempRaw(e.target.value)}
                 placeholder="ex. 3,5 ou -18"
               />
-              <p className="mt-1 text-xs text-slate-500">Plage acceptée : -40 °C à +25 °C.</p>
+              <p className="mt-1 text-xs text-stone-500">Plage acceptée : -40 °C à +25 °C.</p>
             </div>
             <div className="mt-3">
               <label className={uiLabel} htmlFor="cold-temp-initials">

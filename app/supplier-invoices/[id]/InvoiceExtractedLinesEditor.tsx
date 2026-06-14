@@ -101,11 +101,11 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
   }
 
   return (
-    <details className="mt-4 rounded border border-slate-200 bg-white p-3">
-      <summary className="cursor-pointer text-sm font-medium text-slate-800">
+    <details className="mt-4 rounded border border-stone-200 bg-white p-3">
+      <summary className="cursor-pointer text-sm font-medium text-stone-800">
         Corriger les lignes lues sur la facture
       </summary>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-stone-500">
         Modifiez les libellés, quantités, unités ou prix si la lecture IA est mauvaise. Le tableau d’écarts sera
         recalculé après enregistrement.
       </p>
@@ -113,7 +113,7 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[42rem] text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500">
+            <tr className="text-left text-xs font-medium text-stone-500">
               <th className="pb-1 pr-2">Libellé</th>
               <th className="pb-1 pr-2">Qté</th>
               <th className="pb-1 pr-2">Unité</th>
@@ -129,7 +129,7 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
                   <input
                     value={row.label}
                     onChange={(e) => updateRow(index, { label: e.target.value })}
-                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                    className="w-full rounded border border-stone-300 px-2 py-1 text-sm"
                     placeholder="Libellé produit"
                   />
                 </td>
@@ -138,14 +138,14 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
                     value={row.quantity}
                     onChange={(e) => updateRow(index, { quantity: e.target.value })}
                     inputMode="decimal"
-                    className="w-20 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                    className="w-20 rounded border border-stone-300 px-2 py-1 text-right text-sm"
                   />
                 </td>
                 <td className="py-1 pr-2">
                   <input
                     value={row.unit}
                     onChange={(e) => updateRow(index, { unit: e.target.value })}
-                    className="w-20 rounded border border-slate-300 px-2 py-1 text-sm"
+                    className="w-20 rounded border border-stone-300 px-2 py-1 text-sm"
                     placeholder="kg"
                   />
                 </td>
@@ -154,7 +154,7 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
                     value={row.unit_price}
                     onChange={(e) => updateRow(index, { unit_price: e.target.value })}
                     inputMode="decimal"
-                    className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                    className="w-24 rounded border border-stone-300 px-2 py-1 text-right text-sm"
                   />
                 </td>
                 <td className="py-1 pr-2">
@@ -162,7 +162,7 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
                     value={row.line_total}
                     onChange={(e) => updateRow(index, { line_total: e.target.value })}
                     inputMode="decimal"
-                    className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                    className="w-24 rounded border border-stone-300 px-2 py-1 text-right text-sm"
                   />
                 </td>
                 <td className="py-1 pr-2">
@@ -196,7 +196,7 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
           type="button"
           onClick={addRow}
           disabled={pending}
-          className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700"
+          className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700"
         >
           Ajouter une ligne
         </button>
@@ -204,7 +204,7 @@ export function InvoiceExtractedLinesEditor({ invoiceId, restaurantId, initialLi
           type="button"
           onClick={save}
           disabled={pending}
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
         >
           {pending ? "Enregistrement…" : "Enregistrer les corrections"}
         </button>

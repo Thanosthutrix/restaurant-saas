@@ -245,7 +245,7 @@ export function ClientDetailClient({
 
       <section className={`${uiCard} space-y-3`}>
         <h2 className={uiSectionTitleSm}>Mémo service (salle &amp; caisse)</h2>
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-stone-600">
           Rappel court pour l’équipe — affiché sur la commande lorsque la fiche est liée (ex. opération, préférence
           temporaire). Les notes internes détaillées restent dans la section ci‑dessous.
         </p>
@@ -272,7 +272,7 @@ export function ClientDetailClient({
         {diningHabitsError ? (
           <p className="text-sm text-rose-700">{diningHabitsError}</p>
         ) : diningHabits ? (
-          <div className="space-y-3 text-sm text-slate-700">
+          <div className="space-y-3 text-sm text-stone-700">
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <span>
                 <strong className="tabular-nums">{diningHabits.settledOrdersCount}</strong> commande
@@ -293,11 +293,11 @@ export function ClientDetailClient({
                     <li key={t.orderId}>
                       <Link
                         href={`/salle/commande/${t.orderId}?from=clients&clientId=${encodeURIComponent(c.id)}`}
-                        className="font-medium text-indigo-700 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-900"
+                        className="font-medium text-copper-800 underline decoration-copper-300 underline-offset-2 hover:text-copper-900"
                       >
                         {t.label}
                       </Link>
-                      <span className="text-xs text-slate-500"> · {formatWhen(t.createdAt)}</span>
+                      <span className="text-xs text-stone-500"> · {formatWhen(t.createdAt)}</span>
                     </li>
                   ))}
                 </ul>
@@ -315,29 +315,29 @@ export function ClientDetailClient({
               ) : null}
             </p>
             {diningHabits.lastSettledAt ? (
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-stone-600">
                 Dernière commande réglée : {formatWhen(diningHabits.lastSettledAt)}
                 {diningHabits.firstSettledAt && diningHabits.firstSettledAt !== diningHabits.lastSettledAt ? (
                   <> · première : {formatWhen(diningHabits.firstSettledAt)}</>
                 ) : null}
               </p>
             ) : (
-              <p className="text-xs text-slate-500">Aucune commande réglée avec cette fiche pour l’instant.</p>
+              <p className="text-xs text-stone-500">Aucune commande réglée avec cette fiche pour l’instant.</p>
             )}
             {diningHabits.preferredWeekdayLabel && diningHabits.settledOrdersCount >= 2 ? (
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-stone-600">
                 Jour le plus fréquent : <span className="font-medium capitalize">{diningHabits.preferredWeekdayLabel}</span>{" "}
                 (sur les visites enregistrées)
               </p>
             ) : null}
             {diningHabits.favoriteDishes.length > 0 ? (
               <div>
-                <p className="text-xs font-medium text-slate-500">Plats les plus commandés (quantités)</p>
-                <ul className="mt-1 list-inside list-disc text-slate-700">
+                <p className="text-xs font-medium text-stone-500">Plats les plus commandés (quantités)</p>
+                <ul className="mt-1 list-inside list-disc text-stone-700">
                   {diningHabits.favoriteDishes.map((d) => (
                     <li key={d.name}>
                       {d.name}{" "}
-                      <span className="tabular-nums text-slate-500">
+                      <span className="tabular-nums text-stone-500">
                         ({d.lineCount % 1 === 0 ? String(d.lineCount) : d.lineCount.toFixed(1)})
                       </span>
                     </li>
@@ -347,7 +347,7 @@ export function ClientDetailClient({
             ) : null}
             {diningHabits.paymentMix.length > 0 ? (
               <div>
-                <p className="text-xs font-medium text-slate-500">Moyens de paiement (commandes)</p>
+                <p className="text-xs font-medium text-stone-500">Moyens de paiement (commandes)</p>
                 <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                   {diningHabits.paymentMix.map((p) => (
                     <li key={p.method}>
@@ -359,7 +359,7 @@ export function ClientDetailClient({
             ) : null}
           </div>
         ) : (
-          <p className="text-sm text-slate-500">Chargement impossible.</p>
+          <p className="text-sm text-stone-500">Chargement impossible.</p>
         )}
       </section>
 
@@ -367,12 +367,12 @@ export function ClientDetailClient({
         <summary className="cursor-pointer list-none py-1 text-left marker:content-none [&::-webkit-details-marker]:hidden">
           <span className={uiSectionTitleSm}>
             Coordonnées &amp; préférences
-            <span className="ml-2 text-xs font-normal text-slate-500">(cliquer pour développer)</span>
+            <span className="ml-2 text-xs font-normal text-stone-500">(cliquer pour développer)</span>
           </span>
         </summary>
-        <form onSubmit={onUpdateForm} className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+        <form onSubmit={onUpdateForm} className="mt-4 space-y-4 border-t border-stone-100 pt-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Nom affiché *
               <input
                 name="display_name"
@@ -382,60 +382,60 @@ export function ClientDetailClient({
                 className={`${uiInput} mt-1 w-full`}
               />
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Entreprise
               <input name="company_name" disabled={!c.is_active} defaultValue={c.company_name ?? ""} className={`${uiInput} mt-1 w-full`} />
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Prénom
               <input name="first_name" disabled={!c.is_active} defaultValue={c.first_name ?? ""} className={`${uiInput} mt-1 w-full`} />
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Nom
               <input name="last_name" disabled={!c.is_active} defaultValue={c.last_name ?? ""} className={`${uiInput} mt-1 w-full`} />
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Email
               <input name="email" type="email" disabled={!c.is_active} defaultValue={c.email ?? ""} className={`${uiInput} mt-1 w-full`} />
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Téléphone
               <input name="phone" type="tel" disabled={!c.is_active} defaultValue={c.phone ?? ""} className={`${uiInput} mt-1 w-full`} />
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Langue
               <select name="preferred_locale" disabled={!c.is_active} defaultValue={c.preferred_locale} className={`${uiInput} mt-1 w-full`}>
                 <option value="fr">Français</option>
                 <option value="en">English</option>
               </select>
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Naissance
               <input name="birth_date" type="date" disabled={!c.is_active} defaultValue={c.birth_date ?? ""} className={`${uiInput} mt-1 w-full`} />
             </label>
           </div>
           <div className="grid gap-3">
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Adresse
               <input name="address_line1" disabled={!c.is_active} defaultValue={c.address_line1 ?? ""} className={`${uiInput} mt-1 w-full`} />
             </label>
             <input name="address_line2" disabled={!c.is_active} defaultValue={c.address_line2 ?? ""} className={uiInput} />
             <div className="grid gap-3 sm:grid-cols-3">
-              <label className="block text-xs font-medium text-slate-500">
+              <label className="block text-xs font-medium text-stone-500">
                 CP
                 <input name="postal_code" disabled={!c.is_active} defaultValue={c.postal_code ?? ""} className={`${uiInput} mt-1 w-full`} />
               </label>
-              <label className={`block text-xs font-medium text-slate-500 sm:col-span-2`}>
+              <label className={`block text-xs font-medium text-stone-500 sm:col-span-2`}>
                 Ville
                 <input name="city" disabled={!c.is_active} defaultValue={c.city ?? ""} className={`${uiInput} mt-1 w-full`} />
               </label>
             </div>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-stone-500">
               Pays
               <input name="country" disabled={!c.is_active} defaultValue={c.country} className={`${uiInput} mt-1 w-full`} />
             </label>
           </div>
-          <label className="block text-xs font-medium text-slate-500">
+          <label className="block text-xs font-medium text-stone-500">
             Origine
             <select name="source" disabled={!c.is_active} defaultValue={c.source} className={`${uiInput} mt-1 w-full`}>
               {SOURCES.map((s) => (
@@ -445,7 +445,7 @@ export function ClientDetailClient({
               ))}
             </select>
           </label>
-          <label className="block text-xs font-medium text-slate-500">
+          <label className="block text-xs font-medium text-stone-500">
             Notes internes (dossier)
             <textarea
               name="internal_notes"
@@ -454,44 +454,44 @@ export function ClientDetailClient({
               defaultValue={c.internal_notes ?? ""}
               className={`${uiInput} mt-1 w-full`}
             />
-            <span className="mt-0.5 block text-[11px] font-normal text-slate-500">
+            <span className="mt-0.5 block text-[11px] font-normal text-stone-500">
               Texte long ou administratif. Pour le rappel court affiché en caisse, utilisez le « Mémo service »
               ci‑dessus.
             </span>
           </label>
-          <label className="block text-xs font-medium text-slate-500">
+          <label className="block text-xs font-medium text-stone-500">
             Allergies / régimes
             <textarea name="allergens_note" rows={2} disabled={!c.is_active} defaultValue={c.allergens_note ?? ""} className={`${uiInput} mt-1 w-full`} />
           </label>
 
-          <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 space-y-2">
-            <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+          <div className="rounded-xl border border-stone-100 bg-stone-50/80 p-3 space-y-2">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
                 name="service_messages_opt_in"
                 disabled={!c.is_active}
                 defaultChecked={c.service_messages_opt_in}
-                className="mt-1 h-4 w-4 rounded border-slate-300"
+                className="mt-1 h-4 w-4 rounded border-stone-300"
               />
               <span>Messages liés au service</span>
             </label>
-            <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
                 name="marketing_opt_in"
                 disabled={!c.is_active}
                 defaultChecked={c.marketing_opt_in}
-                className="mt-1 h-4 w-4 rounded border-slate-300"
+                className="mt-1 h-4 w-4 rounded border-stone-300"
               />
               <span>Communications commerciales</span>
             </label>
-            <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
                 name="analytics_opt_in"
                 disabled={!c.is_active}
                 defaultChecked={c.analytics_opt_in}
-                className="mt-1 h-4 w-4 rounded border-slate-300"
+                className="mt-1 h-4 w-4 rounded border-stone-300"
               />
               <span>Satisfaction / statistiques</span>
             </label>
@@ -502,7 +502,7 @@ export function ClientDetailClient({
               {pending ? "Enregistrement…" : "Enregistrer les modifications"}
             </button>
           ) : (
-            <p className="text-sm text-slate-500">Fiche archivée — réactivation possible via support ou future action « Restaurer ».</p>
+            <p className="text-sm text-stone-500">Fiche archivée — réactivation possible via support ou future action « Restaurer ».</p>
           )}
         </form>
       </details>
@@ -510,7 +510,7 @@ export function ClientDetailClient({
       <section className={`${uiCard} space-y-3`}>
         <h2 className={uiSectionTitleSm}>Étiquettes</h2>
         <div className="flex flex-wrap gap-2">
-          {c.tags.length === 0 ? <span className="text-sm text-slate-500">Aucune</span> : null}
+          {c.tags.length === 0 ? <span className="text-sm text-stone-500">Aucune</span> : null}
           {c.tags.map((t) => (
             <span
               key={t.id}
@@ -533,7 +533,7 @@ export function ClientDetailClient({
         </div>
         {c.is_active && availableToAdd.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            <span className="text-xs text-slate-500">Ajouter :</span>
+            <span className="text-xs text-stone-500">Ajouter :</span>
             {availableToAdd.map((t) => (
               <button key={t.id} type="button" onClick={() => onAssignTag(t.id)} className={uiBtnOutlineSm}>
                 + {t.label}
@@ -542,14 +542,14 @@ export function ClientDetailClient({
           </div>
         ) : null}
         {c.is_active ? (
-          <form onSubmit={onCreateTag} className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
-            <label className="text-xs font-medium text-slate-500">
+          <form onSubmit={onCreateTag} className="flex flex-wrap items-end gap-2 border-t border-stone-100 pt-3">
+            <label className="text-xs font-medium text-stone-500">
               Nouvelle étiquette
               <input value={newTagLabel} onChange={(e) => setNewTagLabel(e.target.value)} className={`${uiInput} mt-1`} placeholder="VIP, Entreprise…" />
             </label>
-            <label className="text-xs font-medium text-slate-500">
+            <label className="text-xs font-medium text-stone-500">
               Couleur
-              <input type="color" value={newTagColor} onChange={(e) => setNewTagColor(e.target.value)} className="mt-1 h-9 w-14 cursor-pointer rounded border border-slate-200" />
+              <input type="color" value={newTagColor} onChange={(e) => setNewTagColor(e.target.value)} className="mt-1 h-9 w-14 cursor-pointer rounded border border-stone-200" />
             </label>
             <button type="submit" className={uiBtnPrimarySm} disabled={pending}>
               Créer et assigner
@@ -560,7 +560,7 @@ export function ClientDetailClient({
 
       <section className={`${uiCard} space-y-3`}>
         <h2 className={uiSectionTitleSm}>Fréquentation</h2>
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-stone-700">
           <span className="font-semibold tabular-nums">{c.visit_count}</span> visite{c.visit_count > 1 ? "s" : ""} enregistrée
           {c.visit_count > 1 ? "s" : ""}
           {c.last_visit_at ? (
@@ -591,12 +591,12 @@ export function ClientDetailClient({
       <section className={`${uiCard} space-y-3`}>
         <h2 className={uiSectionTitleSm}>Journal</h2>
         <ul className="space-y-3">
-          {timeline.length === 0 ? <li className="text-sm text-slate-500">Aucun événement.</li> : null}
+          {timeline.length === 0 ? <li className="text-sm text-stone-500">Aucun événement.</li> : null}
           {timeline.map((ev) => (
-            <li key={ev.id} className="border-b border-slate-100 pb-3 last:border-0">
-              <p className="text-xs text-slate-500">{formatWhen(ev.occurred_at)} · {ev.event_type}</p>
-              <p className="font-medium text-slate-900">{ev.title}</p>
-              {ev.body ? <p className="text-sm text-slate-600 whitespace-pre-wrap">{ev.body}</p> : null}
+            <li key={ev.id} className="border-b border-stone-100 pb-3 last:border-0">
+              <p className="text-xs text-stone-500">{formatWhen(ev.occurred_at)} · {ev.event_type}</p>
+              <p className="font-medium text-stone-900">{ev.title}</p>
+              {ev.body ? <p className="text-sm text-stone-600 whitespace-pre-wrap">{ev.body}</p> : null}
             </li>
           ))}
         </ul>
@@ -604,31 +604,31 @@ export function ClientDetailClient({
 
       <section className={`${uiCard} space-y-3`}>
         <h2 className={uiSectionTitleSm}>Historique des consentements</h2>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-stone-500">
           Traçabilité minimale des changements (marketing, messages service, analyses). Conservez votre politique de
           confidentialité à jour.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[480px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-stone-100 text-xs uppercase tracking-wide text-stone-500">
                 <th className="py-2">Date</th>
                 <th className="py-2">Type</th>
                 <th className="py-2">Avant</th>
                 <th className="py-2">Après</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-stone-100">
               {consentLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-3 text-slate-500">
+                  <td colSpan={4} className="py-3 text-stone-500">
                     Aucun mouvement enregistré.
                   </td>
                 </tr>
               ) : (
                 consentLogs.map((log) => (
                   <tr key={log.id}>
-                    <td className="py-2 whitespace-nowrap text-slate-600">{formatWhen(log.recorded_at)}</td>
+                    <td className="py-2 whitespace-nowrap text-stone-600">{formatWhen(log.recorded_at)}</td>
                     <td className="py-2">{log.consent_key}</td>
                     <td className="py-2">{log.previous_value == null ? "—" : log.previous_value ? "oui" : "non"}</td>
                     <td className="py-2">{log.new_value ? "oui" : "non"}</td>

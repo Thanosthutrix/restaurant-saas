@@ -59,24 +59,24 @@ export function DishCategoryBlock({
 
   return (
     <div className={uiCard}>
-      <h2 className="mb-1 text-sm font-semibold text-slate-900">Rubrique carte</h2>
+      <h2 className="mb-1 text-sm font-semibold text-stone-900">Rubrique carte</h2>
       <p className={`mb-3 text-xs ${uiLead}`}>
         Classez ce plat dans votre arborescence (ex. Entrées, Vins…).{" "}
-        <Link href="/account#rubriques" className="font-semibold text-indigo-600 hover:text-indigo-500">
+        <Link href="/account#rubriques" className="font-semibold text-copper-700 hover:text-copper-600">
           Gérer les rubriques
         </Link>
       </p>
       <div className="mb-3 flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-inner ring-1 ring-indigo-100/90">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 text-copper-700 shadow-inner ring-1 ring-copper-100/90">
           <CategoryPictogram title={pictoTitle} depth={0} />
         </span>
         <div className="min-w-0 flex-1 pt-0.5">
           {categoryPath ? (
-            <p className="text-sm text-slate-600">
-              Actuellement : <span className="font-medium text-slate-900">{categoryPath}</span>
+            <p className="text-sm text-stone-600">
+              Actuellement : <span className="font-medium text-stone-900">{categoryPath}</span>
             </p>
           ) : (
-            <p className="text-sm text-slate-500">Aucune rubrique assignée</p>
+            <p className="text-sm text-stone-500">Aucune rubrique assignée</p>
           )}
         </div>
       </div>

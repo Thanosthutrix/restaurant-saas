@@ -97,7 +97,7 @@ export default async function InventoryItemDetailPage({ params }: Props) {
       </div>
 
       <div className={uiCard}>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{item.name}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-stone-900">{item.name}</h1>
         <p className={`mt-1 ${uiLead}`}>
           {TYPE_LABELS[item.item_type] ?? item.item_type} · {item.unit}
           {" · Stock : "}

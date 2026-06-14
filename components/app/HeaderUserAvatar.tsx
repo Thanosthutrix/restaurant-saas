@@ -64,7 +64,7 @@ export function HeaderUserAvatar({ profile, usedColorIndexes }: Props) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-slate-100 active:scale-[0.97]"
+        className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-stone-100 active:scale-[0.97]"
         aria-label={`Profil de ${profile.displayName}`}
       >
         <span
@@ -73,23 +73,23 @@ export function HeaderUserAvatar({ profile, usedColorIndexes }: Props) {
         >
           {initials}
         </span>
-        <span className="hidden max-w-[120px] truncate text-sm font-medium text-slate-700 sm:block">
+        <span className="hidden max-w-[120px] truncate text-sm font-medium text-stone-700 sm:block">
           {profile.displayName}
         </span>
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full z-[60] mt-1.5 w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+        <div className="absolute right-0 top-full z-[60] mt-1.5 w-64 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg">
           {/* Nom */}
-          <div className="mb-3 flex items-center gap-2.5 border-b border-slate-100 pb-3">
+          <div className="mb-3 flex items-center gap-2.5 border-b border-stone-100 pb-3">
             <span
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
               style={{ backgroundColor: hex }}
             >
               {initials}
             </span>
-            <span className="text-sm font-semibold text-slate-800 leading-tight">
+            <span className="text-sm font-semibold text-stone-800 leading-tight">
               {profile.displayName}
             </span>
           </div>
@@ -97,7 +97,7 @@ export function HeaderUserAvatar({ profile, usedColorIndexes }: Props) {
           {/* Sélecteur de couleur (collaborateurs uniquement) */}
           {profile.staffMemberId ? (
             <>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
                 Ma couleur dans le planning
               </p>
               <div className="grid grid-cols-5 gap-2">
@@ -128,12 +128,12 @@ export function HeaderUserAvatar({ profile, usedColorIndexes }: Props) {
                   );
                 })}
               </div>
-              <p className="mt-2 text-[10px] text-slate-400">
+              <p className="mt-2 text-[10px] text-stone-400">
                 Les couleurs grisées sont déjà utilisées par vos collègues.
               </p>
             </>
           ) : (
-            <p className="text-xs text-slate-500">Vous êtes propriétaire de cet établissement.</p>
+            <p className="text-xs text-stone-500">Vous êtes propriétaire de cet établissement.</p>
           )}
         </div>
       )}

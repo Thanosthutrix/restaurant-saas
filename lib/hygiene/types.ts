@@ -54,17 +54,37 @@ export const HYGIENE_CATEGORY_LABEL_FR: Record<HygieneElementCategory, string> =
 export const HYGIENE_RECURRENCE_TYPES = [
   "after_each_service",
   "daily",
+  "twice_a_week",
+  "three_times_a_week",
   "weekly",
+  "bimonthly",
   "monthly",
+  "quarterly",
+  "annual",
 ] as const;
 export type HygieneRecurrenceType = (typeof HYGIENE_RECURRENCE_TYPES)[number];
 
 export const HYGIENE_RECURRENCE_LABEL_FR: Record<HygieneRecurrenceType, string> = {
   after_each_service: "Après chaque service (manuel)",
   daily: "Quotidien",
+  twice_a_week: "2× par semaine (lun. & jeu.)",
+  three_times_a_week: "3× par semaine (lun., mer. & ven.)",
   weekly: "Hebdomadaire",
+  bimonthly: "2× par mois (1er & 15)",
   monthly: "Mensuel",
+  quarterly: "Trimestriel",
+  annual: "Annuel",
 };
+
+/** Recurrences nécessitant recurrence_day_of_week */
+export const RECURRENCE_NEEDS_DAY_OF_WEEK: Set<HygieneRecurrenceType> = new Set(["weekly"]);
+
+/** Recurrences nécessitant recurrence_day_of_month */
+export const RECURRENCE_NEEDS_DAY_OF_MONTH: Set<HygieneRecurrenceType> = new Set([
+  "monthly",
+  "quarterly",
+  "annual",
+]);
 
 export const HYGIENE_RISK_LEVELS = ["critical", "important", "standard"] as const;
 export type HygieneRiskLevel = (typeof HYGIENE_RISK_LEVELS)[number];
@@ -143,6 +163,17 @@ export type HygieneElement = {
   dosage: string | null;
   contact_time: string | null;
   active: boolean;
+  /** Point de mesure de température associé (frigo, congélateur, chambre froide). */
+  temp_point_enabled: boolean;
+  temp_min_threshold: number | null;
+  temp_max_threshold: number | null;
+  temp_recurrence_type: "daily" | "per_service" | null;
+  /** Protocole d'entretien secondaire (fréquence différente — ex: nettoyage quotidien + désinfection hebdo). */
+  secondary_recurrence_type: HygieneRecurrenceType | null;
+  secondary_recurrence_day_of_week: number | null;
+  secondary_recurrence_day_of_month: number | null;
+  secondary_cleaning_protocol: string;
+  secondary_disinfection_protocol: string;
   created_at: string;
   updated_at: string;
 };

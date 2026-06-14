@@ -66,15 +66,15 @@ export function BlUploadSection({
 
   if (readOnly && hasFile && displayUrl) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-medium text-slate-500">
+      <div className="rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="mb-2 text-sm font-medium text-stone-500">
           Bon de livraison
         </h2>
         <a
           href={displayUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-medium text-slate-800 underline"
+          className="text-sm font-medium text-stone-800 underline"
         >
           Voir le fichier BL
         </a>
@@ -83,12 +83,12 @@ export function BlUploadSection({
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-medium text-slate-500">
+    <div className="rounded-lg border border-stone-200 bg-white p-4">
+      <h2 className="mb-3 text-sm font-medium text-stone-500">
         Bon de livraison
       </h2>
       {!readOnly && (
-        <p className="mb-3 text-xs text-slate-500">
+        <p className="mb-3 text-xs text-stone-500">
           Pour la lecture automatique : cadrer serré sur le <strong>tableau des articles</strong> (éviter la page entière),
           bonne lumière, photo nette — en cuisine le <strong>JPEG</strong> du téléphone suffit en général. Si le texte reste
           flou à l’écran, réessayez en <strong>PNG</strong> ou en zoomant davantage.
@@ -100,14 +100,14 @@ export function BlUploadSection({
             href={displayUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-slate-800 underline"
+            className="text-sm font-medium text-stone-800 underline"
           >
             Voir le fichier BL
           </a>
         </p>
       )}
       {readOnly && hasFile && !displayUrl && (
-        <p className="text-sm text-slate-500">Fichier BL enregistré (lien non disponible).</p>
+        <p className="text-sm text-stone-500">Fichier BL enregistré (lien non disponible).</p>
       )}
       {!readOnly && (
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -121,10 +121,10 @@ export function BlUploadSection({
               setSuccess(false);
             }}
             disabled={loading}
-            className="block w-full text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-3 file:py-1 file:text-sm"
+            className="block w-full text-sm text-stone-600 file:mr-2 file:rounded file:border-0 file:bg-stone-200 file:px-3 file:py-1 file:text-sm"
           />
           {file && (
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-stone-600">
               Fichier sélectionné : {file.name}
             </p>
           )}
@@ -141,7 +141,7 @@ export function BlUploadSection({
           <button
             type="submit"
             disabled={loading || !file}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
           >
             {loading ? "Upload en cours…" : "Enregistrer le fichier BL"}
           </button>

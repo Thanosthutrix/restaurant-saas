@@ -31,29 +31,29 @@ export default async function SupplierEditPage({
   const supplierInvoices = invoicesRes.data ?? [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-2xl px-4 py-6">
         <div className="mb-6">
           <Link
             href="/suppliers"
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Fournisseurs
           </Link>
         </div>
 
-        <h1 className="mb-6 text-xl font-semibold text-slate-900">
+        <h1 className="mb-6 text-xl font-semibold text-stone-900">
           {supplier.name}
         </h1>
 
         <EditSupplierForm supplier={supplier} />
 
-        <section className="mt-8 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">
+        <section className="mt-8 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">
             Commandes passées
           </h2>
         {purchaseOrders.length === 0 ? (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-stone-600">
               Aucune commande pour ce fournisseur.
             </p>
           ) : (
@@ -64,7 +64,7 @@ export default async function SupplierEditPage({
                 <li key={purchaseOrder.id} className="flex items-center justify-between gap-2">
                   <Link
                     href={`/orders/${purchaseOrder.id}`}
-                    className="text-sm text-slate-700 underline"
+                    className="text-sm text-stone-700 underline"
                   >
                     {purchaseOrder.created_at
                       ? new Date(purchaseOrder.created_at).toLocaleDateString("fr-FR", {
@@ -86,7 +86,7 @@ export default async function SupplierEditPage({
                   ) : (
                     <Link
                       href={`/receiving/${existingReception.id}`}
-                      className="rounded border border-slate-400 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="rounded border border-stone-400 px-2 py-1 text-xs font-medium text-stone-700 hover:bg-stone-100"
                     >
                       {existingReception.status === "draft"
                         ? "Ouvrir la réception"
@@ -101,18 +101,18 @@ export default async function SupplierEditPage({
             </ul>
           )}
           <p className="mt-2">
-            <Link href="/orders" className="text-sm text-slate-600 underline">
+            <Link href="/orders" className="text-sm text-stone-600 underline">
               Voir tout l’historique des commandes
             </Link>
           </p>
         </section>
 
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">
+        <section className="mt-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">
             Réceptions
           </h2>
           {deliveryNotes.length === 0 ? (
-            <p className="rounded border border-dashed border-slate-300 bg-slate-50/50 px-4 py-6 text-center text-sm text-slate-600">
+            <p className="rounded border border-dashed border-stone-300 bg-stone-50/50 px-4 py-6 text-center text-sm text-stone-600">
               Aucune réception pour ce fournisseur.
             </p>
           ) : (
@@ -128,9 +128,9 @@ export default async function SupplierEditPage({
                 return (
                   <li
                     key={dn.id}
-                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded border border-slate-200 bg-slate-50/50 px-3 py-2"
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded border border-stone-200 bg-stone-50/50 px-3 py-2"
                   >
-                    <span className="text-sm font-medium text-slate-900">
+                    <span className="text-sm font-medium text-stone-900">
                       {displayDate
                         ? new Date(displayDate).toLocaleDateString("fr-FR", {
                             day: "numeric",
@@ -145,14 +145,14 @@ export default async function SupplierEditPage({
                     {dn.purchase_order_id && (
                       <Link
                         href={`/orders/${dn.purchase_order_id}`}
-                        className="text-xs text-slate-600 underline"
+                        className="text-xs text-stone-600 underline"
                       >
                         Commande liée
                       </Link>
                     )}
                     <Link
                       href={`/receiving/${dn.id}`}
-                      className="text-sm font-medium text-slate-800 underline"
+                      className="text-sm font-medium text-stone-800 underline"
                     >
                       Ouvrir la réception
                     </Link>
@@ -161,13 +161,13 @@ export default async function SupplierEditPage({
                         href={fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-slate-500 underline"
+                        className="text-xs text-stone-500 underline"
                       >
                         Fichier BL
                       </a>
                     )}
                     {dn.lines_count != null && dn.lines_count > 0 && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-stone-500">
                         {dn.lines_count} ligne{dn.lines_count > 1 ? "s" : ""}
                       </span>
                     )}
@@ -178,15 +178,15 @@ export default async function SupplierEditPage({
           )}
         </section>
 
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">
+        <section className="mt-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">
             Factures
           </h2>
           <div className="mb-4">
             <InvoiceUpload restaurantId={restaurant.id} supplierId={id} />
           </div>
           {supplierInvoices.length === 0 ? (
-            <p className="rounded border border-dashed border-slate-300 bg-slate-50/50 px-4 py-6 text-center text-sm text-slate-600">
+            <p className="rounded border border-dashed border-stone-300 bg-stone-50/50 px-4 py-6 text-center text-sm text-stone-600">
               Aucune facture pour ce fournisseur.
             </p>
           ) : (
@@ -196,13 +196,13 @@ export default async function SupplierEditPage({
                 return (
                   <li
                     key={inv.id}
-                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded border border-slate-200 bg-slate-50/50 px-3 py-2"
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded border border-stone-200 bg-stone-50/50 px-3 py-2"
                   >
-                    <span className="text-sm font-medium text-slate-900">
+                    <span className="text-sm font-medium text-stone-900">
                       {inv.invoice_number || "Sans numéro"}
                     </span>
                     {inv.invoice_date && (
-                      <span className="text-xs text-slate-600">
+                      <span className="text-xs text-stone-600">
                         {new Date(inv.invoice_date).toLocaleDateString("fr-FR", {
                           day: "numeric",
                           month: "short",
@@ -210,12 +210,12 @@ export default async function SupplierEditPage({
                         })}
                       </span>
                     )}
-                    <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                    <span className="rounded bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700">
                       {statusLabel}
                     </span>
                     <Link
                       href={`/supplier-invoices/${inv.id}`}
-                      className="text-sm font-medium text-slate-800 underline"
+                      className="text-sm font-medium text-stone-800 underline"
                     >
                       Ouvrir la facture
                     </Link>

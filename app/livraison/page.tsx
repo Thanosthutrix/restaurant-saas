@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getRecentDeliveryNotesForRestaurant, getDeliveryNoteFileUrl, getSuppliers } from "@/lib/db";
+import { getRecentDeliveryNotesForRestaurant, getDeliveryNoteFileUrl } from "@/lib/db";
+import { cachedGetSuppliers } from "@/lib/cache";
 import { LivraisonBlForm } from "./LivraisonBlForm";
 import { uiBackLink, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
 
@@ -11,7 +12,7 @@ export default async function LivraisonPage() {
 
   const [{ data: notes, error: notesErr }, { data: suppliers }] = await Promise.all([
     getRecentDeliveryNotesForRestaurant(restaurant.id, 40),
-    getSuppliers(restaurant.id, true),
+    cachedGetSuppliers(restaurant.id, true),
   ]);
 
   if (notesErr) {
@@ -44,7 +45,7 @@ export default async function LivraisonPage() {
         <p className="mt-2 text-sm">
           <Link
             href="/receiving/registre"
-            className="font-medium text-indigo-700 underline decoration-indigo-300 underline-offset-2"
+            className="font-medium text-copper-800 underline decoration-copper-300 underline-offset-2"
           >
             Registre photos traçabilité
           </Link>
@@ -74,7 +75,7 @@ export default async function LivraisonPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="font-medium text-slate-900">{supplierName(n.supplier_id)}</p>
+                      <p className="font-medium text-stone-900">{supplierName(n.supplier_id)}</p>
                       <p className="mt-0.5 text-sm text-amber-800">
                         À pointer · {n.lines_count} produit{n.lines_count !== 1 ? "s" : ""} attendu
                         {n.purchase_order_id ? " · commande liée" : ""}
@@ -104,11 +105,11 @@ export default async function LivraisonPage() {
                 <li key={n.id}>
                   <Link
                     href={`/receiving/${n.id}`}
-                    className={`${uiCard} block transition hover:border-indigo-200 hover:shadow-md`}
+                    className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <p className="font-medium text-slate-900">{supplierName(n.supplier_id)}</p>
+                        <p className="font-medium text-stone-900">{supplierName(n.supplier_id)}</p>
                         <p className={`mt-0.5 text-sm ${uiLead}`}>
                           {displayDate
                             ? new Date(displayDate).toLocaleDateString("fr-FR", {
@@ -122,7 +123,7 @@ export default async function LivraisonPage() {
                         </p>
                       </div>
                       {fileUrl ? (
-                        <span className="text-xs font-medium text-indigo-600">Voir →</span>
+                        <span className="text-xs font-medium text-copper-700">Voir →</span>
                       ) : null}
                     </div>
                   </Link>

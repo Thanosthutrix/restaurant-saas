@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { ensureTemperatureTasksForRestaurant, listPendingTemperatureTasks } from "@/lib/haccpTemperature/haccpTemperatureDb";
+import { listPendingTemperatureTasks } from "@/lib/haccpTemperature/haccpTemperatureDb";
+import { cachedEnsureTemperatureTasks } from "@/lib/cache";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HaccpCheckClient } from "./HaccpCheckClient";
 
@@ -9,7 +10,7 @@ export default async function HaccpCheckPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  await ensureTemperatureTasksForRestaurant(restaurant.id, 14);
+  await cachedEnsureTemperatureTasks(restaurant.id);
   const tasks = await listPendingTemperatureTasks(restaurant.id);
 
   return (

@@ -40,10 +40,10 @@ export default async function SalesPage() {
           {list.map((imp) => (
             <li key={imp.id}>
               <Link href={`/ticket-import/${imp.id}`} className={uiListRow}>
-                <span className="font-semibold text-slate-900">
+                <span className="font-semibold text-stone-900">
                   Ticket du {formatDate(imp.service_date ?? imp.imported_at)}
                 </span>
-                {imp.service_type && <span className="text-sm text-slate-500">({imp.service_type})</span>}
+                {imp.service_type && <span className="text-sm text-stone-500">({imp.service_type})</span>}
               </Link>
             </li>
           ))}

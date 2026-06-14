@@ -52,7 +52,7 @@ export default async function InventoryPage() {
       </div>
 
       <p className={uiInfoBanner}>
-        <span className="font-semibold text-slate-800">Stock</span> = somme des mouvements (réceptions, consommations
+        <span className="font-semibold text-stone-800">Stock</span> = somme des mouvements (réceptions, consommations
         services, ajustements). Si la valeur de la fiche diffère, elle est indiquée entre parenthèses jusqu’à convergence (ex. données
         anciennes sans historique de mouvements).
       </p>

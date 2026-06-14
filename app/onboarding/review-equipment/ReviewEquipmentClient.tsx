@@ -159,7 +159,7 @@ export function ReviewEquipmentClient() {
   if (missing) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm text-slate-700">Aucun matériel à valider.</p>
+        <p className="text-sm text-stone-700">Aucun matériel à valider.</p>
         <button type="button" onClick={finish} className={uiBtnPrimaryBlock}>
           Ouvrir le tableau de bord
         </button>
@@ -196,12 +196,12 @@ export function ReviewEquipmentClient() {
           rows.map((row, index) => (
             <div key={row.clientId} className={`${uiCard} space-y-3`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
                   <input
                     type="checkbox"
                     checked={row.selected}
                     onChange={(e) => updateRow(index, { selected: e.target.checked })}
-                    className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                    className="h-4 w-4 rounded border-stone-300 accent-copper-700"
                   />
                   Valider
                 </label>
@@ -212,11 +212,11 @@ export function ReviewEquipmentClient() {
 
               <div className="grid gap-3 md:grid-cols-4">
                 <label className="space-y-1 md:col-span-2">
-                  <span className="block text-xs font-medium text-slate-500">Nom</span>
+                  <span className="block text-xs font-medium text-stone-500">Nom</span>
                   <input value={row.name} onChange={(e) => updateRow(index, { name: e.target.value })} className={`${uiInput} w-full`} />
                 </label>
                 <label className="space-y-1">
-                  <span className="block text-xs font-medium text-slate-500">Zone</span>
+                  <span className="block text-xs font-medium text-stone-500">Zone</span>
                   <select
                     value={row.area_kind}
                     onChange={(e) =>
@@ -235,7 +235,7 @@ export function ReviewEquipmentClient() {
                   </select>
                 </label>
                 <label className="space-y-1">
-                  <span className="block text-xs font-medium text-slate-500">Quantité</span>
+                  <span className="block text-xs font-medium text-stone-500">Quantité</span>
                   <input
                     type="number"
                     min={1}
@@ -249,7 +249,7 @@ export function ReviewEquipmentClient() {
 
               <div className="grid gap-3 md:grid-cols-3">
                 <label className="space-y-1">
-                  <span className="block text-xs font-medium text-slate-500">Libellé zone</span>
+                  <span className="block text-xs font-medium text-stone-500">Libellé zone</span>
                   <input
                     value={row.area_label}
                     onChange={(e) => updateRow(index, { area_label: e.target.value })}
@@ -258,7 +258,7 @@ export function ReviewEquipmentClient() {
                   />
                 </label>
                 <label className="space-y-1">
-                  <span className="block text-xs font-medium text-slate-500">Catégorie hygiène</span>
+                  <span className="block text-xs font-medium text-stone-500">Catégorie hygiène</span>
                   <select
                     value={row.hygiene_category ?? ""}
                     onChange={(e) =>
@@ -278,7 +278,7 @@ export function ReviewEquipmentClient() {
                   </select>
                 </label>
                 <label className="space-y-1">
-                  <span className="block text-xs font-medium text-slate-500">Fréquence PND</span>
+                  <span className="block text-xs font-medium text-stone-500">Fréquence PND</span>
                   <select
                     value={row.recurrence_type}
                     disabled={!row.create_hygiene_element}
@@ -295,27 +295,27 @@ export function ReviewEquipmentClient() {
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
                   <input
                     type="checkbox"
                     checked={row.create_hygiene_element}
                     disabled={!row.hygiene_category}
                     onChange={(e) => updateRow(index, { create_hygiene_element: e.target.checked })}
-                    className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                    className="h-4 w-4 rounded border-stone-300 accent-copper-700"
                   />
                   Créer élément hygiène
                 </label>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
                   <input
                     type="checkbox"
                     checked={row.create_dining_table}
                     onChange={(e) => updateRow(index, { create_dining_table: e.target.checked })}
-                    className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                    className="h-4 w-4 rounded border-stone-300 accent-copper-700"
                   />
                   Créer table salle
                 </label>
                 <label className="space-y-1">
-                  <span className="block text-xs font-medium text-slate-500">Risque hygiène</span>
+                  <span className="block text-xs font-medium text-stone-500">Risque hygiène</span>
                   <select
                     value={row.risk_level}
                     disabled={!row.create_hygiene_element}

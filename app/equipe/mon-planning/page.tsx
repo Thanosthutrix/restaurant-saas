@@ -38,7 +38,7 @@ export default async function MonPlanningPage({ searchParams }: Props) {
           la page Équipe puis utiliser « Lier mon compte » (ou vous associer manuellement).
         </p>
         <p>
-          <Link href="/equipe" className="font-medium text-indigo-700 underline">
+          <Link href="/equipe" className="font-medium text-copper-800 underline">
             Ouvrir Équipe & planning
           </Link>
         </p>

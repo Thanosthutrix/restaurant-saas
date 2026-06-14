@@ -57,7 +57,7 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
 
   return (
     <form onSubmit={handleSubmit} className={uiCard}>
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">Nouveau composant</h3>
+      <h3 className="mb-3 text-sm font-semibold text-stone-900">Nouveau composant</h3>
       {benchmarkHint ? (
         <p className="mb-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 text-xs text-violet-950">
           {benchmarkHint}

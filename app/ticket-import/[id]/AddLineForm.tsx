@@ -42,13 +42,13 @@ export function AddLineForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2 border-t border-slate-200 pt-3">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2 border-t border-stone-200 pt-3">
       <input
         type="text"
         value={rawLabel}
         onChange={(e) => setRawLabel(e.target.value)}
         placeholder="Libellé de la ligne"
-        className="min-w-[180px] rounded border border-slate-300 px-2 py-1.5 text-sm"
+        className="min-w-[180px] rounded border border-stone-300 px-2 py-1.5 text-sm"
       />
       <input
         type="text"
@@ -56,12 +56,12 @@ export function AddLineForm({
         value={qty}
         onChange={(e) => setQty(e.target.value)}
         placeholder="Qté"
-        className="w-16 rounded border border-slate-300 px-2 py-1.5 text-sm"
+        className="w-16 rounded border border-stone-300 px-2 py-1.5 text-sm"
       />
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+        className="rounded bg-stone-900 px-3 py-1.5 text-sm text-white hover:bg-stone-800 disabled:opacity-50"
       >
         {loading ? "…" : "Ajouter la ligne"}
       </button>

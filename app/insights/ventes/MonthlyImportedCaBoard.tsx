@@ -105,15 +105,15 @@ function CaMarginBarRow({
     <div className="space-y-1.5">
       <div className="flex items-start justify-between gap-2 text-xs">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-slate-900">{label}</p>
-          {secondary ? <p className="truncate text-[10px] text-slate-500">{secondary}</p> : null}
+          <p className="truncate font-semibold text-stone-900">{label}</p>
+          {secondary ? <p className="truncate text-[10px] text-stone-500">{secondary}</p> : null}
         </div>
         <div className="shrink-0 text-right tabular-nums">
-          <p className="font-semibold text-slate-800">{formatEur(rev)}</p>
+          <p className="font-semibold text-stone-800">{formatEur(rev)}</p>
           <p className="text-[10px] text-emerald-700">Marge {formatEur(rawMar)}</p>
         </div>
       </div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100/90 ring-1 ring-slate-200/60">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-stone-100/90 ring-1 ring-stone-200/60">
         <div
           className="flex h-full overflow-hidden rounded-full shadow-inner"
           style={{ width: `${barOuterPct}%` }}
@@ -124,13 +124,13 @@ function CaMarginBarRow({
             title="Marge HT"
           />
           <div
-            className="h-full bg-gradient-to-r from-slate-200 to-slate-300/90"
+            className="h-full bg-gradient-to-r from-stone-200 to-stone-300/90"
             style={{ width: `${(1 - marginRatio) * 100}%` }}
             title="Coût matière (CA HT − marge)"
           />
         </div>
       </div>
-      <div className="flex justify-between text-[10px] text-slate-500">
+      <div className="flex justify-between text-[10px] text-stone-500">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
           Marge
@@ -140,7 +140,7 @@ function CaMarginBarRow({
         </span>
         <span className="flex items-center gap-1">
           Coût
-          <span className="inline-block h-2 w-2 rounded-full bg-slate-300" />
+          <span className="inline-block h-2 w-2 rounded-full bg-stone-300" />
         </span>
       </div>
     </div>
@@ -163,19 +163,19 @@ function CaMarginSection({
   const maxRev = useMemo(() => Math.max(...items.map((c) => c.revenueHt), 1), [items]);
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-4 py-6 text-center">
-        <p className="text-sm font-medium text-slate-700">Aucune donnée agrégée</p>
-        <p className="mt-1 text-xs text-slate-500">{hint}</p>
+      <div className="rounded-2xl border border-dashed border-stone-200 bg-white/60 px-4 py-6 text-center">
+        <p className="text-sm font-medium text-stone-700">Aucune donnée agrégée</p>
+        <p className="mt-1 text-xs text-stone-500">{hint}</p>
       </div>
     );
   }
   return (
     <div className="space-y-3">
       <div>
-        <h4 className="text-sm font-bold tracking-tight text-slate-900">{title}</h4>
-        <p className="mt-0.5 text-xs text-slate-500">{hint}</p>
+        <h4 className="text-sm font-bold tracking-tight text-stone-900">{title}</h4>
+        <p className="mt-0.5 text-xs text-stone-500">{hint}</p>
       </div>
-      <div className="space-y-4 rounded-2xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/80 p-4 shadow-inner">
+      <div className="space-y-4 rounded-2xl border border-stone-100 bg-gradient-to-b from-white to-stone-50/80 p-4 shadow-inner">
         {items.map((c, idx) => (
           <CaMarginBarRow
             key={`${labelOf(c)}-${idx}`}
@@ -209,17 +209,17 @@ function CaExtractedBarRow({
     <div className="space-y-1.5">
       <div className="flex items-start justify-between gap-2 text-xs">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-slate-900">{label}</p>
-          {secondary ? <p className="truncate text-[10px] text-slate-500">{secondary}</p> : null}
+          <p className="truncate font-semibold text-stone-900">{label}</p>
+          {secondary ? <p className="truncate text-[10px] text-stone-500">{secondary}</p> : null}
         </div>
         <div className="shrink-0 text-right tabular-nums">
-          <p className="font-semibold text-slate-800">{formatEur(amount)}</p>
+          <p className="font-semibold text-stone-800">{formatEur(amount)}</p>
           {qty > 0 ? (
             <p className="text-[10px] text-violet-700">{qty.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} unité(s)</p>
           ) : null}
         </div>
       </div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100/90 ring-1 ring-violet-200/50">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-stone-100/90 ring-1 ring-violet-200/50">
         <div
           className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 shadow-inner transition-all"
           style={{ width: `${barPct}%` }}
@@ -243,16 +243,16 @@ function CaExtractedSection({
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-violet-200/80 bg-violet-50/40 px-4 py-6 text-center">
-        <p className="text-sm font-medium text-slate-700">Aucune ligne chiffrée</p>
-        <p className="mt-1 text-xs text-slate-500">{hint}</p>
+        <p className="text-sm font-medium text-stone-700">Aucune ligne chiffrée</p>
+        <p className="mt-1 text-xs text-stone-500">{hint}</p>
       </div>
     );
   }
   return (
     <div className="space-y-3">
       <div>
-        <h4 className="text-sm font-bold tracking-tight text-slate-900">{title}</h4>
-        <p className="mt-0.5 text-xs text-slate-500">{hint}</p>
+        <h4 className="text-sm font-bold tracking-tight text-stone-900">{title}</h4>
+        <p className="mt-0.5 text-xs text-stone-500">{hint}</p>
       </div>
       <div className="space-y-4 rounded-2xl border border-violet-100 bg-gradient-to-b from-white to-violet-50/40 p-4 shadow-inner">
         {items.map((c, idx) => (
@@ -324,10 +324,10 @@ export function MonthlyImportedCaBoard({
     return (
       <section className="space-y-4">
         <div className={uiCard}>
-          <h2 className="text-lg font-semibold text-slate-900">CA importé (relevés)</h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <h2 className="text-lg font-semibold text-stone-900">CA importé (relevés)</h2>
+          <p className="mt-2 text-sm text-stone-600">
             Aucun mois enregistré. Importez des relevés depuis l&apos;intégration ou{" "}
-            <Link href="/insights/revenue" className="font-medium text-indigo-600 underline">
+            <Link href="/insights/revenue" className="font-medium text-copper-700 underline">
               CA importé
             </Link>
             .
@@ -340,20 +340,20 @@ export function MonthlyImportedCaBoard({
   return (
     <section className="space-y-6">
       <div className={uiCard}>
-        <h2 className="text-lg font-semibold text-slate-900">CA mensuel importé</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          Chaque tuile reprend le <strong className="font-medium text-slate-800">montant du relevé</strong> et
-          l&apos;<strong className="font-medium text-slate-800">évolution vs le même mois N-1</strong> lorsque
+        <h2 className="text-lg font-semibold text-stone-900">CA mensuel importé</h2>
+        <p className="mt-2 text-sm leading-relaxed text-stone-600">
+          Chaque tuile reprend le <strong className="font-medium text-stone-800">montant du relevé</strong> et
+          l&apos;<strong className="font-medium text-stone-800">évolution vs le même mois N-1</strong> lorsque
           l&apos;historique existe. Cliquez pour déployer :{" "}
-          <strong className="font-medium text-slate-800">marge réalisée</strong> sur le mois (services saisis dans
-          l&apos;app) et graphiques <strong className="font-medium text-slate-800">CA vs marge</strong> par grande
+          <strong className="font-medium text-stone-800">marge réalisée</strong> sur le mois (services saisis dans
+          l&apos;app) et graphiques <strong className="font-medium text-stone-800">CA vs marge</strong> par grande
           rubrique puis par plat.
         </p>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-stone-500">
           {inRangeCount > 0
             ? `${inRangeCount} mois dans la période filtrée (${rangeFrom} → ${rangeTo}) sur ${sorted.length} mois en base.`
             : `Aucun mois importé dans la plage filtrée ; toutes les tuiles restent visibles.`}{" "}
-          <Link href="/insights/revenue" className="font-medium text-indigo-600 underline underline-offset-2">
+          <Link href="/insights/revenue" className="font-medium text-copper-700 underline underline-offset-2">
             Tableau détaillé CA
           </Link>
         </p>
@@ -374,8 +374,8 @@ export function MonthlyImportedCaBoard({
               key={r.id}
               className={`overflow-hidden rounded-3xl border shadow-lg transition-all duration-300 ${
                 isOpen
-                  ? "border-indigo-200/90 bg-white ring-2 ring-indigo-100/80 xl:col-span-2 2xl:col-span-2"
-                  : "border-slate-200/80 bg-white hover:border-indigo-200 hover:shadow-xl"
+                  ? "border-copper-200/90 bg-white ring-2 ring-copper-100/80 xl:col-span-2 2xl:col-span-2"
+                  : "border-stone-200/80 bg-white hover:border-copper-200 hover:shadow-xl"
               }`}
             >
               <button
@@ -386,33 +386,33 @@ export function MonthlyImportedCaBoard({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-500/90">Mois</p>
-                    <p className="mt-1 text-lg font-bold capitalize tracking-tight text-slate-900">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-copper-600/90">Mois</p>
+                    <p className="mt-1 text-lg font-bold capitalize tracking-tight text-stone-900">
                       {formatMonthLong(r.month)}
                     </p>
                     {inRange ? (
-                      <span className="mt-2 inline-flex rounded-full bg-indigo-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-800">
+                      <span className="mt-2 inline-flex rounded-full bg-copper-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase text-copper-800">
                         Période analyse
                       </span>
                     ) : (
-                      <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                      <span className="mt-2 inline-flex rounded-full bg-stone-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase text-stone-600">
                         Hors filtre
                       </span>
                     )}
                   </div>
                   <ChevronDown
-                    className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    className={`h-5 w-5 shrink-0 text-stone-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
                   />
                 </div>
 
                 <div>
-                  <p className="text-3xl font-bold tabular-nums tracking-tight text-slate-900">
+                  <p className="text-3xl font-bold tabular-nums tracking-tight text-stone-900">
                     {formatEur(r.revenue_ttc ?? null)}
-                    <span className="ml-2 text-sm font-semibold text-slate-400">TTC</span>
+                    <span className="ml-2 text-sm font-semibold text-stone-400">TTC</span>
                   </p>
                   {r.revenue_ht != null ? (
-                    <p className="mt-1 text-sm tabular-nums text-slate-600">
-                      {formatEur(r.revenue_ht)} HT <span className="text-slate-400">(relevé)</span>
+                    <p className="mt-1 text-sm tabular-nums text-stone-600">
+                      {formatEur(r.revenue_ht)} HT <span className="text-stone-400">(relevé)</span>
                     </p>
                   ) : null}
                 </div>
@@ -429,14 +429,14 @@ export function MonthlyImportedCaBoard({
                       {yoy.text}
                     </span>
                   ) : (
-                    <span className="text-xs text-slate-500">{yoy.text}</span>
+                    <span className="text-xs text-stone-500">{yoy.text}</span>
                   )}
                 </div>
 
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-2 overflow-hidden rounded-full bg-stone-100">
                   <div
                     className={`h-full rounded-full bg-gradient-to-r ${
-                      inRange ? "from-indigo-500 via-violet-500 to-fuchsia-500" : "from-slate-400 to-slate-500"
+                      inRange ? "from-copper-600 via-violet-500 to-fuchsia-500" : "from-stone-400 to-stone-500"
                     }`}
                     style={{ width: `${barPct}%` }}
                   />
@@ -449,9 +449,9 @@ export function MonthlyImportedCaBoard({
                 }`}
               >
                 <div className="min-h-0 overflow-hidden">
-                  <div className="space-y-5 border-t border-slate-100 bg-gradient-to-b from-slate-50/90 to-white px-5 pb-6 pt-4">
+                  <div className="space-y-5 border-t border-stone-100 bg-gradient-to-b from-stone-50/90 to-white px-5 pb-6 pt-4">
                     {loadingMonth === mk && !insight ? (
-                      <p className="text-sm text-slate-500">Chargement des ventes du mois…</p>
+                      <p className="text-sm text-stone-500">Chargement des ventes du mois…</p>
                     ) : null}
                     {loadError && expanded === mk && !insight ? (
                       <p className="text-sm text-rose-700">{loadError}</p>
@@ -480,7 +480,7 @@ export function MonthlyImportedCaBoard({
                           return (
                             <>
                               <div className="grid gap-4 sm:grid-cols-3">
-                                <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 p-4 text-white shadow-md">
+                                <div className="rounded-2xl bg-gradient-to-br from-copper-700 to-violet-700 p-4 text-white shadow-md">
                                   <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
                                     Marge mois
                                   </p>
@@ -498,14 +498,14 @@ export function MonthlyImportedCaBoard({
                                     plat(s) vendu(s)
                                   </p>
                                 </div>
-                                <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:col-span-2">
-                                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                <div className="rounded-2xl border border-stone-100 bg-white p-4 shadow-sm sm:col-span-2">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
                                     Lecture
                                   </p>
-                                  <p className="mt-1 text-sm text-slate-600">
+                                  <p className="mt-1 text-sm text-stone-600">
                                     {showAppCharts && showExtractedCharts ? (
                                       <>
-                                        Graphiques <strong className="text-slate-800">bleu / vert (app)</strong> : tickets
+                                        Graphiques <strong className="text-stone-800">bleu / vert (app)</strong> : tickets
                                         et marges FIFO. Graphiques{" "}
                                         <strong className="text-violet-900">rose / violet (relevé)</strong> : montants
                                         lus sur le document (HT si présent, sinon TTC par ligne). La tuile affiche le total
@@ -515,9 +515,9 @@ export function MonthlyImportedCaBoard({
                                     {showAppCharts && !showExtractedCharts ? (
                                       <>
                                         Les graphiques utilisent les{" "}
-                                        <strong className="text-slate-800">tickets enregistrés</strong> (CA HT, marge
+                                        <strong className="text-stone-800">tickets enregistrés</strong> (CA HT, marge
                                         FIFO). Le montant en tête de tuile reste le{" "}
-                                        <strong className="text-slate-800">relevé importé</strong>
+                                        <strong className="text-stone-800">relevé importé</strong>
                                         {lines.length > 0
                                           ? " — aucun montant par ligne exploitable sur l’extraction pour des barres."
                                           : "."}
@@ -546,7 +546,7 @@ export function MonthlyImportedCaBoard({
                                   <p className="text-xs font-bold uppercase tracking-wide text-violet-900">
                                     Répartition selon le relevé importé
                                   </p>
-                                  <p className="mt-1 text-xs text-slate-600">
+                                  <p className="mt-1 text-xs text-stone-600">
                                     Données issues de l&apos;extraction automatique du scan — sans marge matière
                                     (non calculée à partir du relevé).
                                   </p>
@@ -618,12 +618,12 @@ export function MonthlyImportedCaBoard({
 
                               {hasImportedRevenueDetail(r.analysis_result_json) ? (
                                 <div>
-                                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
                                     Détail extrait du relevé (document)
                                   </p>
                                   <ImportedRevenueDetailBlock
                                     analysisJson={r.analysis_result_json}
-                                    className="rounded-2xl border border-slate-100 bg-white p-3"
+                                    className="rounded-2xl border border-stone-100 bg-white p-3"
                                   />
                                 </div>
                               ) : null}

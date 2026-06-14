@@ -41,13 +41,13 @@ export function OptionalMenuPhotosPicker({
   };
 
   return (
-    <div className="space-y-3 border-t border-slate-100 pt-4">
+    <div className="space-y-3 border-t border-stone-100 pt-4">
       <div>
         <p className={uiFormLabel}>{title}</p>
         <p className={`mt-1 ${uiMuted}`}>{description}</p>
       </div>
       <div>
-        <label className={`mb-1 block text-xs font-medium text-slate-500`}>{galleryLabel}</label>
+        <label className={`mb-1 block text-xs font-medium text-stone-500`}>{galleryLabel}</label>
         <input
           type="file"
           accept=".pdf,image/*"
@@ -61,7 +61,7 @@ export function OptionalMenuPhotosPicker({
         />
       </div>
       <div>
-        <label className={`mb-1 block text-xs font-medium text-slate-500`}>{cameraLabel}</label>
+        <label className={`mb-1 block text-xs font-medium text-stone-500`}>{cameraLabel}</label>
         <input
           type="file"
           accept=".pdf,image/*"
@@ -75,7 +75,7 @@ export function OptionalMenuPhotosPicker({
         />
       </div>
       {files.length > 0 && (
-        <ul className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm text-slate-700">
+        <ul className="space-y-1.5 rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2 text-sm text-stone-700">
           {files.map((f, i) => (
             <li key={fileKey(f)} className="flex items-center justify-between gap-2">
               <span className="min-w-0 truncate" title={f.name}>

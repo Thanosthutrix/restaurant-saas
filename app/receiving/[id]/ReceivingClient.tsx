@@ -291,51 +291,51 @@ function LinePurchaseConversionFix({
   return (
     <form
       onSubmit={(e) => void handleSubmit(e)}
-      className="mt-2 space-y-2 rounded border border-indigo-200 bg-indigo-50/70 px-2 py-2"
+      className="mt-2 space-y-2 rounded border border-copper-200 bg-copper-50/70 px-2 py-2"
     >
-      <p className="text-xs font-medium text-indigo-950">Corriger la conversion achat → stock</p>
-      <p className="text-xs text-indigo-900/95">
+      <p className="text-xs font-medium text-copper-950">Corriger la conversion achat → stock</p>
+      <p className="text-xs text-copper-900/95">
         Les recettes restent en <strong>{stockLabel}</strong> (ex. 500 g reste 500 g). Vous indiquez combien de{" "}
         <strong>{stockLabel}</strong> correspondent à <strong>1 unité livrée</strong> sur le BL (ex. sac 20 kg → 20000
         si le stock est en g).
       </p>
       <div className="flex flex-wrap items-end gap-2">
         <label className="block">
-          <span className="mb-0.5 block text-[10px] font-medium text-indigo-900">Unité d&apos;achat (BL)</span>
+          <span className="mb-0.5 block text-[10px] font-medium text-copper-900">Unité d&apos;achat (BL)</span>
           <input
             value={pu}
             onChange={(e) => setPu(e.target.value)}
-            className="w-32 rounded border border-indigo-200 bg-white px-2 py-1 text-xs"
+            className="w-32 rounded border border-copper-200 bg-white px-2 py-1 text-xs"
             placeholder="sac, carton…"
           />
         </label>
-        <span className="pb-2 text-xs text-indigo-900">→</span>
+        <span className="pb-2 text-xs text-copper-900">→</span>
         <label className="block">
-          <span className="mb-0.5 block text-[10px] font-medium text-indigo-900">
+          <span className="mb-0.5 block text-[10px] font-medium text-copper-900">
             = combien de {stockLabel} ?
           </span>
           <input
             value={ratioStr}
             onChange={(e) => setRatioStr(e.target.value)}
             inputMode="decimal"
-            className="w-32 rounded border border-indigo-200 bg-white px-2 py-1 text-xs"
+            className="w-32 rounded border border-copper-200 bg-white px-2 py-1 text-xs"
             placeholder="20000"
           />
         </label>
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-indigo-700 px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+          className="rounded bg-copper-800 px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
         >
           {pending ? "…" : "Enregistrer et recalculer qté stock"}
         </button>
       </div>
-      <p className="text-[10px] text-indigo-900/85">
+      <p className="text-[10px] text-copper-900/85">
         Qté reçue (stock) = qté livrée BL × ce nombre. La commande fournisseur liée est alignée si besoin.
       </p>
       <Link
         href={`/inventory/${invItem.id}`}
-        className="inline-block text-[10px] font-medium text-indigo-700 underline decoration-indigo-300"
+        className="inline-block text-[10px] font-medium text-copper-800 underline decoration-copper-300"
       >
         Fiche composant (achat avancé)
       </Link>
@@ -720,10 +720,10 @@ export function ReceivingClient({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded border border-stone-200 bg-white">
         {!readOnly && (
-          <p className="border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
-            <strong className="font-medium text-slate-700">Traçabilité</strong> : cochez chaque ligne une fois le
+          <p className="border-b border-stone-100 bg-stone-50/80 px-3 py-2 text-xs text-stone-600">
+            <strong className="font-medium text-stone-700">Traçabilité</strong> : cochez chaque ligne une fois le
             produit vérifié physiquement ; température (°C), n° de lot et DLC ; photos en fin de ligne (le type au
             registre suit le composant stock lié). Optionnel sauf exigence hygiène.
           </p>
@@ -744,14 +744,14 @@ export function ReceivingClient({
         )}
         {emptyLines && !addingLine ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-stone-600">
               Aucune ligne de réception trouvée
             </p>
             {!readOnly && (
               <button
                 type="button"
                 onClick={openAddLineForm}
-                className="mt-3 rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                className="mt-3 rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800"
               >
                 Ajouter une ligne
               </button>
@@ -761,7 +761,7 @@ export function ReceivingClient({
           <>
             <table className="w-full border-collapse text-sm [&_td]:align-top">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-500">
+                <tr className="border-b border-stone-200 text-left text-stone-500">
                   <th
                     className="pb-2 pr-2 w-12 text-center"
                     title="Contrôle physique effectué"
@@ -821,7 +821,7 @@ export function ReceivingClient({
                       className={`border-b transition-colors ${
                         rowVerified
                           ? "border-emerald-100 bg-emerald-50/90 hover:bg-emerald-50"
-                          : "border-slate-100 bg-white hover:bg-slate-50/80"
+                          : "border-stone-100 bg-white hover:bg-stone-50/80"
                       }`}
                     >
                       <td className="py-2 pr-2 text-center">
@@ -835,7 +835,7 @@ export function ReceivingClient({
                             </span>
                           ) : (
                             <span
-                              className="inline-flex h-9 min-h-9 w-9 items-center justify-center text-slate-300"
+                              className="inline-flex h-9 min-h-9 w-9 items-center justify-center text-stone-300"
                               title="Non contrôlée"
                             >
                               —
@@ -856,7 +856,7 @@ export function ReceivingClient({
                             className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors ${
                               rowVerified
                                 ? "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
-                                : "border-slate-300 bg-white text-slate-400 hover:border-emerald-500 hover:text-emerald-600"
+                                : "border-stone-300 bg-white text-stone-400 hover:border-emerald-500 hover:text-emerald-600"
                             } disabled:opacity-50`}
                             aria-pressed={rowVerified}
                             aria-label={
@@ -872,11 +872,11 @@ export function ReceivingClient({
                         )}
                       </td>
                       <td className="py-2 pr-2">
-                        <div className="font-medium text-slate-900">
+                        <div className="font-medium text-stone-900">
                           {line.inventory_items?.name ?? line.label}
                         </div>
                         {line.label && line.inventory_items?.name !== line.label && (
-                          <div className="text-xs text-slate-500">{line.label}</div>
+                          <div className="text-xs text-stone-500">{line.label}</div>
                         )}
                         {noProduct && (
                           <span className="text-xs text-amber-600">
@@ -885,11 +885,11 @@ export function ReceivingClient({
                         )}
                         {!readOnly && (
                           <div className="mt-2">
-                            <label className="mb-0.5 block text-xs font-medium text-slate-500">
+                            <label className="mb-0.5 block text-xs font-medium text-stone-500">
                               Produit stock
                             </label>
                             <select
-                              className="box-border h-9 min-h-9 max-w-[min(100%,22rem)] rounded border border-slate-300 bg-white px-2 py-0 text-xs leading-none"
+                              className="box-border h-9 min-h-9 max-w-[min(100%,22rem)] rounded border border-stone-300 bg-white px-2 py-0 text-xs leading-none"
                               value={line.inventory_item_id ?? ""}
                               disabled={pendingInventoryLineId === line.id}
                               onChange={(e) => {
@@ -1044,7 +1044,7 @@ export function ReceivingClient({
                                     line.inventory_item_id as string
                                   )
                                 }
-                                className="mt-1.5 block text-left text-xs font-medium text-indigo-700 underline decoration-indigo-300 hover:text-indigo-900 disabled:opacity-50"
+                                className="mt-1.5 block text-left text-xs font-medium text-copper-800 underline decoration-copper-300 hover:text-copper-900 disabled:opacity-50"
                               >
                                 {savingAliasLineId === line.id
                                   ? "Enregistrement…"
@@ -1052,21 +1052,21 @@ export function ReceivingClient({
                               </button>
                             )}
                             {memoized && (
-                              <p className="mt-1 text-xs text-slate-500">
+                              <p className="mt-1 text-xs text-stone-500">
                                 Liaison mémorisée pour ce fournisseur.
                               </p>
                             )}
                           </div>
                         )}
                       </td>
-                      <td className="py-2 pr-2 text-right text-slate-600">
+                      <td className="py-2 pr-2 text-right text-stone-600">
                         <span className="inline-flex h-9 min-h-9 items-center justify-end tabular-nums">
                           {Number(line.qty_ordered) || 0}
                         </span>
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-stone-600 tabular-nums">
                             {qtyDeliveredDisplay}
                           </span>
                         ) : (
@@ -1080,16 +1080,16 @@ export function ReceivingClient({
                                 : qtyDeliveredDisplay
                             }
                             onChange={(e) => onChangeLine(line.id, "qty_delivered", e.target.value)}
-                            className="box-border h-9 min-h-9 w-20 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-20 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
-                      <td className="py-2 pr-2 text-slate-600">
+                      <td className="py-2 pr-2 text-stone-600">
                         <span className="inline-flex h-9 min-h-9 items-center">{line.unit ?? "—"}</span>
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-stone-600 tabular-nums">
                             {qtyReceivedDisplay}
                           </span>
                         ) : (
@@ -1103,17 +1103,17 @@ export function ReceivingClient({
                                 : qtyReceivedDisplay
                             }
                             onChange={(e) => onChangeLine(line.id, "qty_received", e.target.value)}
-                            className="box-border h-9 min-h-9 w-20 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-20 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
-                      <td className="py-2 pr-2 text-slate-600">
+                      <td className="py-2 pr-2 text-stone-600">
                         <span className="inline-flex h-9 min-h-9 items-center">{line.stock_unit ?? "—"}</span>
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
                           <span
-                            className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums"
+                            className="inline-flex h-9 min-h-9 items-center justify-end text-stone-600 tabular-nums"
                             title="Température à la réception"
                           >
                             {line.received_temperature_celsius != null &&
@@ -1133,13 +1133,13 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeReceivedTemperature(line.id, e.target.value)
                             }
-                            className="box-border h-9 min-h-9 w-[4.5rem] rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-[4.5rem] rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2">
                         {readOnly ? (
-                          <span className="inline-flex h-9 min-h-9 items-center text-slate-600">
+                          <span className="inline-flex h-9 min-h-9 items-center text-stone-600">
                             {lotInputValue(line) || "—"}
                           </span>
                         ) : (
@@ -1148,13 +1148,13 @@ export function ReceivingClient({
                             placeholder="—"
                             value={lotInputValue(line)}
                             onChange={(e) => onChangeLotNumber(line.id, e.target.value)}
-                            className="box-border h-9 min-h-9 w-full min-w-[5rem] max-w-[8rem] rounded border border-slate-300 px-2 py-0 text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-full min-w-[5rem] max-w-[8rem] rounded border border-stone-300 px-2 py-0 text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2">
                         {readOnly ? (
-                          <span className="inline-flex h-9 min-h-9 items-center text-slate-600">
+                          <span className="inline-flex h-9 min-h-9 items-center text-stone-600">
                             {expiryInputValue(line)
                               ? new Date(expiryInputValue(line) + "T12:00:00").toLocaleDateString("fr-FR")
                               : "—"}
@@ -1164,13 +1164,13 @@ export function ReceivingClient({
                             type="date"
                             value={expiryInputValue(line)}
                             onChange={(e) => onChangeExpiryDate(line.id, e.target.value)}
-                            className="box-border h-9 min-h-9 w-full min-w-[9rem] rounded border border-slate-300 px-2 py-0 text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-full min-w-[9rem] rounded border border-stone-300 px-2 py-0 text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-stone-600 tabular-nums">
                             {displayBlMoney(line.bl_line_total_ht, 2)}
                           </span>
                         ) : (
@@ -1182,13 +1182,13 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeBlLine(line.id, "bl_line_total_ht", e.target.value)
                             }
-                            className="box-border h-9 min-h-9 w-24 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-24 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2 text-right">
                         {readOnly ? (
-                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-slate-600 tabular-nums">
+                          <span className="inline-flex h-9 min-h-9 items-center justify-end text-stone-600 tabular-nums">
                             {displayBlMoney(line.bl_unit_price_stock_ht, 4)}
                           </span>
                         ) : (
@@ -1200,7 +1200,7 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeBlLine(line.id, "bl_unit_price_stock_ht", e.target.value)
                             }
-                            className="box-border h-9 min-h-9 w-24 rounded border border-slate-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-24 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
                           />
                         )}
                       </td>
@@ -1220,7 +1220,7 @@ export function ReceivingClient({
                               type="button"
                               disabled={uploadingPhotoLineId === line.id}
                               onClick={() => openPhotoDialog(line.id)}
-                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-400 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-stone-400 bg-white text-stone-800 hover:bg-stone-50 disabled:opacity-50"
                               title="Prendre ou ajouter une photo"
                               aria-label="Prendre une photo"
                             >
@@ -1239,7 +1239,7 @@ export function ReceivingClient({
                                     href={ph.file_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block h-12 w-12 overflow-hidden rounded border border-slate-200 bg-slate-100"
+                                    className="block h-12 w-12 overflow-hidden rounded border border-stone-200 bg-stone-100"
                                     title={`${traceabilityTypeLabel(ph.element_type)} · ${new Date(ph.created_at).toLocaleString("fr-FR")}`}
                                   >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1250,7 +1250,7 @@ export function ReceivingClient({
                                     />
                                   </a>
                                 ) : (
-                                  <span className="flex h-12 w-12 items-center justify-center rounded border border-slate-200 bg-slate-100 text-[10px] text-slate-500">
+                                  <span className="flex h-12 w-12 items-center justify-center rounded border border-stone-200 bg-stone-100 text-[10px] text-stone-500">
                                     ?
                                   </span>
                                 )}
@@ -1276,15 +1276,15 @@ export function ReceivingClient({
               </tbody>
             </table>
             {!readOnly && (
-              <div className="border-t border-slate-200 px-3 py-2">
-                <p className="mb-2 text-xs text-slate-500">
+              <div className="border-t border-stone-200 px-3 py-2">
+                <p className="mb-2 text-xs text-stone-500">
                   Coût unitaire stock : priorité aux montants saisis sur le BL (total ligne et prix unitaire), puis
                   dernier achat connu si besoin.
                 </p>
                 <button
                   type="button"
                   onClick={openAddLineForm}
-                  className="text-sm font-medium text-slate-600 underline"
+                  className="text-sm font-medium text-stone-600 underline"
                 >
                   Ajouter une ligne
                 </button>
@@ -1295,13 +1295,13 @@ export function ReceivingClient({
       </div>
 
       {addingLine && (
-        <div className="rounded border border-slate-200 bg-slate-50 p-4">
-          <h3 className="mb-3 text-sm font-medium text-slate-700">
+        <div className="rounded border border-stone-200 bg-stone-50 p-4">
+          <h3 className="mb-3 text-sm font-medium text-stone-700">
             Nouvelle ligne de réception
           </h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Libellé
               </label>
               <input
@@ -1309,17 +1309,17 @@ export function ReceivingClient({
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 placeholder="ex. Tomates"
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Produit (optionnel, pour mise en stock)
               </label>
               <select
                 value={newInventoryItemId}
                 onChange={(e) => onSelectInventoryItem(e.target.value)}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               >
                 <option value="">— Aucun —</option>
                 {inventoryItems.map((item) => (
@@ -1330,7 +1330,7 @@ export function ReceivingClient({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Unité
               </label>
               <input
@@ -1338,11 +1338,11 @@ export function ReceivingClient({
                 value={newUnit}
                 onChange={(e) => setNewUnit(e.target.value)}
                 placeholder="ex. kg"
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Qté livrée (achat)
               </label>
               <input
@@ -1351,11 +1351,11 @@ export function ReceivingClient({
                 step="any"
                 value={newQtyDelivered}
                 onChange={(e) => setNewQtyDelivered(e.target.value)}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Qté reçue (stock)
               </label>
               <input
@@ -1364,11 +1364,11 @@ export function ReceivingClient({
                 step="any"
                 value={newQtyReceived}
                 onChange={(e) => setNewQtyReceived(e.target.value)}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Température à la réception (°C)
               </label>
               <input
@@ -1380,11 +1380,11 @@ export function ReceivingClient({
                 value={newReceivedTemp}
                 onChange={(e) => setNewReceivedTemp(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 N° de lot
               </label>
               <input
@@ -1392,22 +1392,22 @@ export function ReceivingClient({
                 value={newLotNumber}
                 onChange={(e) => setNewLotNumber(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 DLC (péremption)
               </label>
               <input
                 type="date"
                 value={newExpiryDate}
                 onChange={(e) => setNewExpiryDate(e.target.value)}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Total ligne HT sur BL (€)
               </label>
               <input
@@ -1416,11 +1416,11 @@ export function ReceivingClient({
                 value={newBlLineTotal}
                 onChange={(e) => setNewBlLineTotal(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
+              <label className="mb-1 block text-xs font-medium text-stone-500">
                 Prix unit. stock HT (€)
               </label>
               <input
@@ -1429,7 +1429,7 @@ export function ReceivingClient({
                 value={newBlUnitPrice}
                 onChange={(e) => setNewBlUnitPrice(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
             </div>
           </div>
@@ -1443,7 +1443,7 @@ export function ReceivingClient({
               type="button"
               onClick={handleAddLine}
               disabled={addingLinePending}
-              className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
             >
               {addingLinePending ? "Ajout…" : "Enregistrer la ligne"}
             </button>
@@ -1451,7 +1451,7 @@ export function ReceivingClient({
               type="button"
               onClick={closeAddLineForm}
               disabled={addingLinePending}
-              className="rounded border border-slate-400 px-3 py-1.5 text-sm font-medium text-slate-700"
+              className="rounded border border-stone-400 px-3 py-1.5 text-sm font-medium text-stone-700"
             >
               Annuler
             </button>
@@ -1473,7 +1473,7 @@ export function ReceivingClient({
                 type="button"
                 disabled={saving || emptyLines}
                 onClick={handleSave}
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
               >
                 {saving ? "Enregistrement…" : "Enregistrer"}
               </button>

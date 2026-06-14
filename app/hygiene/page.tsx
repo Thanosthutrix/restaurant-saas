@@ -3,17 +3,17 @@ import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
   countHygieneTasksDue,
-  ensureHygieneTasksForRestaurant,
   getHygieneScoreForRestaurant,
   listHygieneTasksDue,
 } from "@/lib/hygiene/hygieneDb";
+import { cachedEnsureHygieneTasks } from "@/lib/cache";
 import { uiBackLink, uiCard, uiCardMuted, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
 
 export default async function HygieneHubPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  await ensureHygieneTasksForRestaurant(restaurant.id, 14);
+  await cachedEnsureHygieneTasks(restaurant.id);
   const [score, duePreview, dueCount] = await Promise.all([
     getHygieneScoreForRestaurant(restaurant.id, 7),
     listHygieneTasksDue(restaurant.id, 6),
@@ -29,18 +29,18 @@ export default async function HygieneHubPage() {
         <h1 className={`mt-4 ${uiPageTitle}`}>Nettoyage & désinfection</h1>
         <p className={`mt-2 ${uiLead}`}>
           Plan de nettoyage (PND) : éléments à nettoyer, tâches générées selon la récurrence, registre et score
-          hygiène sur 7 jours glissants (indicateur interne, non normatif).
+          hygiène sur les 7 derniers jours.
         </p>
       </div>
 
       <section className={`${uiCard} space-y-3`}>
         <h2 className={uiSectionTitleSm}>Score hygiène (7 j.)</h2>
         <div className="flex flex-wrap items-end gap-4">
-          <p className="text-4xl font-bold tabular-nums text-indigo-700">{score.score}</p>
-          <span className="pb-1 text-sm text-slate-500">/ 100</span>
+          <p className="text-4xl font-bold tabular-nums text-copper-800">{score.score}</p>
+          <span className="pb-1 text-sm text-stone-500">/ 100</span>
         </div>
         <p className={`${uiLead} text-xs leading-relaxed`}>{score.detail}</p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-stone-400">
           Pondération : standard ×1, important ×2, critique ×4. À temps = 100 % du poids, en retard = 50 %, non
           réalisé = 0 %.
         </p>
@@ -52,7 +52,7 @@ export default async function HygieneHubPage() {
           <li>
             <Link
               href="/hygiene/a-faire"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               À faire maintenant
               {dueCount > 0 && (
@@ -65,7 +65,7 @@ export default async function HygieneHubPage() {
           <li>
             <Link
               href="/hygiene/elements"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Éléments à nettoyer
             </Link>
@@ -73,7 +73,7 @@ export default async function HygieneHubPage() {
           <li>
             <Link
               href="/hygiene/registre"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Registre nettoyage
             </Link>
@@ -81,7 +81,7 @@ export default async function HygieneHubPage() {
           <li>
             <Link
               href="/hygiene/haccp"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Températures HACCP
             </Link>
@@ -89,7 +89,7 @@ export default async function HygieneHubPage() {
           <li>
             <Link
               href="/hygiene/temperatures-ouverture"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Froid : ouverture / fermeture
             </Link>
@@ -97,7 +97,7 @@ export default async function HygieneHubPage() {
           <li>
             <Link
               href="/hygiene/registre-temperatures"
-              className={`${uiCard} block font-medium text-indigo-700 transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${uiCard} block font-medium text-copper-800 transition hover:border-copper-200 hover:shadow-md`}
             >
               Registre froid (ouverture)
             </Link>
@@ -111,8 +111,8 @@ export default async function HygieneHubPage() {
           <ul className="space-y-2">
             {duePreview.slice(0, 5).map((t) => (
               <li key={t.id} className={uiCardMuted}>
-                <span className="font-medium text-slate-900">{t.element_name}</span>
-                <span className="ml-2 text-xs text-slate-500">
+                <span className="font-medium text-stone-900">{t.element_name}</span>
+                <span className="ml-2 text-xs text-stone-500">
                   {t.area_label ? `· ${t.area_label}` : ""} ·{" "}
                   {new Date(t.due_at).toLocaleString("fr-FR", {
                     day: "numeric",

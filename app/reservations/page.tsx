@@ -72,7 +72,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
         </div>
         <Link
           href="/reservations/nouvelle"
-          className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          className="shrink-0 rounded-xl bg-copper-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-copper-600"
         >
           Nouvelle réservation
         </Link>

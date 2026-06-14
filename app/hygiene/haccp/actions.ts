@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidateTemperaturePointsCache } from "@/lib/cacheInvalidation";
 import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 import { getCurrentUser } from "@/lib/auth";
 import { getTemperaturePoint } from "@/lib/haccpTemperature/haccpTemperatureDb";
@@ -88,6 +89,7 @@ export async function upsertTemperaturePointAction(
 
   revalidatePath("/hygiene/haccp");
   revalidatePath("/hygiene/haccp/points");
+  invalidateTemperaturePointsCache();
   revalidatePath("/hygiene/haccp/check");
   return { ok: true };
 }
@@ -111,6 +113,7 @@ export async function setTemperaturePointActiveAction(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/hygiene/haccp/points");
+  invalidateTemperaturePointsCache();
   revalidatePath("/hygiene/haccp/check");
   return { ok: true };
 }

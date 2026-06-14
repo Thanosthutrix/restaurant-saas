@@ -36,7 +36,7 @@ function mergeFiles(current: File[], list: FileList | null): File[] {
 function FilesList({ files, onRemove }: { files: File[]; onRemove: (index: number) => void }) {
   if (files.length === 0) return null;
   return (
-    <ul className="space-y-1 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm text-slate-700">
+    <ul className="space-y-1 rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2 text-sm text-stone-700">
       {files.map((file, index) => (
         <li key={fileKey(file)} className="flex items-center justify-between gap-2">
           <span className="min-w-0 truncate" title={file.name}>
@@ -69,7 +69,7 @@ function SupplierPicker({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
+        <span className="mb-1 block text-xs font-medium text-stone-500">{label}</span>
         <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className={`w-full ${uiSelect}`}>
           <option value="">Nouveau fournisseur…</option>
           {suppliers.map((supplier) => (
@@ -80,13 +80,13 @@ function SupplierPicker({
         </select>
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-slate-500">Nom si nouveau fournisseur</span>
+        <span className="mb-1 block text-xs font-medium text-stone-500">Nom si nouveau fournisseur</span>
         <input
           value={supplierName}
           onChange={(e) => setSupplierName(e.target.value)}
           placeholder="ex. Métro, grossiste…"
           disabled={Boolean(supplierId)}
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm"
         />
       </label>
     </div>
@@ -172,10 +172,10 @@ export function UploadSupplierDocumentsClient({ suppliers }: { suppliers: Suppli
       <div>
         <h2 className={uiSectionTitleSm}>Factures et bons de livraison</h2>
         <p className={`mt-1 ${uiMuted}`}>
-          Les <strong className="font-medium text-slate-800">factures</strong> sont analysées pour proposer des{" "}
-          <strong className="font-medium text-slate-800">tarifs d’achat</strong> et enrichir les fiches fournisseurs
+          Les <strong className="font-medium text-stone-800">factures</strong> sont analysées pour proposer des{" "}
+          <strong className="font-medium text-stone-800">tarifs d’achat</strong> et enrichir les fiches fournisseurs
           (coordonnées, SIRET… quand ils figurent sur le document). Laissez fournisseur vide pour laisser l’IA
-          rapprocher ou créer le fournisseur à partir de chaque facture. Les <strong className="font-medium text-slate-800">BL</strong>{" "}
+          rapprocher ou créer le fournisseur à partir de chaque facture. Les <strong className="font-medium text-stone-800">BL</strong>{" "}
           exigent un fournisseur choisi ou nommé.
         </p>
       </div>
@@ -192,7 +192,7 @@ export function UploadSupplierDocumentsClient({ suppliers }: { suppliers: Suppli
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Bons de livraison (optionnel)</h3>
+          <h3 className="text-sm font-semibold text-stone-900">Bons de livraison (optionnel)</h3>
           <SupplierPicker
             label="Fournisseur des BL"
             suppliers={suppliers}
@@ -219,7 +219,7 @@ export function UploadSupplierDocumentsClient({ suppliers }: { suppliers: Suppli
         </section>
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Factures fournisseurs (recommandé)</h3>
+          <h3 className="text-sm font-semibold text-stone-900">Factures fournisseurs (recommandé)</h3>
           <SupplierPicker
             label="Fournisseur des factures"
             suppliers={suppliers}

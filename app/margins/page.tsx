@@ -119,23 +119,23 @@ export default async function MarginsPage({
 
       <div className={uiCard}>
         <h1 className={uiPageTitle}>Analyse des marges</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          <strong className="font-medium text-slate-800">Carte</strong> : coût matière théorique (recette × coûts
+        <p className="mt-2 text-sm text-stone-600">
+          <strong className="font-medium text-stone-800">Carte</strong> : coût matière théorique (recette × coûts
           composants), prix TTC carte et TVA par plat ; le HT est déduit pour la marge.{" "}
-          <strong className="font-medium text-slate-800">Services</strong> : CA selon montants ticket (colonne
+          <strong className="font-medium text-stone-800">Services</strong> : CA selon montants ticket (colonne
           line_total_ht sur les ventes) ou, à défaut, qté vendue × prix carte ; coût matière = valorisation{" "}
           <strong>FIFO</strong> des sorties de stock liées au service.{" "}
-          <strong className="font-medium text-slate-800">Par plat (réalisé)</strong> : même période — le FIFO de
+          <strong className="font-medium text-stone-800">Par plat (réalisé)</strong> : même période — le FIFO de
           chaque service est ventilé sur les plats vendus (coût théorique portion, sinon CA ou quantité).
         </p>
         {error && <p className="mt-2 text-sm text-rose-600">{error.message}</p>}
       </div>
 
       <section className="mb-10">
-          <h2 className="mb-2 text-lg font-medium text-slate-900">
+          <h2 className="mb-2 text-lg font-medium text-stone-900">
             Marge réalisée par service
           </h2>
-          <p className="mb-3 text-sm text-slate-600">
+          <p className="mb-3 text-sm text-stone-600">
             Uniquement les services dans l’intervalle. La marge n’est affichée que si le CA est entièrement
             estimable et si toutes les sorties FIFO ont un coût unitaire connu.
           </p>
@@ -145,15 +145,15 @@ export default async function MarginsPage({
         </div>
 
           {realizedRows.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-600">
+            <p className="mt-4 text-sm text-stone-600">
               Aucun service sur cette période.
             </p>
           ) : (
             <>
-              <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <div className="mt-4 overflow-x-auto rounded-lg border border-stone-200 bg-white">
                 <table className="w-full min-w-[800px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-stone-200 text-stone-500">
                       <th className="px-3 py-2 font-medium">Service</th>
                       <th className="px-3 py-2 font-medium">CA HT</th>
                       <th className="px-3 py-2 text-right font-medium">Coût FIFO HT</th>
@@ -163,7 +163,7 @@ export default async function MarginsPage({
                   </thead>
                   <tbody>
                     {realizedRows.map((r) => (
-                      <tr key={r.serviceId} className="border-b border-slate-100">
+                      <tr key={r.serviceId} className="border-b border-stone-100">
                         <td className="px-3 py-2 align-top">
                           <Link
                             href={`/service/${r.serviceId}`}
@@ -171,7 +171,7 @@ export default async function MarginsPage({
                           >
                             {formatServiceDate(r.serviceDate)} — {formatServiceType(r.serviceType)}
                           </Link>
-                          <p className="mt-1 text-xs text-slate-500">{r.revenueNote}</p>
+                          <p className="mt-1 text-xs text-stone-500">{r.revenueNote}</p>
                           {r.fifoHasUnknownCost && (
                             <p className="mt-1 text-xs text-amber-700">
                               Coût FIFO partiel : une partie des sorties n’a pas de coût lot (stock ancien ou
@@ -184,40 +184,40 @@ export default async function MarginsPage({
                             </p>
                           )}
                         </td>
-                        <td className="px-3 py-2 align-top text-slate-800">
+                        <td className="px-3 py-2 align-top text-stone-800">
                           {r.revenueHt != null ? formatEur(r.revenueHt) : "—"}
                         </td>
-                        <td className="px-3 py-2 text-right align-top text-slate-800">
+                        <td className="px-3 py-2 text-right align-top text-stone-800">
                           {formatEur(r.fifoCostHt)}
                           {r.fifoHasUnknownCost ? " *" : ""}
                         </td>
-                        <td className="px-3 py-2 text-right align-top text-slate-800">
+                        <td className="px-3 py-2 text-right align-top text-stone-800">
                           {r.marginHt != null ? formatEur(r.marginHt) : "—"}
                         </td>
-                        <td className="px-3 py-2 text-right align-top text-slate-800">
+                        <td className="px-3 py-2 text-right align-top text-stone-800">
                           {r.marginPct != null ? `${r.marginPct.toFixed(1)} %` : "—"}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-slate-200 bg-slate-50/80 font-medium">
-                      <td className="px-3 py-2 text-slate-800">Total (période)</td>
-                      <td className="px-3 py-2 text-slate-800">{formatEur(sumRev)}</td>
-                      <td className="px-3 py-2 text-right text-slate-800">
+                    <tr className="border-t border-stone-200 bg-stone-50/80 font-medium">
+                      <td className="px-3 py-2 text-stone-800">Total (période)</td>
+                      <td className="px-3 py-2 text-stone-800">{formatEur(sumRev)}</td>
+                      <td className="px-3 py-2 text-right text-stone-800">
                         {formatEur(sumCost)}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-800">
+                      <td className="px-3 py-2 text-right text-stone-800">
                         {sumRevForMargin > 0 ? formatEur(sumMargin) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-800">
+                      <td className="px-3 py-2 text-right text-stone-800">
                         {aggMarginPct != null ? `${aggMarginPct.toFixed(1)} %` : "—"}
                       </td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-stone-500">
                 * Coût FIFO minimal connu ; la marge n’est pas calculée tant qu’une fraction du coût est
                 inconnue. Le total « Marge » et le taux global ne portent que sur les services où la marge a
                 pu être calculée (CA complet et FIFO entièrement valorisé).
@@ -225,25 +225,25 @@ export default async function MarginsPage({
             </>
           )}
 
-          <h3 className="mb-2 mt-10 text-base font-medium text-slate-900">
+          <h3 className="mb-2 mt-10 text-base font-medium text-stone-900">
             Marge réalisée par plat (même période)
           </h3>
-          <p className="mb-3 text-sm text-slate-600">
+          <p className="mb-3 text-sm text-stone-600">
             Agrégation des ventes sur l’intervalle. Le coût FIFO de chaque service est réparti entre les lignes
             du service au prorata du coût matière théorique d’une portion (recette × prix composants) ; si ce
             coût manque, au prorata du CA ligne ou de la quantité.
           </p>
 
           {servicesInRange.length === 0 || dishMarginRows.length === 0 ? (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-stone-600">
               Aucune vente sur des services dans cette période.
             </p>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
                 <table className="w-full min-w-[820px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-stone-200 text-stone-500">
                       <th className="px-3 py-2 font-medium">Plat</th>
                       <th className="px-3 py-2 text-right font-medium">CA HT</th>
                       <th className="px-3 py-2 text-right font-medium">Coût FIFO alloué</th>
@@ -253,7 +253,7 @@ export default async function MarginsPage({
                   </thead>
                   <tbody>
                     {dishMarginRows.map((r) => (
-                      <tr key={r.dishId} className="border-b border-slate-100">
+                      <tr key={r.dishId} className="border-b border-stone-100">
                         <td className="px-3 py-2 align-top">
                           <Link
                             href={`/dishes/${r.dishId}`}
@@ -265,41 +265,41 @@ export default async function MarginsPage({
                             <p className="mt-1 text-xs text-amber-700">{r.note}</p>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right align-top text-slate-800">
+                        <td className="px-3 py-2 text-right align-top text-stone-800">
                           {r.revenueHt != null ? formatEur(r.revenueHt) : "—"}
                         </td>
-                        <td className="px-3 py-2 text-right align-top text-slate-800">
+                        <td className="px-3 py-2 text-right align-top text-stone-800">
                           {formatEur(r.allocatedFifoCostHt)}
                         </td>
-                        <td className="px-3 py-2 text-right align-top text-slate-800">
+                        <td className="px-3 py-2 text-right align-top text-stone-800">
                           {r.marginHt != null ? formatEur(r.marginHt) : "—"}
                         </td>
-                        <td className="px-3 py-2 text-right align-top text-slate-800">
+                        <td className="px-3 py-2 text-right align-top text-stone-800">
                           {r.marginPct != null ? `${r.marginPct.toFixed(1)} %` : "—"}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-slate-200 bg-slate-50/80 font-medium">
-                      <td className="px-3 py-2 text-slate-800">Total (plats)</td>
-                      <td className="px-3 py-2 text-right text-slate-800">
+                    <tr className="border-t border-stone-200 bg-stone-50/80 font-medium">
+                      <td className="px-3 py-2 text-stone-800">Total (plats)</td>
+                      <td className="px-3 py-2 text-right text-stone-800">
                         {formatEur(dSumRev)}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-800">
+                      <td className="px-3 py-2 text-right text-stone-800">
                         {formatEur(dSumFifo)}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-800">
+                      <td className="px-3 py-2 text-right text-stone-800">
                         {dRevForMargin > 0 ? formatEur(dSumMargin) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-800">
+                      <td className="px-3 py-2 text-right text-stone-800">
                         {dAggMarginPct != null ? `${dAggMarginPct.toFixed(1)} %` : "—"}
                       </td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-stone-500">
                 La somme des « Coût FIFO alloué » par plat rejoint le total FIFO des services sur la période
                 (à l’arrondi près). Les plats touchés par un FIFO partiel sans coût lot n’affichent pas de marge.
               </p>
@@ -308,22 +308,22 @@ export default async function MarginsPage({
         </section>
 
         <section>
-          <h2 className="mb-2 text-lg font-medium text-slate-900">
+          <h2 className="mb-2 text-lg font-medium text-stone-900">
             Théorique à la carte (par plat)
           </h2>
-          <p className="mb-3 text-sm text-slate-600">
+          <p className="mb-3 text-sm text-stone-600">
             Indépendant des services : utile pour construire ou ajuster la carte.
           </p>
 
           {sorted.length === 0 && !error && (
-            <p className="text-sm text-slate-600">Aucun plat pour ce restaurant.</p>
+            <p className="text-sm text-stone-600">Aucun plat pour ce restaurant.</p>
           )}
 
           {sorted.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <div className="overflow-x-auto rounded-lg border border-stone-200 bg-white">
               <table className="w-full min-w-[900px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
+                  <tr className="border-b border-stone-200 text-stone-500">
                     <th className="px-3 py-2 font-medium">Plat</th>
                     <th className="px-3 py-2 font-medium">Recette</th>
                     <th className="px-3 py-2 text-right font-medium">PV TTC</th>
@@ -338,7 +338,7 @@ export default async function MarginsPage({
                   {sorted.map((r) => (
                     <tr
                       key={r.dishId}
-                      className="border-b border-slate-100"
+                      className="border-b border-stone-100"
                     >
                       <td className="px-3 py-2 align-top">
                         <Link href={`/dishes/${r.dishId}`} className={uiTableLink}>
@@ -348,25 +348,25 @@ export default async function MarginsPage({
                           <p className="mt-1 text-xs text-amber-700">{r.note}</p>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top text-slate-600">
+                      <td className="px-3 py-2 align-top text-stone-600">
                         {r.recipeStatus ? STATUS_LABELS[r.recipeStatus] ?? r.recipeStatus : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right align-top text-slate-800">
+                      <td className="px-3 py-2 text-right align-top text-stone-800">
                         {r.sellingPriceTtc != null ? formatEur(r.sellingPriceTtc) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right align-top text-slate-600">
+                      <td className="px-3 py-2 text-right align-top text-stone-600">
                         {formatVatPct(r.sellingVatRatePct)}
                       </td>
-                      <td className="px-3 py-2 text-right align-top text-slate-800">
+                      <td className="px-3 py-2 text-right align-top text-stone-800">
                         {r.foodCostHt != null ? formatEur(r.foodCostHt) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right align-top text-slate-800">
+                      <td className="px-3 py-2 text-right align-top text-stone-800">
                         {r.sellingPriceHt != null ? formatEur(r.sellingPriceHt) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right align-top text-slate-800">
+                      <td className="px-3 py-2 text-right align-top text-stone-800">
                         {r.marginHt != null ? formatEur(r.marginHt) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right align-top text-slate-800">
+                      <td className="px-3 py-2 text-right align-top text-stone-800">
                         {r.marginPct != null ? `${r.marginPct.toFixed(1)} %` : "—"}
                       </td>
                     </tr>

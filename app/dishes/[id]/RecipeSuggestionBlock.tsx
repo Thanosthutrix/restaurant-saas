@@ -33,7 +33,7 @@ export function RecipeSuggestionBlock({
       <p className="mb-3 text-sm text-violet-800">
         Base suggérée à vérifier. Quantités indicatives à ajuster selon votre recette.
       </p>
-      <ul className="mb-4 space-y-1 text-sm text-slate-700">
+      <ul className="mb-4 space-y-1 text-sm text-stone-700">
         {suggestion.components.map((c, i) => (
           <li key={i}>
             {c.name} — {c.qty} {c.unit}

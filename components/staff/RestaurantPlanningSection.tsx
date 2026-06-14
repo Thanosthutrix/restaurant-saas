@@ -47,8 +47,8 @@ export function RestaurantPlanningSection({
   return (
     <div className="space-y-6">
       <section className={uiCard}>
-        <h2 className="text-base font-semibold text-slate-900">Modèles de plages exceptionnelles</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <h2 className="text-base font-semibold text-stone-900">Modèles de plages exceptionnelles</h2>
+        <p className="mt-1 text-xs text-stone-500">
           Plages + ETP optionnel : réutilisables dans le calendrier (fériés, vacances, ex. été chargé).
         </p>
         <div className="mt-4">
@@ -57,8 +57,8 @@ export function RestaurantPlanningSection({
       </section>
 
       <section className={uiCard}>
-        <h2 className="text-base font-semibold text-slate-900">Horaires d’ouverture (modèle hebdomadaire)</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <h2 className="text-base font-semibold text-stone-900">Horaires d’ouverture (modèle hebdomadaire)</h2>
+        <p className="mt-1 text-xs text-stone-500">
           Référence pour la grille planning et les alertes. Les exceptions (férié, vacances, tableau plus bas) peuvent
           remplacer ce modèle pour certaines dates : supprimez l’exception ou choisissez « Reprendre les horaires du jour
           type » pour réappliquer ces horaires magasin.
@@ -69,8 +69,8 @@ export function RestaurantPlanningSection({
       </section>
 
       <section className={uiCard}>
-        <h2 className="text-base font-semibold text-slate-900">Travail effectif hors service client (modèle)</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <h2 className="text-base font-semibold text-stone-900">Travail effectif hors service client (modèle)</h2>
+        <p className="mt-1 text-xs text-stone-500">
           Plages où vous pouvez planifier du personnel alors que le service au public n’est pas ouvert (prépa, livraisons,
           etc.). Complète les horaires ci-dessus et les plages par collaborateur dans la fiche équipe.
         </p>
@@ -80,14 +80,14 @@ export function RestaurantPlanningSection({
       </section>
 
       <section className={uiCard}>
-        <h2 className="text-base font-semibold text-slate-900">Objectifs d’effectif (modèle)</h2>
+        <h2 className="text-base font-semibold text-stone-900">Objectifs d’effectif (modèle)</h2>
         <div className="mt-4">
           <StaffTargetsWeeklyEditor restaurantId={restaurantId} initial={staffTargetsWeekly} />
         </div>
       </section>
 
       <section className={uiCard}>
-        <h2 className="text-base font-semibold text-slate-900">Plages de pointe (modèle)</h2>
+        <h2 className="text-base font-semibold text-stone-900">Plages de pointe (modèle)</h2>
         <div className="mt-4">
           <PeakBandsWeeklyEditor restaurantId={restaurantId} initial={peakBandsWeekly} />
         </div>
@@ -107,8 +107,8 @@ export function RestaurantPlanningSection({
       </section>
 
       <section className={uiCard}>
-        <h2 className="text-base font-semibold text-slate-900">Exceptions ponctuelles (hors calendrier ou ajustements)</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <h2 className="text-base font-semibold text-stone-900">Exceptions ponctuelles (hors calendrier ou ajustements)</h2>
+        <p className="mt-1 text-xs text-stone-500">
           Pour une date précise, horaires spéciaux ou libellé personnalisé, ajoutez une ligne ici. Les lignes créées via le
           calendrier ci-dessus restent modifiables ou supprimables.
         </p>

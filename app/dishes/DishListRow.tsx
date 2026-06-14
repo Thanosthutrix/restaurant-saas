@@ -12,7 +12,7 @@ import { uiBadgeAmber, uiBadgeSlate, uiBtnPrimarySm, uiListRow } from "@/compone
 
 /** Aligné sur les points du stock : préparation = indigo, revente = vert. */
 const DISH_MODE_DOT: Record<string, { dotClass: string; label: string }> = {
-  prepared: { dotClass: "bg-indigo-500", label: "Préparé" },
+  prepared: { dotClass: "bg-copper-600", label: "Préparé" },
   resale: { dotClass: "bg-emerald-500", label: "Revente" },
 };
 
@@ -37,7 +37,7 @@ export function DishListRow({
   const status = dish.recipe_status ?? (compCount === 0 ? "missing" : "draft");
   const mode = dish.production_mode ?? "";
   const modeDot = DISH_MODE_DOT[mode] ?? {
-    dotClass: "bg-slate-400",
+    dotClass: "bg-stone-400",
     label: "Mode non défini",
   };
 
@@ -72,7 +72,7 @@ export function DishListRow({
     <div className={uiListRow}>
       <Link
         href={`/dishes/${dish.id}`}
-        className="flex min-w-0 flex-1 items-center gap-2.5 font-semibold text-slate-900 transition hover:text-indigo-600"
+        className="flex min-w-0 flex-1 items-center gap-2.5 font-semibold text-stone-900 transition hover:text-copper-700"
       >
         <span
           className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white ${modeDot.dotClass}`}
@@ -82,13 +82,13 @@ export function DishListRow({
         />
         <span className="truncate">{dish.name}</span>
       </Link>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500">
         {showCategoryInRow && categoryPath ? (
           <span
-            className="flex max-w-[15rem] items-center gap-1.5 truncate text-xs text-slate-500"
+            className="flex max-w-[15rem] items-center gap-1.5 truncate text-xs text-stone-500"
             title={categoryPath}
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-50 ring-1 ring-indigo-100/90">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-copper-50 ring-1 ring-copper-100/90">
               <CategoryPictogram
                 title={leafSegmentFromCategoryPath(categoryPath) ?? categoryPath}
                 depth={1}
@@ -99,7 +99,7 @@ export function DishListRow({
         ) : null}
         {recipeBadge}
         {ttc != null && ttc > 0 && (
-          <span className="tabular-nums text-slate-700">
+          <span className="tabular-nums text-stone-700">
             {ttc.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} TTC
           </span>
         )}
@@ -113,12 +113,12 @@ export function DishListRow({
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+            className="rounded-lg p-1.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
             title="Supprimer le plat"
             aria-label={`Supprimer le plat « ${dish.name} »`}
           >
             {deleting ? (
-              <span className="block h-4 w-4 animate-pulse text-center text-xs text-slate-400">…</span>
+              <span className="block h-4 w-4 animate-pulse text-center text-xs text-stone-400">…</span>
             ) : (
               <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
             )}

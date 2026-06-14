@@ -102,7 +102,7 @@ export function LivraisonBlForm({ restaurantId, suppliers }: Props) {
             setError(null);
           }}
           disabled={loading}
-          className="mt-1 block w-full text-sm text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-slate-200 file:px-3 file:py-1 file:text-sm"
+          className="mt-1 block w-full text-sm text-stone-600 file:mr-2 file:rounded file:border-0 file:bg-stone-200 file:px-3 file:py-1 file:text-sm"
         />
         <p className={`mt-1 text-xs ${uiLead}`}>
           Le fichier est conservé sur la fiche réception. Les lignes (articles, quantités, prix) se saisissent ensuite

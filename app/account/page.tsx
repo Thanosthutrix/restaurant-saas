@@ -45,7 +45,7 @@ export default async function AccountPage() {
         </Link>
         <h1 className={`mt-4 ${uiPageTitle}`}>Compte</h1>
         <p className={`mt-2 ${uiLead}`}>
-          Connecté en tant que <span className="font-medium text-slate-700">{user.email}</span>
+          Connecté en tant que <span className="font-medium text-stone-700">{user.email}</span>
         </p>
       </div>
 

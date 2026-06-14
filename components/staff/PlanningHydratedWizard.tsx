@@ -44,7 +44,7 @@ function SyncedBadge() {
   return (
     <span
       title="Donnée synchronisée depuis la base"
-      className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600"
+      className="inline-flex items-center gap-1 rounded-full bg-copper-50 px-1.5 py-0.5 text-[10px] font-medium text-copper-700"
     >
       <Database className="h-3 w-3" /> sync
     </span>
@@ -78,7 +78,7 @@ function PersistToggle<T>({
 }) {
   if (!field.writeTarget || !isFieldModified(field)) return null;
   return (
-    <label className="mt-1 flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-500">
+    <label className="mt-1 flex cursor-pointer items-center gap-1.5 text-[11px] text-stone-500">
       <input
         type="checkbox"
         checked={field.persistToDb}
@@ -142,22 +142,22 @@ export function PlanningHydratedWizard({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4">
       <div className="my-8 w-full max-w-3xl rounded-xl bg-white shadow-xl">
         {/* En-tête + stepper */}
-        <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
+        <div className="flex items-start justify-between border-b border-stone-200 px-5 py-4">
           <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
-              <Sparkles className="h-4 w-4 text-indigo-600" /> Ébauche de planning
+            <h2 className="flex items-center gap-2 text-base font-semibold text-stone-900">
+              <Sparkles className="h-4 w-4 text-copper-700" /> Ébauche de planning
             </h2>
-            <p className="mt-0.5 text-xs text-slate-500">{weekLabel}</p>
+            <p className="mt-0.5 text-xs text-stone-500">{weekLabel}</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100">
+          <button type="button" onClick={onClose} className="rounded-md p-1 text-stone-400 hover:bg-stone-100">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex gap-1.5 border-b border-slate-200 px-5 py-3">
+        <div className="flex gap-1.5 border-b border-stone-200 px-5 py-3">
           {WIZARD_STEPS.map((s, i) => {
             const hasBlock = form.blockingByStep[s.id].length > 0;
             return (
@@ -166,7 +166,7 @@ export function PlanningHydratedWizard({
                 type="button"
                 onClick={() => setStepIndex(i)}
                 className={`flex-1 rounded-md px-2 py-1.5 text-left text-xs transition ${
-                  i === stepIndex ? "bg-indigo-50 text-indigo-700" : "text-slate-500 hover:bg-slate-50"
+                  i === stepIndex ? "bg-copper-50 text-copper-800" : "text-stone-500 hover:bg-stone-50"
                 }`}
               >
                 <span className="flex items-center gap-1 font-medium">
@@ -193,7 +193,7 @@ export function PlanningHydratedWizard({
         </div>
 
         {/* Pied : blocage + navigation */}
-        <div className="border-t border-slate-200 px-5 py-3">
+        <div className="border-t border-stone-200 px-5 py-3">
           {blocking.length > 0 ? (
             <div className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               <p className="font-medium">Données manquantes — complétez avant de continuer :</p>
@@ -220,7 +220,7 @@ export function PlanningHydratedWizard({
               <ChevronLeft className="h-4 w-4" /> Précédent
             </button>
 
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-stone-400">
               {form.modifiedCount > 0 ? `${form.modifiedCount} surcharge(s)` : "Aucune surcharge"}
             </span>
 
@@ -289,10 +289,10 @@ function EstablishmentStep({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-slate-200 p-3">
+      <div className="rounded-lg border border-stone-200 p-3">
         <div className="flex items-center gap-2">
           <Sun className="h-4 w-4 text-amber-500" />
-          <span className="text-sm font-medium text-slate-800">
+          <span className="text-sm font-medium text-stone-800">
             {getEstablishmentTypeLabelFr(est.establishmentType.value)}
           </span>
           <FieldStatus field={est.establishmentType} />
@@ -318,7 +318,7 @@ function EstablishmentStep({
 
       <div>
         <p className={uiLabel}>Horaires de la semaine</p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-stone-500">
           Ajustez les horaires préremplis si cette semaine diffère du modèle habituel. Ces modifications servent à
           générer l’ébauche.
         </p>
@@ -329,10 +329,10 @@ function EstablishmentStep({
             return (
               <div
                 key={day.ymd}
-                className="rounded-lg border border-slate-100 px-3 py-2 text-sm"
+                className="rounded-lg border border-stone-100 px-3 py-2 text-sm"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                  <span className="flex items-center gap-1.5 font-medium text-stone-700">
                     {PLANNING_DAY_LABELS_FR[day.dayKey]} {Number(day.ymd.slice(8, 10))}
                     <FieldStatus field={day.openingBands} />
                   </span>
@@ -350,7 +350,7 @@ function EstablishmentStep({
                 </div>
                 <div className="mt-2 space-y-2">
                   {bands.length === 0 ? (
-                    <p className="text-xs text-slate-400">Fermé</p>
+                    <p className="text-xs text-stone-400">Fermé</p>
                   ) : (
                     bands.map((b, i) => (
                       <div key={i} className="flex flex-wrap items-center gap-2">
@@ -361,7 +361,7 @@ function EstablishmentStep({
                           onChange={(e) => updateOpeningBand(day.ymd, i, { start: e.target.value })}
                           aria-label={`Début ${PLANNING_DAY_LABELS_FR[day.dayKey]} ${i + 1}`}
                         />
-                        <span className="text-slate-400">→</span>
+                        <span className="text-stone-400">→</span>
                         <input
                           type="time"
                           className={`${uiInput} w-[7rem] text-xs`}
@@ -371,7 +371,7 @@ function EstablishmentStep({
                         />
                         <button
                           type="button"
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-lg p-1.5 text-stone-400 hover:bg-rose-50 hover:text-rose-600"
                           aria-label="Supprimer ce créneau"
                           onClick={() => removeOpeningBand(day.ymd, i)}
                         >
@@ -400,15 +400,15 @@ function TeamStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
   const members = form.formData.team.members.filter((m) => m.active);
   return (
     <div className="space-y-3">
-      <p className="flex items-center gap-1.5 text-sm text-slate-600">
+      <p className="flex items-center gap-1.5 text-sm text-stone-600">
         <Users className="h-4 w-4" /> {members.length} collaborateur(s) actif(s)
       </p>
       {members.map((m) => (
-        <div key={m.staffMemberId} className="rounded-lg border border-slate-200 p-3">
-          <p className="text-sm font-semibold text-slate-800">{m.displayName}</p>
+        <div key={m.staffMemberId} className="rounded-lg border border-stone-200 p-3">
+          <p className="text-sm font-semibold text-stone-800">{m.displayName}</p>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="flex items-center gap-1 text-xs text-slate-500">
+              <label className="flex items-center gap-1 text-xs text-stone-500">
                 Poste <FieldStatus field={m.role} />
               </label>
               <input
@@ -426,7 +426,7 @@ function TeamStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
               />
             </div>
             <div>
-              <label className="flex items-center gap-1 text-xs text-slate-500">
+              <label className="flex items-center gap-1 text-xs text-stone-500">
                 Heures / semaine <FieldStatus field={m.contractWeeklyHours} />
               </label>
               <input
@@ -447,7 +447,7 @@ function TeamStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
               />
             </div>
             <div>
-              <label className="flex items-center gap-1 text-xs text-slate-500">
+              <label className="flex items-center gap-1 text-xs text-stone-500">
                 Shift par défaut <FieldStatus field={m.defaultShiftPattern} />
               </label>
               <select
@@ -490,8 +490,8 @@ function ConstraintsStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
         const memberLeaves = leaves[m.staffMemberId] ?? [];
         const rule = rules[m.staffMemberId];
         return (
-          <div key={m.staffMemberId} className="rounded-lg border border-slate-200 p-3">
-            <p className="text-sm font-semibold text-slate-800">{m.displayName}</p>
+          <div key={m.staffMemberId} className="rounded-lg border border-stone-200 p-3">
+            <p className="text-sm font-semibold text-stone-800">{m.displayName}</p>
 
             {memberLeaves.length > 0 ? (
               <div className="mt-1 flex flex-wrap gap-1.5">
@@ -505,13 +505,13 @@ function ConstraintsStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
                 ))}
               </div>
             ) : (
-              <p className="mt-1 text-[11px] text-slate-400">Aucune absence ingérée cette semaine.</p>
+              <p className="mt-1 text-[11px] text-stone-400">Aucune absence ingérée cette semaine.</p>
             )}
 
             {rule ? (
               <div className="mt-2 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="flex items-center gap-1 text-xs text-slate-500">
+                  <label className="flex items-center gap-1 text-xs text-stone-500">
                     Jours de repos / semaine <FieldStatus field={rule.weeklyRestDays} />
                   </label>
                   <input
@@ -524,12 +524,12 @@ function ConstraintsStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
                     className={`${uiInput} w-20 text-xs`}
                     aria-label={`Jours de repos par semaine pour ${m.displayName}`}
                   />
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-stone-400">
                     max {Math.max(0, 7 - (rule.weeklyRestDays.value ?? 2))} jour(s) travaillé(s)
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-slate-500">Jours de repos fixes :</span>
+                  <span className="text-xs text-stone-500">Jours de repos fixes :</span>
                   {PLANNING_DAY_KEYS.map((dk) => {
                     const active = (rule.fixedRestDays.value ?? []).includes(dk);
                     return (
@@ -542,7 +542,7 @@ function ConstraintsStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
                           form.setFixedRestDays(m.staffMemberId, next as PlanningDayKey[]);
                         }}
                         className={`rounded-md px-2 py-0.5 text-[11px] ${
-                          active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+                          active ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600"
                         }`}
                       >
                         {PLANNING_DAY_LABELS_FR[dk]}
@@ -551,7 +551,7 @@ function ConstraintsStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
                   })}
                   <FieldStatus field={rule.fixedRestDays} />
                 </div>
-                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-stone-600">
                   <input
                     type="checkbox"
                     checked={rule.requireConsecutive.value ?? false}
@@ -588,7 +588,7 @@ function StaffingStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
           type="button"
           onClick={() => form.setAdjustment("heatwave", !adj.heatwave)}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-            adj.heatwave ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+            adj.heatwave ? "bg-orange-500 text-white" : "bg-stone-100 text-stone-700"
           }`}
         >
           Alerte canicule {adj.heatwave ? "✓" : ""}
@@ -597,7 +597,7 @@ function StaffingStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
           type="button"
           onClick={() => form.setAdjustment("highTraffic", !adj.highTraffic)}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-            adj.highTraffic ? "bg-rose-500 text-white" : "bg-slate-100 text-slate-700"
+            adj.highTraffic ? "bg-rose-500 text-white" : "bg-stone-100 text-stone-700"
           }`}
         >
           Forte affluence {adj.highTraffic ? "✓" : ""}
@@ -610,7 +610,7 @@ function StaffingStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
             return (
               <div
                 key={day.ymd}
-                className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-1.5 text-sm text-slate-400"
+                className="flex items-center justify-between rounded-md border border-stone-100 bg-stone-50 px-3 py-1.5 text-sm text-stone-400"
               >
                 <span>{PLANNING_DAY_LABELS_FR[day.dayKey]} {Number(day.ymd.slice(8, 10))}</span>
                 <span>Fermé</span>
@@ -623,14 +623,14 @@ function StaffingStep({ form }: { form: ReturnType<typeof useWizardForm> }) {
           return (
             <div
               key={day.ymd}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 px-3 py-1.5 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-stone-100 px-3 py-1.5 text-sm"
             >
-              <span className="font-medium text-slate-700">
+              <span className="font-medium text-stone-700">
                 {PLANNING_DAY_LABELS_FR[day.dayKey]} {Number(day.ymd.slice(8, 10))}
               </span>
-              <span className="text-slate-500">
+              <span className="text-stone-500">
                 {bands.map((b) => `${b.start}–${b.end}`).join(", ") || "—"} · cible{" "}
-                <strong className="text-slate-800">{day.staffTarget.value ?? peak}</strong> pers.
+                <strong className="text-stone-800">{day.staffTarget.value ?? peak}</strong> pers.
               </span>
             </div>
           );

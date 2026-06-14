@@ -112,25 +112,25 @@ function RegisterRow({
   return (
     <Link
       href={href}
-      className={`${uiCard} group flex items-start justify-between gap-3 transition hover:-translate-y-0.5 hover:border-indigo-100 hover:shadow-md`}
+      className={`${uiCard} group flex items-start justify-between gap-3 transition hover:-translate-y-0.5 hover:border-copper-100 hover:shadow-md`}
     >
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-slate-900 group-hover:text-indigo-900">{title}</p>
-        {subtitle ? <p className="mt-0.5 text-sm text-slate-600">{subtitle}</p> : null}
-        {meta ? <p className="mt-1 text-xs text-slate-500">{meta}</p> : null}
+        <p className="font-medium text-stone-900 group-hover:text-copper-900">{title}</p>
+        {subtitle ? <p className="mt-0.5 text-sm text-stone-600">{subtitle}</p> : null}
+        {meta ? <p className="mt-1 text-xs text-stone-500">{meta}</p> : null}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
         {badge ? (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">{badge}</span>
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700">{badge}</span>
         ) : null}
-        <ArrowUpRight className="h-4 w-4 text-slate-300 transition group-hover:text-indigo-500" aria-hidden />
+        <ArrowUpRight className="h-4 w-4 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
       </div>
     </Link>
   );
 }
 
 function EmptyTab({ message }: { message: string }) {
-  return <p className={`${uiLead} rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center`}>{message}</p>;
+  return <p className={`${uiLead} rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-8 text-center`}>{message}</p>;
 }
 
 export function RegistresClient({
@@ -162,7 +162,7 @@ export function RegistresClient({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Recherche & contrôle</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-copper-700">Recherche & contrôle</p>
         <h1 className={`${uiPageTitle} mt-2`}>Registres</h1>
         <p className={`${uiLead} mt-2 max-w-2xl`}>
           Historiques et justificatifs : ouvrez une entrée pour accéder à la fiche détaillée (BL, facture, élément
@@ -170,7 +170,7 @@ export function RegistresClient({
         </p>
       </header>
 
-      <div className="overflow-x-auto border-b border-slate-200">
+      <div className="overflow-x-auto border-b border-stone-200">
         <nav className="-mb-px flex min-w-max gap-1" aria-label="Registres">
           {REGISTRES_TABS.map((key) => {
             const active = tab === key;
@@ -181,12 +181,12 @@ export function RegistresClient({
                 onClick={() => setTab(key)}
                 className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition ${
                   active
-                    ? "border-indigo-600 text-indigo-700"
-                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"
+                    ? "border-copper-700 text-copper-800"
+                    : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
                 }`}
               >
                 {REGISTRES_TAB_LABELS[key]}
-                <span className={`ml-1.5 tabular-nums ${active ? "text-indigo-500" : "text-slate-400"}`}>
+                <span className={`ml-1.5 tabular-nums ${active ? "text-copper-600" : "text-stone-400"}`}>
                   ({counts[key]})
                 </span>
               </button>

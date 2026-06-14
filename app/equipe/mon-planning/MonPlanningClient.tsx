@@ -131,24 +131,24 @@ export function MonPlanningClient({
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-        <p className="text-sm font-medium text-slate-800">Semaine du {weekLabel}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-4">
+        <p className="text-sm font-medium text-stone-800">Semaine du {weekLabel}</p>
         <div className="flex items-center gap-2">
           <Link
             href={`/equipe/mon-planning?week=${encodeURIComponent(prevWeekYmd)}`}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50"
           >
             ← Semaine précédente
           </Link>
           <Link
             href={`/equipe/mon-planning?week=${encodeURIComponent(nextWeekYmd)}`}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50"
           >
             Semaine suivante →
           </Link>
           <Link
             href={`/equipe/mon-planning?week=${encodeURIComponent(toISODateString(mondayOfWeekContaining(new Date())))}`}
-            className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-800 hover:bg-indigo-100"
+            className="rounded-lg border border-copper-200 bg-copper-50 px-3 py-1.5 text-sm font-medium text-copper-800 hover:bg-copper-100"
           >
             Cette semaine
           </Link>
@@ -156,10 +156,10 @@ export function MonPlanningClient({
       </div>
 
       {pendingArrivalShift && (
-        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/80 p-5 shadow-sm">
-          <p className="text-sm text-slate-700">
+        <div className="rounded-2xl border border-copper-200 bg-copper-50/80 p-5 shadow-sm">
+          <p className="text-sm text-stone-700">
             Créneau prévu :{" "}
-            <span className="font-medium text-slate-900">
+            <span className="font-medium text-stone-900">
               {formatMyShiftLineFr(pendingArrivalShift.starts_at, pendingArrivalShift.ends_at)}
             </span>
           </p>
@@ -175,7 +175,7 @@ export function MonPlanningClient({
       )}
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Planning de l’équipe</h2>
+        <h2 className="text-lg font-semibold text-stone-900">Planning de l’équipe</h2>
         {resolvedWeekDaysForGrid.length === 7 ? (
           <PlanningWeekReadOnly
             weekMondayIso={weekMondayIso}
@@ -184,22 +184,22 @@ export function MonPlanningClient({
             resolvedWeekDays={resolvedWeekDaysForGrid}
           />
         ) : (
-          <p className="text-sm text-slate-500">Chargement de la grille…</p>
+          <p className="text-sm text-stone-500">Chargement de la grille…</p>
         )}
       </section>
 
       <section className={`${uiCard} space-y-3`}>
-        <h2 className="text-lg font-semibold text-slate-900">Mon récapitulatif (cette semaine)</h2>
+        <h2 className="text-lg font-semibold text-stone-900">Mon récapitulatif (cette semaine)</h2>
         <dl className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg bg-slate-50 px-3 py-2">
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Prévu (net, pauses déduites)</dt>
-            <dd className="mt-1 text-xl font-semibold tabular-nums text-slate-900">
+          <div className="rounded-lg bg-stone-50 px-3 py-2">
+            <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">Prévu (net, pauses déduites)</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-stone-900">
               {formatMinutesHuman(recap.plannedNet)}
             </dd>
           </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2">
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Temps enregistré (entrée → sortie)</dt>
-            <dd className="mt-1 text-xl font-semibold tabular-nums text-slate-900">
+          <div className="rounded-lg bg-stone-50 px-3 py-2">
+            <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">Temps enregistré (entrée → sortie)</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums text-stone-900">
               {recap.recordedNet > 0 ? formatMinutesHuman(recap.recordedNet) : "—"}
             </dd>
           </div>
@@ -207,13 +207,13 @@ export function MonPlanningClient({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Mes créneaux</h2>
+        <h2 className="text-lg font-semibold text-stone-900">Mes créneaux</h2>
         {myShifts.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucun créneau sur cette semaine.</p>
+          <p className="text-sm text-stone-500">Aucun créneau sur cette semaine.</p>
         ) : (
-          <ul className="list-none space-y-2 text-sm text-slate-800">
+          <ul className="list-none space-y-2 text-sm text-stone-800">
             {myShifts.map((s) => (
-              <li key={s.id} className="border-b border-slate-100 py-1.5 last:border-0">
+              <li key={s.id} className="border-b border-stone-100 py-1.5 last:border-0">
                 {formatMyShiftLineFr(s.starts_at, s.ends_at)}
               </li>
             ))}
@@ -223,14 +223,14 @@ export function MonPlanningClient({
 
       {pendingClockOutShift && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
-          <div className="pointer-events-auto w-full max-w-lg rounded-t-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
-            <p className="text-center text-xs text-slate-600">
+          <div className="pointer-events-auto w-full max-w-lg rounded-t-2xl border border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
+            <p className="text-center text-xs text-stone-600">
               Journée en cours · {formatMyShiftLineFr(pendingClockOutShift.starts_at, pendingClockOutShift.ends_at)}
             </p>
             <button
               type="button"
               disabled={pending}
-              className="mt-2 w-full rounded-xl bg-slate-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+              className="mt-2 w-full rounded-xl bg-stone-900 px-4 py-3 text-center text-base font-semibold text-white shadow-sm hover:bg-stone-800 disabled:opacity-60"
               onClick={() => clockOut(pendingClockOutShift.id)}
             >
               Je termine ma journée

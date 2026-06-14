@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import {
   countHygieneTasksDue,
   ensureHygieneTasksForRestaurant,
@@ -24,7 +25,7 @@ function formatDueLabel(iso: string, now: Date): { label: string; overdue: boole
   return { label: overdue ? `En retard · ${label}` : `Échéance ${label}`, overdue };
 }
 
-export async function loadDashboardHygieneTileData(restaurantId: string): Promise<{
+async function _loadDashboardHygieneTileData(restaurantId: string): Promise<{
   score: number;
   scoreDetail: string;
   tasks: DashboardHygieneTaskItem[];
@@ -88,6 +89,14 @@ export async function loadDashboardHygieneTileData(restaurantId: string): Promis
     scoreDetail: score.detail,
     tasks: items.slice(0, 12).map(({ dueAt: _dueAt, ...task }) => task),
   };
+}
+
+export function loadDashboardHygieneTileData(restaurantId: string) {
+  return unstable_cache(
+    () => _loadDashboardHygieneTileData(restaurantId),
+    ["dashboard-hygiene-tile", restaurantId],
+    { revalidate: 60, tags: ["hygiene-elements", "temperature-points"] }
+  )();
 }
 
 export async function countDashboardHygienePending(restaurantId: string): Promise<number> {

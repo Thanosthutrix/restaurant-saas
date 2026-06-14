@@ -54,7 +54,7 @@ export function StaffTargetsWeeklyEditor({ restaurantId, initial }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-stone-500">
         Nombre de personnes souhaitées <strong>par jour type</strong> (avant exceptions fériés / vacances). Sert aux
         alertes sur la page Équipe.
       </p>

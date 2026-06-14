@@ -55,7 +55,7 @@ export function InvoiceMetadataForm({ invoice, restaurantId }: Props) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="invoice_number" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="invoice_number" className="mb-1 block text-sm font-medium text-stone-700">
             Numéro de facture
           </label>
           <input
@@ -64,11 +64,11 @@ export function InvoiceMetadataForm({ invoice, restaurantId }: Props) {
             type="text"
             defaultValue={invoice.invoice_number ?? ""}
             placeholder="Ex. FAC-2024-001"
-            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-slate-900"
+            className="w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900"
           />
         </div>
         <div>
-          <label htmlFor="invoice_date" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="invoice_date" className="mb-1 block text-sm font-medium text-stone-700">
             Date facture
           </label>
           <input
@@ -76,11 +76,11 @@ export function InvoiceMetadataForm({ invoice, restaurantId }: Props) {
             name="invoice_date"
             type="date"
             defaultValue={formatDateForInput(invoice.invoice_date)}
-            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-slate-900"
+            className="w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900"
           />
         </div>
         <div>
-          <label htmlFor="amount_ht" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="amount_ht" className="mb-1 block text-sm font-medium text-stone-700">
             Montant HT (€) — base du rapprochement avec les lignes
           </label>
           <input
@@ -90,11 +90,11 @@ export function InvoiceMetadataForm({ invoice, restaurantId }: Props) {
             inputMode="decimal"
             defaultValue={formatAmount(invoice.amount_ht)}
             placeholder="0.00"
-            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-slate-900"
+            className="w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900"
           />
         </div>
         <div>
-          <label htmlFor="amount_ttc" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="amount_ttc" className="mb-1 block text-sm font-medium text-stone-700">
             Montant TTC (€) — total à payer (pied de facture)
           </label>
           <input
@@ -104,7 +104,7 @@ export function InvoiceMetadataForm({ invoice, restaurantId }: Props) {
             inputMode="decimal"
             defaultValue={formatAmount(invoice.amount_ttc)}
             placeholder="0.00"
-            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-slate-900"
+            className="w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900"
           />
         </div>
       </div>
@@ -125,7 +125,7 @@ export function InvoiceMetadataForm({ invoice, restaurantId }: Props) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+        className="rounded bg-stone-800 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50"
       >
         {pending ? "Enregistrement…" : "Enregistrer les informations"}
       </button>

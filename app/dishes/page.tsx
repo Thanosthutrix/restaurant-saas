@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getDishes, getDishComponentCounts, getInventoryItems } from "@/lib/db";
+import { getDishComponentCounts } from "@/lib/db";
+import { cachedGetDishes, cachedGetInventoryItems } from "@/lib/cache";
 import {
   buildCategoryTree,
   buildDirectItemsByCategoryId,
@@ -26,14 +27,16 @@ export default async function DishesPage({ searchParams }: Props) {
   const initialDishName = typeof params.name === "string" ? params.name : "";
   const returnTo = typeof params.returnTo === "string" ? params.returnTo : "";
   if (!restaurant) redirect("/onboarding");
-  const access = await getNavAccessLevel("dishes");
-  const canWrite = access === "full";
 
-  const [{ data: dishes, error }, invRes, catRes] = await Promise.all([
-    getDishes(restaurant.id),
-    getInventoryItems(restaurant.id),
-    listRestaurantCategories(restaurant.id),
+  const [accessLevel, [{ data: dishes, error }, invRes, catRes]] = await Promise.all([
+    getNavAccessLevel("dishes"),
+    Promise.all([
+      cachedGetDishes(restaurant.id),
+      cachedGetInventoryItems(restaurant.id),
+      listRestaurantCategories(restaurant.id),
+    ]),
   ]);
+  const canWrite = accessLevel === "full";
 
   if (error) {
     return (

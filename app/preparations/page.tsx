@@ -57,7 +57,7 @@ export default async function PreparationsPage({
       />
 
       <p className="text-center text-sm">
-        <Link href="/preparations/registre" className="font-medium text-indigo-700 underline">
+        <Link href="/preparations/registre" className="font-medium text-copper-800 underline">
           Registre complet des préparations
         </Link>
       </p>

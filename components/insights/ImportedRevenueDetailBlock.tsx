@@ -26,40 +26,40 @@ export function ImportedRevenueDetailBlock({ analysisJson, className = "" }: Pro
 
   return (
     <div
-      className={`rounded-xl border border-slate-100 bg-slate-50/80 ${className}`.trim()}
+      className={`rounded-xl border border-stone-100 bg-stone-50/80 ${className}`.trim()}
     >
       {(hasMeta || p.lines.length > 0) && (
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
           Données extraites du relevé (photo / OCR)
         </p>
       )}
       {(p.covers_estimate != null || p.ticket_count_estimate != null) && (
-        <div className="mb-3 flex flex-wrap gap-3 text-xs text-slate-700">
+        <div className="mb-3 flex flex-wrap gap-3 text-xs text-stone-700">
           {p.covers_estimate != null ? (
             <span>
-              <strong className="font-semibold text-slate-900">Couverts (est.)</strong> :{" "}
+              <strong className="font-semibold text-stone-900">Couverts (est.)</strong> :{" "}
               {p.covers_estimate.toLocaleString("fr-FR")}
             </span>
           ) : null}
           {p.ticket_count_estimate != null ? (
             <span>
-              <strong className="font-semibold text-slate-900">Tickets / commandes (est.)</strong> :{" "}
+              <strong className="font-semibold text-stone-900">Tickets / commandes (est.)</strong> :{" "}
               {p.ticket_count_estimate.toLocaleString("fr-FR")}
             </span>
           ) : null}
         </div>
       )}
       {p.document_notes ? (
-        <p className="mb-3 text-xs leading-relaxed text-slate-600">
-          <span className="font-medium text-slate-800">Document : </span>
+        <p className="mb-3 text-xs leading-relaxed text-stone-600">
+          <span className="font-medium text-stone-800">Document : </span>
           {p.document_notes}
         </p>
       ) : null}
       {p.lines.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
+        <div className="overflow-x-auto rounded-lg border border-stone-100 bg-white">
           <table className="w-full min-w-[520px] text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/90 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-stone-100 bg-stone-50/90 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
                 <th className="px-2 py-2 font-medium">Libellé</th>
                 <th className="px-2 py-2 font-medium">Rubrique</th>
                 <th className="px-2 py-2 text-right font-medium">Qté</th>
@@ -67,14 +67,14 @@ export function ImportedRevenueDetailBlock({ analysisJson, className = "" }: Pro
                 <th className="px-2 py-2 text-right font-medium">HT</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-stone-50">
               {p.lines.map((line, idx) => (
-                <tr key={`${line.label}-${idx}`} className="text-slate-800">
+                <tr key={`${line.label}-${idx}`} className="text-stone-800">
                   <td className="max-w-[14rem] px-2 py-1.5 font-medium">{line.label}</td>
-                  <td className="max-w-[10rem] px-2 py-1.5 text-slate-600">
+                  <td className="max-w-[10rem] px-2 py-1.5 text-stone-600">
                     {line.category ?? "—"}
                   </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums text-slate-700">
+                  <td className="px-2 py-1.5 text-right tabular-nums text-stone-700">
                     {line.qty != null ? line.qty.toLocaleString("fr-FR") : "—"}
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums">{formatEur(line.amount_ttc)}</td>
@@ -86,7 +86,7 @@ export function ImportedRevenueDetailBlock({ analysisJson, className = "" }: Pro
         </div>
       ) : null}
       {p.lines.length === 0 && hasMeta && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-stone-500">
           Aucune ligne détaillée (plats / rubriques) détectée sur ce scan — seuls des totaux ou métadonnées
           étaient lisibles.
         </p>

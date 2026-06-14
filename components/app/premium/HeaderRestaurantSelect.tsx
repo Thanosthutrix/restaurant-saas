@@ -29,47 +29,47 @@ export type HeaderRestaurantServerPayload = {
 function EstablishmentFlyout({ e }: { e: EstablishmentPayload }) {
   return (
     <div
-      className="pointer-events-none invisible absolute left-0 top-full z-50 mt-1.5 min-w-[17rem] max-w-sm origin-top scale-95 rounded-2xl border border-slate-100 bg-white p-3 opacity-0 shadow-lg shadow-slate-200/50 ring-1 ring-slate-100/80 transition-all duration-150 ease-out group-hover:pointer-events-auto group-hover:visible group-hover:scale-100 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:scale-100 group-focus-within:opacity-100"
+      className="pointer-events-none invisible absolute left-0 top-full z-50 mt-1.5 min-w-[17rem] max-w-sm origin-top scale-95 rounded-2xl border border-stone-100 bg-white p-3 opacity-0 shadow-lg shadow-stone-200/50 ring-1 ring-stone-100/80 transition-all duration-150 ease-out group-hover:pointer-events-auto group-hover:visible group-hover:scale-100 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:scale-100 group-focus-within:opacity-100"
       role="region"
       aria-label="Fiche établissement"
     >
-      <p className="border-b border-slate-100 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <p className="border-b border-stone-100 pb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
         Établissement
       </p>
       <dl className="mt-3 space-y-3 text-sm">
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Activité</dt>
-          <dd className="mt-0.5 font-semibold text-slate-900">{e.activityLabel}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">Activité</dt>
+          <dd className="mt-0.5 font-semibold text-stone-900">{e.activityLabel}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Type de service</dt>
-          <dd className="mt-0.5 font-semibold text-slate-900">{e.serviceLabel}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">Type de service</dt>
+          <dd className="mt-0.5 font-semibold text-stone-900">{e.serviceLabel}</dd>
         </div>
         {e.addressLabel ? (
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Adresse</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap font-semibold text-slate-900">{e.addressLabel}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">Adresse</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap font-semibold text-stone-900">{e.addressLabel}</dd>
           </div>
         ) : null}
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">E-mails (nom expéditeur)</dt>
-          <dd className="mt-0.5 font-semibold text-slate-900">{e.emailSenderLabel}</dd>
-          <p className="mt-1.5 text-xs leading-snug text-slate-500">
-            Pour le modifier, ouvrez <span className="font-medium text-slate-600">Infos établissement</span> ci-dessous
+          <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">E-mails (nom expéditeur)</dt>
+          <dd className="mt-0.5 font-semibold text-stone-900">{e.emailSenderLabel}</dd>
+          <p className="mt-1.5 text-xs leading-snug text-stone-500">
+            Pour le modifier, ouvrez <span className="font-medium text-stone-600">Infos établissement</span> ci-dessous
             (le champ est sous le nom de l’établissement).
           </p>
         </div>
       </dl>
-      <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
+      <div className="mt-3 flex flex-col gap-2 border-t border-stone-100 pt-3">
         <Link
           href={`/restaurants/${e.restaurantId}/edit#messagerie-expediteur`}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-slate-50"
+          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-center text-xs font-semibold text-stone-800 shadow-sm transition hover:border-copper-200 hover:bg-stone-50"
         >
           Infos établissement
         </Link>
         <Link
           href="/restaurants/new"
-          className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-center text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+          className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-600 transition hover:bg-stone-100"
         >
           + Nouvel établissement
         </Link>
@@ -142,7 +142,7 @@ export function HeaderRestaurantSelect({
   if (!effectiveDone) {
     return (
       <div
-        className="h-10 w-44 animate-pulse rounded-xl bg-slate-200/80"
+        className="h-10 w-44 animate-pulse rounded-xl bg-stone-200/80"
         aria-hidden
       />
     );
@@ -158,10 +158,10 @@ export function HeaderRestaurantSelect({
       <div className="group relative max-w-[min(100vw-8rem,16rem)]">
         <div
           tabIndex={0}
-          className="flex max-w-full cursor-default items-center gap-2 truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none ring-indigo-500/0 transition hover:border-indigo-200 hover:bg-white hover:shadow-sm focus-visible:ring-2 focus-visible:ring-indigo-500"
+          className="flex max-w-full cursor-default items-center gap-2 truncate rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none ring-copper-600/0 transition hover:border-copper-200 hover:bg-white hover:shadow-sm focus-visible:ring-2 focus-visible:ring-copper-600"
         >
-          <Building2 className="h-4 w-4 shrink-0 text-indigo-600" aria-hidden />
-          <span className="truncate font-semibold text-slate-900">{current.name}</span>
+          <Building2 className="h-4 w-4 shrink-0 text-copper-700" aria-hidden />
+          <span className="truncate font-semibold text-stone-900">{current.name}</span>
         </div>
         {panel}
       </div>
@@ -172,7 +172,7 @@ export function HeaderRestaurantSelect({
     <div className="group relative max-w-[min(100vw-10rem,18rem)]">
       <form action={switchRestaurantAction} className="relative w-full min-w-[12rem]">
         <Building2
-          className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-indigo-600"
+          className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-copper-700"
           aria-hidden
         />
         <select
@@ -181,7 +181,7 @@ export function HeaderRestaurantSelect({
           onChange={(e) => {
             e.currentTarget.form?.requestSubmit();
           }}
-          className="h-10 w-full min-w-[12rem] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-10 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-indigo-200 hover:bg-white focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="h-10 w-full min-w-[12rem] cursor-pointer appearance-none rounded-xl border border-stone-200 bg-stone-50 py-2 pl-9 pr-10 text-sm font-semibold text-stone-900 shadow-sm transition hover:border-copper-200 hover:bg-white focus:border-copper-600 focus:outline-none focus:ring-2 focus:ring-copper-600"
           aria-label="Restaurant actif"
           suppressHydrationWarning
         >
@@ -192,7 +192,7 @@ export function HeaderRestaurantSelect({
           ))}
         </select>
         <ChevronDown
-          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
           aria-hidden
         />
       </form>

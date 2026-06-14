@@ -37,36 +37,36 @@ export default async function ServiceDetailPage({ params }: Props) {
   const stockImpact = service.stock_impact_json;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-2xl px-4 py-6">
         <div className="mb-6">
           <Link
             href="/services"
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Historique des services
           </Link>
         </div>
 
-        <h1 className="mb-6 text-xl font-semibold text-slate-900">
+        <h1 className="mb-6 text-xl font-semibold text-stone-900">
           Fiche service
         </h1>
 
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-slate-900">
+        <div className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <p className="text-stone-900">
             <span className="font-medium">Date :</span> {formatDate(service.service_date)}
           </p>
-          <p className="mt-1 text-slate-900">
+          <p className="mt-1 text-stone-900">
             <span className="font-medium">Type :</span> {formatServiceType(service.service_type)}
           </p>
         </div>
 
         {service.image_url && (
-          <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="mb-2 text-sm font-medium text-slate-500">
+          <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+            <h2 className="mb-2 text-sm font-medium text-stone-500">
               Ticket (relevé de caisse)
             </h2>
-            <div className="relative aspect-[3/4] max-w-sm overflow-hidden rounded border border-slate-200">
+            <div className="relative aspect-[3/4] max-w-sm overflow-hidden rounded border border-stone-200">
               <Image
                 src={service.image_url}
                 alt="Photo du ticket de caisse"
@@ -85,14 +85,14 @@ export default async function ServiceDetailPage({ params }: Props) {
           </div>
         )}
 
-        <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">
+        <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">
             Ventes enregistrées
           </h2>
           {sales.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucune vente.</p>
+            <p className="text-sm text-stone-500">Aucune vente.</p>
           ) : (
-            <ul className="space-y-1 text-sm text-slate-700">
+            <ul className="space-y-1 text-sm text-stone-700">
               {sales.map((s) => (
                 <li key={s.id}>
                   <strong>{(s.dishes as { name: string } | null)?.name ?? s.dish_id}</strong> × {s.qty}
@@ -103,11 +103,11 @@ export default async function ServiceDetailPage({ params }: Props) {
         </section>
 
         {stockImpact != null && (
-          <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="mb-3 text-sm font-medium text-slate-500">
+          <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+            <h2 className="mb-3 text-sm font-medium text-stone-500">
               Impact sur le stock
             </h2>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-stone-700">
               {stockImpact.applied_count} plat{stockImpact.applied_count !== 1 ? "s" : ""} ont décrementé le stock.
               {stockImpact.skipped_count > 0 && (
                 <span className="block mt-1 text-amber-700">
@@ -116,7 +116,7 @@ export default async function ServiceDetailPage({ params }: Props) {
               )}
             </p>
             {stockImpact.warnings.length > 0 && (
-              <ul className="mt-2 space-y-1 text-xs text-slate-500">
+              <ul className="mt-2 space-y-1 text-xs text-stone-500">
                 {stockImpact.warnings.slice(0, 5).map((w, i) => (
                   <li key={i}>{w.message}</li>
                 ))}
@@ -128,7 +128,7 @@ export default async function ServiceDetailPage({ params }: Props) {
             <p className="mt-3">
               <Link
                 href={`/service/${id}/stock`}
-                className="text-sm text-slate-600 underline"
+                className="text-sm text-stone-600 underline"
               >
                 Voir le détail consommation théorique
               </Link>
@@ -139,13 +139,13 @@ export default async function ServiceDetailPage({ params }: Props) {
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <Link
             href="/services"
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             Historique des services
           </Link>
           <Link
             href="/dashboard"
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             Tableau de bord
           </Link>

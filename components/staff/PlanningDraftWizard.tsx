@@ -265,7 +265,7 @@ export function PlanningDraftWizard({
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/40"
+        className="absolute inset-0 bg-stone-900/40"
         aria-label="Fermer"
         onClick={() => !pending && onClose()}
       />
@@ -273,20 +273,20 @@ export function PlanningDraftWizard({
         role="dialog"
         aria-modal="true"
         aria-labelledby="planning-draft-wizard-title"
-        className="relative flex max-h-[min(92vh,820px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl sm:rounded-2xl"
+        className="relative flex max-h-[min(92vh,820px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-stone-200 bg-white shadow-2xl sm:rounded-2xl"
       >
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-4 py-4 sm:px-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Ébauche de planning</p>
-            <h2 id="planning-draft-wizard-title" className="mt-1 text-lg font-semibold text-slate-900">
+            <p className="text-xs font-semibold uppercase tracking-wide text-copper-700">Ébauche de planning</p>
+            <h2 id="planning-draft-wizard-title" className="mt-1 text-lg font-semibold text-stone-900">
               {step.title}
             </h2>
-            <p className="text-sm text-slate-500">{step.subtitle}</p>
+            <p className="text-sm text-stone-500">{step.subtitle}</p>
           </div>
           <button
             type="button"
             disabled={pending}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
             aria-label="Fermer"
             onClick={onClose}
           >
@@ -295,7 +295,7 @@ export function PlanningDraftWizard({
         </header>
 
         <nav
-          className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-100 px-4 py-3 sm:px-6"
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-stone-100 px-4 py-3 sm:px-6"
           aria-label="Étapes du questionnaire"
         >
           {STEPS.map((s, i) => {
@@ -312,19 +312,19 @@ export function PlanningDraftWizard({
                 }}
                 className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-center transition sm:px-2 ${
                   isCurrent
-                    ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
+                    ? "bg-copper-50 text-copper-800 ring-1 ring-copper-200"
                     : isDone
-                      ? "text-indigo-600 hover:bg-indigo-50/60"
-                      : "cursor-default text-slate-400"
+                      ? "text-copper-700 hover:bg-copper-50/60"
+                      : "cursor-default text-stone-400"
                 }`}
               >
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                     isCurrent
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-copper-700 text-white"
                       : isDone
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-slate-100 text-slate-500"
+                        ? "bg-copper-100 text-copper-800"
+                        : "bg-stone-100 text-stone-500"
                   }`}
                 >
                   {i + 1}
@@ -344,23 +344,23 @@ export function PlanningDraftWizard({
 
           {step.id === "context" && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-sm font-medium text-slate-900">{weekLabel}</p>
-                <p className="mt-1 text-xs text-slate-500">
+              <div className="rounded-xl border border-stone-100 bg-stone-50/80 p-4">
+                <p className="text-sm font-medium text-stone-900">{weekLabel}</p>
+                <p className="mt-1 text-xs text-stone-500">
                   Semaine du {weekMondayIso} · {activeStaff.length} collaborateur
                   {activeStaff.length > 1 ? "s" : ""} actif{activeStaff.length > 1 ? "s" : ""}
                 </p>
               </div>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-stone-600">
                 Ce questionnaire reprend vos horaires, objectifs et exceptions déjà enregistrés. Vérifiez et ajustez
                 les besoins <strong>pour cette semaine</strong>, puis les <strong>plages de pointe</strong> (midi,
                 rush du soir…) avant de lancer la génération automatique.
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-stone-500">
                 Modèle complet :{" "}
                 <Link
                   href={`/restaurants/${restaurantId}/edit`}
-                  className="font-medium text-indigo-700 underline"
+                  className="font-medium text-copper-800 underline"
                   target="_blank"
                 >
                   Infos établissement → planning
@@ -374,7 +374,7 @@ export function PlanningDraftWizard({
                       className={`rounded-lg px-3 py-2 text-sm ${
                         w.level === "warn"
                           ? "border border-amber-200 bg-amber-50 text-amber-900"
-                          : "border border-slate-100 bg-slate-50 text-slate-700"
+                          : "border border-stone-100 bg-stone-50 text-stone-700"
                       }`}
                     >
                       {w.message}
@@ -392,7 +392,7 @@ export function PlanningDraftWizard({
           {step.id === "needs" && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-stone-600">
                   Indiquez combien de personnes vous souhaitez par jour. L’intensité ajuste l’effectif utilisé pour
                   l’ébauche (+1 fort, +2 événement, −1 calme).
                 </p>
@@ -402,16 +402,16 @@ export function PlanningDraftWizard({
                 </button>
               </div>
 
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-3 py-2.5 text-sm text-indigo-900">
+              <div className="rounded-xl border border-copper-100 bg-copper-50/50 px-3 py-2.5 text-sm text-copper-900">
                 <strong>Étape suivante — Pointe :</strong> vous pourrez définir les créneaux où renforcer l’effectif
                 (ex. 12h–14h avec 4 personnes, 19h–22h avec 5 personnes). Les plages sont préremplies d’après vos
                 horaires d’ouverture.
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <div className="overflow-x-auto rounded-xl border border-stone-100">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-600">
+                    <tr className="border-b border-stone-100 bg-stone-50 text-xs font-semibold text-stone-600">
                       <th className="px-2 py-2">Jour</th>
                       <th className="px-2 py-2">Horaires</th>
                       <th className="px-2 py-2">Pers.</th>
@@ -420,19 +420,19 @@ export function PlanningDraftWizard({
                       <th className="px-2 py-2">Note / exception</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-stone-100">
                     {days.map((d) => {
                       const base = d.staffTarget.trim() === "" ? null : Number(d.staffTarget.replace(",", "."));
                       const eff = effectiveStaffTarget(base, d.intensity, d.isClosed);
                       return (
-                        <tr key={d.ymd} className={d.isClosed ? "bg-slate-50/80" : undefined}>
+                        <tr key={d.ymd} className={d.isClosed ? "bg-stone-50/80" : undefined}>
                           <td className="px-2 py-2">
-                            <span className="font-medium capitalize text-slate-900">{d.dateLabel}</span>
+                            <span className="font-medium capitalize text-stone-900">{d.dateLabel}</span>
                             {d.exceptionLabel ? (
-                              <span className="mt-0.5 block text-[10px] text-indigo-600">{d.exceptionLabel}</span>
+                              <span className="mt-0.5 block text-[10px] text-copper-700">{d.exceptionLabel}</span>
                             ) : null}
                             {d.calendarSource === "public_holiday" ? (
-                              <span className="mt-0.5 inline-block rounded bg-indigo-100 px-1 text-[10px] text-indigo-800">
+                              <span className="mt-0.5 inline-block rounded bg-copper-100 px-1 text-[10px] text-copper-800">
                                 Férié
                               </span>
                             ) : null}
@@ -442,7 +442,7 @@ export function PlanningDraftWizard({
                               </span>
                             ) : null}
                           </td>
-                          <td className="px-2 py-2 text-xs text-slate-600">{d.openingLabel}</td>
+                          <td className="px-2 py-2 text-xs text-stone-600">{d.openingLabel}</td>
                           <td className="px-2 py-2">
                             <input
                               type="number"
@@ -456,7 +456,7 @@ export function PlanningDraftWizard({
                               placeholder="—"
                             />
                             {!d.isClosed && eff != null ? (
-                              <span className="mt-0.5 block text-[10px] text-slate-500">→ {eff} en ébauche</span>
+                              <span className="mt-0.5 block text-[10px] text-stone-500">→ {eff} en ébauche</span>
                             ) : null}
                           </td>
                           <td className="px-2 py-2">
@@ -505,13 +505,13 @@ export function PlanningDraftWizard({
 
           {step.id === "peaks" && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-sm text-indigo-900">
+              <div className="rounded-xl border border-copper-200 bg-copper-50 px-3 py-2.5 text-sm text-copper-900">
                 <strong>Plages de pointe</strong> — effectif minimum <strong>simultané</strong> sur le créneau (souvent
                 supérieur à l’effectif de base). Chaque shift couvre le <strong>service entier</strong> (ex. 19h→23h),
                 pas seulement la fenêtre rush ; les renforts s’ajoutent ensuite.
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-stone-600">
                   Indiquez les créneaux où il faut <strong>le plus de monde</strong> (service midi, rush du soir…).
                   L’ébauche renforcera ces plages si l’effectif planifié est insuffisant.
                 </p>
@@ -520,9 +520,9 @@ export function PlanningDraftWizard({
                 </button>
               </div>
               {hasRestaurantPeakModel ? (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-stone-500">
                   Prérempli depuis les{" "}
-                  <Link href={`/restaurants/${restaurantId}/edit`} className="font-medium text-indigo-700 underline">
+                  <Link href={`/restaurants/${restaurantId}/edit`} className="font-medium text-copper-800 underline">
                     plages de pointe du restaurant
                   </Link>
                   . Vous pouvez les ajuster ici pour cette semaine uniquement.
@@ -538,13 +538,13 @@ export function PlanningDraftWizard({
 
               <div className="space-y-4">
                 {days.filter((d) => !d.isClosed).map((d) => (
-                  <div key={d.ymd} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                  <div key={d.ymd} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold capitalize text-slate-900">{d.dateLabel}</p>
-                      <p className="text-xs text-slate-500">{d.openingLabel}</p>
+                      <p className="text-sm font-semibold capitalize text-stone-900">{d.dateLabel}</p>
+                      <p className="text-xs text-stone-500">{d.openingLabel}</p>
                     </div>
                     {d.peakBands.length === 0 ? (
-                      <p className="mt-2 text-xs text-slate-500">Aucune plage de pointe.</p>
+                      <p className="mt-2 text-xs text-stone-500">Aucune plage de pointe.</p>
                     ) : (
                       <ul className="mt-2 space-y-2">
                         {d.peakBands.map((p, i) => (
@@ -556,7 +556,7 @@ export function PlanningDraftWizard({
                               value={p.start}
                               onChange={(e) => patchPeak(d.ymd, i, { start: e.target.value })}
                             />
-                            <span className="text-slate-400">→</span>
+                            <span className="text-stone-400">→</span>
                             <input
                               type="time"
                               disabled={pending}
@@ -574,11 +574,11 @@ export function PlanningDraftWizard({
                               onChange={(e) => patchPeak(d.ymd, i, { staffCount: e.target.value })}
                               title="Effectif minimum sur cette plage"
                             />
-                            <span className="text-xs text-slate-500">pers.</span>
+                            <span className="text-xs text-stone-500">pers.</span>
                             <button
                               type="button"
                               disabled={pending}
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                              className="rounded-lg p-1.5 text-stone-400 hover:bg-rose-50 hover:text-rose-600"
                               aria-label="Supprimer la plage"
                               onClick={() => removePeak(d.ymd, i)}
                             >
@@ -607,7 +607,7 @@ export function PlanningDraftWizard({
             <div className="space-y-5">
               <div className="space-y-3 rounded-xl border-2 border-amber-200 bg-amber-50/60 p-4">
                 <p className={uiLabel}>Volume horaire cette semaine</p>
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-stone-600">
                   Augmentez le budget d’heures planifiables par personne pour une semaine chargée. Les heures
                   supplémentaires peuvent être compensées sur des semaines plus calmes via le solde d’heures.
                 </p>
@@ -619,7 +619,7 @@ export function PlanningDraftWizard({
                     disabled={pending}
                     onChange={(e) => setAllowOvertime(e.target.checked)}
                   />
-                  <span className="text-sm text-slate-800">
+                  <span className="text-sm text-stone-800">
                     Autoriser aussi un <strong>dépassement en % du contrat</strong> (en plus des heures saisies
                     ci-dessous)
                   </span>
@@ -646,23 +646,23 @@ export function PlanningDraftWizard({
                 <div className="mt-2 overflow-x-auto rounded-lg border border-amber-100 bg-white">
                   <table className="w-full min-w-[520px] text-left text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-600">
+                      <tr className="border-b border-stone-100 bg-stone-50 text-xs font-semibold text-stone-600">
                         <th className="px-3 py-2">Collaborateur</th>
                         <th className="px-3 py-2">Contrat</th>
                         <th className="px-3 py-2">+ h cette semaine</th>
                         {allowOvertime ? <th className="px-3 py-2">% contrat</th> : null}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-stone-100">
                       {activeStaff.map((m) => (
                         <tr key={m.id} className={unavailableStaffIds.has(m.id) ? "opacity-50" : undefined}>
-                          <td className="px-3 py-2 font-medium text-slate-900">{m.display_name}</td>
-                          <td className="px-3 py-2 text-slate-600">
+                          <td className="px-3 py-2 font-medium text-stone-900">{m.display_name}</td>
+                          <td className="px-3 py-2 text-stone-600">
                             {m.target_weekly_hours != null ? (
                               <>
                                 {m.target_weekly_hours} h
                                 {m.planning_carryover_minutes !== 0 ? (
-                                  <span className="ml-1 text-xs text-slate-400">
+                                  <span className="ml-1 text-xs text-stone-400">
                                     (solde {(m.planning_carryover_minutes / 60).toFixed(1)} h)
                                   </span>
                                 ) : null}
@@ -696,7 +696,7 @@ export function PlanningDraftWizard({
                                   disabled={pending || unavailableStaffIds.has(m.id) || m.target_weekly_hours == null}
                                   onChange={() => toggleOvertimeStaff(m.id)}
                                 />
-                                <span className="text-xs text-slate-600">
+                                <span className="text-xs text-stone-600">
                                   {m.target_weekly_hours != null ? `+${overtimePercent} %` : "—"}
                                 </span>
                               </label>
@@ -716,7 +716,7 @@ export function PlanningDraftWizard({
                       disabled={pending}
                       onChange={(e) => setApplyCarryover(e.target.checked)}
                     />
-                    <span className="text-sm text-slate-700">
+                    <span className="text-sm text-stone-700">
                       Mettre à jour les <strong>soldes d’heures</strong> après génération (écart contrat vs prévu).
                     </span>
                   </label>
@@ -725,16 +725,16 @@ export function PlanningDraftWizard({
 
               <div>
                 <p className={uiLabel}>Absences ou indisponibilités cette semaine</p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-stone-500">
                   Cochez les personnes à exclure de l’ébauche (congés, arrêt, etc.).
                 </p>
                 <ul className="mt-3 space-y-2">
                   {activeStaff.length === 0 ? (
-                    <li className="text-sm text-slate-500">Aucun collaborateur actif.</li>
+                    <li className="text-sm text-stone-500">Aucun collaborateur actif.</li>
                   ) : (
                     activeStaff.map((m) => (
                       <li key={m.id}>
-                        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-100 px-3 py-2 hover:bg-slate-50">
+                        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-stone-100 px-3 py-2 hover:bg-stone-50">
                           <input
                             type="checkbox"
                             checked={unavailableStaffIds.has(m.id)}
@@ -742,12 +742,12 @@ export function PlanningDraftWizard({
                             onChange={() => toggleUnavailable(m.id)}
                           />
                           <span className="flex-1 text-sm">
-                            <span className="font-medium text-slate-900">{m.display_name}</span>
+                            <span className="font-medium text-stone-900">{m.display_name}</span>
                             {m.role_label ? (
-                              <span className="ml-2 text-xs text-slate-500">{m.role_label}</span>
+                              <span className="ml-2 text-xs text-stone-500">{m.role_label}</span>
                             ) : null}
                             {m.target_weekly_hours != null ? (
-                              <span className="ml-2 text-xs text-slate-400">{m.target_weekly_hours} h/sem.</span>
+                              <span className="ml-2 text-xs text-stone-400">{m.target_weekly_hours} h/sem.</span>
                             ) : null}
                           </span>
                         </label>
@@ -755,7 +755,7 @@ export function PlanningDraftWizard({
                     ))
                   )}
                 </ul>
-                <p className="mt-2 text-xs font-medium text-slate-600">
+                <p className="mt-2 text-xs font-medium text-stone-600">
                   {availableCount} personne{availableCount > 1 ? "s" : ""} disponible
                   {availableCount > 1 ? "s" : ""} pour l’ébauche.
                 </p>
@@ -763,7 +763,7 @@ export function PlanningDraftWizard({
 
               <div>
                 <p className={uiLabel}>Plafond d’heures par jour</p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-stone-500">
                   Nombre maximum d’heures nettes planifiables par journée pour chaque personne (vide = pas de limite
                   pour l’ébauche).
                 </p>
@@ -771,9 +771,9 @@ export function PlanningDraftWizard({
                   {activeStaff.map((m) => (
                     <li
                       key={m.id}
-                      className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 px-3 py-2"
+                      className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-100 px-3 py-2"
                     >
-                      <span className="min-w-[8rem] flex-1 text-sm font-medium text-slate-900">
+                      <span className="min-w-[8rem] flex-1 text-sm font-medium text-stone-900">
                         {m.display_name}
                       </span>
                       <input
@@ -790,7 +790,7 @@ export function PlanningDraftWizard({
                         placeholder="—"
                         aria-label={`Max heures par jour pour ${m.display_name}`}
                       />
-                      <span className="text-xs text-slate-500">h / jour max</span>
+                      <span className="text-xs text-stone-500">h / jour max</span>
                     </li>
                   ))}
                 </ul>
@@ -802,13 +802,13 @@ export function PlanningDraftWizard({
                     disabled={pending}
                     onChange={(e) => setPersistMaxDailyHours(e.target.checked)}
                   />
-                  <span className="text-sm text-slate-700">
+                  <span className="text-sm text-stone-700">
                     Enregistrer ces plafonds sur les fiches collaborateurs (profil planning).
                   </span>
                 </label>
               </div>
 
-              <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+              <div className="space-y-3 rounded-xl border border-stone-100 bg-stone-50/60 p-4">
                 <label className="flex cursor-pointer items-start gap-3">
                   <input
                     type="checkbox"
@@ -817,7 +817,7 @@ export function PlanningDraftWizard({
                     disabled={pending}
                     onChange={(e) => setUpdateWeeklyTargets(e.target.checked)}
                   />
-                  <span className="text-sm text-slate-700">
+                  <span className="text-sm text-stone-700">
                     <strong>Mettre à jour le modèle hebdomadaire</strong> avec les effectifs saisis pour les jours
                     « normaux » (les jours en exception calendrier ou horaires spéciaux ne modifient pas le modèle lun→dim).
                   </span>
@@ -830,7 +830,7 @@ export function PlanningDraftWizard({
                     disabled={pending}
                     onChange={(e) => setPrioritizeRoleBalance(e.target.checked)}
                   />
-                  <span className="text-sm text-slate-700">
+                  <span className="text-sm text-stone-700">
                     <strong>Équilibrer salle / cuisine / gestion</strong> lors de la génération (priorité aux postes
                     sous-représentés).
                   </span>
@@ -841,18 +841,18 @@ export function PlanningDraftWizard({
 
           {step.id === "review" && (
             <div className="space-y-4">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-stone-600">
                 Vérifiez le récapitulatif. Les exceptions de la semaine seront enregistrées, puis l’ébauche sera
                 générée automatiquement.
               </p>
-              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
+              <ul className="divide-y divide-stone-100 rounded-xl border border-stone-100">
                 {days.map((d) => {
                   const base = d.staffTarget.trim() === "" ? null : Number(d.staffTarget.replace(",", "."));
                   const eff = effectiveStaffTarget(base, d.intensity, d.isClosed);
                   return (
                     <li key={d.ymd} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
-                      <span className="capitalize text-slate-800">{d.dateLabel}</span>
-                      <span className="text-slate-600">
+                      <span className="capitalize text-stone-800">{d.dateLabel}</span>
+                      <span className="text-stone-600">
                         {d.isClosed ? (
                           "Fermé"
                         ) : eff != null ? (
@@ -865,7 +865,7 @@ export function PlanningDraftWizard({
                         )}
                         {d.customLabel.trim() ? ` · ${d.customLabel.trim()}` : ""}
                         {!d.isClosed && d.peakBands.length > 0 ? (
-                          <span className="mt-0.5 block text-xs text-indigo-600">
+                          <span className="mt-0.5 block text-xs text-copper-700">
                             Pointe :{" "}
                             {d.peakBands
                               .map((p) => `${p.start}–${p.end} (${p.staffCount} pers.)`)
@@ -878,7 +878,7 @@ export function PlanningDraftWizard({
                 })}
               </ul>
               {unavailableStaffIds.size > 0 ? (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-stone-500">
                   Exclus :{" "}
                   {activeStaff
                     .filter((m) => unavailableStaffIds.has(m.id))
@@ -913,7 +913,7 @@ export function PlanningDraftWizard({
                 );
                 if (withLimit.length === 0) return null;
                 return (
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-stone-600">
                     Plafond journalier :{" "}
                     {withLimit.map((m) => `${m.display_name} (${limits[m.id]} h max)`).join(" · ")}
                     {persistMaxDailyHours ? " · enregistré sur les fiches." : ""}
@@ -935,13 +935,13 @@ export function PlanningDraftWizard({
           )}
         </div>
 
-        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-4 sm:px-6">
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-stone-100 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-2">
             <button type="button" disabled={pending || stepIndex === 0} className={uiBtnOutlineSm} onClick={goBack}>
               <ChevronLeft className="mr-0.5 inline h-4 w-4" aria-hidden />
               Retour
             </button>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-stone-500">
               {stepIndex + 1}/{STEPS.length}
               {stepIndex < STEPS.length - 1 ? ` · suivant : ${STEPS[stepIndex + 1]!.title}` : ""}
             </span>

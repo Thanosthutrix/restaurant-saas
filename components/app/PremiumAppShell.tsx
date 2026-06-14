@@ -21,27 +21,33 @@ type ShellClientPayload = Pick<
 const sidebarLinkBase =
   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150";
 const sidebarIdle =
-  "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.99]";
-const sidebarActive = "bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100";
-const navGroupOrder = ["Accueil", "Exploitation", "Cuisine", "Achats & stock", "Registres", "Équipe & compte"];
+  "text-zinc-400 hover:bg-white/5 hover:text-zinc-100 active:scale-[0.99]";
+const sidebarActive = "bg-copper-500/20 text-copper-300";
+const navGroupOrder = ["Accueil", "Service", "Gestion"];
 /** Routes les plus fréquentes — prefetch différé pour ne pas saturer le réseau au chargement. */
 const hotPrefetchKeys = new Set<ShellNavKey>(["dashboard", "salle", "caisse", "cuisine"]);
 
 function NavLinks({
   pathname,
   allowedNavKeys,
+  hygieneBadge,
   onNavigate,
   onPrefetch,
 }: {
   pathname: string | null;
   allowedNavKeys?: ShellNavKey[] | null;
+  hygieneBadge?: number | null;
   onNavigate?: () => void;
   onPrefetch?: (href: string) => void;
 }) {
-  const items =
-    allowedNavKeys != null && allowedNavKeys.length > 0
-      ? SHELL_NAV_ITEMS.filter((item) => canAccessPage(item.navKey, allowedNavKeys))
-      : SHELL_NAV_ITEMS;
+  const hasKeys = allowedNavKeys != null && allowedNavKeys.length > 0;
+  const items = SHELL_NAV_ITEMS.filter((item) => {
+    if (!hasKeys) return true;
+    if (item.hideIfKeys?.some((k) => allowedNavKeys.includes(k))) return false;
+    if (canAccessPage(item.navKey, allowedNavKeys)) return true;
+    // Hub visible si l'utilisateur a accès à au moins une page couverte.
+    return item.coveredKeys?.some((k) => canAccessPage(k, allowedNavKeys)) ?? false;
+  });
 
   const groupedItems = navGroupOrder
     .map((group) => ({
@@ -54,12 +60,13 @@ function NavLinks({
     <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3" aria-label="Navigation principale">
       {groupedItems.map((entry) => (
         <div key={entry.group} className="space-y-1">
-          <p className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-400">
+          <p className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-zinc-500">
             {entry.group}
           </p>
           {entry.items.map((item) => {
             const active = item.match(pathname ?? "");
             const Icon = item.icon;
+            const badge = item.navKey === "hygiene" && hygieneBadge ? hygieneBadge : null;
             return (
               <Link
                 key={item.href}
@@ -71,6 +78,11 @@ function NavLinks({
               >
                 <Icon className="h-[1.125rem] w-[1.125rem] shrink-0 opacity-90" aria-hidden />
                 {item.label}
+                {badge != null && (
+                  <span className="copper-sheen ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[0.7rem] font-bold leading-none text-white">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -144,37 +156,41 @@ export function PremiumAppShell({
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+    <div className="min-h-screen bg-[#E9EDF2] text-stone-900">
       {/* Mobile overlay */}
       {mobileNavOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-slate-900/20 lg:hidden"
+          className="fixed inset-0 z-40 bg-stone-900/20 lg:hidden"
           aria-label="Fermer le menu"
           onClick={() => setMobileNavOpen(false)}
         />
       ) : null}
 
       {/* Sidebar desktop */}
-      <aside className="fixed left-0 top-0 z-40 hidden h-full w-64 flex-col border-r border-slate-100 bg-white shadow-sm lg:flex">
-        <div className="flex h-14 items-center border-b border-slate-100 px-4">
+      <aside className="sidebar-graphite fixed left-0 top-0 z-40 hidden h-full w-64 flex-col lg:flex">
+        <div className="flex h-14 items-center border-b border-white/5 px-4">
           <Link
             href="/dashboard"
-            className="text-base font-semibold tracking-tight text-slate-900 transition hover:text-indigo-600"
+            className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-zinc-100 transition hover:text-copper-300"
           >
+            <span className="copper-sheen flex h-7 w-7 items-center justify-center rounded-lg bg-copper-700 text-sm font-bold text-white">
+              R
+            </span>
             Restaurant SaaS
           </Link>
         </div>
         <NavLinks
           pathname={pathname}
           allowedNavKeys={shellPayload?.allowedNavKeys}
+          hygieneBadge={headerBootstrap?.hygienePendingCount}
           onPrefetch={prefetchRoute}
         />
-        <div className="mt-auto border-t border-slate-100 p-3">
+        <div className="mt-auto border-t border-white/5 p-3">
           <form action={signOut}>
             <button
               type="submit"
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-rose-50 hover:text-rose-700 active:scale-[0.99]"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-zinc-500 transition hover:bg-rose-500/10 hover:text-rose-300 active:scale-[0.99]"
             >
               <LogOut className="h-[1.125rem] w-[1.125rem]" aria-hidden />
               Déconnexion
@@ -187,23 +203,26 @@ export function PremiumAppShell({
       <aside
         id="app-mobile-nav"
         aria-hidden={!mobileNavOpen}
-        className={`fixed left-0 top-0 z-50 flex h-full w-64 flex-col border-r border-slate-100 bg-white shadow-xl transition-transform duration-200 ease-out lg:hidden ${
+        className={`sidebar-graphite fixed left-0 top-0 z-50 flex h-full w-64 flex-col shadow-xl transition-transform duration-200 ease-out lg:hidden ${
           mobileNavOpen
             ? "translate-x-0 pointer-events-auto"
             : "-translate-x-full pointer-events-none"
         }`}
       >
-        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-4">
+        <div className="flex h-14 items-center justify-between border-b border-white/5 px-4">
           <Link
             href="/dashboard"
-            className="text-base font-semibold tracking-tight text-slate-900"
+            className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-zinc-100"
             onClick={() => setMobileNavOpen(false)}
           >
+            <span className="copper-sheen flex h-7 w-7 items-center justify-center rounded-lg bg-copper-700 text-sm font-bold text-white">
+              R
+            </span>
             Restaurant SaaS
           </Link>
           <button
             type="button"
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
             aria-label="Fermer"
             onClick={() => setMobileNavOpen(false)}
           >
@@ -213,14 +232,15 @@ export function PremiumAppShell({
         <NavLinks
           pathname={pathname}
           allowedNavKeys={shellPayload?.allowedNavKeys}
+          hygieneBadge={headerBootstrap?.hygienePendingCount}
           onNavigate={() => setMobileNavOpen(false)}
           onPrefetch={prefetchRoute}
         />
-        <div className="mt-auto border-t border-slate-100 p-3">
+        <div className="mt-auto border-t border-white/5 p-3">
           <form action={signOut}>
             <button
               type="submit"
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-rose-50 hover:text-rose-700"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-zinc-500 transition hover:bg-rose-500/10 hover:text-rose-300"
             >
               <LogOut className="h-[1.125rem] w-[1.125rem]" aria-hidden />
               Déconnexion
@@ -230,12 +250,12 @@ export function PremiumAppShell({
       </aside>
 
       <div className="min-w-0 lg:pl-64">
-        <header className="sticky top-0 z-[45] border-b border-slate-100/80 bg-white/95 supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:backdrop-blur-sm">
+        <header className="sticky top-0 z-[45] border-b border-slate-300/50 bg-[#E9EDF2]/95 supports-[backdrop-filter]:bg-[#E9EDF2]/80 supports-[backdrop-filter]:backdrop-blur-sm">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
               <button
                 type="button"
-                className="inline-flex rounded-xl border border-slate-200 bg-white p-2 text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] lg:hidden"
+                className="inline-flex rounded-xl border border-stone-200 bg-white p-2 text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50 active:scale-[0.97] lg:hidden"
                 aria-expanded={mobileNavOpen}
                 aria-controls="app-mobile-nav"
                 onClick={() => setMobileNavOpen((o) => !o)}
@@ -245,7 +265,7 @@ export function PremiumAppShell({
               <button
                 type="button"
                 onClick={() => handleNavigateBack()}
-                className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] sm:px-3"
+                className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-stone-200 bg-white px-2.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50 active:scale-[0.97] sm:px-3"
                 aria-label="Revenir à la page précédente"
               >
                 <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
@@ -279,7 +299,7 @@ export function PremiumAppShell({
               <form action={signOut} className="hidden sm:block">
                 <button
                   type="submit"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 active:scale-[0.98]"
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 active:scale-[0.98]"
                 >
                   Déconnexion
                 </button>

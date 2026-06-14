@@ -272,7 +272,7 @@ export function ReviewRecipesClient() {
   if (missing) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm text-slate-700">Aucune recette à valider.</p>
+        <p className="text-sm text-stone-700">Aucune recette à valider.</p>
         <button type="button" onClick={clearAndGoNext} className={uiBtnPrimaryBlock}>
           Continuer
         </button>
@@ -311,7 +311,7 @@ export function ReviewRecipesClient() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Galerie</label>
+            <label className="mb-1 block text-xs font-medium text-stone-500">Galerie</label>
             <input
               type="file"
               accept=".pdf,image/*"
@@ -325,7 +325,7 @@ export function ReviewRecipesClient() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Appareil photo</label>
+            <label className="mb-1 block text-xs font-medium text-stone-500">Appareil photo</label>
             <input
               type="file"
               accept="image/*"
@@ -340,7 +340,7 @@ export function ReviewRecipesClient() {
           </div>
         </div>
         {reloadFiles.length > 0 ? (
-          <ul className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm text-slate-700">
+          <ul className="space-y-1.5 rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2 text-sm text-stone-700">
             {reloadFiles.map((file, i) => (
               <li key={fileKey(file)} className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate" title={file.name}>
@@ -382,17 +382,17 @@ export function ReviewRecipesClient() {
         {recipes.map((recipe, recipeIndex) => (
           <div key={recipe.clientId} className={`${uiCard} space-y-4`}>
             <div className="flex flex-wrap items-start gap-3">
-              <label className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+              <label className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-stone-700">
                 <input
                   type="checkbox"
                   checked={recipe.selected}
                   onChange={(e) => updateRecipe(recipeIndex, { selected: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                  className="h-4 w-4 rounded border-stone-300 accent-copper-700"
                 />
                 Créer
               </label>
               <div className="min-w-[12rem] flex-1">
-                <label className="mb-1 block text-xs font-medium text-slate-500">Plat concerné</label>
+                <label className="mb-1 block text-xs font-medium text-stone-500">Plat concerné</label>
                 <input
                   value={recipe.dish_name}
                   onChange={(e) =>
@@ -405,7 +405,7 @@ export function ReviewRecipesClient() {
                 />
               </div>
               <div className="w-28">
-                <label className="mb-1 block text-xs font-medium text-slate-500">Portions</label>
+                <label className="mb-1 block text-xs font-medium text-stone-500">Portions</label>
                 <input
                   type="number"
                   min={1}

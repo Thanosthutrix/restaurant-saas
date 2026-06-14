@@ -82,7 +82,7 @@ export function EditInventoryItemBlock({
 
   return (
     <div className={uiCard}>
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">Modifier le composant</h2>
+      <h2 className="mb-3 text-sm font-semibold text-stone-900">Modifier le composant</h2>
       {item.reference_purchase_is_benchmark ? (
         <p className="mb-3 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 text-xs text-violet-950">
           Le prix d&apos;achat de référence affiché provient de la{" "}

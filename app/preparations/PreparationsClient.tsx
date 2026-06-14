@@ -327,8 +327,8 @@ export function PreparationsClient({
       )}
 
       <section className={`${uiCard}`}>
-        <h2 className="text-sm font-semibold text-slate-900">Retrouver une préparation par n° de lot</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <h2 className="text-sm font-semibold text-stone-900">Retrouver une préparation par n° de lot</h2>
+        <p className="mt-1 text-xs text-stone-500">
           Comme pour les composants d’un plat : tapez pour filtrer la liste (n° de lot ou libellé). Douchette ou saisie
           exacte possible en secours.
         </p>
@@ -352,21 +352,21 @@ export function PreparationsClient({
           </div>
           {lotMatches.length > 0 && (
             <ul
-              className="max-h-48 overflow-auto rounded-xl border border-slate-100 bg-white shadow-sm"
+              className="max-h-48 overflow-auto rounded-xl border border-stone-100 bg-white shadow-sm"
               role="listbox"
             >
               {lotMatches.map((rec) => (
                 <li key={rec.id} role="option">
                   <button
                     type="button"
-                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition hover:bg-indigo-50/60"
+                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition hover:bg-copper-50/60"
                     onClick={() => selectLotSuggestion(rec)}
                   >
-                    <span className="font-mono font-semibold tracking-tight text-indigo-900">
+                    <span className="font-mono font-semibold tracking-tight text-copper-900">
                       {rec.lot_reference ?? "—"}
                     </span>
-                    <span className="text-slate-800">{rec.label}</span>
-                    <span className="text-xs text-slate-500">{lotLookupStatusLabel(rec)}</span>
+                    <span className="text-stone-800">{rec.label}</span>
+                    <span className="text-xs text-stone-500">{lotLookupStatusLabel(rec)}</span>
                   </button>
                 </li>
               ))}
@@ -374,18 +374,18 @@ export function PreparationsClient({
           )}
         </div>
         {lookupHint === "notfound" && lotSearchInput.trim().length > 0 && (
-          <p className="mt-2 text-sm text-slate-600">Aucune fiche ne correspond exactement à ce numéro.</p>
+          <p className="mt-2 text-sm text-stone-600">Aucune fiche ne correspond exactement à ce numéro.</p>
         )}
         {lookupHint === "none" && lotSearchNorm.length >= 1 && lotMatches.length === 0 && (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-stone-600">
             Aucune concordance parmi les derniers lots chargés — affinez ou utilisez « Rechercher (exact) » avec le numéro
             complet.
           </p>
         )}
         {lookupHint === "done" && lookupRecord && (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-stone-600">
             Ce lot est déjà clôturé (T° +2 h et DLC enregistrés). Consultez le{" "}
-            <Link href="/preparations/registre" className="font-medium text-indigo-700 underline">
+            <Link href="/preparations/registre" className="font-medium text-copper-800 underline">
               registre
             </Link>
             .
@@ -408,23 +408,23 @@ export function PreparationsClient({
         <button type="button" className={uiBtnPrimarySm} onClick={openModal}>
           Préparation
         </button>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-stone-500">
           Choisissez une préparation (stock), un plat de la carte, ou créez un nouveau composant « préparation ».
         </p>
       </section>
 
       {awaitingTempEnd.length > 0 && (
         <section>
-          <h2 className="mb-1 text-sm font-semibold text-slate-900">1er relevé — température en fin de préparation</h2>
-          <p className="mb-3 text-xs text-slate-500">
+          <h2 className="mb-1 text-sm font-semibold text-stone-900">1er relevé — température en fin de préparation</h2>
+          <p className="mb-3 text-xs text-stone-500">
             Tant que le 1er relevé n’est pas fait, aucun numéro de lot n’est attribué. Ensuite la fiche passe en attente
             du complément (vous pouvez la reprendre plus tard).
           </p>
           <ul className="space-y-3">
             {awaitingTempEnd.map((r) => (
               <li key={r.id} className={uiCard}>
-                <p className="font-medium text-slate-900">{r.label}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-medium text-stone-900">{r.label}</p>
+                <p className="text-xs text-stone-500">
                   Démarré le{" "}
                   {new Date(r.started_at).toLocaleString("fr-FR", {
                     day: "numeric",
@@ -460,8 +460,8 @@ export function PreparationsClient({
 
       {mergedAwaiting2h.length > 0 && (
         <section>
-          <h2 className="mb-1 text-sm font-semibold text-slate-900">En attente — T° +2 h & DLC</h2>
-          <p className="mb-3 text-xs text-slate-500">
+          <h2 className="mb-1 text-sm font-semibold text-stone-900">En attente — T° +2 h & DLC</h2>
+          <p className="mb-3 text-xs text-stone-500">
             Après le 1er relevé, un numéro de lot est créé. Vous pouvez interrompre et revenir plus tard : recherche par
             lot ci-dessus. Les données sont enregistrées au registre une fois le complément validé.
           </p>
@@ -471,15 +471,15 @@ export function PreparationsClient({
               return (
                 <li
                   key={r.id}
-                  className={`${uiCard} ${lookupRecord?.id === r.id ? "ring-2 ring-indigo-300" : ""}`}
+                  className={`${uiCard} ${lookupRecord?.id === r.id ? "ring-2 ring-copper-300" : ""}`}
                 >
                   {r.lot_reference && (
-                    <p className="font-mono text-sm font-semibold tracking-tight text-indigo-900">
+                    <p className="font-mono text-sm font-semibold tracking-tight text-copper-900">
                       Lot {r.lot_reference}
                     </p>
                   )}
-                  <p className="font-medium text-slate-900">{r.label}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-medium text-stone-900">{r.label}</p>
+                  <p className="text-xs text-stone-500">
                     Fin prépa :{" "}
                     {r.temp_end_recorded_at
                       ? new Date(r.temp_end_recorded_at).toLocaleString("fr-FR", {
@@ -520,7 +520,7 @@ export function PreparationsClient({
                       <label className={uiLabel} htmlFor={`dlc-${r.id}`}>
                         DLC
                       </label>
-                      <p className="mb-2 text-xs text-slate-500">
+                      <p className="mb-2 text-xs text-stone-500">
                         J = aujourd’hui (calendrier local). La liste calcule automatiquement la date limite.
                       </p>
                       <label className="sr-only" htmlFor={`dlc-quick-${r.id}`}>
@@ -552,7 +552,7 @@ export function PreparationsClient({
                           );
                         })}
                       </select>
-                      <p className="mt-2 text-xs text-slate-500">Ou autre date (saisie manuelle) :</p>
+                      <p className="mt-2 text-xs text-stone-500">Ou autre date (saisie manuelle) :</p>
                       <input
                         id={`dlc-${r.id}`}
                         type="date"
@@ -561,7 +561,7 @@ export function PreparationsClient({
                         onChange={(e) => setDlcById((m) => ({ ...m, [r.id]: e.target.value }))}
                       />
                       {dlcById[r.id] && (
-                        <p className="mt-1 text-xs text-slate-600">
+                        <p className="mt-1 text-xs text-stone-600">
                           DLC retenue : <span className="font-medium">{formatIsoDateFr(dlcById[r.id])}</span>
                         </p>
                       )}
@@ -583,13 +583,13 @@ export function PreparationsClient({
       )}
 
       {awaitingTempEnd.length === 0 && mergedAwaiting2h.length === 0 && (
-        <p className="text-sm text-slate-500">Aucune préparation en cours. Utilisez le bouton « Préparation » pour démarrer.</p>
+        <p className="text-sm text-stone-500">Aucune préparation en cours. Utilisez le bouton « Préparation » pour démarrer.</p>
       )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
-            <h3 className="text-sm font-semibold text-slate-900">Nouvelle préparation</h3>
+            <h3 className="text-sm font-semibold text-stone-900">Nouvelle préparation</h3>
             <div className="mt-3 flex gap-2 text-sm">
               <button
                 type="button"
@@ -627,7 +627,7 @@ export function PreparationsClient({
                 <label className={uiLabel} htmlFor="prep-inv-search">
                   Préparation (stock)
                 </label>
-                <p className="mb-1 text-xs text-slate-500">Tapez pour filtrer la liste.</p>
+                <p className="mb-1 text-xs text-stone-500">Tapez pour filtrer la liste.</p>
                 <input
                   id="prep-inv-search"
                   type="search"
@@ -638,26 +638,26 @@ export function PreparationsClient({
                   placeholder="Rechercher par nom…"
                 />
                 {inventoryPreps.length === 0 ? (
-                  <p className="mt-2 text-sm text-slate-500">Aucune préparation en stock (type « préparation »).</p>
+                  <p className="mt-2 text-sm text-stone-500">Aucune préparation en stock (type « préparation »).</p>
                 ) : (
                   <ul
-                    className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white"
+                    className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-stone-200 bg-white"
                     role="listbox"
                   >
                     {filteredPreps.length === 0 ? (
-                      <li className="px-3 py-4 text-center text-sm text-slate-500">Aucun résultat pour cette recherche.</li>
+                      <li className="px-3 py-4 text-center text-sm text-stone-500">Aucun résultat pour cette recherche.</li>
                     ) : (
                       filteredPreps.map((p) => (
                         <li key={p.id} role="option" aria-selected={inventoryId === p.id}>
                           <button
                             type="button"
-                            className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-slate-50 ${
-                              inventoryId === p.id ? "bg-indigo-50 font-medium text-indigo-900" : "text-slate-800"
+                            className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-stone-50 ${
+                              inventoryId === p.id ? "bg-copper-50 font-medium text-copper-900" : "text-stone-800"
                             }`}
                             onClick={() => setInventoryId(p.id)}
                           >
                             {p.name}{" "}
-                            <span className="font-normal text-slate-500">({p.unit})</span>
+                            <span className="font-normal text-stone-500">({p.unit})</span>
                           </button>
                         </li>
                       ))
@@ -665,9 +665,9 @@ export function PreparationsClient({
                   </ul>
                 )}
                 {inventoryId && (
-                  <p className="mt-2 text-xs text-slate-600">
+                  <p className="mt-2 text-xs text-stone-600">
                     Sélection :{" "}
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-stone-900">
                       {inventoryPreps.find((x) => x.id === inventoryId)?.name ?? "—"}
                     </span>
                   </p>
@@ -680,7 +680,7 @@ export function PreparationsClient({
                 <label className={uiLabel} htmlFor="prep-dish-search">
                   Plat
                 </label>
-                <p className="mb-1 text-xs text-slate-500">Tapez pour filtrer la liste.</p>
+                <p className="mb-1 text-xs text-stone-500">Tapez pour filtrer la liste.</p>
                 <input
                   id="prep-dish-search"
                   type="search"
@@ -691,21 +691,21 @@ export function PreparationsClient({
                   placeholder="Rechercher un plat…"
                 />
                 {dishes.length === 0 ? (
-                  <p className="mt-2 text-sm text-slate-500">Aucun plat sur la carte.</p>
+                  <p className="mt-2 text-sm text-stone-500">Aucun plat sur la carte.</p>
                 ) : (
                   <ul
-                    className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white"
+                    className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-stone-200 bg-white"
                     role="listbox"
                   >
                     {filteredDishes.length === 0 ? (
-                      <li className="px-3 py-4 text-center text-sm text-slate-500">Aucun résultat pour cette recherche.</li>
+                      <li className="px-3 py-4 text-center text-sm text-stone-500">Aucun résultat pour cette recherche.</li>
                     ) : (
                       filteredDishes.map((d) => (
                         <li key={d.id} role="option" aria-selected={dishId === d.id}>
                           <button
                             type="button"
-                            className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-slate-50 ${
-                              dishId === d.id ? "bg-indigo-50 font-medium text-indigo-900" : "text-slate-800"
+                            className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-stone-50 ${
+                              dishId === d.id ? "bg-copper-50 font-medium text-copper-900" : "text-stone-800"
                             }`}
                             onClick={() => setDishId(d.id)}
                           >
@@ -717,9 +717,9 @@ export function PreparationsClient({
                   </ul>
                 )}
                 {dishId && (
-                  <p className="mt-2 text-xs text-slate-600">
+                  <p className="mt-2 text-xs text-stone-600">
                     Sélection :{" "}
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-stone-900">
                       {dishes.find((x) => x.id === dishId)?.name ?? "—"}
                     </span>
                   </p>
@@ -758,7 +758,7 @@ export function PreparationsClient({
                     ))}
                   </select>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-stone-500">
                   Un composant « préparation » sera ajouté au stock (recette à compléter plus tard dans Stock).
                 </p>
               </div>

@@ -151,7 +151,7 @@ export function InvoiceClaimActionsPanel({
             {detailBlock}
           </div>
         ) : null}
-        <div className="mb-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <div className="mb-3 rounded border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
           Montant réel à payer non calculable : complétez les totaux des lignes facture et les prix/quantités BL.
         </div>
       </>
@@ -206,7 +206,7 @@ export function InvoiceClaimActionsPanel({
             <button
               type="button"
               onClick={() => void copyMessage()}
-              className="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
             >
               {copied ? "Copié" : "Copier le message"}
             </button>
@@ -220,7 +220,7 @@ export function InvoiceClaimActionsPanel({
                 type="button"
                 disabled={pending || !supplierEmail}
                 onClick={sendEmail}
-                className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                className="rounded bg-copper-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-copper-600 disabled:opacity-50"
                 title={supplierEmail ? `Envoyer à ${supplierEmail}` : "Renseignez l’e-mail sur la fiche fournisseur"}
               >
                 {pending ? "Envoi…" : "Envoyer par e-mail"}

@@ -429,7 +429,7 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
         ))}
 
         <section className={uiCard}>
-          <h2 className="text-base font-semibold text-slate-900">1. Informations de base</h2>
+          <h2 className="text-base font-semibold text-stone-900">1. Informations de base</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 sm:col-span-2">
               <span className={uiLabel}>Convention Collective Applicable</span>
@@ -500,7 +500,7 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
         </section>
 
         <section className={uiCard}>
-          <h2 className="text-base font-semibold text-slate-900">2. Poste, convention & rémunération</h2>
+          <h2 className="text-base font-semibold text-stone-900">2. Poste, convention & rémunération</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <select className={uiSelect} value={draft.jobAndPay.jobCode} onChange={(e) => selectJob(e.target.value as HcrJobCode)}>
               {HCR_JOB_PRESETS.map((p) => <option key={p.code} value={p.code}>{p.label}</option>)}
@@ -526,11 +526,11 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
               onChange={(e) => patchJob({ missions: e.target.value })}
             />
           </label>
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-stone-600">
             Brut mensuel calculé : <strong>{draft.jobAndPay.monthlyGross.toFixed(2)} €</strong>
           </p>
-          <div className="mt-4 grid gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:grid-cols-2">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+          <div className="mt-4 grid gap-3 rounded-2xl border border-stone-100 bg-stone-50/70 p-4 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
                 checked={draft.clauses.isPolyvalenceActive}
@@ -538,7 +538,7 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
               />
               Clause de polyvalence active
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-stone-700">
               <input
                 type="checkbox"
                 checked={draft.clauses.isTrialRenewable}
@@ -707,7 +707,7 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
 
         {showTerm ? (
           <section className={uiCard}>
-            <h2 className="text-base font-semibold text-slate-900">3. Variables CDD / Saisonnier</h2>
+            <h2 className="text-base font-semibold text-stone-900">3. Variables CDD / Saisonnier</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <select className={`${uiSelect} w-full`} value={draft.termDetails?.reason ?? ""} onChange={(e) => patch({ termDetails: { ...draft.termDetails!, reason: (e.target.value || null) as HcrCddReason | null } })}>
                 <option value="">Motif précis obligatoire</option>
@@ -717,12 +717,12 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
               <input className={uiInput} placeholder="Poste du salarié remplacé" value={draft.termDetails?.replacedEmployeePosition ?? ""} onChange={(e) => patch({ termDetails: { ...draft.termDetails!, replacedEmployeePosition: e.target.value } })} />
               <input className={uiInput} type="date" value={draft.termDetails?.startDate ?? ""} onChange={(e) => setDraft((prev) => withTrialDefault({ ...prev, termDetails: { ...prev.termDetails!, startDate: e.target.value } }))} />
               <input className={uiInput} type="date" disabled={draft.termDetails?.hasUncertainTerm} value={draft.termDetails?.endDate ?? ""} onChange={(e) => setDraft((prev) => withTrialDefault({ ...prev, termDetails: { ...prev.termDetails!, endDate: e.target.value } }))} />
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+              <label className="flex items-center gap-2 text-sm text-stone-700">
                 <input type="checkbox" checked={draft.termDetails?.hasUncertainTerm ?? false} onChange={(e) => patch({ termDetails: { ...draft.termDetails!, hasUncertainTerm: e.target.checked } })} />
                 Terme imprécis
               </label>
               {draft.contractKind === "saisonnier" ? (
-                <label className="flex items-center gap-2 text-sm text-slate-700">
+                <label className="flex items-center gap-2 text-sm text-stone-700">
                   <input type="checkbox" checked={draft.termDetails?.renewalClause ?? false} onChange={(e) => patch({ termDetails: { ...draft.termDetails!, renewalClause: e.target.checked } })} />
                   Clause de reconduction
                 </label>
@@ -734,7 +734,7 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
 
         {showExtra ? (
           <section className={uiCard}>
-            <h2 className="text-base font-semibold text-slate-900">3. Variables Extra</h2>
+            <h2 className="text-base font-semibold text-stone-900">3. Variables Extra</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <input className={uiInput} placeholder="Date(s) de l'extra" value={draft.termDetails?.extraDates ?? ""} onChange={(e) => patch({ termDetails: { ...draft.termDetails!, extraDates: e.target.value } })} />
               <input className={uiInput} placeholder="Nature de la mission" value={draft.termDetails?.extraMission ?? ""} onChange={(e) => patch({ termDetails: { ...draft.termDetails!, extraMission: e.target.value } })} />
@@ -744,8 +744,8 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
         ) : null}
 
         <section className={uiCard}>
-          <h2 className="text-base font-semibold text-slate-900">4. Signature</h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <h2 className="text-base font-semibold text-stone-900">4. Signature</h2>
+          <p className="mt-1 text-xs text-stone-500">
             Ces informations alimentent la mention “Fait à …, le …” en fin de contrat.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -772,12 +772,12 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
 
         <section className={uiCard}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-slate-900">Aperçu du contrat</h2>
+            <h2 className="text-base font-semibold text-stone-900">Aperçu du contrat</h2>
             <button type="button" className={uiBtnPrimary} disabled={blockingIssues.length > 0} onClick={exportPdf}>
               Export PDF / Imprimer
             </button>
           </div>
-          <div className="prose prose-slate mt-4 max-w-none rounded-xl border border-slate-100 bg-white p-4 text-sm" dangerouslySetInnerHTML={{ __html: document.html }} />
+          <div className="prose prose-slate mt-4 max-w-none rounded-xl border border-stone-100 bg-white p-4 text-sm" dangerouslySetInnerHTML={{ __html: document.html }} />
         </section>
       </div>
 

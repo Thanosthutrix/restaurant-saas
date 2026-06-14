@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getInventoryItems, getSuppliers } from "@/lib/db";
+import { getInventoryItems } from "@/lib/db";
+import { cachedGetSuppliers, cachedGetInventoryItems } from "@/lib/cache";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { ManualPurchaseOrderClient } from "./ManualPurchaseOrderClient";
 
@@ -10,8 +11,8 @@ export default async function NewPurchaseOrderPage() {
   if (!restaurant) redirect("/onboarding");
 
   const [suppliersRes, itemsRes] = await Promise.all([
-    getSuppliers(restaurant.id, true),
-    getInventoryItems(restaurant.id),
+    cachedGetSuppliers(restaurant.id, true),
+    cachedGetInventoryItems(restaurant.id),
   ]);
 
   return (

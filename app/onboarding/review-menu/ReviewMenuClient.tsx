@@ -169,7 +169,7 @@ export function ReviewMenuClient() {
   if (missing) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-stone-700">
           Aucune suggestion à valider (session expirée ou étape déjà terminée).
         </p>
         <button type="button" onClick={() => void goNextAfterMenu()} className={uiBtnPrimaryBlock}>

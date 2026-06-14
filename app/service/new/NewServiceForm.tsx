@@ -227,19 +227,19 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
       <div className="mb-6 flex items-center gap-4">
         <Link
           href="/dashboard"
-          className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+          className="text-stone-600 underline decoration-stone-400 underline-offset-2"
         >
           ← Tableau de bord
         </Link>
       </div>
 
-      <h1 className="mb-6 text-2xl font-semibold text-slate-900">
+      <h1 className="mb-6 text-2xl font-semibold text-stone-900">
         Nouveau service
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="date" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="date" className="mb-1 block text-sm font-medium text-stone-700">
             Date
           </label>
           <input
@@ -247,13 +247,13 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"
+            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900"
             required
           />
         </div>
 
         <div>
-          <span className="mb-2 block text-sm font-medium text-slate-700">
+          <span className="mb-2 block text-sm font-medium text-stone-700">
             Type de service
           </span>
           <div className="flex gap-4">
@@ -267,7 +267,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                   onChange={() => setServiceType(type)}
                   className="h-4 w-4"
                 />
-                <span className="text-slate-800">
+                <span className="text-stone-800">
                   {type === "lunch" ? "Déjeuner" : "Dîner"}
                 </span>
               </label>
@@ -275,14 +275,14 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="rounded-lg border border-stone-200 bg-white p-4">
           <label
             htmlFor="receipt"
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-stone-700"
           >
             Relevé de caisse (optionnel)
           </label>
-          <p className="mb-2 text-xs text-slate-500">
+          <p className="mb-2 text-xs text-stone-500">
             Uploadez une photo pour analyser les ventes automatiquement, ou saisissez les quantités manuellement ci‑dessous.
           </p>
           <input
@@ -295,10 +295,10 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
               setAnalyzeError(null);
               setAnalyzeMessage(null);
             }}
-            className="mb-3 w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-slate-800"
+            className="mb-3 w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-200 file:px-4 file:py-2 file:text-stone-800"
           />
           {receiptFile && (
-            <p className="mb-3 text-xs text-slate-500">
+            <p className="mb-3 text-xs text-stone-500">
               {receiptFile.name} ({(receiptFile.size / 1024).toFixed(1)} Ko)
             </p>
           )}
@@ -311,7 +311,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
             type="button"
             onClick={handleAnalyzeReceipt}
             disabled={analyzePending || !receiptFile}
-            className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-200 disabled:opacity-50"
+            className="rounded-lg border border-stone-300 bg-stone-100 px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-200 disabled:opacity-50"
           >
             {analyzePending ? "Analyse en cours…" : "Analyser le relevé"}
           </button>
@@ -340,7 +340,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                     key={lineIndex}
                     className="flex flex-col gap-2 rounded border border-amber-200 bg-white p-2"
                   >
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-stone-900">
                       « {line.raw_label} » × {line.qty}
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
@@ -351,7 +351,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                               key={s.dish_id}
                               type="button"
                               onClick={() => associateLineToDish(line, s.dish_id, lineIndex)}
-                              className="rounded bg-slate-800 px-2 py-1 text-xs font-medium text-white hover:bg-slate-700"
+                              className="rounded bg-stone-800 px-2 py-1 text-xs font-medium text-white hover:bg-stone-700"
                             >
                               Ajouter à {s.dish_name}
                             </button>
@@ -364,7 +364,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                           onChange={(e) =>
                             setSelectedDishForLine((prev) => ({ ...prev, [lineIndex]: e.target.value }))
                           }
-                          className="rounded border border-slate-300 bg-white px-2 py-1 text-xs"
+                          className="rounded border border-stone-300 bg-white px-2 py-1 text-xs"
                           aria-label="Associer à un plat"
                         >
                           <option value="">Choisir un plat…</option>
@@ -381,7 +381,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                             if (dishId) associateLineToDish(line, dishId, lineIndex);
                           }}
                           disabled={!selectedDishForLine[lineIndex]}
-                          className="rounded border border-slate-400 bg-slate-100 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-200 disabled:opacity-50"
+                          className="rounded border border-stone-400 bg-stone-100 px-2 py-1 text-xs font-medium text-stone-800 hover:bg-stone-200 disabled:opacity-50"
                         >
                           Associer à ce plat
                         </button>
@@ -389,7 +389,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                       <button
                         type="button"
                         onClick={() => saveStateAndGoToCreateDish(line.raw_label)}
-                        className="text-xs text-slate-600 underline hover:text-slate-800"
+                        className="text-xs text-stone-600 underline hover:text-stone-800"
                       >
                         Créer un nouveau plat
                       </button>
@@ -401,7 +401,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
         )}
 
         <div>
-          <h2 className="mb-3 text-sm font-medium text-slate-700">
+          <h2 className="mb-3 text-sm font-medium text-stone-700">
             Quantités vendues par plat
           </h2>
           {dishes.length === 0 ? (
@@ -411,7 +411,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
           ) : (
             <>
               {dishesWithQty.length === 0 && !showManualAdd && (
-                <p className="mb-3 text-sm text-slate-500">
+                <p className="mb-3 text-sm text-stone-500">
                   Aucune vente pour l’instant. Analysez un relevé ou ajoutez des ventes manuellement.
                 </p>
               )}
@@ -420,26 +420,26 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                   {dishesWithQty.map((dish) => (
                     <li
                       key={dish.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-3"
                     >
-                      <span className="font-medium text-slate-900">{dish.name}</span>
+                      <span className="font-medium text-stone-900">{dish.name}</span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => updateQty(dish.id, -1)}
                           disabled={(quantities[dish.id] ?? 0) === 0}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-50 text-lg font-medium text-slate-700 disabled:opacity-40"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-stone-50 text-lg font-medium text-stone-700 disabled:opacity-40"
                           aria-label={`Diminuer ${dish.name}`}
                         >
                           −
                         </button>
-                        <span className="min-w-[2rem] text-center text-slate-900">
+                        <span className="min-w-[2rem] text-center text-stone-900">
                           {quantities[dish.id] ?? 0}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateQty(dish.id, 1)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-50 text-lg font-medium text-slate-700"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-stone-50 text-lg font-medium text-stone-700"
                           aria-label={`Augmenter ${dish.name}`}
                         >
                           +
@@ -453,22 +453,22 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowManualAdd(true)}
-                  className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
+                  className="rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
                 >
                   Ajouter des ventes manuellement
                 </button>
               ) : (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                  <p className="mb-2 text-xs font-medium text-slate-600">
+                <div className="rounded-lg border border-stone-200 bg-stone-50/50 p-3">
+                  <p className="mb-2 text-xs font-medium text-stone-600">
                     Ajouter un plat au récap
                   </p>
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-500">Plat</span>
+                      <span className="text-xs text-stone-500">Plat</span>
                       <select
                         value={manualAddDishId}
                         onChange={(e) => setManualAddDishId(e.target.value)}
-                        className="min-w-[180px] rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                        className="min-w-[180px] rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
                       >
                         <option value="">Choisir un plat</option>
                         {dishes.map((d) => (
@@ -487,14 +487,14 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                         }
                       }}
                       disabled={!manualAddDishId}
-                      className="rounded bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                      className="rounded bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50"
                     >
                       Ajouter (×1)
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowManualAdd(false)}
-                      className="text-sm text-slate-500 underline hover:text-slate-700"
+                      className="text-sm text-stone-500 underline hover:text-stone-700"
                     >
                       Fermer
                     </button>
@@ -520,7 +520,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
         <button
           type="submit"
           disabled={pending || dishes.length === 0}
-          className="w-full rounded-lg bg-slate-900 px-4 py-3 font-medium text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-stone-900 px-4 py-3 font-medium text-white disabled:opacity-50"
         >
           {pending ? "Enregistrement…" : "Enregistrer le service"}
         </button>

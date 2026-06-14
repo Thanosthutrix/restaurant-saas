@@ -48,20 +48,20 @@ export default async function EditRestaurantPage({ params }: Props) {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6">
           <Link
             href="/dashboard"
-            className="text-sm text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-sm text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Tableau de bord
           </Link>
         </div>
-        <h1 className="mb-2 text-xl font-semibold text-slate-900">
+        <h1 className="mb-2 text-xl font-semibold text-stone-900">
           Modifier le restaurant
         </h1>
-        <p className="mb-6 text-sm text-slate-500">
+        <p className="mb-6 text-sm text-stone-500">
           {restaurant.name}
         </p>
         <EditRestaurantForm restaurant={restaurant} templates={templates} />
@@ -73,9 +73,9 @@ export default async function EditRestaurantPage({ params }: Props) {
           />
         </div>
 
-        <div className="mt-10 border-t border-slate-200 pt-8">
-          <h2 className="mb-1 text-lg font-semibold text-slate-900">Planning et horaires</h2>
-          <p className="mb-6 text-sm text-slate-500">
+        <div className="mt-10 border-t border-stone-200 pt-8">
+          <h2 className="mb-1 text-lg font-semibold text-stone-900">Planning et horaires</h2>
+          <p className="mb-6 text-sm text-stone-500">
             Modèle hebdomadaire, objectifs d’effectif, plages de pointe, et exceptions (fermetures, jours spéciaux).
           </p>
           <RestaurantPlanningSection

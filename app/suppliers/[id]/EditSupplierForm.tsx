@@ -48,51 +48,51 @@ export function EditSupplierForm({ supplier }: { supplier: Supplier }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-slate-200 bg-white p-4"
+      className="rounded-lg border border-stone-200 bg-white p-4"
     >
       {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
       <div className="space-y-3">
         <label className="block">
-          <span className="text-xs text-slate-500">Nom *</span>
+          <span className="text-xs text-stone-500">Nom *</span>
           <input
             type="text"
             name="name"
             defaultValue={supplier.name}
             required
-            className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="text-xs text-slate-500">E-mail (optionnel)</span>
+            <span className="text-xs text-stone-500">E-mail (optionnel)</span>
             <input
               type="text"
               name="email"
               inputMode="email"
               autoComplete="email"
               defaultValue={supplier.email ?? ""}
-              className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
             />
           </label>
           <label className="block">
-            <span className="text-xs text-slate-500">Téléphone</span>
-            <input type="text" name="phone" defaultValue={supplier.phone ?? ""} className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+            <span className="text-xs text-stone-500">Téléphone</span>
+            <input type="text" name="phone" defaultValue={supplier.phone ?? ""} className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
           </label>
         </div>
         <label className="block">
-          <span className="text-xs text-slate-500">WhatsApp</span>
-          <input type="text" name="whatsapp_phone" defaultValue={supplier.whatsapp_phone ?? ""} className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">WhatsApp</span>
+          <input type="text" name="whatsapp_phone" defaultValue={supplier.whatsapp_phone ?? ""} className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="block">
-          <span className="text-xs text-slate-500">Adresse</span>
-          <textarea name="address" rows={2} defaultValue={supplier.address ?? ""} className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">Adresse</span>
+          <textarea name="address" rows={2} defaultValue={supplier.address ?? ""} className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="block">
-          <span className="text-xs text-slate-500">Méthode de commande préférée</span>
+          <span className="text-xs text-stone-500">Méthode de commande préférée</span>
           <select
             name="preferred_order_method"
             defaultValue={supplier.preferred_order_method}
-            className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           >
             {ORDER_METHODS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -102,7 +102,7 @@ export function EditSupplierForm({ supplier }: { supplier: Supplier }) {
           </select>
         </label>
         <div>
-          <span className="text-xs text-slate-500">Jours de commande</span>
+          <span className="text-xs text-stone-500">Jours de commande</span>
           <div className="mt-1 flex flex-wrap gap-2">
             {WEEKDAYS.map((d) => (
               <label key={d} className="flex items-center gap-1 text-sm">
@@ -117,27 +117,27 @@ export function EditSupplierForm({ supplier }: { supplier: Supplier }) {
           </div>
         </div>
         <label className="block">
-          <span className="text-xs text-slate-500">Heure limite (optionnel)</span>
-          <input type="time" name="cut_off_time" defaultValue={supplier.cut_off_time ?? ""} className="mt-0.5 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">Heure limite (optionnel)</span>
+          <input type="time" name="cut_off_time" defaultValue={supplier.cut_off_time ?? ""} className="mt-0.5 rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="block">
-          <span className="text-xs text-slate-500">Délai livraison (jours)</span>
-          <input type="number" name="lead_time_days" min={0} defaultValue={supplier.lead_time_days ?? ""} className="mt-0.5 w-24 rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">Délai livraison (jours)</span>
+          <input type="number" name="lead_time_days" min={0} defaultValue={supplier.lead_time_days ?? ""} className="mt-0.5 w-24 rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" name="is_active" value="true" defaultChecked={supplier.is_active} />
           <span className="text-sm">Fournisseur actif</span>
         </label>
         <label className="block">
-          <span className="text-xs text-slate-500">Notes</span>
-          <textarea name="notes" rows={2} defaultValue={supplier.notes ?? ""} className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">Notes</span>
+          <textarea name="notes" rows={2} defaultValue={supplier.notes ?? ""} className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
       </div>
       <div className="mt-3">
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
         >
           {loading ? "Enregistrement…" : "Enregistrer"}
         </button>

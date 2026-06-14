@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { listColdHygieneElements, listColdTemperatureRegister } from "@/lib/hygiene/hygieneDb";
+import { listColdTemperatureRegister } from "@/lib/hygiene/hygieneDb";
+import { cachedListColdHygieneElements } from "@/lib/cache";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HygieneColdTemperaturesClient } from "./HygieneColdTemperaturesClient";
 
@@ -10,7 +11,7 @@ export default async function HygieneTemperaturesPage() {
   if (!restaurant) redirect("/onboarding");
 
   const [coldElements, recentReadings] = await Promise.all([
-    listColdHygieneElements(restaurant.id),
+    cachedListColdHygieneElements(restaurant.id),
     listColdTemperatureRegister(restaurant.id, 15),
   ]);
 
@@ -25,7 +26,7 @@ export default async function HygieneTemperaturesPage() {
           Pour chaque chambre froide, frigo ou congélateur, enregistrez la température à l’ouverture et à la fermeture.
           Les relevés sont conservés dans le registre dédié.
         </p>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-stone-500">
           Support de traçabilité interne ; adaptez la fréquence et les seuils à votre procédure HACCP.
         </p>
       </div>

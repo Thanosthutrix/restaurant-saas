@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { listTemperaturePoints } from "@/lib/haccpTemperature/haccpTemperatureDb";
+import { cachedListTemperaturePoints } from "@/lib/cache";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HaccpPointsClient } from "./HaccpPointsClient";
 
@@ -9,7 +9,7 @@ export default async function HaccpPointsPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const points = await listTemperaturePoints(restaurant.id);
+  const points = await cachedListTemperaturePoints(restaurant.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">

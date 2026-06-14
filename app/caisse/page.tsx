@@ -108,11 +108,11 @@ async function CaisseCatalogSection({ restaurantId }: { restaurantId: string }) 
 function CaisseCatalogFallback() {
   return (
     <section className={`${uiCard} space-y-3`}>
-      <div className="h-5 w-44 animate-pulse rounded-lg bg-slate-200" />
+      <div className="h-5 w-44 animate-pulse rounded-lg bg-stone-200" />
       <div className="space-y-2">
-        <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100" />
-        <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100" />
-        <div className="h-10 w-2/3 animate-pulse rounded-xl bg-slate-100" />
+        <div className="h-10 w-full animate-pulse rounded-xl bg-stone-100" />
+        <div className="h-10 w-full animate-pulse rounded-xl bg-stone-100" />
+        <div className="h-10 w-2/3 animate-pulse rounded-xl bg-stone-100" />
       </div>
       <p className={uiLead}>Chargement rapide de la carte caisse…</p>
     </section>
@@ -161,7 +161,7 @@ export default async function CaissePage() {
             <p className={uiLead}>Aucune commande ouverte.</p>
             <p className={`mt-2 ${uiLead}`}>
               Les tables lancées depuis la{" "}
-              <Link href="/salle" className="font-semibold text-indigo-600">
+              <Link href="/salle" className="font-semibold text-copper-700">
                 salle
               </Link>{" "}
               apparaissent ici aussi.
@@ -173,9 +173,9 @@ export default async function CaissePage() {
               <li key={row.orderId}>
                 <Link
                   href={`/salle/commande/${row.orderId}?from=caisse`}
-                  className={`${uiCard} block transition hover:border-indigo-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500`}
+                  className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper-600`}
                 >
-                  <p className="font-medium text-slate-900">
+                  <p className="font-medium text-stone-900">
                     {row.kind === "counter" ? row.label : `Table ${row.label}`}
                   </p>
                   <p className={`mt-0.5 text-sm ${uiLead}`}>
@@ -197,8 +197,8 @@ export default async function CaissePage() {
         ) : (
           <>
             <div className={`${uiCard} space-y-3`}>
-              <p className="text-sm font-semibold text-slate-700">Totaux</p>
-              <ul className="space-y-1 text-sm text-slate-700">
+              <p className="text-sm font-semibold text-stone-700">Totaux</p>
+              <ul className="space-y-1 text-sm text-stone-700">
                 {[...totals.entries()].map(([method, sum]) => (
                   <li key={method} className="flex justify-between gap-4">
                     <span>{paymentLabel(method)}</span>
@@ -207,7 +207,7 @@ export default async function CaissePage() {
                     </span>
                   </li>
                 ))}
-                <li className="flex justify-between gap-4 border-t border-slate-100 pt-2 font-semibold text-slate-900">
+                <li className="flex justify-between gap-4 border-t border-stone-100 pt-2 font-semibold text-stone-900">
                   <span>Total</span>
                   <span className="tabular-nums">{fmtEur(Math.round(grandTotal * 100) / 100)}</span>
                 </li>
@@ -215,23 +215,23 @@ export default async function CaissePage() {
             </div>
 
             <div>
-              <p className={`mb-2 text-sm font-semibold text-slate-700`}>Détail</p>
+              <p className={`mb-2 text-sm font-semibold text-stone-700`}>Détail</p>
               <ul className="space-y-2">
                 {settledList.map(({ order, table_label: displayLabel, payment }) => (
                   <li key={order.id} className="space-y-2">
                     <Link
                       href={`/salle/commande/${order.id}?from=caisse`}
-                      className={`${uiCard} block transition hover:border-indigo-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500`}
+                      className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper-600`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <p className="font-medium text-slate-900">{displayLabel}</p>
+                          <p className="font-medium text-stone-900">{displayLabel}</p>
                           <p className={`mt-0.5 text-sm ${uiLead}`}>
                             {settledTimeParis(order.settled_at)} ·{" "}
                             {paymentLabel(payment?.payment_method)}
                           </p>
                         </div>
-                        <p className="text-lg font-semibold tabular-nums text-slate-900">
+                        <p className="text-lg font-semibold tabular-nums text-stone-900">
                           {fmtEur(toNumber(payment?.amount_ttc))}
                         </p>
                       </div>
@@ -240,7 +240,7 @@ export default async function CaissePage() {
                       <p className="px-1">
                         <Link
                           href={`/service/${order.service_id}`}
-                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                          className="text-xs font-semibold text-copper-700 hover:text-copper-600"
                         >
                           Service →
                         </Link>

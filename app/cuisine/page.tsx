@@ -8,7 +8,7 @@ const actions = [
     description: "Créer ou reprendre un service, puis saisir les ventes pour garder le stock et les marges à jour.",
     href: "/service/new",
     icon: ClipboardList,
-    tone: "bg-indigo-50 text-indigo-700",
+    tone: "bg-copper-50 text-copper-800",
   },
   {
     title: "Fiches plats",
@@ -51,7 +51,7 @@ export default function CuisinePage() {
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Espace métier</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-copper-700">Espace métier</p>
         <h1 className={`${uiPageTitle} mt-2`}>Cuisine</h1>
         <p className={`${uiLead} mt-2 max-w-2xl`}>
           Tout ce qui sert au chef est regroupé ici, dans l’ordre logique : préparer le service, gérer les fiches,
@@ -68,10 +68,10 @@ export default function CuisinePage() {
                 <div className={`rounded-2xl p-3 ${action.tone}`}>
                   <Icon className="h-5 w-5" aria-hidden />
                 </div>
-                <ArrowUpRight className="h-5 w-5 text-slate-300 transition group-hover:text-indigo-500" aria-hidden />
+                <ArrowUpRight className="h-5 w-5 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
               </div>
-              <h2 className="mt-4 text-base font-semibold text-slate-900">{action.title}</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-500">{action.description}</p>
+              <h2 className="mt-4 text-base font-semibold text-stone-900">{action.title}</h2>
+              <p className="mt-1 text-sm leading-6 text-stone-500">{action.description}</p>
             </Link>
           );
         })}

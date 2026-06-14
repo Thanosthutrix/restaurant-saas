@@ -135,8 +135,8 @@ export function CaisseNewTicketForm({ restaurantId, recentCustomerPool }: Props)
   };
 
   return (
-    <div className="space-y-2 border-b border-slate-200/80 pb-3">
-      <p className="text-xs font-medium text-slate-500">
+    <div className="space-y-2 border-b border-stone-200/80 pb-3">
+      <p className="text-xs font-medium text-stone-500">
         Ticket à un nom — tapez pour retrouver un client (comme le n° de lot en préparations) ou saisissez un nom libre.
       </p>
       <div className="relative flex flex-wrap items-start gap-2">
@@ -169,7 +169,7 @@ export function CaisseNewTicketForm({ restaurantId, recentCustomerPool }: Props)
           {listOpen && (name.trim().length > 0 || suggestions.length > 0) && suggestions.length > 0 ? (
             <div
               ref={listRef}
-              className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-stone-200 bg-white py-1 shadow-lg"
               role="listbox"
             >
               {suggestions.map((c) => (
@@ -177,18 +177,18 @@ export function CaisseNewTicketForm({ restaurantId, recentCustomerPool }: Props)
                   key={c.id}
                   type="button"
                   role="option"
-                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-indigo-50"
+                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-copper-50"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => selectClient(c)}
                 >
-                  <span className="font-medium text-slate-900">{c.display_name}</span>
-                  <span className="text-xs text-slate-500">
+                  <span className="font-medium text-stone-900">{c.display_name}</span>
+                  <span className="text-xs text-stone-500">
                     {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
                   </span>
                 </button>
               ))}
               {searchLoading ? (
-                <div className="px-3 py-2 text-xs text-slate-500">Recherche…</div>
+                <div className="px-3 py-2 text-xs text-stone-500">Recherche…</div>
               ) : null}
             </div>
           ) : null}
@@ -210,7 +210,7 @@ export function CaisseNewTicketForm({ restaurantId, recentCustomerPool }: Props)
           </span>
           <button
             type="button"
-            className="font-semibold text-slate-600 underline"
+            className="font-semibold text-stone-600 underline"
             onClick={clearClient}
             disabled={pending}
           >
@@ -218,7 +218,7 @@ export function CaisseNewTicketForm({ restaurantId, recentCustomerPool }: Props)
           </button>
         </div>
       ) : (
-        <p className="text-xs text-slate-500">Sans sélection, le libellé reste un nom libre (aucune fiche liée).</p>
+        <p className="text-xs text-stone-500">Sans sélection, le libellé reste un nom libre (aucune fiche liée).</p>
       )}
       {error ? <p className={`${uiError} w-full text-xs`}>{error}</p> : null}
     </div>

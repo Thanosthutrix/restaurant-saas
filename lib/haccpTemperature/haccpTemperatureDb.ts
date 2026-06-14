@@ -84,28 +84,43 @@ export async function ensureTemperatureTasksForRestaurant(
   restaurantId: string,
   daysAhead = 14
 ): Promise<void> {
-  const { data: points, error } = await supabaseServer
-    .from("temperature_points")
-    .select("*")
-    .eq("restaurant_id", restaurantId)
-    .eq("active", true);
-  if (error || !points?.length) return;
+  const [pointsRes, restaurantRes] = await Promise.all([
+    supabaseServer
+      .from("temperature_points")
+      .select("*")
+      .eq("restaurant_id", restaurantId)
+      .eq("active", true),
+    supabaseServer
+      .from("restaurants")
+      .select("closed_days_of_week")
+      .eq("id", restaurantId)
+      .maybeSingle(),
+  ]);
+
+  const points = pointsRes.data;
+  if (pointsRes.error || !points?.length) return;
+
+  const closedDays: number[] =
+    (restaurantRes.data as { closed_days_of_week?: number[] } | null)?.closed_days_of_week ?? [];
 
   const windowStart = new Date();
   windowStart.setUTCHours(0, 0, 0, 0);
   const windowEnd = new Date(windowStart);
   windowEnd.setUTCDate(windowEnd.getUTCDate() + daysAhead);
 
+  const rowsToInsert = [];
   for (const raw of points) {
     const point = mapPoint(raw as Record<string, unknown>);
-    const rows = buildTemperatureTaskInsertsForPoint(point, windowStart, windowEnd);
-    for (const row of rows) {
-      const { error: insErr } = await supabaseServer.from("temperature_tasks").insert(row);
-      if (insErr) {
-        const code = (insErr as { code?: string }).code;
-        if (code === "23505") continue;
-      }
-    }
+    rowsToInsert.push(...buildTemperatureTaskInsertsForPoint(point, windowStart, windowEnd, closedDays));
+  }
+  if (rowsToInsert.length === 0) return;
+
+  const chunkSize = 500;
+  for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
+    await supabaseServer.from("temperature_tasks").upsert(rowsToInsert.slice(i, i + chunkSize), {
+      onConflict: "temperature_point_id,period_key",
+      ignoreDuplicates: true,
+    });
   }
 }
 

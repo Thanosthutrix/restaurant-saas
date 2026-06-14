@@ -71,7 +71,7 @@ export function menuItemsToEditableRows(items: MenuSuggestionItem[]): MenuSugges
 }
 
 const checkboxClass =
-  "h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500";
+  "h-4 w-4 shrink-0 rounded border-stone-300 text-copper-700 accent-copper-700 focus:ring-copper-600";
 
 type CreateResult = {
   created: number;
@@ -222,7 +222,7 @@ export function MenuSuggestionsEditor({
         ) : (
           <div className="space-y-4">
             {suggestions.map((row, i) => (
-              <div key={row.clientRowId} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 shadow-sm">
+              <div key={row.clientRowId} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3 shadow-sm">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <input
                     type="checkbox"
@@ -298,7 +298,7 @@ export function MenuSuggestionsEditor({
                       const v = row.selling_vat_rate_pct ?? (row.suggested_mode === "resale" ? 20 : 10);
                       const ht = sellingPriceHtFromTtc(row.selling_price_ttc, v);
                       return (
-                        <span className="self-end text-[11px] text-slate-500">
+                        <span className="self-end text-[11px] text-stone-500">
                           ≈ {ht.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} HT
                         </span>
                       );

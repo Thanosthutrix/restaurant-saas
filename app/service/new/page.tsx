@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getDishes } from "@/lib/db";
+import { cachedGetDishes } from "@/lib/cache";
 import { getRestaurantForPage } from "@/lib/auth";
 import { NewServiceForm } from "./NewServiceForm";
 
@@ -7,7 +7,7 @@ export default async function NewServicePage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const { data: dishes, error } = await getDishes(restaurant.id);
+  const { data: dishes, error } = await cachedGetDishes(restaurant.id);
 
   if (error) {
     return (
@@ -21,7 +21,7 @@ export default async function NewServicePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <NewServiceForm restaurantId={restaurant.id} dishes={dishes ?? []} />
     </div>
   );

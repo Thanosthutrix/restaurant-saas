@@ -16,7 +16,7 @@ export function CategoryPictogram({ title, depth, className = "" }: PictogramPro
   const size = depth > 0 ? "h-4 w-4" : "h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5";
   return (
     <Icon
-      className={`shrink-0 text-indigo-600 ${size} ${className}`.trim()}
+      className={`shrink-0 text-copper-700 ${size} ${className}`.trim()}
       aria-hidden
     />
   );

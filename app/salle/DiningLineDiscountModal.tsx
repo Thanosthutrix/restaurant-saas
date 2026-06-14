@@ -100,7 +100,7 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
   return (
     <dialog
       ref={dialogRef}
-      className="w-[min(100%,22rem)] rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/40"
+      className="w-[min(100%,22rem)] rounded-2xl border border-stone-200 bg-white p-0 shadow-xl backdrop:bg-stone-900/40"
       onClose={handleClose}
       onClick={(e) => {
         if (e.target === dialogRef.current) handleClose();
@@ -108,12 +108,12 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
     >
       {line ? (
         <div className="p-5">
-          <h2 className="text-lg font-semibold text-slate-900">Remise</h2>
+          <h2 className="text-lg font-semibold text-stone-900">Remise</h2>
           <p className={`mt-1 text-sm ${uiLead}`}>{line.dishName}</p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-stone-600">
             Sous-total catalogue :{" "}
-            <span className="font-semibold text-slate-900">{fmtEur(line.lineGrossTtc)}</span>
-            <span className="text-slate-500"> · Qté {line.qty}</span>
+            <span className="font-semibold text-stone-900">{fmtEur(line.lineGrossTtc)}</span>
+            <span className="text-stone-500"> · Qté {line.qty}</span>
           </p>
 
           <p className={`mt-4 ${uiLabel}`}>Type</p>
@@ -133,8 +133,8 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
                 onClick={() => setKind(k)}
                 className={
                   kind === k
-                    ? "rounded-xl bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm"
-                    : "rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                    ? "rounded-xl bg-copper-700 px-3 py-1.5 text-sm font-semibold text-white shadow-sm"
+                    : "rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50"
                 }
               >
                 {label}
@@ -156,10 +156,10 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
                   step={0.5}
                   value={percentStr}
                   onChange={(e) => setPercentStr(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-900"
+                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-900"
                   disabled={pending}
                 />
-                <span className="text-sm text-slate-500">%</span>
+                <span className="text-sm text-stone-500">%</span>
               </div>
             </div>
           ) : null}
@@ -176,7 +176,7 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
                 placeholder="ex. 2,50"
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-900"
+                className="mt-1 w-full rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-900"
                 disabled={pending}
               />
             </div>

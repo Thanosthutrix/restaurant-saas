@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafafa;
-  --foreground: #18181b;
+  --background: #e9edf2;
+  --foreground: #1f2124;
   --app-card: #ffffff;
-  --app-ring: rgba(24, 24, 27, 0.08);
+  --app-ring: rgba(31, 33, 36, 0.08);
 }
 
 @theme inline {
@@ -12,6 +12,46 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Gamme cuivre poli — calibrée sur le métal réel : reflets rose saumoné en
+   clair, cœur salmon-cuivré, ombres rouille profondes.
+   600 = cuivre éclatant (hover), 700 = cuivre profond (texte blanc ≥ 4.5:1). */
+@theme {
+  --color-copper-50: #fdf3ee;
+  --color-copper-100: #fbe3d7;
+  --color-copper-200: #f6c7b0;
+  --color-copper-300: #eea585;
+  --color-copper-400: #e28257;
+  --color-copper-500: #d26a3c;
+  --color-copper-600: #c25a2c;
+  --color-copper-700: #a94b20;
+  --color-copper-800: #883c1a;
+  --color-copper-900: #6c3015;
+  --color-copper-950: #431d0c;
+}
+
+/* Reflet métallique cuivre — bande de lumière diagonale (métal poli) sur
+   dégradé vertical clair → profond, liseré lumineux en haut, arête sombre en
+   bas. À poser sur les boutons primaires et accents de marque. */
+.copper-sheen {
+  background-image:
+    linear-gradient(115deg, transparent 18%, rgba(255, 235, 222, 0.3) 30%, transparent 44%),
+    linear-gradient(180deg, #e08550 0%, #c25a2c 50%, #9c431c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 228, 210, 0.65),
+    inset 0 -1px 0 rgba(67, 29, 12, 0.3),
+    0 1px 3px rgba(67, 29, 12, 0.25);
+}
+
+/* Sidebar graphite texturé — gris profond avec grain fin (bruit SVG inline,
+   façon métal brossé) et léger dégradé de lumière vertical. Aucune image
+   externe : le bruit est généré par le navigateur. */
+.sidebar-graphite {
+  background-color: #2e3134;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.06'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, #36393d 0%, #2c2f32 55%, #26292c 100%);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -33,10 +73,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-    --app-card: #18181b;
-    --app-ring: rgba(250, 250, 250, 0.06);
+    --background: #0c0a09;
+    --foreground: #fafaf9;
+    --app-card: #1c1917;
+    --app-ring: rgba(250, 250, 249, 0.06);
   }
 }
 
@@ -46,7 +86,7 @@ body {
 }
 
 ::selection {
-  background: rgba(24, 24, 27, 0.12);
+  background: rgba(194, 65, 12, 0.16);
 }
 
 @media (prefers-color-scheme: dark) {

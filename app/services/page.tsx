@@ -47,7 +47,7 @@ export default async function ServicesHistoryPage() {
       </div>
 
       {!services?.length ? (
-        <p className={`rounded-2xl border border-slate-100 bg-white p-4 text-sm shadow-sm ${uiLead}`}>
+        <p className={`rounded-2xl border border-stone-100 bg-white p-4 text-sm shadow-sm ${uiLead}`}>
           Aucun service enregistré. Créez un service depuis le tableau de bord.
         </p>
       ) : (
@@ -57,10 +57,10 @@ export default async function ServicesHistoryPage() {
             return (
               <li key={service.id}>
                 <Link href={`/service/${service.id}`} className={uiListRow}>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-stone-900">
                     {formatDate(service.service_date)} — {formatServiceType(service.service_type)}
                   </span>
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-stone-500">
                     {agg.lines} ligne{agg.lines !== 1 ? "s" : ""} · {agg.totalQty} vendu{agg.totalQty !== 1 ? "s" : ""}
                   </span>
                 </Link>

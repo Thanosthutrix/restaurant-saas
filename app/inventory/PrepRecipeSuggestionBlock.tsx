@@ -99,7 +99,7 @@ export function PrepRecipeSuggestionBlock({
             key={index}
             className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-100 bg-white px-3 py-2 shadow-sm"
           >
-            <span className="w-32 shrink-0 font-semibold text-slate-900 sm:w-40">{line.name}</span>
+            <span className="w-32 shrink-0 font-semibold text-stone-900 sm:w-40">{line.name}</span>
             <input
               type="text"
               inputMode="decimal"
@@ -120,7 +120,7 @@ export function PrepRecipeSuggestionBlock({
               className={`w-20 ${uiInput}`}
               aria-label={`Quantité ${line.name}`}
             />
-            <span className="w-8 shrink-0 text-sm text-slate-500">{line.unit}</span>
+            <span className="w-8 shrink-0 text-sm text-stone-500">{line.unit}</span>
             <button
               type="button"
               disabled={loading}
@@ -181,7 +181,7 @@ function AddLineForm({
 
   return (
     <form onSubmit={handleSubmit} className="mb-4 flex flex-wrap items-end gap-2 border-t border-violet-200/80 pt-3">
-      <span className="w-full text-sm font-semibold text-slate-800">+ Ajouter un composant</span>
+      <span className="w-full text-sm font-semibold text-stone-800">+ Ajouter un composant</span>
       <select
         value={componentItemId}
         onChange={(e) => setComponentItemId(e.target.value)}

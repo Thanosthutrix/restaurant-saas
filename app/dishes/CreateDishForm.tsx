@@ -16,7 +16,7 @@ export function CreateDishForm({ initialName = "", returnTo = "" }: Props) {
 
   return (
     <form action={createDishAction} className={`${uiCard} mb-0`}>
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">Nouveau plat</h3>
+      <h3 className="mb-3 text-sm font-semibold text-stone-900">Nouveau plat</h3>
       <div className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="productionMode" value={productionMode} />
         {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}

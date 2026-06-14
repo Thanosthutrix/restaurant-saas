@@ -2,10 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
-  ensureHygieneTasksForRestaurant,
   listHygieneTasksDue,
   listHygieneTasksUpcoming,
 } from "@/lib/hygiene/hygieneDb";
+import { cachedEnsureHygieneTasks } from "@/lib/cache";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HygieneTasksClient } from "./HygieneTasksClient";
 
@@ -13,7 +13,7 @@ export default async function HygieneTasksPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  await ensureHygieneTasksForRestaurant(restaurant.id, 14);
+  await cachedEnsureHygieneTasks(restaurant.id);
   const [due, upcoming] = await Promise.all([
     listHygieneTasksDue(restaurant.id, 100),
     listHygieneTasksUpcoming(restaurant.id, 30),

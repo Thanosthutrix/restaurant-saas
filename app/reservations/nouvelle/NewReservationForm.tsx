@@ -163,11 +163,11 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-medium text-slate-600">
+        <label className="block text-xs font-medium text-stone-600">
           Jour
           <input type="date" className={`${uiInput} mt-1 w-full`} value={ymd} onChange={(e) => setYmd(e.target.value)} required />
         </label>
-        <label className="block text-xs font-medium text-slate-600">
+        <label className="block text-xs font-medium text-stone-600">
           Heure
           <input
             type="time"
@@ -177,7 +177,7 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
             required
           />
         </label>
-        <label className="block text-xs font-medium text-slate-600">
+        <label className="block text-xs font-medium text-stone-600">
           Couverts
           <input
             type="number"
@@ -189,7 +189,7 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
             required
           />
         </label>
-        <label className="block text-xs font-medium text-slate-600">
+        <label className="block text-xs font-medium text-stone-600">
           Durée (minutes, par pas de 15)
           <input
             type="number"
@@ -202,7 +202,7 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
             required
           />
         </label>
-        <label className="block text-xs font-medium text-slate-600 sm:col-span-2">
+        <label className="block text-xs font-medium text-stone-600 sm:col-span-2">
           Source
           <select
             className={`${uiInput} mt-1 w-full`}
@@ -219,7 +219,7 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-600">Client — nom (obligatoire si pas de fiche)</label>
+        <label className="block text-xs font-medium text-stone-600">Client — nom (obligatoire si pas de fiche)</label>
         <div className="relative mt-1">
           <input
             ref={inputRef}
@@ -240,21 +240,21 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
           {listOpen && (name.trim().length > 0 || suggestions.length > 0) && suggestions.length > 0 ? (
             <div
               ref={listRef}
-              className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-stone-200 bg-white py-1 shadow-lg"
             >
               {suggestions.map((c) => (
                 <button
                   key={c.id}
                   type="button"
-                  className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-indigo-50"
+                  className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-copper-50"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => selectClient(c)}
                 >
-                  <span className="font-medium text-slate-900">{c.display_name}</span>
-                  <span className="text-xs text-slate-500">{[c.email, c.phone].filter(Boolean).join(" · ") || "—"}</span>
+                  <span className="font-medium text-stone-900">{c.display_name}</span>
+                  <span className="text-xs text-stone-500">{[c.email, c.phone].filter(Boolean).join(" · ") || "—"}</span>
                 </button>
               ))}
-              {searchLoading ? <div className="px-3 py-2 text-xs text-slate-500">Recherche…</div> : null}
+              {searchLoading ? <div className="px-3 py-2 text-xs text-stone-500">Recherche…</div> : null}
             </div>
           ) : null}
         </div>
@@ -266,10 +266,10 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
             </button>
           </p>
         ) : (
-          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 text-sm text-slate-800">
+          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-stone-200 bg-stone-50/80 p-2 text-sm text-stone-800">
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 rounded border-slate-300"
+              className="mt-1 h-4 w-4 rounded border-stone-300"
               checked={createFiche}
               onChange={(e) => setCreateFiche(e.target.checked)}
             />
@@ -283,11 +283,11 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-medium text-slate-600">
+        <label className="block text-xs font-medium text-stone-600">
           Téléphone
           <input className={`${uiInput} mt-1 w-full`} value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" />
         </label>
-        <label className="block text-xs font-medium text-slate-600">
+        <label className="block text-xs font-medium text-stone-600">
           E-mail
           <input
             className={`${uiInput} mt-1 w-full`}
@@ -298,7 +298,7 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
         </label>
       </div>
 
-      <label className="block text-xs font-medium text-slate-600">
+      <label className="block text-xs font-medium text-stone-600">
         Notes
         <textarea
           rows={3}
@@ -315,7 +315,7 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-950">
           <p className="font-medium">Réservation enregistrée.</p>
           {postSuccess.newCustomerId ? (
-            <p className="mt-2 text-slate-800">
+            <p className="mt-2 text-stone-800">
               Une fiche client a été créée avec le nom et le contact saisis. Vous pouvez la compléter (adresse,
               allergies, etc.) quand vous voulez.
             </p>
@@ -324,14 +324,14 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
             {postSuccess.newCustomerId ? (
               <Link
                 href={`/clients/${postSuccess.newCustomerId}`}
-                className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+                className="inline-flex items-center justify-center rounded-xl bg-copper-700 px-4 py-2 text-sm font-semibold text-white hover:bg-copper-600"
               >
                 Ouvrir la fiche client
               </Link>
             ) : null}
             <Link
               href={"/reservations?date=" + encodeURIComponent(postSuccess.ymd)}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-50"
             >
               Voir le planning du jour
             </Link>
@@ -351,7 +351,7 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
         </button>
         <Link
           href="/reservations"
-          className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+          className="inline-flex items-center justify-center rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
         >
           Annuler
         </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition, useEffect } from "react";
-import { Camera } from "lucide-react";
+import { Camera, Thermometer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { HygieneElement, HygieneRecurrencePreset } from "@/lib/hygiene/types";
 import {
@@ -19,6 +19,7 @@ import { HYGIENE_PROOFS_BUCKET } from "@/lib/constants";
 import {
   upsertHygieneElementAction,
   setHygieneElementActiveAction,
+  deleteHygieneElementAction,
   createManualHygieneTaskAction,
   logHygieneElementDoneAction,
 } from "../actions";
@@ -36,6 +37,21 @@ type Props = {
 const defaultCategory = "plan_travail" as (typeof HYGIENE_ELEMENT_CATEGORIES)[number];
 const defaultPreset = getHygieneProtocolPreset(defaultCategory);
 
+const COLD_CATEGORIES = new Set(["chambre_froide", "frigo", "congelateur"]);
+
+const COLD_TEMP_DEFAULTS: Record<string, { min: number; max: number }> = {
+  chambre_froide: { min: 0, max: 4 },
+  frigo: { min: 0, max: 4 },
+  congelateur: { min: -25, max: -15 },
+};
+
+const TEMP_RECURRENCE_LABEL_FR: Record<"daily" | "per_service", string> = {
+  daily: "1 relevé / jour",
+  per_service: "2 relevés / jour (ouverture & fermeture)",
+};
+
+const DAYS_OF_WEEK_FR = ["Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."];
+
 const emptyForm = {
   id: null as string | null,
   name: "",
@@ -52,15 +68,29 @@ const emptyForm = {
   dosage: defaultPreset.dosage,
   contact_time: defaultPreset.contact_time,
   active: true,
+  temp_point_enabled: false,
+  temp_min_threshold: null as number | null,
+  temp_max_threshold: null as number | null,
+  temp_recurrence_type: "daily" as "daily" | "per_service",
+  // Protocole secondaire (ex: nettoyage quotidien + désinfection hebdo)
+  secondary_recurrence_type: null as (typeof HYGIENE_RECURRENCE_TYPES)[number] | null,
+  secondary_recurrence_day_of_week: null as number | null,
+  secondary_recurrence_day_of_month: null as number | null,
+  secondary_cleaning_protocol: "",
+  secondary_disinfection_protocol: "",
 };
+
+type FormState = typeof emptyForm;
 
 export function HygieneElementsClient({ restaurantId, elements, presets, initialElementId }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [filter, setFilter] = useState("");
   const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  // null = aucune édition ouverte ; "new" = formulaire de création en haut ; id = édition inline
+  const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [doneModalEl, setDoneModalEl] = useState<HygieneElement | null>(null);
   const [doneComment, setDoneComment] = useState("");
   const [doneFile, setDoneFile] = useState<File | null>(null);
@@ -91,6 +121,7 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
 
   function applyPresetForCategory(cat: string, includeProtocol: boolean) {
     const p = presetByCategory.get(cat);
+    const coldDefaults = COLD_TEMP_DEFAULTS[cat];
     setForm((f) => {
       let next = {
         ...f,
@@ -102,17 +133,18 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
               recurrence_day_of_month: p.recurrence_day_of_month,
             }
           : {}),
+        ...(coldDefaults && !f.temp_min_threshold && !f.temp_max_threshold
+          ? { temp_min_threshold: coldDefaults.min, temp_max_threshold: coldDefaults.max }
+          : {}),
       };
-      if (includeProtocol) {
-        next = applyHygieneProtocolPreset(next);
-      }
+      if (includeProtocol) next = applyHygieneProtocolPreset(next);
       return next;
     });
   }
 
-  function edit(el: HygieneElement) {
-    setShowForm(true);
-    setError(null);
+  function openEdit(el: HygieneElement) {
+    setFormError(null);
+    setDeleteConfirmId(null);
     setForm({
       id: el.id,
       name: el.name,
@@ -129,17 +161,40 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
       dosage: el.dosage ?? "",
       contact_time: el.contact_time ?? "",
       active: el.active,
+      temp_point_enabled: el.temp_point_enabled,
+      temp_min_threshold: el.temp_min_threshold,
+      temp_max_threshold: el.temp_max_threshold,
+      temp_recurrence_type: el.temp_recurrence_type ?? "daily",
+      secondary_recurrence_type: el.secondary_recurrence_type,
+      secondary_recurrence_day_of_week: el.secondary_recurrence_day_of_week,
+      secondary_recurrence_day_of_month: el.secondary_recurrence_day_of_month,
+      secondary_cleaning_protocol: el.secondary_cleaning_protocol,
+      secondary_disinfection_protocol: el.secondary_disinfection_protocol,
     });
+    setEditingId(el.id);
+  }
+
+  function openNew() {
+    setFormError(null);
+    setDeleteConfirmId(null);
+    setForm(emptyForm);
+    setEditingId("new");
+  }
+
+  function closeForm() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormError(null);
   }
 
   useEffect(() => {
     if (!initialElementId) return;
     const el = elements.find((e) => e.id === initialElementId);
-    if (el) edit(el);
+    if (el) openEdit(el);
   }, [initialElementId, elements]);
 
   function submit() {
-    setError(null);
+    setFormError(null);
     start(async () => {
       const r = await upsertHygieneElementAction(restaurantId, {
         id: form.id,
@@ -150,26 +205,347 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
         risk_level: form.risk_level,
         recurrence_type: form.recurrence_type,
         recurrence_day_of_week: form.recurrence_type === "weekly" ? form.recurrence_day_of_week : null,
-        recurrence_day_of_month: form.recurrence_type === "monthly" ? form.recurrence_day_of_month : null,
+        recurrence_day_of_month: ["monthly", "quarterly", "annual"].includes(form.recurrence_type) ? form.recurrence_day_of_month : null,
         cleaning_protocol: form.cleaning_protocol,
         disinfection_protocol: form.disinfection_protocol,
         product_used: form.product_used || null,
         dosage: form.dosage || null,
         contact_time: form.contact_time || null,
         active: form.active,
+        temp_point_enabled: form.temp_point_enabled,
+        temp_min_threshold: form.temp_min_threshold,
+        temp_max_threshold: form.temp_max_threshold,
+        temp_recurrence_type: form.temp_recurrence_type,
+        secondary_recurrence_type: form.secondary_recurrence_type || null,
+        secondary_recurrence_day_of_week: form.secondary_recurrence_type === "weekly" ? form.secondary_recurrence_day_of_week : null,
+        secondary_recurrence_day_of_month: form.secondary_recurrence_type && ["monthly", "quarterly", "annual"].includes(form.secondary_recurrence_type) ? form.secondary_recurrence_day_of_month : null,
+        secondary_cleaning_protocol: form.secondary_cleaning_protocol,
+        secondary_disinfection_protocol: form.secondary_disinfection_protocol,
       });
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      setForm(emptyForm);
-      setShowForm(false);
+      if (!r.ok) { setFormError(r.error); return; }
+      closeForm();
       router.refresh();
     });
   }
 
+  function FormPanel({ isNew }: { isNew: boolean }) {
+    return (
+      <div className="mt-2 rounded-xl border border-copper-100 bg-copper-50/40 p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-stone-900">
+          {isNew ? "Ajouter un élément" : "Modifier l'élément"}
+        </h2>
+        {formError && <p className="text-sm text-rose-700">{formError}</p>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className={uiLabel}>Nom</label>
+            <input
+              className={`${uiInput} mt-1 w-full`}
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className={uiLabel}>Catégorie</label>
+            <select
+              className={`${uiSelect} mt-1 w-full`}
+              value={form.category}
+              onChange={(e) => applyPresetForCategory(e.target.value, isNew)}
+            >
+              {HYGIENE_ELEMENT_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{HYGIENE_CATEGORY_LABEL_FR[c]}</option>
+              ))}
+            </select>
+            {presetByCategory.get(form.category) && (
+              <p className="mt-1 text-xs text-stone-500">{presetByCategory.get(form.category)?.label_fr}</p>
+            )}
+          </div>
+          <div>
+            <label className={uiLabel}>Zone / emplacement</label>
+            <input
+              className={`${uiInput} mt-1 w-full`}
+              value={form.area_label}
+              onChange={(e) => setForm((f) => ({ ...f, area_label: e.target.value }))}
+              placeholder="ex. Cuisine ligne 1"
+            />
+          </div>
+          <div>
+            <label className={uiLabel}>Criticité</label>
+            <select
+              className={`${uiSelect} mt-1 w-full`}
+              value={form.risk_level}
+              onChange={(e) => setForm((f) => ({ ...f, risk_level: e.target.value as FormState["risk_level"] }))}
+            >
+              {HYGIENE_RISK_LEVELS.map((r) => (
+                <option key={r} value={r}>{HYGIENE_RISK_LABEL_FR[r]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={uiLabel}>Récurrence</label>
+            <select
+              className={`${uiSelect} mt-1 w-full`}
+              value={form.recurrence_type}
+              onChange={(e) => setForm((f) => ({ ...f, recurrence_type: e.target.value as FormState["recurrence_type"] }))}
+            >
+              {HYGIENE_RECURRENCE_TYPES.map((r) => (
+                <option key={r} value={r}>{HYGIENE_RECURRENCE_LABEL_FR[r]}</option>
+              ))}
+            </select>
+          </div>
+          {form.recurrence_type === "weekly" && (
+            <div>
+              <label className={uiLabel}>Jour de la semaine</label>
+              <select
+                className={`${uiSelect} mt-1 w-full`}
+                value={form.recurrence_day_of_week ?? 1}
+                onChange={(e) => setForm((f) => ({ ...f, recurrence_day_of_week: Number(e.target.value) }))}
+              >
+                {DAYS_OF_WEEK_FR.map((label, dow) => (
+                  <option key={dow} value={dow}>{label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {["monthly", "quarterly", "annual"].includes(form.recurrence_type) && (
+            <div>
+              <label className={uiLabel}>Jour du mois (1–28)</label>
+              <input
+                type="number" min={1} max={28}
+                className={`${uiInput} mt-1 w-full`}
+                value={form.recurrence_day_of_month ?? 1}
+                onChange={(e) => setForm((f) => ({ ...f, recurrence_day_of_month: Number(e.target.value) }))}
+              />
+            </div>
+          )}
+          <div className="sm:col-span-2">
+            <label className={uiLabel}>Description (optionnel)</label>
+            <textarea
+              className={`${uiInput} mt-1 min-h-[4rem] w-full`}
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className={uiLabel}>Protocole nettoyage</label>
+              <button
+                type="button"
+                className="text-xs font-medium text-copper-700 hover:text-copper-600"
+                onClick={() => setForm((f) => applyHygieneProtocolPreset(f))}
+              >
+                Appliquer le protocole type
+              </button>
+            </div>
+            <textarea
+              className={`${uiInput} mt-1 min-h-[6rem] w-full font-mono text-xs leading-relaxed`}
+              value={form.cleaning_protocol}
+              onChange={(e) => setForm((f) => ({ ...f, cleaning_protocol: e.target.value }))}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={uiLabel}>Protocole désinfection</label>
+            <textarea
+              className={`${uiInput} mt-1 min-h-[6rem] w-full font-mono text-xs leading-relaxed`}
+              value={form.disinfection_protocol}
+              onChange={(e) => setForm((f) => ({ ...f, disinfection_protocol: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className={uiLabel}>Produit (optionnel)</label>
+            <input
+              className={`${uiInput} mt-1 w-full`}
+              value={form.product_used}
+              onChange={(e) => setForm((f) => ({ ...f, product_used: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className={uiLabel}>Dosage (optionnel)</label>
+            <input
+              className={`${uiInput} mt-1 w-full`}
+              value={form.dosage}
+              onChange={(e) => setForm((f) => ({ ...f, dosage: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className={uiLabel}>Temps de contact (optionnel)</label>
+            <input
+              className={`${uiInput} mt-1 w-full`}
+              value={form.contact_time}
+              onChange={(e) => setForm((f) => ({ ...f, contact_time: e.target.value }))}
+              placeholder="ex. 5 min"
+            />
+          </div>
+
+          {/* ─── Protocole secondaire ───────────────────────────────────── */}
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold text-stone-800">Entretien secondaire (optionnel)</span>
+              {form.secondary_recurrence_type ? (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-rose-600 hover:text-rose-500"
+                  onClick={() => setForm((f) => ({ ...f, secondary_recurrence_type: null, secondary_cleaning_protocol: "", secondary_disinfection_protocol: "" }))}
+                >
+                  Supprimer
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-copper-700 hover:text-copper-600"
+                  onClick={() => setForm((f) => ({ ...f, secondary_recurrence_type: "weekly" }))}
+                >
+                  + Ajouter un 2e protocole
+                </button>
+              )}
+            </div>
+            {form.secondary_recurrence_type && (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3 space-y-3">
+                <p className="text-xs text-amber-700">Ex : nettoyage quotidien + désinfection hebdomadaire profonde sur la même machine.</p>
+                <div>
+                  <label className={uiLabel}>Fréquence</label>
+                  <select
+                    className={`${uiSelect} mt-1 w-full`}
+                    value={form.secondary_recurrence_type}
+                    onChange={(e) => setForm((f) => ({ ...f, secondary_recurrence_type: e.target.value as typeof f.secondary_recurrence_type }))}
+                  >
+                    {HYGIENE_RECURRENCE_TYPES.filter((r) => r !== "after_each_service").map((r) => (
+                      <option key={r} value={r}>{HYGIENE_RECURRENCE_LABEL_FR[r]}</option>
+                    ))}
+                  </select>
+                </div>
+                {form.secondary_recurrence_type === "weekly" && (
+                  <div>
+                    <label className={uiLabel}>Jour de la semaine</label>
+                    <select
+                      className={`${uiSelect} mt-1 w-full`}
+                      value={form.secondary_recurrence_day_of_week ?? 1}
+                      onChange={(e) => setForm((f) => ({ ...f, secondary_recurrence_day_of_week: Number(e.target.value) }))}
+                    >
+                      {DAYS_OF_WEEK_FR.map((label, dow) => (
+                        <option key={dow} value={dow}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {form.secondary_recurrence_type && ["monthly", "quarterly", "annual"].includes(form.secondary_recurrence_type) && (
+                  <div>
+                    <label className={uiLabel}>Jour du mois (1–28)</label>
+                    <input
+                      type="number" min={1} max={28}
+                      className={`${uiInput} mt-1 w-full`}
+                      value={form.secondary_recurrence_day_of_month ?? 1}
+                      onChange={(e) => setForm((f) => ({ ...f, secondary_recurrence_day_of_month: Number(e.target.value) }))}
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className={uiLabel}>Protocole nettoyage (2e entretien)</label>
+                  <textarea
+                    className={`${uiInput} mt-1 min-h-[5rem] w-full font-mono text-xs leading-relaxed`}
+                    value={form.secondary_cleaning_protocol}
+                    onChange={(e) => setForm((f) => ({ ...f, secondary_cleaning_protocol: e.target.value }))}
+                    placeholder="Décrivez les étapes du 2e entretien…"
+                  />
+                </div>
+                <div>
+                  <label className={uiLabel}>Protocole désinfection (2e entretien)</label>
+                  <textarea
+                    className={`${uiInput} mt-1 min-h-[4rem] w-full font-mono text-xs leading-relaxed`}
+                    value={form.secondary_disinfection_protocol}
+                    onChange={(e) => setForm((f) => ({ ...f, secondary_disinfection_protocol: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {COLD_CATEGORIES.has(form.category) && (
+            <div className="sm:col-span-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  id="el-temp-enabled"
+                  type="checkbox"
+                  checked={form.temp_point_enabled}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setForm((f) => {
+                      const defaults = COLD_TEMP_DEFAULTS[f.category];
+                      return {
+                        ...f,
+                        temp_point_enabled: enabled,
+                        temp_min_threshold: enabled && f.temp_min_threshold == null ? (defaults?.min ?? null) : f.temp_min_threshold,
+                        temp_max_threshold: enabled && f.temp_max_threshold == null ? (defaults?.max ?? null) : f.temp_max_threshold,
+                      };
+                    });
+                  }}
+                />
+                <label htmlFor="el-temp-enabled" className="text-sm font-medium text-sky-900">
+                  Point de mesure de température (relevé HACCP)
+                </label>
+              </div>
+              {form.temp_point_enabled && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className={uiLabel} htmlFor="el-temp-min">Seuil min (°C)</label>
+                    <input
+                      id="el-temp-min" type="text" inputMode="decimal"
+                      className={`${uiInput} mt-1 w-full tabular-nums`}
+                      value={form.temp_min_threshold ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, temp_min_threshold: e.target.value === "" ? null : Number(e.target.value.replace(",", ".")) }))}
+                      placeholder="ex. 0"
+                    />
+                  </div>
+                  <div>
+                    <label className={uiLabel} htmlFor="el-temp-max">Seuil max (°C)</label>
+                    <input
+                      id="el-temp-max" type="text" inputMode="decimal"
+                      className={`${uiInput} mt-1 w-full tabular-nums`}
+                      value={form.temp_max_threshold ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, temp_max_threshold: e.target.value === "" ? null : Number(e.target.value.replace(",", ".")) }))}
+                      placeholder="ex. 4"
+                    />
+                  </div>
+                  <div>
+                    <label className={uiLabel} htmlFor="el-temp-recurrence">Fréquence</label>
+                    <select
+                      id="el-temp-recurrence"
+                      className={`${uiSelect} mt-1 w-full`}
+                      value={form.temp_recurrence_type}
+                      onChange={(e) => setForm((f) => ({ ...f, temp_recurrence_type: e.target.value as "daily" | "per_service" }))}
+                    >
+                      {(["daily", "per_service"] as const).map((v) => (
+                        <option key={v} value={v}>{TEMP_RECURRENCE_LABEL_FR[v]}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <input
+              id="el-active" type="checkbox"
+              checked={form.active}
+              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+            />
+            <label htmlFor="el-active" className="text-sm text-stone-700">Actif</label>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={pending} onClick={submit} className={uiBtnPrimarySm}>
+            {pending ? "Enregistrement…" : "Enregistrer"}
+          </button>
+          <button type="button" disabled={pending} onClick={closeForm} className={uiBtnSecondary}>
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
@@ -178,283 +554,124 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
           onChange={(e) => setFilter(e.target.value)}
           className={`${uiInput} max-w-md flex-1`}
         />
-        <button
-          type="button"
-          onClick={() => {
-            setForm(emptyForm);
-            setError(null);
-            setShowForm(true);
-          }}
-          className={uiBtnPrimarySm}
-        >
+        <button type="button" onClick={openNew} className={uiBtnPrimarySm}>
           Nouvel élément
         </button>
       </div>
 
-      {showForm && (
-        <div className={`${uiCard} space-y-3`}>
-          <h2 className="text-sm font-semibold text-slate-900">
-            {form.id ? "Modifier l’élément" : "Ajouter un élément"}
-          </h2>
-          {error && <p className="text-sm text-rose-700">{error}</p>}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className={uiLabel}>Nom</label>
-              <input
-                className={`${uiInput} mt-1 w-full`}
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={uiLabel}>Catégorie</label>
-              <select
-                className={`${uiSelect} mt-1 w-full`}
-                value={form.category}
-                onChange={(e) => {
-                  const cat = e.target.value;
-                  applyPresetForCategory(cat, !form.id);
-                }}
-              >
-                {HYGIENE_ELEMENT_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {HYGIENE_CATEGORY_LABEL_FR[c]}
-                  </option>
-                ))}
-              </select>
-              {presetByCategory.get(form.category) && (
-                <p className="mt-1 text-xs text-slate-500">{presetByCategory.get(form.category)?.label_fr}</p>
-              )}
-            </div>
-            <div>
-              <label className={uiLabel}>Zone / emplacement</label>
-              <input
-                className={`${uiInput} mt-1 w-full`}
-                value={form.area_label}
-                onChange={(e) => setForm((f) => ({ ...f, area_label: e.target.value }))}
-                placeholder="ex. Cuisine ligne 1"
-              />
-            </div>
-            <div>
-              <label className={uiLabel}>Criticité</label>
-              <select
-                className={`${uiSelect} mt-1 w-full`}
-                value={form.risk_level}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, risk_level: e.target.value as typeof f.risk_level }))
-                }
-              >
-                {HYGIENE_RISK_LEVELS.map((r) => (
-                  <option key={r} value={r}>
-                    {HYGIENE_RISK_LABEL_FR[r]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={uiLabel}>Récurrence</label>
-              <select
-                className={`${uiSelect} mt-1 w-full`}
-                value={form.recurrence_type}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, recurrence_type: e.target.value as typeof f.recurrence_type }))
-                }
-              >
-                {HYGIENE_RECURRENCE_TYPES.map((r) => (
-                  <option key={r} value={r}>
-                    {HYGIENE_RECURRENCE_LABEL_FR[r]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {form.recurrence_type === "weekly" && (
-              <div>
-                <label className={uiLabel}>Jour (0 = dimanche … 6 = samedi)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={6}
-                  className={`${uiInput} mt-1 w-full`}
-                  value={form.recurrence_day_of_week ?? 1}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, recurrence_day_of_week: Number(e.target.value) }))
-                  }
-                />
-              </div>
-            )}
-            {form.recurrence_type === "monthly" && (
-              <div>
-                <label className={uiLabel}>Jour du mois (1–28)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={28}
-                  className={`${uiInput} mt-1 w-full`}
-                  value={form.recurrence_day_of_month ?? 1}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, recurrence_day_of_month: Number(e.target.value) }))
-                  }
-                />
-              </div>
-            )}
-            <div className="sm:col-span-2">
-              <label className={uiLabel}>Description (optionnel)</label>
-              <textarea
-                className={`${uiInput} mt-1 min-h-[4rem] w-full`}
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className={uiLabel}>Protocole nettoyage</label>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
-                  onClick={() => setForm((f) => applyHygieneProtocolPreset(f))}
-                >
-                  Appliquer le protocole type
-                </button>
-              </div>
-              <textarea
-                className={`${uiInput} mt-1 min-h-[6rem] w-full font-mono text-xs leading-relaxed`}
-                value={form.cleaning_protocol}
-                onChange={(e) => setForm((f) => ({ ...f, cleaning_protocol: e.target.value }))}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={uiLabel}>Protocole désinfection</label>
-              <textarea
-                className={`${uiInput} mt-1 min-h-[6rem] w-full font-mono text-xs leading-relaxed`}
-                value={form.disinfection_protocol}
-                onChange={(e) => setForm((f) => ({ ...f, disinfection_protocol: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={uiLabel}>Produit (optionnel)</label>
-              <input
-                className={`${uiInput} mt-1 w-full`}
-                value={form.product_used}
-                onChange={(e) => setForm((f) => ({ ...f, product_used: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={uiLabel}>Dosage (optionnel)</label>
-              <input
-                className={`${uiInput} mt-1 w-full`}
-                value={form.dosage}
-                onChange={(e) => setForm((f) => ({ ...f, dosage: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={uiLabel}>Temps de contact (optionnel)</label>
-              <input
-                className={`${uiInput} mt-1 w-full`}
-                value={form.contact_time}
-                onChange={(e) => setForm((f) => ({ ...f, contact_time: e.target.value }))}
-                placeholder="ex. 5 min"
-              />
-            </div>
-            <div className="flex items-center gap-2 sm:col-span-2">
-              <input
-                id="el-active"
-                type="checkbox"
-                checked={form.active}
-                onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-              />
-              <label htmlFor="el-active" className="text-sm text-slate-700">
-                Actif
-              </label>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={pending} onClick={submit} className={uiBtnPrimarySm}>
-              {pending ? "Enregistrement…" : "Enregistrer"}
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                setShowForm(false);
-                setForm(emptyForm);
-                setError(null);
-              }}
-              className={uiBtnSecondary}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Formulaire de création en haut */}
+      {editingId === "new" && <FormPanel isNew />}
 
       <ul className="space-y-2">
         {filtered.map((el) => (
-          <li key={el.id} className={`${uiCard} flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between`}>
-            <div>
-              <p className="font-medium text-slate-900">{el.name}</p>
-              <p className="text-xs text-slate-500">
-                {HYGIENE_CATEGORY_LABEL_FR[el.category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ?? el.category}{" "}
-                · {el.area_label || "—"} · {HYGIENE_RISK_LABEL_FR[el.risk_level]} ·{" "}
-                {HYGIENE_RECURRENCE_LABEL_FR[el.recurrence_type]}
-                {!el.active && <span className="ml-2 text-amber-700">(inactif)</span>}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className={uiBtnPrimarySm}
-                onClick={() => {
-                  setDoneModalEl(el);
-                  setDoneComment("");
-                  setDoneFile(null);
-                  setDoneCleaningType("cleaning");
-                  setDoneInitials("");
-                  setDoneError(null);
-                }}
-              >
-                Marquer comme fait
-              </button>
-              {el.recurrence_type === "after_each_service" && el.active && (
+          <li key={el.id}>
+            <div className={`${uiCard} flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between`}>
+              <div>
+                <p className="font-medium text-stone-900">{el.name}</p>
+                <p className="text-xs text-stone-500">
+                  {HYGIENE_CATEGORY_LABEL_FR[el.category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ?? el.category}{" "}
+                  · {el.area_label || "—"} · {HYGIENE_RISK_LABEL_FR[el.risk_level]} ·{" "}
+                  {HYGIENE_RECURRENCE_LABEL_FR[el.recurrence_type]}
+                  {el.temp_point_enabled && (
+                    <span className="ml-2 inline-flex items-center gap-0.5 text-sky-700">
+                      <Thermometer className="h-3 w-3" aria-hidden />
+                      {el.temp_min_threshold}–{el.temp_max_threshold} °C
+                    </span>
+                  )}
+                  {!el.active && <span className="ml-2 text-amber-700">(inactif)</span>}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={uiBtnPrimarySm}
+                  onClick={() => {
+                    setDoneModalEl(el);
+                    setDoneComment("");
+                    setDoneFile(null);
+                    setDoneCleaningType("cleaning");
+                    setDoneInitials("");
+                    setDoneError(null);
+                  }}
+                >
+                  Marquer comme fait
+                </button>
+                {el.recurrence_type === "after_each_service" && el.active && (
+                  <button
+                    type="button"
+                    className={uiBtnSecondary}
+                    onClick={() => start(async () => {
+                      await createManualHygieneTaskAction(restaurantId, el.id);
+                      router.refresh();
+                    })}
+                  >
+                    Tâche après service
+                  </button>
+                )}
                 <button
                   type="button"
                   className={uiBtnSecondary}
-                  onClick={() =>
-                    start(async () => {
-                      await createManualHygieneTaskAction(restaurantId, el.id);
-                      router.refresh();
-                    })
-                  }
+                  onClick={() => editingId === el.id ? closeForm() : openEdit(el)}
                 >
-                  Tâche après service
+                  {editingId === el.id ? "Fermer" : "Modifier"}
                 </button>
-              )}
-              <button type="button" className={uiBtnSecondary} onClick={() => edit(el)}>
-                Modifier
-              </button>
-              <button
-                type="button"
-                className={uiBtnSecondary}
-                onClick={() =>
-                  start(async () => {
+                <button
+                  type="button"
+                  className={uiBtnSecondary}
+                  onClick={() => start(async () => {
                     await setHygieneElementActiveAction(restaurantId, el.id, !el.active);
                     router.refresh();
-                  })
-                }
-              >
-                {el.active ? "Désactiver" : "Réactiver"}
-              </button>
+                  })}
+                >
+                  {el.active ? "Désactiver" : "Réactiver"}
+                </button>
+                {deleteConfirmId === el.id ? (
+                  <span className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                      onClick={() => start(async () => {
+                        const r = await deleteHygieneElementAction(restaurantId, el.id);
+                        if (!r.ok) { setDeleteConfirmId(null); return; }
+                        router.refresh();
+                      })}
+                    >
+                      Confirmer
+                    </button>
+                    <button
+                      type="button"
+                      className={uiBtnSecondary}
+                      onClick={() => setDeleteConfirmId(null)}
+                    >
+                      Annuler
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                    onClick={() => { setDeleteConfirmId(el.id); closeForm(); }}
+                  >
+                    Supprimer
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Formulaire d'édition inline sous l'élément */}
+            {editingId === el.id && <FormPanel isNew={false} />}
           </li>
         ))}
       </ul>
 
-      {filtered.length === 0 && <p className="text-sm text-slate-500">Aucun élément ne correspond au filtre.</p>}
+      {filtered.length === 0 && <p className="text-sm text-stone-500">Aucun élément ne correspond au filtre.</p>}
 
       {doneModalEl && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
-            <h3 className="text-sm font-semibold text-slate-900">Marquer comme fait</h3>
-            <p className="mt-1 text-sm text-slate-600">{doneModalEl.name}</p>
+            <h3 className="text-sm font-semibold text-stone-900">Marquer comme fait</h3>
+            <p className="mt-1 text-sm text-stone-600">{doneModalEl.name}</p>
             <HygieneProtocolPanel
               description={doneModalEl.description}
               cleaningProtocol={doneModalEl.cleaning_protocol}
@@ -463,38 +680,30 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
               dosage={doneModalEl.dosage}
               contactTime={doneModalEl.contact_time}
             />
-            <p className="mt-1 text-xs text-slate-500">
-              Enregistrement immédiat au registre avec votre nom et l’heure. La photo est facultative.
+            <p className="mt-1 text-xs text-stone-500">
+              Enregistrement immédiat au registre avec votre nom et l'heure. La photo est facultative.
             </p>
             {doneError && <p className="mt-2 text-sm text-rose-700">{doneError}</p>}
             <div className="mt-3">
-              <label className={uiLabel} htmlFor="hygiene-done-action-type">
-                Type d’intervention
-              </label>
+              <label className={uiLabel} htmlFor="hygiene-done-action-type">Type d'intervention</label>
               <select
                 id="hygiene-done-action-type"
                 className={`${uiSelect} mt-1 w-full`}
                 value={doneCleaningType}
-                onChange={(e) =>
-                  setDoneCleaningType(e.target.value as (typeof HYGIENE_CLEANING_ACTION_TYPES)[number])
-                }
+                onChange={(e) => setDoneCleaningType(e.target.value as (typeof HYGIENE_CLEANING_ACTION_TYPES)[number])}
               >
                 {HYGIENE_CLEANING_ACTION_TYPES.map((k) => (
-                  <option key={k} value={k}>
-                    {HYGIENE_CLEANING_ACTION_LABEL_FR[k]}
-                  </option>
+                  <option key={k} value={k}>{HYGIENE_CLEANING_ACTION_LABEL_FR[k]}</option>
                 ))}
               </select>
             </div>
             <div className="mt-3">
               <label className={uiLabel} htmlFor="hygiene-done-initials">
-                Initiales (personne ayant réalisé l’intervention)
+                Initiales (personne ayant réalisé l'intervention)
               </label>
               <input
                 id="hygiene-done-initials"
-                type="text"
-                autoComplete="off"
-                maxLength={16}
+                type="text" autoComplete="off" maxLength={16}
                 className={`${uiInput} mt-1 w-full`}
                 value={doneInitials}
                 onChange={(e) => setDoneInitials(e.target.value)}
@@ -514,11 +723,8 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
               <label className={uiLabel}>Photo de preuve (optionnel)</label>
               <input
                 ref={donePhotoInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                aria-hidden
+                type="file" accept="image/*" capture="environment"
+                className="hidden" aria-hidden
                 onChange={(e) => setDoneFile(e.target.files?.[0] ?? null)}
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -531,7 +737,7 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
                   Prendre une photo
                 </button>
                 {doneFile && (
-                  <span className="text-xs text-slate-600">
+                  <span className="text-xs text-stone-600">
                     {doneFile.name}
                     <button
                       type="button"
@@ -564,14 +770,8 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
                     if (doneFile) {
                       const ext = doneFile.name.split(".").pop() || "jpg";
                       const path = `${restaurantId}/direct/${doneModalEl.id}/${crypto.randomUUID()}.${ext}`;
-                      const { error: upErr } = await supabase.storage.from(HYGIENE_PROOFS_BUCKET).upload(path, doneFile, {
-                        cacheControl: "3600",
-                        upsert: false,
-                      });
-                      if (upErr) {
-                        setDoneError(upErr.message);
-                        return;
-                      }
+                      const { error: upErr } = await supabase.storage.from(HYGIENE_PROOFS_BUCKET).upload(path, doneFile, { cacheControl: "3600", upsert: false });
+                      if (upErr) { setDoneError(upErr.message); return; }
                       proofPath = path;
                     }
                     const r = await logHygieneElementDoneAction(restaurantId, doneModalEl.id, {
@@ -580,10 +780,7 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
                       cleaningActionType: doneCleaningType,
                       initials: doneInitials,
                     });
-                    if (!r.ok) {
-                      setDoneError(r.error);
-                      return;
-                    }
+                    if (!r.ok) { setDoneError(r.error); return; }
                     setDoneModalEl(null);
                     setDoneComment("");
                     setDoneFile(null);

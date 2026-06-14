@@ -45,37 +45,37 @@ export default async function ReceivingPage({ params }: Props) {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-3xl px-4 py-6">
         <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1">
           <Link
             href={`/suppliers/${note.supplier_id}`}
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Fournisseur
           </Link>
-          <Link href="/livraison" className="text-slate-600 underline decoration-slate-400 underline-offset-2">
+          <Link href="/livraison" className="text-stone-600 underline decoration-stone-400 underline-offset-2">
             ← Livraison
           </Link>
           <Link
             href="/receiving/registre"
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             Registre traçabilité
           </Link>
         </div>
 
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4">
+        <div className="mb-4 rounded-lg border border-stone-200 bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">
+              <h1 className="text-xl font-semibold text-stone-900">
                 Réception fournisseur
               </h1>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-stone-500">
                 Statut : {STATUS_LABELS[note.status] ?? note.status}
               </p>
               {note.delivery_date && (
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-stone-600">
                   Date BL :{" "}
                   {new Date(note.delivery_date).toLocaleDateString("fr-FR", {
                     day: "numeric",
@@ -85,10 +85,10 @@ export default async function ReceivingPage({ params }: Props) {
                 </p>
               )}
               {note.purchase_order_id && (
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-stone-600">
                   <Link
                     href={`/orders/${note.purchase_order_id}`}
-                    className="underline decoration-slate-400 underline-offset-2"
+                    className="underline decoration-stone-400 underline-offset-2"
                   >
                     Voir la commande liée
                   </Link>

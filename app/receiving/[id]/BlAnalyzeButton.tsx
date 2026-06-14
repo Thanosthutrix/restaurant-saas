@@ -39,13 +39,13 @@ export function BlAnalyzeButton({ deliveryNoteId, restaurantId, status, fileName
   }
 
   return (
-    <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-3">
-      <p className="text-sm text-slate-800">
-        <span className="font-medium text-indigo-950">Lecture du BL (OpenAI)</span> — même principe que le relevé de
+    <div className="mb-4 rounded-lg border border-copper-100 bg-copper-50/50 px-3 py-3">
+      <p className="text-sm text-stone-800">
+        <span className="font-medium text-copper-950">Lecture du BL (OpenAI)</span> — même principe que le relevé de
         caisse (photo → JSON) : libellé, quantité, prix HT ; rattachement au <strong>produit stock</strong> si le nom
         correspond exactement (après normalisation). Peut prendre jusqu’à une minute ; ne fermez pas l’onglet.
       </p>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-stone-500">
         Le résultat s’affiche <strong>ici</strong> après la lecture ; les détails sont aussi copiés dans les notes de la
         réception (en bas de page après actualisation). En pratique : photo zoomée sur le tableau (JPEG habituel en
         cuisine) ; si la lecture échoue, tester un PNG ou un cadrage plus serré.
@@ -82,7 +82,7 @@ export function BlAnalyzeButton({ deliveryNoteId, restaurantId, status, fileName
             }
           })();
         }}
-        className="mt-3 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-900 shadow-sm hover:bg-indigo-50 disabled:opacity-50"
+        className="mt-3 rounded-lg border border-copper-200 bg-white px-3 py-2 text-sm font-medium text-copper-900 shadow-sm hover:bg-copper-50 disabled:opacity-50"
       >
         {pending ? "Lecture en cours (patience)…" : "Lire le BL et remplir les lignes"}
       </button>

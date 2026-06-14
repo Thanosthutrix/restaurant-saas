@@ -23,7 +23,7 @@ export default async function HcrContractsPage() {
 
       <section className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">LegalTech RH</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-copper-700">LegalTech RH</p>
           <h1 className={`mt-2 ${uiPageTitle}`}>Générateur de contrats de travail HCR</h1>
           <p className={`mt-2 max-w-3xl ${uiLead}`}>
             Préparez des brouillons de contrats CDI, CDD ou saisonniers avec clauses HCR et export PDF.
@@ -36,12 +36,12 @@ export default async function HcrContractsPage() {
 
       <section className={uiCard}>
         <div className="flex items-start gap-3">
-          <span className="rounded-2xl bg-indigo-50 p-3 text-indigo-700">
+          <span className="rounded-2xl bg-copper-50 p-3 text-copper-800">
             <FileText className="h-5 w-5" />
           </span>
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Assistant employeur</h2>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+            <h2 className="text-base font-semibold text-stone-900">Assistant employeur</h2>
+            <p className="mt-1 text-sm leading-relaxed text-stone-600">
               Cette première version génère un document à partir d&apos;un wizard et d&apos;une bibliothèque de clauses. Les
               brouillons ne sont pas encore historisés en base : utilisez l&apos;export PDF / impression après validation.
             </p>

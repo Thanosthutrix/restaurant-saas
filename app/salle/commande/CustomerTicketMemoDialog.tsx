@@ -37,24 +37,24 @@ export function CustomerTicketMemoDialog({ open, onClose, customer }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 p-4 sm:items-center"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-stone-900/40 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="customer-memo-title"
       onClick={onClose}
     >
       <div
-        className="max-h-[min(85vh,560px)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xl"
+        className="max-h-[min(85vh,560px)] w-full max-w-md overflow-y-auto rounded-2xl border border-stone-200 bg-white p-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="customer-memo-title" className="text-base font-semibold text-slate-900">
+        <h2 id="customer-memo-title" className="text-base font-semibold text-stone-900">
           {customer.display_name}
         </h2>
-        <p className="mt-1 text-xs text-slate-500">Mémo service (rappel équipe)</p>
+        <p className="mt-1 text-xs text-stone-500">Mémo service (rappel équipe)</p>
         {memo ? (
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{memo}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-800">{memo}</p>
         ) : (
-          <p className="mt-3 text-sm text-slate-500">Aucun mémo enregistré sur la fiche.</p>
+          <p className="mt-3 text-sm text-stone-500">Aucun mémo enregistré sur la fiche.</p>
         )}
         {allergens ? (
           <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3 py-2">

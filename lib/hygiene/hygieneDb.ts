@@ -39,6 +39,27 @@ function mapElement(row: Record<string, unknown>): HygieneElement {
     dosage: row.dosage == null ? null : String(row.dosage),
     contact_time: row.contact_time == null ? null : String(row.contact_time),
     active: Boolean(row.active),
+    temp_point_enabled: Boolean(row.temp_point_enabled),
+    temp_min_threshold: row.temp_min_threshold == null ? null : Number(row.temp_min_threshold),
+    temp_max_threshold: row.temp_max_threshold == null ? null : Number(row.temp_max_threshold),
+    temp_recurrence_type:
+      row.temp_recurrence_type === "daily" || row.temp_recurrence_type === "per_service"
+        ? row.temp_recurrence_type
+        : null,
+    secondary_recurrence_type:
+      row.secondary_recurrence_type == null
+        ? null
+        : (row.secondary_recurrence_type as HygieneElement["secondary_recurrence_type"]),
+    secondary_recurrence_day_of_week:
+      row.secondary_recurrence_day_of_week == null
+        ? null
+        : Number(row.secondary_recurrence_day_of_week),
+    secondary_recurrence_day_of_month:
+      row.secondary_recurrence_day_of_month == null
+        ? null
+        : Number(row.secondary_recurrence_day_of_month),
+    secondary_cleaning_protocol: String(row.secondary_cleaning_protocol ?? ""),
+    secondary_disinfection_protocol: String(row.secondary_disinfection_protocol ?? ""),
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
   };
@@ -194,14 +215,26 @@ export async function ensureHygieneTasksForRestaurant(
   restaurantId: string,
   daysAhead = 14
 ): Promise<void> {
-  const { data: elements, error } = await supabaseServer
-    .from("hygiene_elements")
-    .select(
-      "id, restaurant_id, name, category, area_label, description, risk_level, recurrence_type, recurrence_day_of_week, recurrence_day_of_month, cleaning_protocol, disinfection_protocol, product_used, dosage, contact_time, active, created_at, updated_at"
-    )
-    .eq("restaurant_id", restaurantId)
-    .eq("active", true);
-  if (error || !elements?.length) return;
+  const [elementsRes, restaurantRes] = await Promise.all([
+    supabaseServer
+      .from("hygiene_elements")
+      .select(
+        "id, restaurant_id, name, category, area_label, description, risk_level, recurrence_type, recurrence_day_of_week, recurrence_day_of_month, cleaning_protocol, disinfection_protocol, product_used, dosage, contact_time, active, temp_point_enabled, temp_min_threshold, temp_max_threshold, temp_recurrence_type, secondary_recurrence_type, secondary_recurrence_day_of_week, secondary_recurrence_day_of_month, secondary_cleaning_protocol, secondary_disinfection_protocol, created_at, updated_at"
+      )
+      .eq("restaurant_id", restaurantId)
+      .eq("active", true),
+    supabaseServer
+      .from("restaurants")
+      .select("closed_days_of_week")
+      .eq("id", restaurantId)
+      .maybeSingle(),
+  ]);
+
+  const elements = elementsRes.data;
+  if (elementsRes.error || !elements?.length) return;
+
+  const closedDays: number[] = (restaurantRes.data as { closed_days_of_week?: number[] } | null)
+    ?.closed_days_of_week ?? [];
 
   const windowStart = new Date();
   windowStart.setUTCHours(0, 0, 0, 0);
@@ -211,7 +244,7 @@ export async function ensureHygieneTasksForRestaurant(
   const rowsToInsert = [];
   for (const raw of elements) {
     const el = mapElement(raw as Record<string, unknown>);
-    const rows = buildTaskInsertsForElement(el, windowStart, windowEnd);
+    const rows = buildTaskInsertsForElement(el, windowStart, windowEnd, closedDays);
     rowsToInsert.push(...rows);
   }
   if (rowsToInsert.length === 0) return;
@@ -222,7 +255,7 @@ export async function ensureHygieneTasksForRestaurant(
     const { error: upsertErr } = await supabaseServer
       .from("hygiene_tasks")
       .upsert(chunk, {
-        onConflict: "element_id,period_key",
+        onConflict: "element_id,period_key,maintenance_plan",
         ignoreDuplicates: true,
       });
     if (upsertErr) {

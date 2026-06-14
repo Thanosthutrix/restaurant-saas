@@ -41,7 +41,7 @@ export function JoinInviteClient({ token, invite, isLoggedIn, userEmail, already
 
   if (!token.trim()) {
     return (
-      <p className={`${uiLead} text-center text-slate-600`}>
+      <p className={`${uiLead} text-center text-stone-600`}>
         Ouvrez le lien d’invitation complet (il doit contenir un paramètre <code className="text-sm">token</code>).
       </p>
     );
@@ -53,21 +53,21 @@ export function JoinInviteClient({ token, invite, isLoggedIn, userEmail, already
         <p className={uiLead}>
           Cette invitation n’est plus valide (expirée, déjà utilisée ou collaborateur déjà lié).
         </p>
-        <p className="text-sm text-slate-500">Demandez un nouveau lien au responsable de l’établissement.</p>
+        <p className="text-sm text-stone-500">Demandez un nouveau lien au responsable de l’établissement.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-100 bg-white px-4 py-5 shadow-sm">
+      <div className="rounded-xl border border-stone-100 bg-white px-4 py-5 shadow-sm">
         <p className={`${uiPageTitle} text-lg`}>Rejoindre l’équipe</p>
         <p className={`mt-2 ${uiLead}`}>
-          <span className="font-semibold text-slate-900">{invite.restaurant_name}</span>
+          <span className="font-semibold text-stone-900">{invite.restaurant_name}</span>
           {" — "}
           fiche « {invite.staff_display_name} »
         </p>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-stone-500">
           En acceptant, votre compte sera lié à cette fiche pour le planning et les droits applicatifs définis par
           l’établissement.
         </p>
@@ -77,7 +77,7 @@ export function JoinInviteClient({ token, invite, isLoggedIn, userEmail, already
 
       {!isLoggedIn ? (
         <div className="space-y-3 text-center">
-          <p className="text-sm text-slate-600">Connectez-vous ou créez un compte pour finaliser.</p>
+          <p className="text-sm text-stone-600">Connectez-vous ou créez un compte pour finaliser.</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Link href={`/login?next=${encodeURIComponent(nextJoin)}`} className={uiBtnPrimaryBlock}>
               Se connecter
@@ -103,7 +103,7 @@ export function JoinInviteClient({ token, invite, isLoggedIn, userEmail, already
               Chaque collaborateur doit avoir son propre compte.
             </p>
           </div>
-          <p className="text-sm text-slate-600 text-center">
+          <p className="text-sm text-stone-600 text-center">
             Cette invitation est destinée à un autre collaborateur.
           </p>
           <button
@@ -119,15 +119,15 @@ export function JoinInviteClient({ token, invite, isLoggedIn, userEmail, already
         /* Compte connecté, pas de conflit */
         <div className="space-y-3">
           {userEmail && (
-            <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 flex items-center justify-between gap-2">
-              <span className="text-xs text-slate-500">Connecté en tant que</span>
-              <span className="text-xs font-semibold text-slate-700 truncate">{userEmail}</span>
+            <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-stone-500">Connecté en tant que</span>
+              <span className="text-xs font-semibold text-stone-700 truncate">{userEmail}</span>
             </div>
           )}
           <button type="button" disabled={pending} className={uiBtnPrimaryBlock} onClick={accept}>
             {pending ? "Liaison…" : "Accepter et lier mon compte"}
           </button>
-          <p className="text-center text-sm text-slate-500">
+          <p className="text-center text-sm text-stone-500">
             Ce n'est pas vous ?{" "}
             <button
               type="button"

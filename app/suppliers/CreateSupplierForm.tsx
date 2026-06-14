@@ -55,7 +55,7 @@ export function CreateSupplierForm({ restaurantId }: { restaurantId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
+        className="rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
       >
         + Nouveau fournisseur
       </button>
@@ -65,49 +65,49 @@ export function CreateSupplierForm({ restaurantId }: { restaurantId: string }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-slate-200 bg-white p-4"
+      className="rounded-lg border border-stone-200 bg-white p-4"
     >
-      <h2 className="mb-3 font-medium text-slate-800">Nouveau fournisseur</h2>
+      <h2 className="mb-3 font-medium text-stone-800">Nouveau fournisseur</h2>
       {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
       <div className="space-y-3">
         <label className="block">
-          <span className="text-xs text-slate-500">Nom *</span>
+          <span className="text-xs text-stone-500">Nom *</span>
           <input
             type="text"
             name="name"
             required
-            className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="text-xs text-slate-500">E-mail (optionnel)</span>
+            <span className="text-xs text-stone-500">E-mail (optionnel)</span>
             <input
               type="text"
               name="email"
               inputMode="email"
               autoComplete="email"
-              className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
             />
           </label>
           <label className="block">
-            <span className="text-xs text-slate-500">Téléphone</span>
-            <input type="text" name="phone" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+            <span className="text-xs text-stone-500">Téléphone</span>
+            <input type="text" name="phone" className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
           </label>
         </div>
         <label className="block">
-          <span className="text-xs text-slate-500">WhatsApp</span>
-          <input type="text" name="whatsapp_phone" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">WhatsApp</span>
+          <input type="text" name="whatsapp_phone" className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="block">
-          <span className="text-xs text-slate-500">Adresse</span>
-          <textarea name="address" rows={2} className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">Adresse</span>
+          <textarea name="address" rows={2} className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="block">
-          <span className="text-xs text-slate-500">Méthode de commande préférée</span>
+          <span className="text-xs text-stone-500">Méthode de commande préférée</span>
           <select
             name="preferred_order_method"
-            className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           >
             {ORDER_METHODS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -117,7 +117,7 @@ export function CreateSupplierForm({ restaurantId }: { restaurantId: string }) {
           </select>
         </label>
         <div>
-          <span className="text-xs text-slate-500">Jours de commande</span>
+          <span className="text-xs text-stone-500">Jours de commande</span>
           <div className="mt-1 flex flex-wrap gap-2">
             {WEEKDAYS.map((d) => (
               <label key={d} className="flex items-center gap-1 text-sm">
@@ -132,8 +132,8 @@ export function CreateSupplierForm({ restaurantId }: { restaurantId: string }) {
           </div>
         </div>
         <label className="block">
-          <span className="text-xs text-slate-500">Notes</span>
-          <textarea name="notes" rows={2} className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
+          <span className="text-xs text-stone-500">Notes</span>
+          <textarea name="notes" rows={2} className="mt-0.5 w-full rounded border border-stone-300 px-2 py-1.5 text-sm" />
         </label>
         <input type="hidden" name="is_active" value="true" />
       </div>
@@ -141,11 +141,11 @@ export function CreateSupplierForm({ restaurantId }: { restaurantId: string }) {
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
         >
           {loading ? "Création…" : "Créer"}
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700">
+        <button type="button" onClick={() => setOpen(false)} className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700">
           Annuler
         </button>
       </div>

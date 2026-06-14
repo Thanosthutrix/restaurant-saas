@@ -64,16 +64,16 @@ function displayGuest(r: Row) {
   if (r.customer_id && r.customerDisplayName) {
     return (
       <span>
-        <Link href={`/clients/${r.customer_id}`} className="font-medium text-indigo-600 hover:underline">
+        <Link href={`/clients/${r.customer_id}`} className="font-medium text-copper-700 hover:underline">
           {r.customerDisplayName}
         </Link>
         {r.contact_name && r.contact_name !== r.customerDisplayName ? (
-          <span className="text-slate-500"> — {r.contact_name}</span>
+          <span className="text-stone-500"> — {r.contact_name}</span>
         ) : null}
       </span>
     );
   }
-  return <span className="font-medium text-slate-900">{r.contact_name ?? "—"}</span>;
+  return <span className="font-medium text-stone-900">{r.contact_name ?? "—"}</span>;
 }
 
 function canArrivalStatus(s: Row["status"]) {
@@ -132,13 +132,13 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
       {ok ? <p className={uiSuccess}>{ok}</p> : null}
 
       <div className={`${uiCard} overflow-hidden`}>
-        <div className="border-b border-slate-100 pb-4">
+        <div className="border-b border-stone-100 pb-4">
           <h2 className={`${uiSectionTitleSm} mb-3`}>Journée</h2>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                className="rounded-lg border border-stone-200 px-2 py-1 text-sm"
                 onClick={() => shiftDay(-1)}
                 disabled={pending}
               >
@@ -153,33 +153,33 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
               />
               <button
                 type="button"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                className="rounded-lg border border-stone-200 px-2 py-1 text-sm"
                 onClick={() => shiftDay(1)}
                 disabled={pending}
               >
                 Lendemain →
               </button>
             </div>
-            <p className="text-sm text-slate-600">
-              {formatYmdFr(ymd)} <span className="text-slate-400">(Europe/Paris)</span>
+            <p className="text-sm text-stone-600">
+              {formatYmdFr(ymd)} <span className="text-stone-400">(Europe/Paris)</span>
             </p>
           </div>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-stone-500">
             Fiches récentes : {recentCustomerPool.length} proposées sur «{" "}
-            <Link href="/reservations/nouvelle" className="text-indigo-600 underline">
+            <Link href="/reservations/nouvelle" className="text-copper-700 underline">
               Nouvelle réservation
             </Link>
             ».
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 py-3">
-          <span className="text-xs font-medium text-slate-500">Affichage :</span>
+        <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 py-3">
+          <span className="text-xs font-medium text-stone-500">Affichage :</span>
           <button
             type="button"
             onClick={() => setView("plan")}
             className={`rounded-lg px-2.5 py-1 text-sm font-medium ${
-              view === "plan" ? "bg-indigo-100 text-indigo-900" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              view === "plan" ? "bg-copper-100 text-copper-900" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
             }`}
           >
             Planning
@@ -188,21 +188,21 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
             type="button"
             onClick={() => setView("list")}
             className={`rounded-lg px-2.5 py-1 text-sm font-medium ${
-              view === "list" ? "bg-indigo-100 text-indigo-900" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              view === "list" ? "bg-copper-100 text-copper-900" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
             }`}
           >
             Liste
           </button>
-          <p className="w-full text-[11px] text-slate-500 sm:ml-2 sm:w-auto">
+          <p className="w-full text-[11px] text-stone-500 sm:ml-2 sm:w-auto">
             Planning : tranche horaire seulement là où il y a des réservations (Paris), colonnes si chevauchement.
           </p>
         </div>
 
         <div className="pt-4">
           {rows.length === 0 ? (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-stone-600">
               Aucune réservation ce jour.{" "}
-              <Link href="/reservations/nouvelle" className="font-medium text-indigo-600 underline">
+              <Link href="/reservations/nouvelle" className="font-medium text-copper-700 underline">
                 Créer une réservation
               </Link>
             </p>
@@ -222,7 +222,7 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-stone-200 text-xs uppercase tracking-wide text-stone-500">
                     <th className="py-2 pr-2">Heure</th>
                     <th className="py-2 pr-2">Couverts</th>
                     <th className="py-2 pr-2">Client</th>
@@ -233,15 +233,15 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
                 <th className="py-2" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-stone-100">
                   {rows.map((r) => (
                     <tr key={r.id}>
-                      <td className="whitespace-nowrap py-2 pr-2 font-medium tabular-nums text-slate-900">
+                      <td className="whitespace-nowrap py-2 pr-2 font-medium tabular-nums text-stone-900">
                         {timeParis(r.starts_at)} – {timeParis(r.ends_at)}
                       </td>
                       <td className="py-2 pr-2 tabular-nums">{r.party_size}</td>
                       <td className="py-2 pr-2">{displayGuest(r)}</td>
-                      <td className="max-w-[180px] py-2 pr-2 text-slate-600">
+                      <td className="max-w-[180px] py-2 pr-2 text-stone-600">
                         <span className="line-clamp-2 break-words text-xs">
                           {[r.contact_phone, r.contact_email].filter(Boolean).join(" · ") || "—"}
                         </span>
@@ -261,27 +261,27 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
                           ))}
                         </select>
                       </td>
-                  <td className="max-w-[200px] py-2 text-xs text-slate-500">
+                  <td className="max-w-[200px] py-2 text-xs text-stone-500">
                     {r.notes ? <span className="line-clamp-2 whitespace-pre-wrap">{r.notes}</span> : "—"}
                   </td>
                   <td className="whitespace-nowrap py-2 pr-2">
                     {canArrivalStatus(r.status) ? (
                       <button
                         type="button"
-                        className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
+                        className="rounded-md border border-copper-200 bg-copper-50 px-2 py-1 text-xs font-medium text-copper-800 hover:bg-copper-100"
                         disabled={pending}
                         onClick={() => setArrivalReservation(r)}
                       >
                         Arrivée
                       </button>
                     ) : (
-                      <span className="text-xs text-slate-400">—</span>
+                      <span className="text-xs text-stone-400">—</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap py-2 text-right">
                     <Link
                       href={`/reservations/${r.id}/modifier?date=${encodeURIComponent(ymd)}`}
-                      className="text-xs font-semibold text-indigo-600 hover:underline"
+                      className="text-xs font-semibold text-copper-700 hover:underline"
                     >
                       Modifier
                     </Link>
@@ -294,17 +294,17 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
           ) : null}
         </div>
 
-        <div className="mt-4 border-t border-slate-100 bg-slate-50/80 px-1 py-3 sm:px-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Récap du jour</p>
+        <div className="mt-4 border-t border-stone-100 bg-stone-50/80 px-1 py-3 sm:px-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Récap du jour</p>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-2">
-            <p className="text-sm text-slate-800">
-              <span className="text-2xl font-bold tabular-nums text-slate-900">{stats.total}</span>{" "}
+            <p className="text-sm text-stone-800">
+              <span className="text-2xl font-bold tabular-nums text-stone-900">{stats.total}</span>{" "}
               réservation{stats.total > 1 ? "s" : ""}
-              <span className="mx-2 text-slate-300">·</span>
-              <span className="text-2xl font-bold tabular-nums text-indigo-800">{stats.covers}</span> couverts
+              <span className="mx-2 text-stone-300">·</span>
+              <span className="text-2xl font-bold tabular-nums text-copper-800">{stats.covers}</span> couverts
             </p>
             {stats.total > 0 ? (
-              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-stone-600">
                 {stats.pending > 0 ? <li>Att. {stats.pending}</li> : null}
                 {stats.confirmed > 0 ? <li>Conf. {stats.confirmed}</li> : null}
                 {stats.seated > 0 ? <li>Assis {stats.seated}</li> : null}
@@ -315,8 +315,8 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
             ) : null}
           </div>
           {rows.length > 0 ? (
-            <p className="mt-2 text-center text-xs text-slate-500">
-              <Link href="/reservations/nouvelle" className="text-indigo-600 underline">
+            <p className="mt-2 text-center text-xs text-stone-500">
+              <Link href="/reservations/nouvelle" className="text-copper-700 underline">
                 Nouvelle réservation
               </Link>
               {view === "plan" ? " · basculer en « Liste » pour le tableau." : " · basculer en « Planning » pour la grille."}

@@ -100,19 +100,19 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
       aria-labelledby="arrival-title"
       onClick={(e) => e.target === e.currentTarget && !pending && onClose()}
     >
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-        <h2 id="arrival-title" className="text-lg font-bold text-slate-900">
+      <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-5 shadow-xl">
+        <h2 id="arrival-title" className="text-lg font-bold text-stone-900">
           Arrivée &amp; ticket
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          <span className="font-semibold text-slate-800">{name}</span>
-          <span className="text-slate-400"> · </span>
+        <p className="mt-1 text-sm text-stone-600">
+          <span className="font-semibold text-stone-800">{name}</span>
+          <span className="text-stone-400"> · </span>
           {timeFr(resa.starts_at)} – {timeFr(resa.ends_at)} · {resa.party_size} couv.
         </p>
         {resa.dining_table_id ? (
-          <p className="mt-1 text-xs text-slate-600">
+          <p className="mt-1 text-xs text-stone-600">
             Table notée :{" "}
-            <span className="font-medium text-slate-800">
+            <span className="font-medium text-stone-800">
               {tables.find((t) => t.id === resa.dining_table_id)?.label ?? "—"}
             </span>
           </p>
@@ -135,7 +135,7 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
           {canQuickOpen && !showTableChoice ? (
             <button
               type="button"
-              className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-60"
+              className="w-full rounded-xl bg-copper-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-copper-600 disabled:opacity-60"
               disabled={pending}
               onClick={onOpenExistingTicket}
             >
@@ -146,7 +146,7 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
           {canQuickOpen && !showTableChoice ? (
             <button
               type="button"
-              className="w-full text-sm text-slate-600 underline disabled:opacity-50"
+              className="w-full text-sm text-stone-600 underline disabled:opacity-50"
               disabled={pending}
               onClick={() => setShowTableChoice(true)}
             >
@@ -156,7 +156,7 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
 
           {needTableFirst && tables.length > 0 ? (
             <div>
-              <label className="block text-xs font-medium text-slate-600">
+              <label className="block text-xs font-medium text-stone-600">
                 {resa.status === "seated" && resa.dining_order_id
                   ? "Table pour le nouveau ticket"
                   : "Table d’accueil"}
@@ -180,7 +180,7 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
           {needTableFirst && tables.length > 0 ? (
             <button
               type="button"
-              className="w-full rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900 hover:bg-indigo-100 disabled:opacity-60"
+              className="w-full rounded-xl border border-copper-200 bg-copper-50 px-4 py-3 text-sm font-semibold text-copper-900 hover:bg-copper-100 disabled:opacity-60"
               disabled={pending}
               onClick={onSeatWithTable}
             >
@@ -192,22 +192,22 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
         </div>
 
         {resa.customer_id ? (
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-stone-500">
             Fiche client : la commande sera liée au dossier pour l’historique et les habitudes.
           </p>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-sm">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3 text-sm">
           <Link
             href={`/reservations/${resa.id}/modifier?date=${encodeURIComponent(ymd)}`}
-            className="text-indigo-600 hover:underline"
+            className="text-copper-700 hover:underline"
             onClick={onClose}
           >
             Modifier la réservation
           </Link>
           <button
             type="button"
-            className="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100"
+            className="rounded-lg px-3 py-1.5 text-stone-600 hover:bg-stone-100"
             disabled={pending}
             onClick={onClose}
           >

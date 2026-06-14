@@ -79,9 +79,9 @@ export function InventoryItemSupplierBlock({
 
   return (
     <div className={uiCard}>
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">Achat / Fournisseur</h2>
-      <p className="mb-3 text-xs text-slate-500">
-        Unité de stock : <strong className="text-slate-800">{stockUnitLabel}</strong>
+      <h2 className="mb-3 text-sm font-semibold text-stone-900">Achat / Fournisseur</h2>
+      <p className="mb-3 text-xs text-stone-500">
+        Unité de stock : <strong className="text-stone-800">{stockUnitLabel}</strong>
       </p>
       {error && (
         <p className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">

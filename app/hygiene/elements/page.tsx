@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { listHygieneElements, listHygieneRecurrencePresets } from "@/lib/hygiene/hygieneDb";
+import { listHygieneRecurrencePresets } from "@/lib/hygiene/hygieneDb";
+import { cachedListHygieneElements } from "@/lib/cache";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { HygieneElementsClient } from "./HygieneElementsClient";
 
@@ -19,7 +20,7 @@ export default async function HygieneElementsPage({
   const initialElementId = typeof sp.elementId === "string" ? sp.elementId : null;
 
   const [elements, presets] = await Promise.all([
-    listHygieneElements(restaurant.id),
+    cachedListHygieneElements(restaurant.id),
     listHygieneRecurrencePresets(),
   ]);
 
@@ -32,7 +33,7 @@ export default async function HygieneElementsPage({
         <h1 className={`mt-4 ${uiPageTitle}`}>Éléments à nettoyer</h1>
         <p className={`mt-2 ${uiLead}`}>
           Référentiel par restaurant. Les fréquences par défaut sont des suggestions (référentiel métier), modifiables
-          par ligne. Utilisez <strong className="font-medium text-slate-700">Marquer comme fait</strong> pour enregistrer
+          par ligne. Utilisez <strong className="font-medium text-stone-700">Marquer comme fait</strong> pour enregistrer
           tout de suite une exécution au registre (nom, heure, commentaire et photo optionnelle).
         </p>
       </div>

@@ -229,7 +229,7 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
 
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-stone-600">
         Aucune ligne comparable pour l’instant : lancez l’analyse facture et liez une réception.
       </p>
     );
@@ -237,10 +237,10 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded border border-stone-200 bg-white">
         <table className="w-full min-w-[58rem] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-stone-200 bg-stone-50 text-left text-xs font-medium uppercase tracking-wide text-stone-500">
               <th className="p-2">Statut</th>
               <th className="p-2">Facture</th>
               <th className="p-2">BL / produit</th>
@@ -261,32 +261,32 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
               const statusDisplay = preview?.status ?? row.status;
               const lineDeltaDisplay = preview?.lineTotalDelta ?? row.lineTotalDelta;
               return (
-                <tr key={idx} className="border-b border-slate-100 align-top">
+                <tr key={idx} className="border-b border-stone-100 align-top">
                   <td className="p-2">
                     <span className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS[statusDisplay]}`}>
                       {STATUS_LABELS[statusDisplay]}
                     </span>
                   </td>
-                  <td className="max-w-[14rem] p-2 text-slate-800">
+                  <td className="max-w-[14rem] p-2 text-stone-800">
                     {editable ? (
                       <input
                         value={editable.label}
                         onChange={(e) =>
                           updateInvoiceLine(row.invoiceLineIndex as number, { label: e.target.value })
                         }
-                        className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                        className="w-full rounded border border-stone-300 px-2 py-1 text-xs"
                       />
                     ) : (
                       row.invoiceLabel ?? "—"
                     )}
                   </td>
                   <td className="max-w-[14rem] p-2">
-                    <p className="font-medium text-slate-800">{row.receptionItemName ?? row.receptionLabel ?? "—"}</p>
+                    <p className="font-medium text-stone-800">{row.receptionItemName ?? row.receptionLabel ?? "—"}</p>
                     {row.receptionItemName && row.receptionLabel && row.receptionItemName !== row.receptionLabel ? (
-                      <p className="text-xs text-slate-500">{row.receptionLabel}</p>
+                      <p className="text-xs text-stone-500">{row.receptionLabel}</p>
                     ) : null}
                   </td>
-                  <td className="p-2 text-right tabular-nums text-slate-700">
+                  <td className="p-2 text-right tabular-nums text-stone-700">
                     {editable ? (
                       <div className="flex justify-end gap-1">
                         <input
@@ -295,33 +295,33 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
                             updateInvoiceLine(row.invoiceLineIndex as number, { quantity: e.target.value })
                           }
                           inputMode="decimal"
-                          className="w-20 rounded border border-slate-300 px-2 py-1 text-right text-xs"
+                          className="w-20 rounded border border-stone-300 px-2 py-1 text-right text-xs"
                         />
                         <input
                           value={editable.unit}
                           onChange={(e) =>
                             updateInvoiceLine(row.invoiceLineIndex as number, { unit: e.target.value })
                           }
-                          className="w-14 rounded border border-slate-300 px-2 py-1 text-xs"
+                          className="w-14 rounded border border-stone-300 px-2 py-1 text-xs"
                         />
                       </div>
                     ) : (
                       <>
                         {qty(row.invoiceQuantity)}
-                        {row.invoiceUnit ? <span className="ml-1 text-xs text-slate-500">{row.invoiceUnit}</span> : null}
+                        {row.invoiceUnit ? <span className="ml-1 text-xs text-stone-500">{row.invoiceUnit}</span> : null}
                       </>
                     )}
                   </td>
-                  <td className="p-2 text-right tabular-nums text-slate-700">
+                  <td className="p-2 text-right tabular-nums text-stone-700">
                     {qty(row.receptionQuantityPurchase)}
                     {row.receptionPurchaseUnit ? (
-                      <span className="ml-1 text-xs text-slate-500">{row.receptionPurchaseUnit}</span>
+                      <span className="ml-1 text-xs text-stone-500">{row.receptionPurchaseUnit}</span>
                     ) : null}
                     {row.receptionStockUnit && row.receptionStockUnit !== row.receptionPurchaseUnit ? (
                       <p className="text-xs text-amber-700">stock : {row.receptionStockUnit}</p>
                     ) : null}
                   </td>
-                  <td className="p-2 text-right tabular-nums text-slate-700">
+                  <td className="p-2 text-right tabular-nums text-stone-700">
                     {editable ? (
                       <input
                         value={editable.unit_price}
@@ -329,21 +329,21 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
                           updateInvoiceLine(row.invoiceLineIndex as number, { unit_price: e.target.value })
                         }
                         inputMode="decimal"
-                        className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-xs"
+                        className="w-24 rounded border border-stone-300 px-2 py-1 text-right text-xs"
                       />
                     ) : (
                       eur(row.invoiceUnitPrice)
                     )}
                   </td>
-                  <td className="p-2 text-right tabular-nums text-slate-700">
+                  <td className="p-2 text-right tabular-nums text-stone-700">
                     {eur(row.receptionUnitPricePurchase)}
                     {row.receptionPriceSource === "invoice_fallback" ? (
-                      <p className="text-xs text-slate-500">prix facture repris (BL sans tarif)</p>
+                      <p className="text-xs text-stone-500">prix facture repris (BL sans tarif)</p>
                     ) : row.receptionPriceSource === "missing" ? (
                       <p className="text-xs text-amber-700">prix BL manquant</p>
                     ) : null}
                   </td>
-                  <td className="p-2 text-right tabular-nums text-slate-700">
+                  <td className="p-2 text-right tabular-nums text-stone-700">
                     {editable ? (
                       <input
                         value={editable.line_total}
@@ -351,18 +351,18 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
                           updateInvoiceLine(row.invoiceLineIndex as number, { line_total: e.target.value })
                         }
                         inputMode="decimal"
-                        className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-xs"
+                        className="w-24 rounded border border-stone-300 px-2 py-1 text-right text-xs"
                       />
                     ) : (
                       eur(row.invoiceLineTotal)
                     )}
                   </td>
-                  <td className="p-2 text-right tabular-nums text-slate-700">{eur(row.receptionLineTotal)}</td>
+                  <td className="p-2 text-right tabular-nums text-stone-700">{eur(row.receptionLineTotal)}</td>
                   <td
                     className={`p-2 text-right tabular-nums ${
                       lineDeltaDisplay != null && Math.abs(lineDeltaDisplay) > 0.05
                         ? "font-semibold text-rose-700"
-                        : "text-slate-700"
+                        : "text-stone-700"
                     }`}
                   >
                     {lineDeltaDisplay != null && lineDeltaDisplay > 0 ? "+" : ""}
@@ -372,12 +372,12 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
                     {row.receptionDeliveryNoteId ? (
                       <Link
                         href={`/receiving/${row.receptionDeliveryNoteId}`}
-                        className="font-medium text-indigo-700 underline decoration-indigo-300 underline-offset-2"
+                        className="font-medium text-copper-800 underline decoration-copper-300 underline-offset-2"
                       >
                         Modifier le BL
                       </Link>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-stone-400">—</span>
                     )}
                   </td>
                 </tr>
@@ -392,7 +392,7 @@ export function InvoiceLineComparisonTable({ rows, invoiceId, restaurantId, invo
             type="button"
             onClick={saveInvoiceCorrections}
             disabled={pending}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
           >
             {pending ? "Enregistrement…" : "Enregistrer les corrections facture"}
           </button>

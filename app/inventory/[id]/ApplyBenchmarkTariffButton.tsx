@@ -135,17 +135,17 @@ export function ApplyBenchmarkTariffButton({
 
   return (
     <div className={uiCard}>
-      <h2 className="text-sm font-semibold text-slate-900">Tarif théorique (base France)</h2>
+      <h2 className="text-sm font-semibold text-stone-900">Tarif théorique (base France)</h2>
       <p className={`mt-1 ${uiMuted}`}>
-        Associe le <strong className="font-medium text-slate-700">prix moyen</strong> du fichier (base indicative, ≈500
-        produits), converti en € / <strong className="font-medium text-slate-700">votre unité de stock</strong> (g, kg, ml
+        Associe le <strong className="font-medium text-stone-700">prix moyen</strong> du fichier (base indicative, ≈500
+        produits), converti en € / <strong className="font-medium text-stone-700">votre unité de stock</strong> (g, kg, ml
         ou L). Les montants « par gramme » ou « par ml » sont volontairement petits : la colonne moyenne affiche le prix
         catalogue (ex. €/kg) attendu.
       </p>
       {message?.kind === "ok" ? <p className={`mt-3 ${uiSuccess}`}>{message.text}</p> : null}
       {message?.kind === "err" ? <p className={`mt-3 ${uiError}`}>{message.text}</p> : null}
       {message?.kind === "info" ? (
-        <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        <p className="mt-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">
           {message.text}
         </p>
       ) : null}
@@ -164,8 +164,8 @@ export function ApplyBenchmarkTariffButton({
       </div>
 
       {suggestions != null && suggestions.length > 0 ? (
-        <div className="mt-5 border-t border-slate-100 pt-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className="mt-5 border-t border-stone-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
             Propositions proches (cliquez pour associer)
           </p>
           <ul className="mt-2 space-y-2">
@@ -179,7 +179,7 @@ export function ApplyBenchmarkTariffButton({
                 >
                   <div className="flex w-full flex-wrap items-baseline justify-between gap-2">
                     <span>
-                      <span className="font-medium text-slate-900">{s.produitLabel}</span>
+                      <span className="font-medium text-stone-900">{s.produitLabel}</span>
                       <span className={`ml-2 ${uiMuted}`}>({s.famille})</span>
                     </span>
                     <span className="shrink-0 text-right">

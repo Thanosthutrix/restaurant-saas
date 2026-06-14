@@ -60,18 +60,18 @@ export default async function ServiceStockPage({ params }: Props) {
   const isPartialCalculation = alerts.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-4xl px-4 py-6">
         <div className="mb-6">
           <Link
             href={`/service/${id}`}
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Retour au service
           </Link>
         </div>
 
-        <h1 className="mb-6 text-xl font-semibold text-slate-900">
+        <h1 className="mb-6 text-xl font-semibold text-stone-900">
           État théorique après service
         </h1>
 
@@ -82,23 +82,23 @@ export default async function ServiceStockPage({ params }: Props) {
         )}
 
         {/* 1. Résumé du service */}
-        <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Résumé du service</h2>
-          <p className="text-slate-900">
+        <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">Résumé du service</h2>
+          <p className="text-stone-900">
             <span className="font-medium">Date :</span> {formatDate(service.service_date)}
           </p>
-          <p className="mt-1 text-slate-900">
+          <p className="mt-1 text-stone-900">
             <span className="font-medium">Type :</span> {formatServiceType(service.service_type)}
           </p>
         </section>
 
         {/* 2. Ventes validées */}
-        <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Ventes validées</h2>
+        <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">Ventes validées</h2>
           {sales.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucune vente enregistrée.</p>
+            <p className="text-sm text-stone-500">Aucune vente enregistrée.</p>
           ) : (
-            <ul className="space-y-1 text-sm text-slate-700">
+            <ul className="space-y-1 text-sm text-stone-700">
               {sales.map((s) => (
                 <li key={s.id}>
                   <strong>{(s.dishes as { name: string } | null)?.name ?? s.dish_id}</strong> : {s.qty} vendu{s.qty > 1 ? "s" : ""}
@@ -109,21 +109,21 @@ export default async function ServiceStockPage({ params }: Props) {
         </section>
 
         {/* 3. Consommation théorique */}
-        <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Consommation théorique</h2>
-          <p className="mb-3 text-xs text-slate-500">
+        <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">Consommation théorique</h2>
+          <p className="mb-3 text-xs text-stone-500">
             Quantités théoriquement consommées (ingrédients, préparations, reventes) à partir des recettes. Ce n&apos;est pas le stock restant.
           </p>
           {consumption.length === 0 ? (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-stone-500">
               Aucune consommation calculée (ventes vides ou plats sans recette).
             </p>
           ) : (
-            <ul className="space-y-1 text-sm text-slate-700">
+            <ul className="space-y-1 text-sm text-stone-700">
               {consumption.map((c) => (
                 <li key={c.inventory_item_id}>
                   <strong>{c.name}</strong> : {c.qty} {c.unit}
-                  <span className="ml-1 text-xs text-slate-500">({c.item_type})</span>
+                  <span className="ml-1 text-xs text-stone-500">({c.item_type})</span>
                 </li>
               ))}
             </ul>
@@ -131,10 +131,10 @@ export default async function ServiceStockPage({ params }: Props) {
         </section>
 
         {/* 4. Alertes */}
-        <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Alertes</h2>
+        <section className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-medium text-stone-500">Alertes</h2>
           {alerts.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucune alerte.</p>
+            <p className="text-sm text-stone-500">Aucune alerte.</p>
           ) : (
             <ul className="space-y-2 text-sm">
               {alerts.map((a, i) => (
@@ -153,7 +153,7 @@ export default async function ServiceStockPage({ params }: Props) {
         <div className="mt-8">
           <Link
             href="/"
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             Retour à l&apos;accueil
           </Link>

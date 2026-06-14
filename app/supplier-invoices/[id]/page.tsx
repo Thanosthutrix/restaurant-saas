@@ -57,36 +57,36 @@ export default async function SupplierInvoicePage({ params }: Props) {
   const controlLabel = CONTROL_STATE_LABELS[c.control_state] ?? c.control_state;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-stone-50">
       <div className="mx-auto max-w-2xl px-4 py-6">
         <div className="mb-4">
           <Link
             href={`/suppliers/${invoice.supplier_id}`}
-            className="text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Retour fournisseur
           </Link>
           <Link
             href="/supplier-invoices"
-            className="ml-4 text-slate-600 underline decoration-slate-400 underline-offset-2"
+            className="ml-4 text-stone-600 underline decoration-stone-400 underline-offset-2"
           >
             ← Factures
           </Link>
         </div>
 
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h1 className="text-xl font-semibold text-slate-900">
+        <div className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h1 className="text-xl font-semibold text-stone-900">
             Facture {invoice.invoice_number || "sans numéro"}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-stone-500">
             Fournisseur : {supplier?.name ?? "—"}
           </p>
           {invoice.invoice_date && (
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-stone-600">
               Date : {new Date(invoice.invoice_date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
             </p>
           )}
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-stone-600">
             Statut : {STATUS_LABELS[invoice.status] ?? invoice.status}
           </p>
           {fileUrl && (
@@ -95,14 +95,14 @@ export default async function SupplierInvoicePage({ params }: Props) {
                 href={fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium text-slate-800 underline"
+                className="text-sm font-medium text-stone-800 underline"
               >
                 Voir le fichier facture
               </a>
             </p>
           )}
 
-          <div className="mt-6 border-t border-slate-200 pt-4">
+          <div className="mt-6 border-t border-stone-200 pt-4">
             <InvoiceAnalysisSection
               analysisView={invoice.analysis_view}
               analysis_status={invoice.analysis_status ?? null}
@@ -118,8 +118,8 @@ export default async function SupplierInvoicePage({ params }: Props) {
             />
           </div>
 
-          <div className="mt-6 border-t border-slate-200 pt-4">
-            <h2 className="mb-3 text-sm font-medium text-slate-700">
+          <div className="mt-6 border-t border-stone-200 pt-4">
+            <h2 className="mb-3 text-sm font-medium text-stone-700">
               Modifier les informations de la facture
             </h2>
             <InvoiceMetadataForm
@@ -136,23 +136,23 @@ export default async function SupplierInvoicePage({ params }: Props) {
         </div>
 
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50/80 p-4">
-          <h2 className="mb-2 text-sm font-medium text-slate-700">
+          <h2 className="mb-2 text-sm font-medium text-stone-700">
             Contrôle
           </h2>
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-stone-900">
             {controlLabel}
           </p>
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 sm:grid-cols-4">
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-stone-600 sm:grid-cols-4">
             <span>Réceptions liées : {c.linked_receptions_count}</span>
             <span>Lignes au total : {c.total_lines}</span>
             <span>Lignes avec produit : {c.lines_with_product}</span>
             <span>Lignes sans produit : {c.lines_without_product}</span>
           </dl>
           <div className="mt-4 border-t border-amber-200/80 pt-3">
-            <h3 className="mb-2 text-xs font-medium text-slate-700">
+            <h3 className="mb-2 text-xs font-medium text-stone-700">
               Contrôle principal : BL reçus vs facture
             </h3>
-            <p className="mb-2 text-xs text-slate-500">
+            <p className="mb-2 text-xs text-stone-500">
               Ce contrôle compare ce que le fournisseur facture avec ce qui a réellement été reçu et valorisé dans les
               BL liés.
             </p>
@@ -171,14 +171,14 @@ export default async function SupplierInvoicePage({ params }: Props) {
             />
           </div>
           <div className="mt-4 border-t border-amber-200/80 pt-3">
-            <h3 className="mb-2 text-xs font-medium text-slate-600">
+            <h3 className="mb-2 text-xs font-medium text-stone-600">
               Contrôle secondaire : cohérence interne de la facture
             </h3>
-            <p className="mb-2 text-xs text-slate-500">
+            <p className="mb-2 text-xs text-stone-500">
               Ce contrôle vérifie seulement que la somme des lignes lues sur la facture correspond au total HT saisi sur
               la facture. Il ne remplace pas le contrôle BL vs facture ci-dessus.
             </p>
-            <dl className="grid grid-cols-1 gap-1 text-xs text-slate-600 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-1 text-xs text-stone-600 sm:grid-cols-2">
               <span>Lignes extraites (table) : {reco.extracted_lines_count}</span>
               <span>Lignes réceptions liées : {reco.reception_lines_count}</span>
               {reco.sum_extracted_line_totals != null && (
@@ -228,11 +228,11 @@ export default async function SupplierInvoicePage({ params }: Props) {
           </div>
         </div>
 
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-medium text-slate-700">
+        <div className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-medium text-stone-700">
             Écarts ligne par ligne
           </h2>
-          <p className="mb-3 text-xs text-slate-500">
+          <p className="mb-3 text-xs text-stone-500">
             La colonne « Écart ligne HT » correspond au montant facturé pour la ligne moins le montant valorisé sur le
             BL (même logique que le bandeau ci-dessus). Les PU BL peuvent être repris sur la facture si le BL n’a pas de
             tarif : l’écart HT reste la référence.
@@ -280,22 +280,22 @@ export default async function SupplierInvoicePage({ params }: Props) {
           </div>
         )}
 
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-medium text-slate-500">
+        <div className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-medium text-stone-500">
             Rapprochement
           </h2>
           <div className="mt-4 space-y-2">
             {invoice.delivery_notes.length === 0 ? (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-stone-600">
                 Aucune réception liée pour l’instant.
               </p>
             ) : (
               <ul className="space-y-2">
                 {invoice.delivery_notes.map((dn) => (
-                  <li key={dn.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 px-3 py-2">
+                  <li key={dn.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-stone-200 px-3 py-2">
                     <Link
                       href={`/receiving/${dn.id}`}
-                      className="text-sm font-medium text-slate-800 underline"
+                      className="text-sm font-medium text-stone-800 underline"
                     >
                       Réception du{" "}
                       {dn.created_at
@@ -306,7 +306,7 @@ export default async function SupplierInvoicePage({ params }: Props) {
                           })
                         : "—"}
                     </Link>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-stone-500">
                       {dn.lines_count} ligne{dn.lines_count !== 1 ? "s" : ""} · {dn.status}
                       {dn.lines_without_product > 0 && (
                         <span className="ml-1 text-amber-600">
@@ -325,8 +325,8 @@ export default async function SupplierInvoicePage({ params }: Props) {
             )}
           </div>
 
-          <div className="mt-4 border-t border-slate-200 pt-4">
-            <h3 className="mb-2 text-xs font-medium text-slate-500">
+          <div className="mt-4 border-t border-stone-200 pt-4">
+            <h3 className="mb-2 text-xs font-medium text-stone-500">
               Lier des réceptions
             </h3>
             <LinkReceptionsForm

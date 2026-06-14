@@ -116,12 +116,12 @@ export function DiningOrderCustomerLinkPanel({ restaurantId, orderId, linked, re
             Client :{" "}
             <button
               type="button"
-              className="font-semibold text-indigo-700 underline"
+              className="font-semibold text-copper-800 underline"
               onClick={() => setMemoOpen(true)}
             >
               {linked.display_name}
             </button>{" "}
-            <Link href={`/clients/${linked.id}`} className="text-indigo-700 hover:underline">
+            <Link href={`/clients/${linked.id}`} className="text-copper-800 hover:underline">
               (fiche)
             </Link>{" "}
             — les plats de cette commande seront ajoutés à l’historique à l’encaissement.
@@ -151,9 +151,9 @@ export function DiningOrderCustomerLinkPanel({ restaurantId, orderId, linked, re
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm">
-      <p className="text-xs font-medium text-slate-700">Associer un client (base clients)</p>
-      <p className="text-[11px] text-slate-500">Tapez le nom, l’e-mail ou le téléphone — même principe que le n° de lot en préparations.</p>
+    <div className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm shadow-sm">
+      <p className="text-xs font-medium text-stone-700">Associer un client (base clients)</p>
+      <p className="text-[11px] text-stone-500">Tapez le nom, l’e-mail ou le téléphone — même principe que le n° de lot en préparations.</p>
       <div className="relative mt-2 flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <input
@@ -167,21 +167,21 @@ export function DiningOrderCustomerLinkPanel({ restaurantId, orderId, linked, re
           {q.trim().length > 0 && suggestions.length > 0 ? (
             <div
               ref={listRef}
-              className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-md"
+              className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-stone-200 bg-white py-1 shadow-md"
             >
               {suggestions.map((c) => (
                 <button
                   key={c.id}
                   type="button"
-                  className="flex w-full flex-col items-start px-2 py-1.5 text-left text-sm hover:bg-indigo-50"
+                  className="flex w-full flex-col items-start px-2 py-1.5 text-left text-sm hover:bg-copper-50"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onPick(c)}
                 >
-                  <span className="font-medium text-slate-900">{c.display_name}</span>
-                  <span className="text-[11px] text-slate-500">{[c.email, c.phone].filter(Boolean).join(" · ")}</span>
+                  <span className="font-medium text-stone-900">{c.display_name}</span>
+                  <span className="text-[11px] text-stone-500">{[c.email, c.phone].filter(Boolean).join(" · ")}</span>
                 </button>
               ))}
-              {searchLoading ? <div className="px-2 py-1 text-xs text-slate-500">Recherche…</div> : null}
+              {searchLoading ? <div className="px-2 py-1 text-xs text-stone-500">Recherche…</div> : null}
             </div>
           ) : null}
         </div>

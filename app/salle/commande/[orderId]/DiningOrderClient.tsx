@@ -258,18 +258,18 @@ export function DiningOrderClient({
   if (status === "settled") {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-slate-200/90 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-2 py-1.5">
+        <div className="rounded-lg border border-stone-200/90 bg-white shadow-sm">
+          <div className="border-b border-stone-100 px-2 py-1.5">
             <p className="text-xs font-semibold text-emerald-800">Encaissée</p>
-            <p className="truncate text-[11px] text-slate-600">{placeDescription}</p>
+            <p className="truncate text-[11px] text-stone-600">{placeDescription}</p>
           </div>
-          <div className="space-y-2 px-2 py-2 text-sm text-slate-800">
+          <div className="space-y-2 px-2 py-2 text-sm text-stone-800">
             <p>
-              <span className="text-slate-600">Total TTC : </span>
+              <span className="text-stone-600">Total TTC : </span>
               <span className="font-bold tabular-nums">{fmtEur(totalTtc)}</span>
             </p>
             <p>
-              <span className="text-slate-600">Paiement : </span>
+              <span className="text-stone-600">Paiement : </span>
               <span className="font-semibold">
                 {DINING_PAYMENT_LABEL_FR[parseDiningPaymentMethod(settledPaymentMethod)]}
               </span>
@@ -278,23 +278,23 @@ export function DiningOrderClient({
               <p>
                 <Link
                   href={`/service/${serviceId}`}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                  className="text-xs font-semibold text-copper-700 hover:text-copper-600"
                 >
                   Voir le service et le stock →
                 </Link>
               </p>
             ) : null}
             {linkedCustomer ? (
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-stone-600">
                 Client :{" "}
                 <button
                   type="button"
-                  className="font-semibold text-indigo-600 underline"
+                  className="font-semibold text-copper-700 underline"
                   onClick={() => setMemoOpen(true)}
                 >
                   {linkedCustomer.display_name}
                 </button>{" "}
-                <Link href={`/clients/${linkedCustomer.id}`} className="ml-1 text-indigo-600 hover:underline">
+                <Link href={`/clients/${linkedCustomer.id}`} className="ml-1 text-copper-700 hover:underline">
                   (fiche)
                 </Link>{" "}
                 — l’historique de commande a été mis à jour sur la fiche.
@@ -302,7 +302,7 @@ export function DiningOrderClient({
             ) : null}
           </div>
         </div>
-        <div className="rounded-lg border border-slate-200/90 bg-slate-50/80 px-2 py-2">
+        <div className="rounded-lg border border-stone-200/90 bg-stone-50/80 px-2 py-2">
           <p className={`mb-2 text-[11px] leading-snug ${uiLead}`}>
             Pour modifier les lignes ou le paiement, dévalidez l’encaissement (le stock et le service
             seront annulés).
@@ -321,14 +321,14 @@ export function DiningOrderClient({
   }
 
   const header = (
-    <div className="border-b border-slate-100 px-2 py-1.5">
+    <div className="border-b border-stone-100 px-2 py-1.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-900" title={placeDescription}>
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-stone-900" title={placeDescription}>
           {placeDescription}
         </p>
         <button
           type="button"
-          className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+          className="flex h-10 shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 active:scale-95 disabled:opacity-50"
           disabled={pending}
           title={saveReturnTitle}
           onClick={handleSaveAndReturn}
@@ -390,15 +390,15 @@ export function DiningOrderClient({
             recentCustomerPool={customerSearchPool}
           />
           {lines.length > 0 && linkedCustomerEmail ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2">
-              <p className="min-w-0 flex-1 text-[11px] text-slate-600">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/80 px-3 py-2">
+              <p className="min-w-0 flex-1 text-[11px] text-stone-600">
                 Envoyer l’e-mail « commande prête » (sans attendre toutes les lignes Prêt) :
               </p>
               <button
                 type="button"
                 disabled={pending}
                 onClick={sendReadyEmailManual}
-                className="shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-50 disabled:opacity-50"
+                className="flex h-10 shrink-0 items-center rounded-lg border border-copper-200 bg-white px-3 text-sm font-semibold text-copper-800 shadow-sm transition hover:bg-copper-50 disabled:opacity-50"
               >
                 Notifier (e-mail)
               </button>
@@ -413,7 +413,7 @@ export function DiningOrderClient({
         <div className={uiCard}>
           <p className={uiLead}>
             Aucun plat avec prix dans la carte.{" "}
-            <Link href="/dishes" className="font-semibold text-indigo-600">
+            <Link href="/dishes" className="font-semibold text-copper-700">
               Créer des plats
             </Link>{" "}
             dans « Plats vendus ».

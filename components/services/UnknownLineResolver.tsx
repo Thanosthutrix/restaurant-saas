@@ -109,7 +109,7 @@ export function UnknownLineResolver({
             type="button"
             disabled={disableAll}
             onClick={() => handleResolveToDish(c.dishId)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 shadow-sm transition hover:border-indigo-100 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-800 shadow-sm transition hover:border-copper-100 hover:bg-stone-50 disabled:opacity-50"
           >
             {c.dishName}
           </button>
@@ -153,7 +153,7 @@ export function UnknownLineResolver({
           type="button"
           disabled={disableAll}
           onClick={handleIgnore}
-          className={`${uiBtnOutlineSm} text-slate-600`}
+          className={`${uiBtnOutlineSm} text-stone-600`}
         >
           Ignorer
         </button>

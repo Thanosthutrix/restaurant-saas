@@ -123,13 +123,13 @@ export function PrepComponentsBlock({
 
   return (
     <div className={uiCard}>
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">
+      <h2 className="mb-3 text-sm font-semibold text-stone-900">
         Composition de « {parentItem.name} »
       </h2>
 
       <ul className="mb-4 space-y-3">
         {components.length === 0 ? (
-          <li className="text-sm text-slate-500">Aucun composant.</li>
+          <li className="text-sm text-stone-500">Aucun composant.</li>
         ) : (
           components.map((c) => {
             const comp = itemById.get(c.component_item_id);
@@ -139,9 +139,9 @@ export function PrepComponentsBlock({
             return (
               <li
                 key={c.id}
-                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2"
+                className="flex flex-wrap items-center gap-2 rounded-xl border border-stone-100 bg-stone-50/80 px-3 py-2"
               >
-                <span className="w-32 shrink-0 font-semibold text-slate-900 sm:w-40">
+                <span className="w-32 shrink-0 font-semibold text-stone-900 sm:w-40">
                   {comp?.name ?? c.component_item_id}
                 </span>
                 <input
@@ -153,7 +153,7 @@ export function PrepComponentsBlock({
                   disabled={disabled}
                   aria-label={`Quantité ${comp?.name ?? c.component_item_id}`}
                 />
-                <span className="w-8 shrink-0 text-sm text-slate-500">{unit}</span>
+                <span className="w-8 shrink-0 text-sm text-stone-500">{unit}</span>
                 <div className="flex gap-1">
                   <button
                     type="button"
@@ -180,8 +180,8 @@ export function PrepComponentsBlock({
 
       {error && <p className="mb-2 text-sm text-rose-600">{error}</p>}
 
-      <div className="border-t border-slate-100 pt-4">
-        <p className="mb-2 text-sm font-semibold text-slate-800">Ajouter un composant</p>
+      <div className="border-t border-stone-100 pt-4">
+        <p className="mb-2 text-sm font-semibold text-stone-800">Ajouter un composant</p>
         <InventoryItemSearchOrCreate
           allItems={allItems}
           excludedIds={excludedIds}

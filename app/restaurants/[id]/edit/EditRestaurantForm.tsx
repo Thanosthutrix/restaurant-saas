@@ -61,10 +61,10 @@ export function EditRestaurantForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-stone-200 bg-white p-4">
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="name" className="mb-1 block text-sm font-medium text-stone-700">
           Nom du restaurant *
         </label>
         <input
@@ -74,15 +74,15 @@ export function EditRestaurantForm({
           onChange={(e) => setName(e.target.value)}
           required
           placeholder="Le Bistrot"
-          className="w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
+          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
         />
       </div>
       <div
         id="messagerie-expediteur"
-        className="scroll-mt-6 rounded-md border border-slate-100 bg-slate-50/80 p-3"
+        className="scroll-mt-6 rounded-md border border-stone-100 bg-stone-50/80 p-3"
       >
-        <p className="mb-2 text-sm font-semibold text-slate-800">E-mails clients</p>
-        <label htmlFor="messagingSender" className="mb-1 block text-sm font-medium text-slate-700">
+        <p className="mb-2 text-sm font-semibold text-stone-800">E-mails clients</p>
+        <label htmlFor="messagingSender" className="mb-1 block text-sm font-medium text-stone-700">
           Nom d’expéditeur
         </label>
         <input
@@ -91,21 +91,21 @@ export function EditRestaurantForm({
           value={messagingSenderDisplayName}
           onChange={(e) => setMessagingSenderDisplayName(e.target.value)}
           placeholder={name.trim() || "Le Bistrot"}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
+          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-stone-500">
           Libellé affiché dans la boîte du destinataire (ex. « {name.trim() || "Votre restaurant"} » &lt;adresse
           d’envoi de la plateforme&gt;). Laisser vide pour utiliser le nom du restaurant ci-dessus.
         </p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">
+        <label className="mb-1 block text-sm font-medium text-stone-700">
           Modèle / type d&apos;activité
         </label>
         <select
           value={templateSlug}
           onChange={(e) => setTemplateSlug(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
+          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
         >
           <option value="">Aucun modèle</option>
           {templates.map((t) => (
@@ -114,35 +114,35 @@ export function EditRestaurantForm({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-stone-500">
           Utilisé pour les suggestions de plats et composants. Changer n&apos;écrase pas vos données.
         </p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">
+        <label className="mb-1 block text-sm font-medium text-stone-700">
           Type de service
         </label>
         <select
           value={serviceType}
           onChange={(e) => setServiceType(e.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-slate-900"
+          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
         >
           {SERVICE_TYPES.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
       </div>
-      <div className="rounded border border-slate-200 p-3">
-        <p className="mb-2 text-sm font-medium text-slate-800">
+      <div className="rounded border border-stone-200 p-3">
+        <p className="mb-2 text-sm font-medium text-stone-800">
           Calendrier et contexte (météo, vacances)
         </p>
-        <p className="mb-3 text-xs text-slate-500">
+        <p className="mb-3 text-xs text-stone-500">
           Indiquez l&apos;adresse du restaurant (France). À l&apos;enregistrement, nous géocodons l&apos;adresse pour la
           météo. En mode automatique, la zone de vacances scolaires est déduite du département ; vous pouvez
           forcer A, B ou C si besoin.
         </p>
         <div className="mb-3">
-          <label htmlFor="address" className="mb-1 block text-xs text-slate-600">
+          <label htmlFor="address" className="mb-1 block text-xs text-stone-600">
             Adresse
           </label>
           <textarea
@@ -151,18 +151,18 @@ export function EditRestaurantForm({
             value={addressText}
             onChange={(e) => setAddressText(e.target.value)}
             placeholder="12 rue de la Paix, 75002 Paris"
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           />
         </div>
         <div>
-          <label htmlFor="zone" className="mb-1 block text-xs text-slate-600">
+          <label htmlFor="zone" className="mb-1 block text-xs text-stone-600">
             Zone vacances scolaires
           </label>
           <select
             id="zone"
             value={zoneChoice}
             onChange={(e) => setZoneChoice(e.target.value as ZoneChoice)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
           >
             <option value="auto">Automatique (selon l&apos;adresse)</option>
             <option value="A">Zone A (manuel)</option>
@@ -174,7 +174,7 @@ export function EditRestaurantForm({
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded bg-slate-900 py-2 font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+        className="w-full rounded bg-stone-900 py-2 font-medium text-white hover:bg-stone-800 disabled:opacity-50"
       >
         {loading ? "Enregistrement…" : "Enregistrer"}
       </button>

@@ -34,9 +34,11 @@ type Props = {
   refreshTick: number;
   onReset: () => void;
   onSettled?: (message: string) => void;
+  /** Remonte un récap live du ticket (pour l'afficher ailleurs, ex. pied de modale catalogue). */
+  onSummary?: (summary: { count: number; totalTtc: number }) => void;
 };
 
-export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onReset, onSettled }: Props) {
+export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onReset, onSettled, onSummary }: Props) {
   const router = useRouter();
   const [snapshot, setSnapshot] = useState<{
     ticketLabel: string;
@@ -210,6 +212,12 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
   const totalTtc = snapshot?.totalTtc ?? 0;
   const ticketLabel = snapshot?.ticketLabel ?? "…";
   const customerEmail = snapshot?.customerEmail ?? null;
+
+  useEffect(() => {
+    if (!onSummary || !snapshot) return;
+    const count = snapshot.lines.reduce((acc, l) => acc + l.qty, 0);
+    onSummary({ count, totalTtc: snapshot.totalTtc });
+  }, [snapshot, onSummary]);
 
   const header = (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-stone-100 px-2 py-1.5">

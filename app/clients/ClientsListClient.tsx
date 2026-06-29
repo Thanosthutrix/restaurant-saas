@@ -2,10 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { ArrowUpRight, Download, Plus, Search, UserRound, X } from "lucide-react";
 import type { CustomerListSort, CustomerSource, CustomerTag, CustomerWithTags } from "@/lib/customers/types";
 import { exportCustomersCsvAction } from "./actions";
-import { uiBtnOutlineSm, uiBtnPrimarySm, uiCard } from "@/components/ui/premium";
+import { CustomerNewClient } from "./new/CustomerNewClient";
+import { uiBtnOutlineSm, uiBtnPrimary, uiBtnPrimarySm, uiInput } from "@/components/ui/premium";
+import { EmptyState } from "@/components/ui/EmptyState";
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 const SORT_OPTIONS: { value: CustomerListSort; label: string }[] = [
   { value: "name_asc", label: "Nom A → Z" },
@@ -53,6 +63,21 @@ export function ClientsListClient({
 }: Props) {
   const router = useRouter();
   const [exporting, startExport] = useTransition();
+  const [showNew, setShowNew] = useState(false);
+
+  useEffect(() => {
+    if (!showNew) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowNew(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [showNew]);
 
   function buildQueryString(form: FormData): string {
     const q = String(form.get("q") ?? "").trim();
@@ -91,179 +116,186 @@ export function ClientsListClient({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-stone-600">
-          <span className="font-semibold text-stone-900 tabular-nums">{totalActive}</span> fiche
-          {totalActive > 1 ? "s" : ""} active{totalActive > 1 ? "s" : ""}
-          {totalApprox !== totalActive ? (
-            <span className="text-stone-400"> · {totalApprox} résultat(s) filtré(s)</span>
-          ) : null}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={exporting}
-            onClick={downloadCsv}
-            className={uiBtnOutlineSm}
-          >
+    <div className="space-y-3">
+      {/* Récap + actions */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-stone-200/70 bg-white p-4 shadow-sm">
+        <div>
+          <p className="text-xs font-medium text-stone-500">Fiches actives</p>
+          <p className="text-3xl font-semibold tabular-nums tracking-tight text-stone-900">{totalActive}</p>
+        </div>
+        {totalApprox !== totalActive ? (
+          <div className="border-l border-stone-100 pl-5">
+            <p className="text-xs font-medium text-stone-500">Résultats filtrés</p>
+            <p className="text-3xl font-semibold tabular-nums tracking-tight text-copper-800">{totalApprox}</p>
+          </div>
+        ) : null}
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button type="button" disabled={exporting} onClick={downloadCsv} className={`${uiBtnOutlineSm} inline-flex items-center gap-1.5`}>
+            <Download className="h-4 w-4" aria-hidden />
             {exporting ? "Export…" : "Exporter CSV"}
           </button>
-          <Link href="/clients/new" className={uiBtnPrimarySm}>
+          <button type="button" onClick={() => setShowNew(true)} className={`${uiBtnPrimary} inline-flex items-center gap-1.5`}>
+            <Plus className="h-4 w-4" aria-hidden />
             Nouvelle fiche
-          </Link>
+          </button>
         </div>
       </div>
 
-      <form onSubmit={onFilterSubmit} className={`${uiCard} space-y-4`}>
-        <p className="text-sm font-semibold text-stone-800">Filtres</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-xs font-medium text-stone-600">
+      {/* Filtres */}
+      <form onSubmit={onFilterSubmit} className="space-y-4 rounded-2xl border border-stone-200/70 bg-white p-4 shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-xs font-medium text-stone-600 lg:col-span-2">
             Recherche
-            <input
-              name="q"
-              type="search"
-              defaultValue={initialQuery}
-              placeholder="Nom, email, téléphone, ville…"
-              className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-            />
+            <div className="relative mt-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden />
+              <input
+                name="q"
+                type="search"
+                defaultValue={initialQuery}
+                placeholder="Nom, email, téléphone, ville…"
+                className={`${uiInput} h-10 w-full pl-9`}
+              />
+            </div>
           </label>
           <label className="block text-xs font-medium text-stone-600">
             Tri
-            <select
-              name="sort"
-              defaultValue={initialSort}
-              className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-            >
+            <select name="sort" defaultValue={initialSort} className={`${uiInput} mt-1 h-10 w-full`}>
               {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </label>
           <label className="block text-xs font-medium text-stone-600">
             Origine
-            <select
-              name="source"
-              defaultValue={initialSource}
-              className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-            >
+            <select name="source" defaultValue={initialSource} className={`${uiInput} mt-1 h-10 w-full`}>
               {SOURCE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </label>
-          <label className="flex cursor-pointer items-end gap-2 pb-2 text-sm text-stone-700">
-            <input
-              type="checkbox"
-              name="marketing"
-              defaultChecked={initialMarketingOnly}
-              className="h-4 w-4 rounded border-stone-300"
-            />
-            Opt-in marketing
-          </label>
         </div>
 
-        {tags.length > 0 ? (
-          <fieldset>
-            <legend className="text-xs font-medium text-stone-600">Étiquettes (toutes requises)</legend>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {tags.map((t) => (
-                <label
-                  key={t.id}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium"
-                  style={{ borderColor: t.color }}
-                >
-                  <input
-                    type="checkbox"
-                    name="tag"
-                    value={t.id}
-                    defaultChecked={initialTagIds.includes(t.id)}
-                    className="h-3.5 w-3.5 rounded border-stone-300"
-                  />
-                  <span style={{ color: t.color }}>{t.label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ) : (
-          <p className="text-xs text-stone-500">Aucune étiquette : créez-en depuis une fiche client ou les réglages futurs.</p>
-        )}
-
-        <button type="submit" className={uiBtnPrimarySm}>
-          Appliquer
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700">
+              <input type="checkbox" name="marketing" defaultChecked={initialMarketingOnly} className="h-4 w-4 rounded border-stone-300" />
+              Opt-in marketing
+            </label>
+            {tags.length > 0
+              ? tags.map((t) => (
+                  <label
+                    key={t.id}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs font-medium"
+                    style={{ borderColor: t.color }}
+                  >
+                    <input
+                      type="checkbox"
+                      name="tag"
+                      value={t.id}
+                      defaultChecked={initialTagIds.includes(t.id)}
+                      className="h-3.5 w-3.5 rounded border-stone-300"
+                    />
+                    <span style={{ color: t.color }}>{t.label}</span>
+                  </label>
+                ))
+              : null}
+          </div>
+          <button type="submit" className={uiBtnPrimarySm}>Appliquer</button>
+        </div>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-stone-100 bg-stone-50/90 text-xs font-semibold uppercase tracking-wide text-stone-500">
-              <th className="px-4 py-3">Client</th>
-              <th className="px-4 py-3">Contact</th>
-              <th className="px-4 py-3">Étiquettes</th>
-              <th className="px-4 py-3 text-right">Visites</th>
-              <th className="w-10 px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {initialRows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-stone-500">
-                  Aucun client ne correspond aux critères.
-                </td>
-              </tr>
-            ) : (
-              initialRows.map((row) => (
-                <tr key={row.id} className="hover:bg-stone-50/80">
-                  <td className="px-4 py-3">
-                    <Link href={`/clients/${row.id}`} className="font-medium text-copper-800 hover:underline">
-                      {row.display_name}
-                    </Link>
-                    {row.company_name ? (
-                      <div className="text-xs text-stone-500">{row.company_name}</div>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-stone-600">
-                    <div>{row.email ?? "—"}</div>
-                    <div className="tabular-nums">{row.phone ?? ""}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {row.tags.length === 0 ? (
-                        <span className="text-stone-400">—</span>
-                      ) : (
-                        row.tags.map((t) => (
-                          <span
-                            key={t.id}
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
-                            style={{ backgroundColor: t.color }}
-                          >
-                            {t.label}
-                          </span>
-                        ))
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-stone-800">{row.visit_count}</td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/clients/${row.id}`}
-                      className="text-copper-700 hover:text-copper-600"
-                      aria-label={`Ouvrir ${row.display_name}`}
-                    >
-                      →
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Liste */}
+      {initialRows.length === 0 ? (
+        <EmptyState
+          icon={UserRound}
+          title="Aucun client"
+          description="Aucune fiche ne correspond aux critères. Ajustez les filtres, ou créez une nouvelle fiche."
+          action={
+            <button type="button" onClick={() => setShowNew(true)} className={`${uiBtnPrimary} inline-flex items-center gap-1.5`}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Nouvelle fiche
+            </button>
+          }
+        />
+      ) : (
+        <ul className="space-y-2">
+          {initialRows.map((row) => {
+            const contact = [row.email, row.phone].filter(Boolean).join(" · ");
+            return (
+              <li key={row.id}>
+                <Link
+                  href={`/clients/${row.id}`}
+                  className="group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition hover:border-copper-200 hover:shadow-md"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-copper-50 text-sm font-bold text-copper-800 ring-1 ring-copper-100/90">
+                    {initials(row.display_name)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2">
+                      <span className="truncate font-semibold text-stone-900 transition group-hover:text-copper-700">
+                        {row.display_name}
+                      </span>
+                      {row.company_name ? (
+                        <span className="truncate text-xs text-stone-400">· {row.company_name}</span>
+                      ) : null}
+                    </span>
+                    <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {contact ? <span className="truncate text-xs text-stone-500">{contact}</span> : null}
+                      {row.tags.map((t) => (
+                        <span
+                          key={t.id}
+                          className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                          style={{ backgroundColor: t.color }}
+                        >
+                          {t.label}
+                        </span>
+                      ))}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end">
+                    <span className="text-sm font-semibold tabular-nums text-stone-900">{row.visit_count}</span>
+                    <span className="text-[10px] uppercase tracking-wide text-stone-400">visite{row.visit_count > 1 ? "s" : ""}</span>
+                  </span>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {showNew ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nouvelle fiche client"
+          onClick={() => setShowNew(false)}
+        >
+          <div
+            className="my-6 w-full max-w-2xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+                <UserRound className="h-5 w-5 text-copper-700" aria-hidden />
+              </span>
+              <p className="text-sm font-semibold text-stone-900">Nouvelle fiche client</p>
+              <button
+                type="button"
+                onClick={() => setShowNew(false)}
+                className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
+            <div className="max-h-[78vh] overflow-y-auto bg-stone-50/50 px-4 py-4">
+              <CustomerNewClient restaurantId={restaurantId} />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

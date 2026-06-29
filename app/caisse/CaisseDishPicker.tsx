@@ -25,6 +25,8 @@ function DishTapButton({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [addedCount, setAddedCount] = useState(0);
+  const [flash, setFlash] = useState(false);
 
   const tap = () => {
     setError(null);
@@ -50,6 +52,9 @@ function DishTapButton({
       } catch {
         /* ignore */
       }
+      setAddedCount((n) => n + 1);
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 600);
       onOrderChange(oid);
       router.refresh();
     });
@@ -57,7 +62,23 @@ function DishTapButton({
 
   return (
     <div className="space-y-1">
-      <DishCatalogTileButton dish={dish} disabled={pending} onClick={tap} />
+      <DishCatalogTileButton
+        dish={dish}
+        disabled={pending}
+        onClick={tap}
+        badge={
+          addedCount > 0 ? (
+            <span
+              className={`flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-xs font-bold text-white transition ${
+                flash ? "scale-110 bg-emerald-600" : "bg-copper-700"
+              }`}
+              aria-label={`${addedCount} ajouté${addedCount > 1 ? "s" : ""}`}
+            >
+              ×{addedCount}
+            </span>
+          ) : null
+        }
+      />
       {error ? <p className={`${uiError} text-xs`}>{error}</p> : null}
     </div>
   );
@@ -71,6 +92,9 @@ type Props = {
   recentCustomerPool: CustomerLookupRow[];
 };
 
+const eurFmt = (n: number) =>
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
+
 export function CaisseDishPicker({
   restaurantId,
   roots,
@@ -82,6 +106,12 @@ export function CaisseDishPicker({
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [ticketRefreshTick, setTicketRefreshTick] = useState(0);
   const [settledFlash, setSettledFlash] = useState<string | null>(null);
+  const [ticketSummary, setTicketSummary] = useState<{ count: number; totalTtc: number } | null>(null);
+
+  const handleSummary = useCallback(
+    (s: { count: number; totalTtc: number }) => setTicketSummary(s),
+    []
+  );
 
   const totalPlats = useMemo(() => {
     const n = Object.values(directByCategoryId).reduce((s, arr) => s + arr.length, 0);
@@ -95,6 +125,7 @@ export function CaisseDishPicker({
       /* ignore */
     }
     setActiveOrderId(null);
+    setTicketSummary(null);
     router.refresh();
   }, [router]);
 
@@ -168,6 +199,7 @@ export function CaisseDishPicker({
           refreshTick={ticketRefreshTick}
           onReset={resetQuickTicket}
           onSettled={(msg) => setSettledFlash(msg)}
+          onSummary={handleSummary}
         />
       ) : null}
 
@@ -179,6 +211,28 @@ export function CaisseDishPicker({
         renderDish={(dish) => (
           <DishTapButton dish={dish} restaurantId={restaurantId} onOrderChange={onOrderChange} />
         )}
+        renderModalFooter={
+          activeOrderId && ticketSummary
+            ? (close) => (
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] uppercase tracking-wide text-stone-400">Ticket en cours</p>
+                    <p className="truncate text-sm font-semibold text-stone-900">
+                      {ticketSummary.count} article{ticketSummary.count > 1 ? "s" : ""} ·{" "}
+                      <span className="tabular-nums text-copper-800">{eurFmt(ticketSummary.totalTtc)}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={close}
+                    className="copper-sheen inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                  >
+                    Voir le ticket
+                  </button>
+                </div>
+              )
+            : undefined
+        }
       />
     </section>
   );

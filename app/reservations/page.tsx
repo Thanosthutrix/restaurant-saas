@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listDiningTables, mapCustomerDisplayNames } from "@/lib/dining/diningDb";
@@ -67,14 +66,6 @@ export default async function ReservationsPage({ searchParams }: Props) {
         breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Réservations" }]}
         title="Réservations"
         subtitle="Livre du jour (fuseau Europe/Paris). Création depuis le téléphone, le comptoir ou le site."
-        actions={
-          <Link
-            href="/reservations/nouvelle"
-            className="copper-sheen shrink-0 rounded-xl bg-copper-700 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
-          >
-            Nouvelle réservation
-          </Link>
-        }
       />
 
       <ReservationsListClient

@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, DoorOpen, Pencil, Plus, Users, X } from "lucide-react";
 import { setReservationStatusAction } from "./actions";
 import { ReservationArrivalModal } from "./ReservationArrivalModal";
 import { ReservationsDayPlanner } from "./ReservationsDayPlanner";
+import { NewReservationForm } from "./nouvelle/NewReservationForm";
 import type { CustomerLookupRow } from "@/lib/customers/customersDb";
 import type { DiningTableRow } from "@/lib/dining/diningDb";
 import type { RestaurantReservationRow, ReservationStatus } from "@/lib/reservations/types";
-import { uiCard, uiError, uiInput, uiSectionTitleSm, uiSuccess } from "@/components/ui/premium";
+import { uiBtnPrimary, uiError, uiInput, uiSuccess } from "@/components/ui/premium";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const STATUS: { v: ReservationStatus; label: string }[] = [
   { v: "pending", label: "En attente" },
@@ -19,6 +22,17 @@ const STATUS: { v: ReservationStatus; label: string }[] = [
   { v: "cancelled", label: "Annulée" },
   { v: "no_show", label: "No-show" },
 ];
+
+const STATUS_STYLE: Record<ReservationStatus, { dot: string; chip: string; label: string }> = {
+  pending: { dot: "bg-amber-400", chip: "bg-amber-50 text-amber-800", label: "En attente" },
+  confirmed: { dot: "bg-sky-500", chip: "bg-sky-50 text-sky-800", label: "Confirmée" },
+  seated: { dot: "bg-copper-600", chip: "bg-copper-50 text-copper-800", label: "Assis" },
+  completed: { dot: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-800", label: "Terminée" },
+  cancelled: { dot: "bg-stone-400", chip: "bg-stone-100 text-stone-600", label: "Annulée" },
+  no_show: { dot: "bg-rose-500", chip: "bg-rose-50 text-rose-700", label: "No-show" },
+};
+
+const TODAY_YMD = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
 
 type Row = RestaurantReservationRow & { customerDisplayName: string | null };
 
@@ -90,6 +104,21 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
   const [view, setView] = useState<"plan" | "list">("plan");
   const [plannerFocusActive, setPlannerFocusActive] = useState(false);
   const [arrivalReservation, setArrivalReservation] = useState<Row | null>(null);
+  const [showNew, setShowNew] = useState(false);
+
+  useEffect(() => {
+    if (!showNew) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowNew(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [showNew]);
 
   const setDate = useCallback(
     (next: string) => {
@@ -98,6 +127,16 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
       router.push(`${pathname}?${p.toString()}`);
     },
     [pathname, router, searchParams]
+  );
+
+  const handleCreated = useCallback(
+    ({ ymd: createdYmd, newCustomerId }: { ymd: string; newCustomerId?: string }) => {
+      setShowNew(false);
+      setOk(newCustomerId ? "Réservation enregistrée · fiche client créée." : "Réservation enregistrée.");
+      if (createdYmd !== ymd) setDate(createdYmd);
+      else router.refresh();
+    },
+    [ymd, setDate, router]
   );
 
   const shiftDay = (delta: number) => {
@@ -126,204 +165,221 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
     });
   }
 
+  const statusChips: { s: ReservationStatus; n: number }[] = (
+    ["pending", "confirmed", "seated", "completed", "cancelled", "no_show"] as ReservationStatus[]
+  )
+    .map((s) => ({ s, n: stats[s] }))
+    .filter((x) => x.n > 0);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {err ? <p className={uiError}>{err}</p> : null}
       {ok ? <p className={uiSuccess}>{ok}</p> : null}
 
-      <div className={`${uiCard} overflow-hidden`}>
-        <div className="border-b border-stone-100 pb-4">
-          <h2 className={`${uiSectionTitleSm} mb-3`}>Journée</h2>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="rounded-lg border border-stone-200 px-2 py-1 text-sm"
-                onClick={() => shiftDay(-1)}
-                disabled={pending}
+      {/* Récap du jour — en tête */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-stone-200/70 bg-white p-4 shadow-sm">
+        <div>
+          <p className="text-xs font-medium text-stone-500">Réservations</p>
+          <p className="text-3xl font-semibold tabular-nums tracking-tight text-stone-900">{stats.total}</p>
+        </div>
+        <div className="border-l border-stone-100 pl-5">
+          <p className="text-xs font-medium text-stone-500">Couverts</p>
+          <p className="text-3xl font-semibold tabular-nums tracking-tight text-copper-800">{stats.covers}</p>
+        </div>
+        {statusChips.length > 0 ? (
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            {statusChips.map(({ s, n }) => (
+              <span
+                key={s}
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[s].chip}`}
               >
-                ← Veille
-              </button>
-              <input
-                type="date"
-                className={uiInput + " py-1.5 text-sm"}
-                value={ymd}
-                onChange={(e) => e.target.value && setDate(e.target.value)}
-                disabled={pending}
-              />
-              <button
-                type="button"
-                className="rounded-lg border border-stone-200 px-2 py-1 text-sm"
-                onClick={() => shiftDay(1)}
-                disabled={pending}
-              >
-                Lendemain →
-              </button>
-            </div>
-            <p className="text-sm text-stone-600">
-              {formatYmdFr(ymd)} <span className="text-stone-400">(Europe/Paris)</span>
-            </p>
+                <span className={`h-1.5 w-1.5 rounded-full ${STATUS_STYLE[s].dot}`} aria-hidden />
+                {STATUS_STYLE[s].label} {n}
+              </span>
+            ))}
           </div>
-          <p className="mt-3 text-xs text-stone-500">
-            Fiches récentes : {recentCustomerPool.length} proposées sur «{" "}
-            <Link href="/reservations/nouvelle" className="text-copper-700 underline">
-              Nouvelle réservation
-            </Link>
-            ».
-          </p>
-        </div>
+        ) : null}
+      </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 py-3">
-          <span className="text-xs font-medium text-stone-500">Affichage :</span>
+      {/* Barre d'outils : navigation date + bascule vue */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200/70 bg-white p-3 shadow-sm">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setView("plan")}
-            className={`rounded-lg px-2.5 py-1 text-sm font-medium ${
-              view === "plan" ? "bg-copper-100 text-copper-900" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-            }`}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 transition hover:bg-stone-50 disabled:opacity-50"
+            onClick={() => shiftDay(-1)}
+            disabled={pending}
+            aria-label="Jour précédent"
           >
-            Planning
+            <ChevronLeft className="h-5 w-5" aria-hidden />
           </button>
-          <button
-            type="button"
-            onClick={() => setView("list")}
-            className={`rounded-lg px-2.5 py-1 text-sm font-medium ${
-              view === "list" ? "bg-copper-100 text-copper-900" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-            }`}
-          >
-            Liste
-          </button>
-          <p className="w-full text-[11px] text-stone-500 sm:ml-2 sm:w-auto">
-            Planning : tranche horaire seulement là où il y a des réservations (Paris), colonnes si chevauchement.
-          </p>
-        </div>
-
-        <div className="pt-4">
-          {rows.length === 0 ? (
-            <p className="text-sm text-stone-600">
-              Aucune réservation ce jour.{" "}
-              <Link href="/reservations/nouvelle" className="font-medium text-copper-700 underline">
-                Créer une réservation
-              </Link>
-            </p>
-          ) : view === "plan" ? (
-            <ReservationsDayPlanner
-              ymd={ymd}
-              rows={rows}
-              focusActive={plannerFocusActive}
-              onFocusActiveChange={setPlannerFocusActive}
-              pending={pending}
-              onStatus={onStatus}
-              onArrival={(r) => setArrivalReservation(r)}
+          <div className="relative">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden />
+            <input
+              type="date"
+              className={`${uiInput} h-10 pl-9`}
+              value={ymd}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              disabled={pending}
             />
-          ) : null}
-
-          {rows.length > 0 && view === "list" ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-stone-200 text-xs uppercase tracking-wide text-stone-500">
-                    <th className="py-2 pr-2">Heure</th>
-                    <th className="py-2 pr-2">Couverts</th>
-                    <th className="py-2 pr-2">Client</th>
-                    <th className="py-2 pr-2">Contact</th>
-                <th className="py-2 pr-2">Statut</th>
-                <th className="py-2 pr-2">Note</th>
-                <th className="py-2 pr-2">Salle</th>
-                <th className="py-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td className="whitespace-nowrap py-2 pr-2 font-medium tabular-nums text-stone-900">
-                        {timeParis(r.starts_at)} – {timeParis(r.ends_at)}
-                      </td>
-                      <td className="py-2 pr-2 tabular-nums">{r.party_size}</td>
-                      <td className="py-2 pr-2">{displayGuest(r)}</td>
-                      <td className="max-w-[180px] py-2 pr-2 text-stone-600">
-                        <span className="line-clamp-2 break-words text-xs">
-                          {[r.contact_phone, r.contact_email].filter(Boolean).join(" · ") || "—"}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-2">
-                        <select
-                          className={`${uiInput} max-w-full py-1.5 text-xs`}
-                          value={r.status}
-                          disabled={pending}
-                          onChange={(e) => onStatus(r.id, e.target.value as ReservationStatus)}
-                          title="Statut de la réservation"
-                        >
-                          {STATUS.map((s) => (
-                            <option key={s.v} value={s.v}>
-                              {s.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                  <td className="max-w-[200px] py-2 text-xs text-stone-500">
-                    {r.notes ? <span className="line-clamp-2 whitespace-pre-wrap">{r.notes}</span> : "—"}
-                  </td>
-                  <td className="whitespace-nowrap py-2 pr-2">
-                    {canArrivalStatus(r.status) ? (
-                      <button
-                        type="button"
-                        className="rounded-md border border-copper-200 bg-copper-50 px-2 py-1 text-xs font-medium text-copper-800 hover:bg-copper-100"
-                        disabled={pending}
-                        onClick={() => setArrivalReservation(r)}
-                      >
-                        Arrivée
-                      </button>
-                    ) : (
-                      <span className="text-xs text-stone-400">—</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap py-2 text-right">
-                    <Link
-                      href={`/reservations/${r.id}/modifier?date=${encodeURIComponent(ymd)}`}
-                      className="text-xs font-semibold text-copper-700 hover:underline"
-                    >
-                      Modifier
-                    </Link>
-                  </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+          </div>
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 transition hover:bg-stone-50 disabled:opacity-50"
+            onClick={() => shiftDay(1)}
+            disabled={pending}
+            aria-label="Jour suivant"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
+          {ymd !== TODAY_YMD ? (
+            <button
+              type="button"
+              className="h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
+              onClick={() => setDate(TODAY_YMD)}
+              disabled={pending}
+            >
+              Aujourd’hui
+            </button>
+          ) : (
+            <span className="hidden text-sm text-stone-500 sm:inline">{formatYmdFr(ymd)}</span>
+          )}
         </div>
 
-        <div className="mt-4 border-t border-stone-100 bg-stone-50/80 px-1 py-3 sm:px-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Récap du jour</p>
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-2">
-            <p className="text-sm text-stone-800">
-              <span className="text-2xl font-bold tabular-nums text-stone-900">{stats.total}</span>{" "}
-              réservation{stats.total > 1 ? "s" : ""}
-              <span className="mx-2 text-stone-300">·</span>
-              <span className="text-2xl font-bold tabular-nums text-copper-800">{stats.covers}</span> couverts
-            </p>
-            {stats.total > 0 ? (
-              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-stone-600">
-                {stats.pending > 0 ? <li>Att. {stats.pending}</li> : null}
-                {stats.confirmed > 0 ? <li>Conf. {stats.confirmed}</li> : null}
-                {stats.seated > 0 ? <li>Assis {stats.seated}</li> : null}
-                {stats.completed > 0 ? <li>Term. {stats.completed}</li> : null}
-                {stats.cancelled > 0 ? <li>Annul. {stats.cancelled}</li> : null}
-                {stats.no_show > 0 ? <li>No-show {stats.no_show}</li> : null}
-              </ul>
-            ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex h-10 items-center gap-1 rounded-xl border border-stone-200 bg-stone-50 p-1">
+            <button
+              type="button"
+              onClick={() => setView("plan")}
+              className={`h-full rounded-lg px-3 text-sm font-semibold transition ${
+                view === "plan" ? "bg-white text-copper-800 shadow-sm ring-1 ring-stone-200" : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              Planning
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`h-full rounded-lg px-3 text-sm font-semibold transition ${
+                view === "list" ? "bg-white text-copper-800 shadow-sm ring-1 ring-stone-200" : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              Liste
+            </button>
           </div>
-          {rows.length > 0 ? (
-            <p className="mt-2 text-center text-xs text-stone-500">
-              <Link href="/reservations/nouvelle" className="text-copper-700 underline">
-                Nouvelle réservation
-              </Link>
-              {view === "plan" ? " · basculer en « Liste » pour le tableau." : " · basculer en « Planning » pour la grille."}
-            </p>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => setShowNew(true)}
+            className={`${uiBtnPrimary} inline-flex h-10 items-center gap-1.5`}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Nouvelle
+          </button>
         </div>
       </div>
+
+      {/* Contenu */}
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={CalendarCheck}
+          title="Aucune réservation ce jour"
+          description="Aucune table réservée pour cette date. Créez une réservation depuis le téléphone, le comptoir ou le site."
+          action={
+            <button type="button" onClick={() => setShowNew(true)} className={`${uiBtnPrimary} inline-flex items-center gap-1.5`}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Nouvelle réservation
+            </button>
+          }
+        />
+      ) : view === "plan" ? (
+        <div className="rounded-2xl border border-stone-200/70 bg-white p-3 shadow-sm sm:p-4">
+          <ReservationsDayPlanner
+            ymd={ymd}
+            rows={rows}
+            focusActive={plannerFocusActive}
+            onFocusActiveChange={setPlannerFocusActive}
+            pending={pending}
+            onStatus={onStatus}
+            onArrival={(r) => setArrivalReservation(r)}
+          />
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((r) => {
+            const contact = [r.contact_phone, r.contact_email].filter(Boolean).join(" · ");
+            return (
+              <li
+                key={r.id}
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm"
+              >
+                <div className="flex h-12 w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+                  <span className="text-sm font-bold tabular-nums leading-none text-copper-800">
+                    {timeParis(r.starts_at)}
+                  </span>
+                  <span className="mt-0.5 text-[10px] text-copper-700/80">{timeParis(r.ends_at)}</span>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm">{displayGuest(r)}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-stone-500">
+                    <span className="inline-flex items-center gap-1 font-medium text-stone-700">
+                      <Users className="h-3.5 w-3.5" aria-hidden />
+                      {r.party_size} couvert{r.party_size > 1 ? "s" : ""}
+                    </span>
+                    {contact ? <span className="truncate">· {contact}</span> : null}
+                  </div>
+                  {r.notes ? (
+                    <p className="mt-0.5 line-clamp-1 text-xs italic text-stone-400">{r.notes}</p>
+                  ) : null}
+                </div>
+
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <span
+                      className={`pointer-events-none absolute left-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full ${STATUS_STYLE[r.status].dot}`}
+                      aria-hidden
+                    />
+                    <select
+                      className={`${uiInput} h-9 py-0 pl-6 text-xs`}
+                      value={r.status}
+                      disabled={pending}
+                      onChange={(e) => onStatus(r.id, e.target.value as ReservationStatus)}
+                      title="Statut de la réservation"
+                    >
+                      {STATUS.map((s) => (
+                        <option key={s.v} value={s.v}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {canArrivalStatus(r.status) ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-copper-200 bg-copper-50 px-3 text-xs font-semibold text-copper-800 transition hover:bg-copper-100 disabled:opacity-50"
+                      disabled={pending}
+                      onClick={() => setArrivalReservation(r)}
+                    >
+                      <DoorOpen className="h-4 w-4" aria-hidden />
+                      Arrivée
+                    </button>
+                  ) : null}
+
+                  <Link
+                    href={`/reservations/${r.id}/modifier?date=${encodeURIComponent(ymd)}`}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+                    aria-label="Modifier la réservation"
+                    title="Modifier"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {arrivalReservation ? (
         <ReservationArrivalModal
@@ -334,6 +390,45 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
           tables={diningTables}
           onClose={() => setArrivalReservation(null)}
         />
+      ) : null}
+
+      {showNew ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nouvelle réservation"
+          onClick={() => setShowNew(false)}
+        >
+          <div
+            className="my-6 w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+                <CalendarCheck className="h-5 w-5 text-copper-700" aria-hidden />
+              </span>
+              <p className="text-sm font-semibold text-stone-900">Nouvelle réservation</p>
+              <button
+                type="button"
+                onClick={() => setShowNew(false)}
+                className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
+            <div className="max-h-[78vh] overflow-y-auto px-4 py-4">
+              <NewReservationForm
+                restaurantId={restaurantId}
+                recentCustomerPool={recentCustomerPool}
+                defaultYmd={ymd}
+                onCreated={handleCreated}
+                onCancel={() => setShowNew(false)}
+              />
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

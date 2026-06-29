@@ -52,6 +52,8 @@ function OrderDishTapButton({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [addedCount, setAddedCount] = useState(0);
+  const [flash, setFlash] = useState(false);
 
   const tap = () => {
     setError(null);
@@ -66,13 +68,32 @@ function OrderDishTapButton({
         setError(res.error);
         return;
       }
+      setAddedCount((n) => n + 1);
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 600);
       onAdded();
     });
   };
 
   return (
     <div className="space-y-1">
-      <DishCatalogTileButton dish={dish} disabled={pending} onClick={tap} />
+      <DishCatalogTileButton
+        dish={dish}
+        disabled={pending}
+        onClick={tap}
+        badge={
+          addedCount > 0 ? (
+            <span
+              className={`flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-xs font-bold text-white transition ${
+                flash ? "scale-110 bg-emerald-600" : "bg-copper-700"
+              }`}
+              aria-label={`${addedCount} ajouté${addedCount > 1 ? "s" : ""}`}
+            >
+              ×{addedCount}
+            </span>
+          ) : null
+        }
+      />
       {error ? <p className={`${uiError} text-xs`}>{error}</p> : null}
     </div>
   );
@@ -433,6 +454,27 @@ export function DiningOrderClient({
               onAdded={syncFromServer}
             />
           )}
+          renderModalFooter={(close) => {
+            const count = lines.reduce((acc, l) => acc + l.qty, 0);
+            return (
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] uppercase tracking-wide text-stone-400">Commande en cours</p>
+                  <p className="truncate text-sm font-semibold text-stone-900">
+                    {count} article{count > 1 ? "s" : ""} ·{" "}
+                    <span className="tabular-nums text-copper-800">{fmtEur(totalTtc)}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={close}
+                  className="copper-sheen inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                >
+                  Voir la commande
+                </button>
+              </div>
+            );
+          }}
         />
       )}
 

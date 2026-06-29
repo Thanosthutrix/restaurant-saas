@@ -12,6 +12,12 @@ import Link from "next/link";
 type Props = {
   restaurantId: string;
   recentCustomerPool: CustomerLookupRow[];
+  /** Pré-remplit la date (ex. jour affiché dans le planning). */
+  defaultYmd?: string;
+  /** Mode modale : appelé au succès au lieu de naviguer + afficher le panneau succès. */
+  onCreated?: (result: { ymd: string; newCustomerId?: string }) => void;
+  /** Mode modale : bouton Annuler ferme la modale au lieu de naviguer. */
+  onCancel?: () => void;
 };
 
 const SOURCES: { v: ReservationSource; label: string }[] = [
@@ -25,9 +31,9 @@ function parisYmd() {
   return new Date().toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
 }
 
-export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) {
+export function NewReservationForm({ restaurantId, recentCustomerPool, defaultYmd, onCreated, onCancel }: Props) {
   const router = useRouter();
-  const [ymd, setYmd] = useState(parisYmd);
+  const [ymd, setYmd] = useState<string>(() => defaultYmd ?? parisYmd());
   const [timeHm, setTimeHm] = useState("19:30");
   const [partySize, setPartySize] = useState(2);
   const [duration, setDuration] = useState<number>(90);
@@ -144,6 +150,10 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
       });
       if (!r.ok) {
         setError(r.error);
+        return;
+      }
+      if (onCreated) {
+        onCreated({ ymd, newCustomerId: r.data?.newCustomerId });
         return;
       }
       if (r.data?.newCustomerId) {
@@ -349,12 +359,22 @@ export function NewReservationForm({ restaurantId, recentCustomerPool }: Props) 
         <button type="submit" className={uiBtnPrimary} disabled={pending || postSuccess != null}>
           {pending ? "Enregistrement…" : "Créer la réservation"}
         </button>
-        <Link
-          href="/reservations"
-          className="inline-flex items-center justify-center rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
-        >
-          Annuler
-        </Link>
+        {onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center justify-center rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+          >
+            Annuler
+          </button>
+        ) : (
+          <Link
+            href="/reservations"
+            className="inline-flex items-center justify-center rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+          >
+            Annuler
+          </Link>
+        )}
       </div>
     </form>
   );

@@ -9,7 +9,8 @@ import {
 } from "@/lib/margins/realizedServiceMargins";
 import { MonthlyImportedCaBoard } from "./MonthlyImportedCaBoard";
 import { SalesInsightsClient } from "./SalesInsightsClient";
-import { uiBackLink, uiBtnSecondary, uiCard, uiInput, uiLabel, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { uiBtnSecondary, uiCard, uiInput, uiLabel } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 type SearchParams = { from?: string; to?: string };
 
@@ -38,36 +39,34 @@ export default async function VentesInsightsPage({
   const monthlyImported = monthlyImportRes.data ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div>
-          <Link href="/dashboard" className={uiBackLink}>
-            ← Tableau de bord
-          </Link>
-          <h1 className={`mt-3 ${uiPageTitle}`}>Analyse des ventes</h1>
-          <p className={`mt-1 ${uiLead}`}>{restaurant.name}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/insights/revenue"
-            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
-          >
-            CA importé (historique)
-          </Link>
-          <Link
-            href="/margins"
-            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
-          >
-            Marges détaillées
-          </Link>
-          <Link
-            href="/insights/calendar"
-            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
-          >
-            Calendrier
-          </Link>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "Analyse des ventes" }]}
+        title="Analyse des ventes"
+        subtitle={restaurant.name}
+        actions={
+          <>
+            <Link
+              href="/insights/revenue"
+              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
+            >
+              CA importé (historique)
+            </Link>
+            <Link
+              href="/margins"
+              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
+            >
+              Marges détaillées
+            </Link>
+            <Link
+              href="/insights/calendar"
+              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
+            >
+              Calendrier
+            </Link>
+          </>
+        }
+      />
 
       <div className={uiCard}>
         <p className="text-sm leading-relaxed text-stone-600">
@@ -142,6 +141,6 @@ export default async function VentesInsightsPage({
           />
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -2,12 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle,
   Archive,
   Armchair,
   ArrowUpRight,
   CalendarDays,
   ChefHat,
+  Droplets,
   Layers,
   Package,
   Truck,
@@ -25,6 +25,8 @@ import { ALL_SHELL_NAV_KEYS, type ShellNavKey } from "@/lib/auth/appRoles";
 import { cachedListTemperaturePoints } from "@/lib/cache";
 import { loadDashboardHygieneTileData } from "@/lib/dashboard/hygieneTileData";
 import { DashboardHygieneTile } from "@/components/dashboard/DashboardHygieneTile";
+import { DashboardFocusBand, type FocusItem } from "@/components/dashboard/DashboardFocusBand";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -178,21 +180,49 @@ export default async function DashboardPage() {
   const showRecentServices = isOwner || allowed.includes("dashboard_recent_services");
   const showStockAlert = isOwner || allowed.includes("dashboard_stock_alert");
 
+  // Bande « Maintenant » : uniquement les signaux réellement en attente.
+  const hygienePending = hasHygieneAccess ? hygieneTile?.tasks.length ?? 0 : 0;
+  const focusItems: FocusItem[] = [];
+  if (hygienePending > 0) {
+    focusItems.push({
+      tone: "copper",
+      icon: Droplets,
+      count: hygienePending,
+      title: hygienePending > 1 ? "tâches d’hygiène à faire" : "tâche d’hygiène à faire",
+      cta: "Ouvrir le suivi hygiène",
+      href: "/hygiene/a-faire",
+    });
+  }
+  if (showStockAlert && belowMinStockCount > 0) {
+    focusItems.push({
+      tone: "amber",
+      icon: Package,
+      count: belowMinStockCount,
+      title: belowMinStockCount > 1 ? "produits bientôt en rupture" : "produit bientôt en rupture",
+      cta: "Voir le stock",
+      href: "/inventory",
+    });
+  }
+  // L'état calme n'est montré qu'aux utilisateurs concernés par ces signaux.
+  const showFocusBand = hasHygieneAccess || showStockAlert;
+
   const cardBase = "rounded-2xl border border-stone-100 bg-white shadow-sm";
 
   return (
     <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock} temperaturePoints={temperaturePoints}>
-      <div className="mx-auto max-w-6xl space-y-8">
-        <header>
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-            Tableau de bord
-          </h1>
-          <p className="mt-1 text-sm text-stone-500">
-            <span className="font-medium text-stone-700">{restaurant.name}</span>
-            <span className="text-stone-400"> · </span>
-            activité récente
-          </p>
-        </header>
+      <PageContainer>
+        <PageHeader
+          title="Tableau de bord"
+          subtitle={
+            <>
+              <span className="font-medium text-stone-700">{restaurant.name}</span>
+              <span className="text-stone-400"> · </span>
+              activité récente
+            </>
+          }
+        />
+
+        {showFocusBand ? <DashboardFocusBand items={focusItems} /> : null}
 
         <section aria-labelledby="quick-actions-heading">
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -269,23 +299,6 @@ export default async function DashboardPage() {
       </section>
       )}
 
-      {showStockAlert && belowMinStockCount > 0 ? (
-        <div
-          className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-          role="status"
-        >
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden />
-          <span className="font-semibold">{belowMinStockCount} produit(s) bientôt en rupture.</span>
-          <Link
-            href="/inventory"
-            className="ml-auto inline-flex items-center gap-1 font-semibold text-amber-950 underline decoration-amber-400 underline-offset-2 hover:text-amber-800"
-          >
-            Voir le stock
-            <ArrowUpRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </div>
-      ) : null}
-
       {/* Derniers services — tableau */}
       {showRecentServices && lastFiveServices.length > 0 ? (
         <section className={cardBase} aria-labelledby="services-heading">
@@ -351,7 +364,7 @@ export default async function DashboardPage() {
           </div>
         </section>
       ) : null}
-      </div>
+      </PageContainer>
     </DayClockShell>
   );
 }

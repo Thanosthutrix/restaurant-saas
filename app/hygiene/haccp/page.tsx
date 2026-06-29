@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { countPendingTemperatureTasks, ensureTemperatureTasksForRestaurant } from "@/lib/haccpTemperature/haccpTemperatureDb";
-import { uiBackLink, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
+import { uiCard, uiSectionTitleSm } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 export default async function HaccpHubPage() {
   const restaurant = await getRestaurantForPage();
@@ -12,16 +13,12 @@ export default async function HaccpHubPage() {
   const pendingCount = await countPendingTemperatureTasks(restaurant.id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/hygiene" className={uiBackLink}>
-          ← Nettoyage
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Températures HACCP</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Points de mesure, relevés planifiés, anomalies et registre pour contrôle.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Hygiène", href: "/hygiene" }, { label: "Températures HACCP" }]}
+        title="Températures HACCP"
+        subtitle="Points de mesure, relevés planifiés, anomalies et registre pour contrôle."
+      />
 
       <section className="space-y-3">
         <h2 className={uiSectionTitleSm}>Accès</h2>
@@ -62,6 +59,6 @@ export default async function HaccpHubPage() {
         Les seuils et la marge d’« alerte » (proche limite) sont configurables par point. Les actions correctives sont
         exigées si la mesure est en alerte ou critique.
       </p>
-    </div>
+    </PageContainer>
   );
 }

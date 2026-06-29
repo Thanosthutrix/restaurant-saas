@@ -17,7 +17,7 @@ import {
 import { cachedListStaffMembers } from "@/lib/cache";
 import { hydratePlanningWizard } from "@/lib/staff/wizard/hydratePlanningWizard";
 import { addDays, mondayFromWeekParam, toISODateString } from "@/lib/staff/weekUtils";
-import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EquipePlanningClient } from "./EquipePlanningClient";
 
 type Props = { searchParams: Promise<{ week?: string; planning?: string }> };
@@ -87,17 +87,12 @@ export default async function EquipePage({ searchParams }: Props) {
   });
 
   return (
-    <div className="mx-auto min-w-0 max-w-6xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Équipe & planning</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Créneaux planifiés et temps d’équipe : le gérant gère l’équipe ; chaque collaborateur dont la fiche est liée
-          au compte enregistre le début et la fin de journée depuis « Mon planning » ou le tableau de bord.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Équipe" }]}
+        title="Équipe & planning"
+        subtitle="Créneaux planifiés et temps d’équipe : le gérant gère l’équipe ; chaque collaborateur dont la fiche est liée au compte enregistre le début et la fin de journée depuis « Mon planning » ou le tableau de bord."
+      />
 
       <p className="flex flex-wrap gap-4 text-sm">
         <Link href="/equipe/mon-planning" className="font-medium text-copper-800 underline">
@@ -128,6 +123,6 @@ export default async function EquipePage({ searchParams }: Props) {
         planningSecurityFloor={securityFloor}
         wizardData={wizardData}
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -18,7 +18,9 @@ import {
 import { listRecentCustomersForLookup } from "@/lib/customers/customersDb";
 import { getDishes } from "@/lib/db";
 import { toNumber } from "@/lib/utils/safeNumeric";
+import { Armchair, Receipt } from "lucide-react";
 import { uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { CaisseDishPicker } from "./CaisseDishPicker";
 
 function fmtEur(n: number) {
@@ -157,16 +159,13 @@ export default async function CaissePage() {
       <section className="space-y-3">
         <h2 className={uiSectionTitleSm}>En cours</h2>
         {open.length === 0 ? (
-          <div className={uiCard}>
-            <p className={uiLead}>Aucune commande ouverte.</p>
-            <p className={`mt-2 ${uiLead}`}>
-              Les tables lancées depuis la{" "}
-              <Link href="/salle" className="font-semibold text-copper-700">
-                salle
-              </Link>{" "}
-              apparaissent ici aussi.
-            </p>
-          </div>
+          <EmptyState
+            icon={Armchair}
+            title="Aucune commande ouverte"
+            description="Lancez un ticket ci-dessus, ou ouvrez une table en salle — elle apparaîtra ici aussi."
+            actionLabel="Aller en salle"
+            actionHref="/salle"
+          />
         ) : (
           <ul className="space-y-2">
             {open.map((row) => (
@@ -191,9 +190,12 @@ export default async function CaissePage() {
       <section className="space-y-3">
         <h2 className={uiSectionTitleSm}>Encaissements du jour</h2>
         {settledList.length === 0 ? (
-          <div className={uiCard}>
-            <p className={uiLead}>Aucun encaissement aujourd’hui.</p>
-          </div>
+          <EmptyState
+            icon={Receipt}
+            title="Aucun encaissement aujourd’hui"
+            description="Les tickets réglés de la journée s’afficheront ici."
+            compact
+          />
         ) : (
           <>
             <div className={`${uiCard} space-y-3`}>

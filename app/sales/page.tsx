@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Receipt } from "lucide-react";
 import { getTicketImports } from "@/lib/sales";
 import { getRestaurantForPage } from "@/lib/auth";
-import { uiError, uiLead, uiListRow, uiPageTitle } from "@/components/ui/premium";
+import { uiError, uiListRow } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -26,15 +29,17 @@ export default async function SalesPage() {
   const list = imports ?? [];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className={uiPageTitle}>Ventes</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Tickets importés — cliquez pour ouvrir le contrôle et enregistrer les ventes.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        title="Ventes"
+        subtitle="Tickets importés — cliquez pour ouvrir le contrôle et enregistrer les ventes."
+      />
       {list.length === 0 ? (
-        <p className={uiLead}>Aucun ticket importé.</p>
+        <EmptyState
+          icon={Receipt}
+          title="Aucun ticket importé"
+          description="Les tickets de caisse importés apparaîtront ici pour contrôle et saisie des ventes."
+        />
       ) : (
         <ul className="space-y-2">
           {list.map((imp) => (
@@ -49,6 +54,6 @@ export default async function SalesPage() {
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   );
 }

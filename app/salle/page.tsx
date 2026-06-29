@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listDiningTables, listOpenDiningOrdersWithCustomerNames } from "@/lib/dining/diningDb";
 import { diningTableTicketLineLabel } from "@/lib/dining/ticketLabel";
-import { uiBackLink, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
+import { Armchair } from "lucide-react";
+import { uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default async function SallePage() {
   const restaurant = await getRestaurantForPage();
@@ -36,33 +39,29 @@ export default async function SallePage() {
       ])
   );
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-      </div>
-
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className={uiPageTitle}>Salle</h1>
-          <p className={`mt-2 ${uiLead}`}>Tables actives et commandes en cours.</p>
-        </div>
-        <Link
-          href="/salle/tables"
-          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
-        >
-          Gérer les tables
-        </Link>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Salle" }]}
+        title="Salle"
+        subtitle="Tables actives et commandes en cours."
+        actions={
+          <Link
+            href="/salle/tables"
+            className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
+          >
+            Gérer les tables
+          </Link>
+        }
+      />
 
       {!tables.length ? (
-        <div className={`${uiCard} space-y-3`}>
-          <p className={uiLead}>Aucune table active. Créez des tables pour prendre des commandes.</p>
-          <Link href="/salle/tables" className="inline-block text-sm font-semibold text-copper-700">
-            Ajouter des tables →
-          </Link>
-        </div>
+        <EmptyState
+          icon={Armchair}
+          title="Aucune table active"
+          description="Créez vos tables pour commencer à prendre des commandes en salle."
+          actionLabel="Ajouter des tables"
+          actionHref="/salle/tables"
+        />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {tables.map((t) => {
@@ -104,6 +103,6 @@ export default async function SallePage() {
           })}
         </ul>
       )}
-    </div>
+    </PageContainer>
   );
 }

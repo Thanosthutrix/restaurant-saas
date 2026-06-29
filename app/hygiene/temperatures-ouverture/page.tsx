@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listColdTemperatureRegister } from "@/lib/hygiene/hygieneDb";
 import { cachedListColdHygieneElements } from "@/lib/cache";
-import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { HygieneColdTemperaturesClient } from "./HygieneColdTemperaturesClient";
 
 export default async function HygieneTemperaturesPage() {
@@ -16,26 +15,21 @@ export default async function HygieneTemperaturesPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-      <div>
-        <Link href="/hygiene" className={uiBackLink}>
-          ← Nettoyage
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Froid : ouverture & fermeture</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Pour chaque chambre froide, frigo ou congélateur, enregistrez la température à l’ouverture et à la fermeture.
-          Les relevés sont conservés dans le registre dédié.
-        </p>
-        <p className="mt-2 text-xs text-stone-500">
-          Support de traçabilité interne ; adaptez la fréquence et les seuils à votre procédure HACCP.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Hygiène", href: "/hygiene" }, { label: "Froid : ouverture / fermeture" }]}
+        title="Froid : ouverture & fermeture"
+        subtitle="Pour chaque chambre froide, frigo ou congélateur, enregistrez la température à l’ouverture et à la fermeture. Les relevés sont conservés dans le registre dédié."
+      />
+      <p className="text-xs text-stone-500">
+        Support de traçabilité interne ; adaptez la fréquence et les seuils à votre procédure HACCP.
+      </p>
 
       <HygieneColdTemperaturesClient
         restaurantId={restaurant.id}
         coldElements={coldElements}
         recentReadings={recentReadings}
       />
-    </div>
+    </PageContainer>
   );
 }

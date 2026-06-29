@@ -8,7 +8,8 @@ import {
 } from "@/lib/calendar/buildCalendarInsights";
 import { resolveRestaurantCoordsForWeather } from "@/lib/geo/resolveRestaurantCoordsForWeather";
 import { CalendarRangeForm } from "./CalendarRangeForm";
-import { uiBackLink, uiBtnSecondary, uiCard, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { uiBtnSecondary, uiCard } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 function formatEur(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
@@ -58,22 +59,20 @@ export default async function CalendarInsightsPage({
   const hasZone = restaurant.school_zone != null;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div>
-          <Link href="/dashboard" className={uiBackLink}>
-            ← Tableau de bord
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "Pilotage calendrier" }]}
+        title="Calendrier contextuel"
+        subtitle={restaurant.name}
+        actions={
+          <Link
+            href={`/restaurants/${restaurant.id}/edit`}
+            className={`${uiBtnSecondary} inline-flex items-center justify-center`}
+          >
+            Adresse et zone scolaire
           </Link>
-          <h1 className={`mt-3 ${uiPageTitle}`}>Calendrier contextuel</h1>
-          <p className={`mt-1 ${uiLead}`}>{restaurant.name}</p>
-        </div>
-        <Link
-          href={`/restaurants/${restaurant.id}/edit`}
-          className={`${uiBtnSecondary} inline-flex items-center justify-center`}
-        >
-          Adresse et zone scolaire
-        </Link>
-      </div>
+        }
+      />
 
       <div className={uiCard}>
           <p className="text-sm leading-relaxed text-stone-600">
@@ -209,6 +208,6 @@ export default async function CalendarInsightsPage({
         données embarquées (à mettre à jour chaque année). Météo : Open-Meteo, fuseau Europe/Paris ; prévisions
         jusqu’à ~16 jours.
       </p>
-    </div>
+    </PageContainer>
   );
 }

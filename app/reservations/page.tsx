@@ -4,7 +4,7 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { listDiningTables, mapCustomerDisplayNames } from "@/lib/dining/diningDb";
 import { listReservationsForParisDay } from "@/lib/reservations/reservationsDb";
 import { listRecentCustomersForLookup } from "@/lib/customers/customersDb";
-import { uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { ReservationsListClient } from "./ReservationsListClient";
 
 function parisYmd(d: Date) {
@@ -62,21 +62,20 @@ export default async function ReservationsPage({ searchParams }: Props) {
   }));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <h1 className={uiPageTitle}>Réservations</h1>
-          <p className={`mt-1 ${uiLead}`}>
-            Livre du jour (fuseau Europe/Paris). Création depuis le téléphone, le comptoir ou le site.
-          </p>
-        </div>
-        <Link
-          href="/reservations/nouvelle"
-          className="shrink-0 rounded-xl bg-copper-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-copper-600"
-        >
-          Nouvelle réservation
-        </Link>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Réservations" }]}
+        title="Réservations"
+        subtitle="Livre du jour (fuseau Europe/Paris). Création depuis le téléphone, le comptoir ou le site."
+        actions={
+          <Link
+            href="/reservations/nouvelle"
+            className="copper-sheen shrink-0 rounded-xl bg-copper-700 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+          >
+            Nouvelle réservation
+          </Link>
+        }
+      />
 
       <ReservationsListClient
         restaurantId={restaurant.id}
@@ -85,6 +84,6 @@ export default async function ReservationsPage({ searchParams }: Props) {
         recentCustomerPool={recentCustomerPool}
         diningTables={diningTables ?? []}
       />
-    </div>
+    </PageContainer>
   );
 }

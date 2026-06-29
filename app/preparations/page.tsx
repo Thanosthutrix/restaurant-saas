@@ -8,7 +8,7 @@ import {
   listPreparationRecordsAwaitingTempEnd,
   listPreparationRecordsWithLotForLookup,
 } from "@/lib/preparations/preparationsDb";
-import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { PreparationsClient } from "./PreparationsClient";
 
 type Search = { lot?: string; recordId?: string };
@@ -34,16 +34,12 @@ export default async function PreparationsPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Préparations</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Enregistrez un lot, la température en fin de préparation, le contrôle après refroidissement (+2 h) et la DLC.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Cuisine", href: "/cuisine" }, { label: "Préparations" }]}
+        title="Préparations"
+        subtitle="Enregistrez un lot, la température en fin de préparation, le contrôle après refroidissement (+2 h) et la DLC."
+      />
 
       <PreparationsClient
         restaurantId={restaurant.id}
@@ -61,6 +57,6 @@ export default async function PreparationsPage({
           Registre complet des préparations
         </Link>
       </p>
-    </div>
+    </PageContainer>
   );
 }

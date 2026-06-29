@@ -7,7 +7,8 @@ import {
   listHygieneTasksDue,
 } from "@/lib/hygiene/hygieneDb";
 import { cachedEnsureHygieneTasks } from "@/lib/cache";
-import { uiBackLink, uiCard, uiCardMuted, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
+import { uiCard, uiCardMuted, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 export default async function HygieneHubPage() {
   const restaurant = await getRestaurantForPage();
@@ -21,17 +22,12 @@ export default async function HygieneHubPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Nettoyage & désinfection</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Plan de nettoyage (PND) : éléments à nettoyer, tâches générées selon la récurrence, registre et score
-          hygiène sur les 7 derniers jours.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Hygiène" }]}
+        title="Nettoyage & désinfection"
+        subtitle="Plan de nettoyage (PND) : éléments à nettoyer, tâches générées selon la récurrence, registre et score hygiène sur les 7 derniers jours."
+      />
 
       <section className={`${uiCard} space-y-3`}>
         <h2 className={uiSectionTitleSm}>Score hygiène (7 j.)</h2>
@@ -126,6 +122,6 @@ export default async function HygieneHubPage() {
           </ul>
         </section>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -13,7 +13,10 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { getNavAccessLevel } from "@/lib/auth/requireNavAccess";
 import { InventoryCategoryTiles } from "./InventoryCategoryTiles";
 import { CreateInventoryItemForm } from "./CreateInventoryItemForm";
-import { uiBackLink, uiError, uiInfoBanner, uiLead, uiPageTitle, uiSectionTitle } from "@/components/ui/premium";
+import { Boxes, FolderTree } from "lucide-react";
+import { uiBtnSecondary, uiError, uiInfoBanner, uiSectionTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default async function InventoryPage() {
   const restaurant = await getRestaurantForPage();
@@ -37,19 +40,18 @@ export default async function InventoryPage() {
   const uncategorized = list.filter((i) => !i.category_id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-      </div>
-
-      <div>
-        <h1 className={uiPageTitle}>Composants stockés</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Matières premières, préparations intermédiaires, articles en revente.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Achats & stock", href: "/achats" }, { label: "Stock" }]}
+        title="Composants stockés"
+        subtitle="Matières premières, préparations intermédiaires, articles en revente."
+        actions={
+          <Link href="/account#rubriques" className={`${uiBtnSecondary} inline-flex items-center gap-1.5`}>
+            <FolderTree className="h-4 w-4" aria-hidden />
+            Rubriques
+          </Link>
+        }
+      />
 
       <p className={uiInfoBanner}>
         <span className="font-semibold text-stone-800">Stock</span> = somme des mouvements (réceptions, consommations
@@ -61,16 +63,14 @@ export default async function InventoryPage() {
 
       {canWrite && <CreateInventoryItemForm restaurantId={restaurant.id} />}
 
-      <p>
-        <Link href="/account#rubriques" className={uiBackLink}>
-          Rubriques (carte & stock) →
-        </Link>
-      </p>
-
       <div>
         <h2 className={`mb-3 ${uiSectionTitle}`}>Liste des composants</h2>
         {!items?.length ? (
-          <p className={uiLead}>Aucun composant. Créez-en un ci-dessus.</p>
+          <EmptyState
+            icon={Boxes}
+            title="Aucun composant pour l’instant"
+            description="Ajoutez vos matières premières et préparations avec le formulaire ci-dessus pour suivre votre stock."
+          />
         ) : (
           <InventoryCategoryTiles
             roots={prunedRoots}
@@ -79,6 +79,6 @@ export default async function InventoryPage() {
           />
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

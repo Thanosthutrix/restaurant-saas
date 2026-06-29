@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { redirect } from "next/navigation";
 import { getAccessibleRestaurantsForUser, getRestaurantForPage, getCurrentUser } from "@/lib/auth";
 import { buildCategoryTree, listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
 import { CategoriesTreeClient } from "@/app/categories/CategoriesTreeClient";
 import { AccountRubriquesCollapsible } from "@/components/account/AccountRubriquesCollapsible";
 import { AccountDangerZones } from "./AccountDangerZones";
-import { uiAuthCard, uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { uiAuthCard } from "@/components/ui/premium";
 
 export default async function AccountPage() {
   const user = await getCurrentUser();
@@ -38,22 +38,22 @@ export default async function AccountPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-10 px-4 py-8">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Compte</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Connecté en tant que <span className="font-medium text-stone-700">{user.email}</span>
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Compte" }]}
+        title="Compte"
+        subtitle={
+          <>
+            Connecté en tant que <span className="font-medium text-stone-700">{user.email}</span>
+          </>
+        }
+      />
 
       {categoriesSection}
 
       <div className={uiAuthCard}>
         <AccountDangerZones restaurants={restaurants.map((r) => ({ id: r.id, name: r.name }))} />
       </div>
-    </div>
+    </PageContainer>
   );
 }

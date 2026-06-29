@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listHygieneRecurrencePresets } from "@/lib/hygiene/hygieneDb";
 import { cachedListHygieneElements } from "@/lib/cache";
-import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { HygieneElementsClient } from "./HygieneElementsClient";
 
 type Search = { elementId?: string };
@@ -25,18 +24,18 @@ export default async function HygieneElementsPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-      <div>
-        <Link href="/hygiene" className={uiBackLink}>
-          ← Nettoyage
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Éléments à nettoyer</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Référentiel par restaurant. Les fréquences par défaut sont des suggestions (référentiel métier), modifiables
-          par ligne. Utilisez <strong className="font-medium text-stone-700">Marquer comme fait</strong> pour enregistrer
-          tout de suite une exécution au registre (nom, heure, commentaire et photo optionnelle).
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Hygiène", href: "/hygiene" }, { label: "Éléments à nettoyer" }]}
+        title="Éléments à nettoyer"
+        subtitle={
+          <>
+            Référentiel par restaurant. Les fréquences par défaut sont des suggestions (référentiel métier), modifiables
+            par ligne. Utilisez <strong className="font-medium text-stone-700">Marquer comme fait</strong> pour enregistrer
+            tout de suite une exécution au registre (nom, heure, commentaire et photo optionnelle).
+          </>
+        }
+      />
 
       <HygieneElementsClient
         restaurantId={restaurant.id}
@@ -44,6 +43,6 @@ export default async function HygieneElementsPage({
         presets={presets}
         initialElementId={initialElementId}
       />
-    </div>
+    </PageContainer>
   );
 }

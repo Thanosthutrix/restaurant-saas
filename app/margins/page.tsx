@@ -11,7 +11,8 @@ import {
 } from "@/lib/margins/realizedServiceMargins";
 import { MarginsCustomRangeForm } from "./MarginsCustomRangeForm";
 import { MarginsDateRangeLinks } from "./MarginsDateRangeLinks";
-import { uiBackLink, uiCard, uiPageTitle, uiTableLink } from "@/components/ui/premium";
+import { uiCard, uiTableLink } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 function formatEur(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
@@ -110,16 +111,14 @@ export default async function MarginsPage({
   const dAggMarginPct = dRevForMargin > 0 ? (dSumMargin / dRevForMargin) * 100 : null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "Marges" }]}
+        title="Analyse des marges"
+      />
 
       <div className={uiCard}>
-        <h1 className={uiPageTitle}>Analyse des marges</h1>
-        <p className="mt-2 text-sm text-stone-600">
+        <p className="text-sm text-stone-600">
           <strong className="font-medium text-stone-800">Carte</strong> : coût matière théorique (recette × coûts
           composants), prix TTC carte et TVA par plat ; le HT est déduit pour la marge.{" "}
           <strong className="font-medium text-stone-800">Services</strong> : CA selon montants ticket (colonne
@@ -376,6 +375,6 @@ export default async function MarginsPage({
             </div>
           )}
       </section>
-    </div>
+    </PageContainer>
   );
 }

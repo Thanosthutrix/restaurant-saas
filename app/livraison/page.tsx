@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getRecentDeliveryNotesForRestaurant, getDeliveryNoteFileUrl } from "@/lib/db";
+import { PackageOpen } from "lucide-react";
+import { getRecentDeliveryNotesForRestaurant } from "@/lib/db";
 import { cachedGetSuppliers } from "@/lib/cache";
 import { LivraisonBlForm } from "./LivraisonBlForm";
-import { uiBackLink, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
+import { uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 export default async function LivraisonPage() {
   const restaurant = await getRestaurantForPage();
@@ -31,27 +33,27 @@ export default async function LivraisonPage() {
   const recentNotes = (notes ?? []).filter((n) => !(n.status === "draft" && n.source === "from_purchase_order"));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Achats & stock", href: "/achats" }, { label: "Réceptions / BL" }]}
+        title="Livraison"
+        subtitle={
+          <>
+            Enregistrez le fichier du bon de livraison (même si la commande n’a pas été passée dans l’application). Sur la
+            fiche réception, vous pouvez lancer la <strong>lecture automatique</strong> du BL (photo) ou saisir les lignes à
+            la main.
+          </>
+        }
+      />
+      <p className="text-sm">
+        <Link
+          href="/receiving/registre"
+          className="font-medium text-copper-800 underline decoration-copper-300 underline-offset-2"
+        >
+          Registre photos traçabilité
         </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Livraison</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Enregistrez le fichier du bon de livraison (même si la commande n’a pas été passée dans l’application). Sur la
-          fiche réception, vous pouvez lancer la <strong>lecture automatique</strong> du BL (photo) ou saisir les lignes à
-          la main.
-        </p>
-        <p className="mt-2 text-sm">
-          <Link
-            href="/receiving/registre"
-            className="font-medium text-copper-800 underline decoration-copper-300 underline-offset-2"
-          >
-            Registre photos traçabilité
-          </Link>
-          <span className={`${uiLead} ml-1`}>— lots, DLC et photos par type.</span>
-        </p>
-      </div>
+        <span className={`${uiLead} ml-1`}>— lots, DLC et photos par type.</span>
+      </p>
 
       <section className={`${uiCard} space-y-4`}>
         <h2 className={uiSectionTitleSm}>Nouvelle réception depuis un BL</h2>
@@ -97,7 +99,6 @@ export default async function LivraisonPage() {
         ) : (
           <ul className="mt-3 space-y-2">
             {recentNotes.map((n) => {
-              const fileUrl = n.file_url ?? (n.file_path ? getDeliveryNoteFileUrl(n.file_path) : null);
               const statusLabel =
                 n.status === "validated" ? "Validée" : n.status === "draft" ? "Brouillon" : n.status;
               const displayDate = n.delivery_date ?? n.created_at;
@@ -105,27 +106,27 @@ export default async function LivraisonPage() {
                 <li key={n.id}>
                   <Link
                     href={`/receiving/${n.id}`}
-                    className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md`}
+                    className="group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition hover:border-copper-200 hover:shadow-md"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-stone-900">{supplierName(n.supplier_id)}</p>
-                        <p className={`mt-0.5 text-sm ${uiLead}`}>
-                          {displayDate
-                            ? new Date(displayDate).toLocaleDateString("fr-FR", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "—"}{" "}
-                          · {n.lines_count} ligne{n.lines_count !== 1 ? "s" : ""} · {statusLabel}
-                          {n.source === "from_upload" ? " · BL importé" : null}
-                        </p>
-                      </div>
-                      {fileUrl ? (
-                        <span className="text-xs font-medium text-copper-700">Voir →</span>
-                      ) : null}
-                    </div>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+                      <PackageOpen className="h-5 w-5 text-copper-700" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-stone-900 transition group-hover:text-copper-700">
+                        {supplierName(n.supplier_id)}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-stone-500">
+                        {displayDate
+                          ? new Date(displayDate).toLocaleDateString("fr-FR", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}{" "}
+                        · {n.lines_count} ligne{n.lines_count !== 1 ? "s" : ""} · {statusLabel}
+                        {n.source === "from_upload" ? " · BL importé" : null}
+                      </span>
+                    </span>
                   </Link>
                 </li>
               );
@@ -133,6 +134,6 @@ export default async function LivraisonPage() {
           </ul>
         )}
       </section>
-    </div>
+    </PageContainer>
   );
 }

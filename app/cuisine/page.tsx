@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ClipboardList, Droplets, Package, Percent, UtensilsCrossed } from "lucide-react";
-import { uiCard, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { uiCard } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 const actions = [
   {
@@ -49,15 +50,12 @@ const actions = [
 
 export default function CuisinePage() {
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-copper-700">Espace métier</p>
-        <h1 className={`${uiPageTitle} mt-2`}>Cuisine</h1>
-        <p className={`${uiLead} mt-2 max-w-2xl`}>
-          Tout ce qui sert au chef est regroupé ici, dans l’ordre logique : préparer le service, gérer les fiches,
-          surveiller le stock, puis contrôler les marges et l’hygiène.
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        eyebrow="Espace métier"
+        title="Cuisine"
+        subtitle="Tout ce qui sert au chef est regroupé ici, dans l’ordre logique : préparer le service, gérer les fiches, surveiller le stock, puis contrôler les marges et l’hygiène."
+      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Actions cuisine">
         {actions.map((action) => {
@@ -76,6 +74,6 @@ export default function CuisinePage() {
           );
         })}
       </section>
-    </div>
+    </PageContainer>
   );
 }

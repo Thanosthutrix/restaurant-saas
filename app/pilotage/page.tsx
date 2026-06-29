@@ -5,7 +5,8 @@ import { ArrowUpRight, BarChart3, CalendarDays, ClipboardList, Percent } from "l
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { ALL_SHELL_NAV_KEYS, canAccessPage, type ShellNavKey } from "@/lib/auth/appRoles";
-import { uiCard, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { uiCard } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 const tiles: {
   title: string;
@@ -61,14 +62,12 @@ export default async function PilotagePage() {
   const visibleTiles = tiles.filter((t) => isOwner || canAccessPage(t.navKey, allowed));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-copper-700">Espace gestion</p>
-        <h1 className={`${uiPageTitle} mt-2`}>Pilotage</h1>
-        <p className={`${uiLead} mt-2 max-w-2xl`}>
-          Les chiffres pour décider : ventes, marges, prévisions d'activité et historique des services.
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        eyebrow="Espace gestion"
+        title="Pilotage"
+        subtitle="Les chiffres pour décider : ventes, marges, prévisions d'activité et historique des services."
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {visibleTiles.map((tile) => {
@@ -87,6 +86,6 @@ export default async function PilotagePage() {
           );
         })}
       </div>
-    </div>
+    </PageContainer>
   );
 }

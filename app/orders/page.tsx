@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getPurchaseOrders } from "@/lib/db";
 import { cachedGetSuppliers } from "@/lib/cache";
-import { uiBackLink, uiBadgeSlate, uiBtnPrimarySm, uiCard, uiLead, uiListRow, uiPageTitle } from "@/components/ui/premium";
+import { ClipboardList } from "lucide-react";
+import { uiBadgeSlate, uiBtnPrimarySm } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const STATUS_LABELS: Record<string, string> = {
   generated: "Créée",
@@ -24,19 +27,12 @@ export default async function OrdersPage() {
   const supplierById = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-      </div>
-
-      <div>
-        <h1 className={uiPageTitle}>Historique des commandes fournisseurs</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Commandes générées depuis les suggestions. Le stock n’est pas modifié à la création ; il sera mis à jour lors de la réception validée.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Achats & stock", href: "/achats" }, { label: "Commandes fournisseurs" }]}
+        title="Commandes fournisseurs"
+        subtitle="Commandes générées depuis les suggestions. Le stock n’est pas modifié à la création ; il sera mis à jour lors de la réception validée."
+      />
 
       <div className="flex flex-wrap gap-2">
         <Link href="/orders/new" className={uiBtnPrimarySm}>
@@ -48,21 +44,29 @@ export default async function OrdersPage() {
       </div>
 
       {!purchaseOrders || purchaseOrders.length === 0 ? (
-        <div className={uiCard}>
-          <p className="text-stone-600">
-            Aucune commande pour le moment. Générez une commande depuis la page des suggestions.
-          </p>
-        </div>
+        <EmptyState
+          icon={ClipboardList}
+          title="Aucune commande pour le moment"
+          description="Générez une commande depuis les suggestions d’achat, ou créez-en une manuellement."
+          actionLabel="Voir les suggestions"
+          actionHref="/orders/suggestions"
+        />
       ) : (
         <ul className="space-y-2">
           {purchaseOrders.map((purchaseOrder) => (
             <li key={purchaseOrder.id}>
-              <Link href={`/orders/${purchaseOrder.id}`} className={uiListRow}>
-                <div>
-                  <span className="font-semibold text-stone-900">
+              <Link
+                href={`/orders/${purchaseOrder.id}`}
+                className="group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition hover:border-copper-200 hover:shadow-md"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+                  <ClipboardList className="h-5 w-5 text-copper-700" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-stone-900 transition group-hover:text-copper-700">
                     {supplierById.get(purchaseOrder.supplier_id) ?? "Fournisseur"}
                   </span>
-                  <span className="ml-2 text-sm text-stone-500">
+                  <span className="mt-0.5 block truncate text-xs text-stone-500">
                     {purchaseOrder.created_at
                       ? new Date(purchaseOrder.created_at).toLocaleDateString("fr-FR", {
                           day: "numeric",
@@ -71,16 +75,15 @@ export default async function OrdersPage() {
                         })
                       : ""}
                   </span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className={uiBadgeSlate}>{STATUS_LABELS[purchaseOrder.status] ?? purchaseOrder.status}</span>
-                  <span className="text-stone-500">Voir la commande →</span>
-                </div>
+                </span>
+                <span className={`${uiBadgeSlate} shrink-0`}>
+                  {STATUS_LABELS[purchaseOrder.status] ?? purchaseOrder.status}
+                </span>
               </Link>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   );
 }

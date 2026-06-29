@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { Package } from "lucide-react";
 import type { InventoryItemWithCalculatedStock } from "@/lib/db";
-import { uiListRow } from "@/components/ui/premium";
 
 const QTY_EPS = 1e-5;
 
@@ -112,25 +112,36 @@ export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedSt
 
   return (
     <li>
-      <Link href={`/inventory/${item.id}`} className={`${uiListRow} items-center gap-3`}>
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span
-            className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white ${typeInfo.dotClass}`}
-            title={typeInfo.label}
-            aria-label={typeInfo.label}
-            role="img"
-          />
-          <span className="truncate font-semibold text-stone-900">{item.name}</span>
+      <Link
+        href={`/inventory/${item.id}`}
+        className="group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition hover:border-copper-200 hover:shadow-md"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+            <Package className="h-5 w-5 text-copper-700" aria-hidden />
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white ${typeInfo.dotClass}`}
+              title={typeInfo.label}
+              aria-label={typeInfo.label}
+              role="img"
+            />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-stone-900 transition group-hover:text-copper-700">
+              {item.name}
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-stone-500">{typeInfo.label}</span>
+          </span>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
           <StockLevelBar stock={stock} minQty={minN} targetQty={targetN} />
           <span
-            className={`whitespace-nowrap text-sm tabular-nums ${mismatch ? "text-amber-800" : "text-stone-700"}`}
+            className={`whitespace-nowrap text-[15px] font-semibold tabular-nums ${mismatch ? "text-amber-800" : "text-stone-900"}`}
             title={qtyTitle}
           >
             {formatQty(stock)}
-            <span className="ml-1 text-stone-500">{item.unit}</span>
+            <span className="ml-1 text-xs font-normal text-stone-500">{item.unit}</span>
           </span>
         </div>
       </Link>

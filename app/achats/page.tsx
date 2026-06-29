@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, ClipboardCheck, FileText, Package, Sparkles, Truck } from "lucide-react";
-import { uiCard, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { uiCard } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 const flow = [
   {
@@ -40,15 +41,12 @@ const shortcuts = [
 
 export default function AchatsPage() {
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-copper-700">Espace métier</p>
-        <h1 className={`${uiPageTitle} mt-2`}>Achats & stock</h1>
-        <p className={`${uiLead} mt-2 max-w-2xl`}>
-          Le parcours achat est regroupé au même endroit : besoin, commande, réception, facture, puis transfert
-          comptable.
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        eyebrow="Espace métier"
+        title="Achats & stock"
+        subtitle="Le parcours achat est regroupé au même endroit : besoin, commande, réception, facture, puis transfert comptable."
+      />
 
       <section className="grid gap-4 lg:grid-cols-4" aria-label="Parcours achats">
         {flow.map((step, index) => (
@@ -92,6 +90,6 @@ export default function AchatsPage() {
           })}
         </div>
       </section>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Truck } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { cachedGetSuppliers } from "@/lib/cache";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { CreateSupplierForm } from "./CreateSupplierForm";
-
-const ORDER_METHOD_LABELS: Record<string, string> = {
-  EMAIL: "Email",
-  WHATSAPP: "WhatsApp",
-  PHONE: "Téléphone",
-  PORTAL: "Portail",
-};
+import { SuppliersGrid } from "./SuppliersGrid";
 
 export default async function SuppliersPage() {
   const restaurant = await getRestaurantForPage();
@@ -18,23 +15,12 @@ export default async function SuppliersPage() {
   const { data: suppliers, error } = await cachedGetSuppliers(restaurant.id);
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <div className="mx-auto max-w-2xl px-4 py-6">
-        <div className="mb-6">
-          <Link
-            href="/dashboard"
-            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
-          >
-            ← Tableau de bord
-          </Link>
-        </div>
-
-        <h1 className="mb-2 text-xl font-semibold text-stone-900">
-          Fournisseurs
-        </h1>
-        <p className="mb-6 text-sm text-stone-500">
-          Coordonnées, jours de commande et canal préféré pour chaque fournisseur.
-        </p>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Achats & stock", href: "/achats" }, { label: "Fournisseurs" }]}
+        title="Fournisseurs"
+        subtitle="Coordonnées, jours de commande et canal préféré pour chaque fournisseur."
+      />
 
         {error && (
           <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">
@@ -49,27 +35,13 @@ export default async function SuppliersPage() {
             Liste des fournisseurs
           </h2>
           {!suppliers?.length ? (
-            <p className="rounded-lg border border-stone-200 bg-white p-4 text-sm text-stone-500">
-              Aucun fournisseur. Créez-en un ci-dessus.
-            </p>
+            <EmptyState
+              icon={Truck}
+              title="Aucun fournisseur"
+              description="Ajoutez vos fournisseurs avec le formulaire ci-dessus pour préparer vos commandes."
+            />
           ) : (
-            <ul className="space-y-2">
-              {suppliers.map((s) => (
-                <li key={s.id}>
-                  <Link
-                    href={`/suppliers/${s.id}`}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-3 transition hover:bg-stone-50"
-                  >
-                    <span className="font-medium text-stone-900">{s.name}</span>
-                    <span className="text-sm text-stone-500">
-                      {ORDER_METHOD_LABELS[s.preferred_order_method] ?? s.preferred_order_method}
-                      {(s.order_days?.length ?? 0) > 0 && ` · ${(s.order_days ?? []).join(", ")}`}
-                      {!s.is_active && " · Inactif"}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <SuppliersGrid suppliers={suppliers} />
           )}
         </div>
 
@@ -81,7 +53,6 @@ export default async function SuppliersPage() {
             Voir les commandes suggérées
           </Link>
         </p>
-      </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { uiBackLink, uiCard, uiPageTitle } from "@/components/ui/premium";
+import { uiCard } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { ClosedDaysForm } from "./ClosedDaysForm";
 
 export default async function SettingsPage() {
@@ -21,18 +21,16 @@ export default async function SettingsPage() {
       : [];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Réglages du restaurant</h1>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Réglages" }]}
+        title="Réglages du restaurant"
+      />
 
       <section className={`${uiCard} space-y-4`}>
         <h2 className="text-sm font-semibold text-stone-900">Jours de fermeture hebdomadaires</h2>
         <ClosedDaysForm initialDays={closedDays} />
       </section>
-    </div>
+    </PageContainer>
   );
 }

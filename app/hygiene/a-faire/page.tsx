@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
@@ -6,7 +5,7 @@ import {
   listHygieneTasksUpcoming,
 } from "@/lib/hygiene/hygieneDb";
 import { cachedEnsureHygieneTasks } from "@/lib/cache";
-import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { HygieneTasksClient } from "./HygieneTasksClient";
 
 export default async function HygieneTasksPage() {
@@ -20,18 +19,14 @@ export default async function HygieneTasksPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-      <div>
-        <Link href="/hygiene" className={uiBackLink}>
-          ← Nettoyage
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>À faire maintenant</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Tâches dont l’échéance est passée ou aujourd’hui. Les tâches critiques exigent une photo à la validation.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Hygiène", href: "/hygiene" }, { label: "À faire maintenant" }]}
+        title="À faire maintenant"
+        subtitle="Tâches dont l’échéance est passée ou aujourd’hui. Les tâches critiques exigent une photo à la validation."
+      />
 
       <HygieneTasksClient restaurantId={restaurant.id} due={due} upcoming={upcoming} />
-    </div>
+    </PageContainer>
   );
 }

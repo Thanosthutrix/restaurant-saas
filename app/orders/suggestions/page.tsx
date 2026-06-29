@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getInventoryItemsWithCalculatedStock, getSuppliers } from "@/lib/db";
 import { computeOrderSuggestions } from "@/lib/orders/suggestions";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { OrderSuggestionsClient } from "./OrderSuggestionsClient";
 
 export default async function OrderSuggestionsPage() {
@@ -19,23 +20,12 @@ export default async function OrderSuggestionsPage() {
   const suggestions = computeOrderSuggestions(items, suppliers);
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <div className="mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6">
-          <Link
-            href="/dashboard"
-            className="text-stone-600 underline decoration-stone-400 underline-offset-2"
-          >
-            ← Tableau de bord
-          </Link>
-        </div>
-
-        <h1 className="mb-2 text-xl font-semibold text-stone-900">
-          Commandes suggérées
-        </h1>
-        <p className="mb-6 text-sm text-stone-500">
-          Composants sous le seuil ou le stock cible, regroupés par fournisseur. Les quantités sont calculées en unité de stock puis converties en unité d’achat via la conversion « 1 unité achetée = X unités de stock » (ex. stock en g, achat en kg avec ratio 1000, ou stock en kg et achat au kg avec ratio 1). Modifiez les quantités si besoin puis copiez le message.
-        </p>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Achats & stock", href: "/achats" }, { label: "Suggestions d’achat" }]}
+        title="Commandes suggérées"
+        subtitle="Composants sous le seuil ou le stock cible, regroupés par fournisseur. Les quantités sont calculées en unité de stock puis converties en unité d’achat via la conversion « 1 unité achetée = X unités de stock » (ex. stock en g, achat en kg avec ratio 1000, ou stock en kg et achat au kg avec ratio 1). Modifiez les quantités si besoin puis copiez le message."
+      />
 
         <OrderSuggestionsClient
           suggestions={suggestions}
@@ -63,7 +53,6 @@ export default async function OrderSuggestionsPage() {
             Gérer les fournisseurs
           </Link>
         </p>
-      </div>
-    </div>
+    </PageContainer>
   );
 }

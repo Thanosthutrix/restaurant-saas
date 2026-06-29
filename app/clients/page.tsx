@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { countCustomers, listCustomerTags, listCustomers } from "@/lib/customers/customersDb";
 import type { CustomerListSort, CustomerSource } from "@/lib/customers/types";
-import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { ClientsListClient } from "./ClientsListClient";
 
 export const metadata = {
@@ -69,16 +68,12 @@ export default async function ClientsPage({ searchParams }: Props) {
   ]);
 
   return (
-    <div className="mx-auto min-w-0 max-w-5xl space-y-8 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-        <h1 className={`mt-4 ${uiPageTitle}`}>Base clients</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Fiches contacts, étiquettes, journal et consentements — base pour les réservations et la relation client.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Base clients" }]}
+        title="Base clients"
+        subtitle="Fiches contacts, étiquettes, journal et consentements — base pour les réservations et la relation client."
+      />
 
       <ClientsListClient
         restaurantId={restaurant.id}
@@ -92,6 +87,6 @@ export default async function ClientsPage({ searchParams }: Props) {
         initialSource={sourceF}
         initialMarketingOnly={marketingOnly}
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -6,7 +6,10 @@ import {
   getSuppliers,
   getValidatedDeliveryNotesAwaitingInvoice,
 } from "@/lib/db";
-import { uiBackLink, uiBadgeAmber, uiBadgeEmerald, uiBadgeSlate, uiCard, uiLead, uiPageTitle, uiSectionTitleSm } from "@/components/ui/premium";
+import { FileText } from "lucide-react";
+import { uiBadgeAmber, uiBadgeEmerald, uiBadgeSlate, uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { SupplierInvoiceUpload } from "./SupplierInvoiceUpload";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -41,17 +44,12 @@ export default async function SupplierInvoicesPage() {
   const reviewedCount = invoices.filter((i) => i.status === "reviewed").length;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-6">
-      <Link href="/dashboard" className={uiBackLink}>
-        ← Tableau de bord
-      </Link>
-
-      <div>
-        <h1 className={uiPageTitle}>Factures fournisseurs</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Import, lecture IA, rapprochement avec les réceptions validées, contrôle des écarts et préparation comptable.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={[{ label: "Achats & stock", href: "/achats" }, { label: "Factures fournisseurs" }]}
+        title="Factures fournisseurs"
+        subtitle="Import, lecture IA, rapprochement avec les réceptions validées, contrôle des écarts et préparation comptable."
+      />
 
       <div className="grid gap-3 sm:grid-cols-4">
         <div className={uiCard}>
@@ -130,31 +128,42 @@ export default async function SupplierInvoicesPage() {
             {invoicesRes.error.message}
           </p>
         ) : invoices.length === 0 ? (
-          <p className={`mt-2 ${uiLead}`}>Aucune facture enregistrée.</p>
+          <div className="mt-3">
+            <EmptyState
+              icon={FileText}
+              title="Aucune facture enregistrée"
+              description="Importez une facture fournisseur ci-dessus pour la rapprocher de vos réceptions."
+              compact
+            />
+          </div>
         ) : (
           <ul className="mt-3 space-y-2">
             {invoices.map((inv) => {
               const supplier = supplierById.get(inv.supplier_id);
               return (
                 <li key={inv.id}>
-                  <Link href={`/supplier-invoices/${inv.id}`} className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md`}>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-stone-900">
-                          {inv.invoice_number || "Facture sans numéro"}
-                        </p>
-                        <p className="mt-0.5 text-sm text-stone-500">
-                          {supplier?.name ?? "Fournisseur"} ·{" "}
-                          {inv.invoice_date
-                            ? new Date(inv.invoice_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
-                            : inv.created_at
-                              ? new Date(inv.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
-                              : "—"}
-                          {inv.amount_ht != null ? ` · ${Number(inv.amount_ht).toLocaleString("fr-FR")} € HT` : ""}
-                        </p>
-                      </div>
-                      <span className={statusBadge(inv.status)}>{STATUS_LABELS[inv.status] ?? inv.status}</span>
-                    </div>
+                  <Link
+                    href={`/supplier-invoices/${inv.id}`}
+                    className="group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition hover:border-copper-200 hover:shadow-md"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+                      <FileText className="h-5 w-5 text-copper-700" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-stone-900 transition group-hover:text-copper-700">
+                        {inv.invoice_number || "Facture sans numéro"}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-stone-500">
+                        {supplier?.name ?? "Fournisseur"} ·{" "}
+                        {inv.invoice_date
+                          ? new Date(inv.invoice_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                          : inv.created_at
+                            ? new Date(inv.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                            : "—"}
+                        {inv.amount_ht != null ? ` · ${Number(inv.amount_ht).toLocaleString("fr-FR")} € HT` : ""}
+                      </span>
+                    </span>
+                    <span className={`${statusBadge(inv.status)} shrink-0`}>{STATUS_LABELS[inv.status] ?? inv.status}</span>
                   </Link>
                 </li>
               );
@@ -162,6 +171,6 @@ export default async function SupplierInvoicesPage() {
           </ul>
         )}
       </section>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Camera, FolderTree, UtensilsCrossed } from "lucide-react";
 import { getDishComponentCounts } from "@/lib/db";
-import { cachedGetDishes, cachedGetInventoryItems } from "@/lib/cache";
+import { cachedGetDishes } from "@/lib/cache";
 import {
   buildCategoryTree,
   buildDirectItemsByCategoryId,
@@ -13,11 +14,11 @@ import {
 import { findRecipeSuggestionForDish } from "@/lib/recipes/findRecipeSuggestionForDish";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getNavAccessLevel } from "@/lib/auth/requireNavAccess";
-import { buildTemplateSuggestionsFromRows } from "@/lib/templates/templateSuggestions";
 import { CreateDishForm } from "./CreateDishForm";
 import { DishesNestedCategoryTiles } from "./DishesNestedCategoryTiles";
-import { DishTemplateSuggestionsBlock } from "./DishTemplateSuggestionsBlock";
-import { uiBackLink, uiError, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { uiBtnSecondary, uiError } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type Props = { searchParams: Promise<{ name?: string; returnTo?: string }> };
 
@@ -28,11 +29,10 @@ export default async function DishesPage({ searchParams }: Props) {
   const returnTo = typeof params.returnTo === "string" ? params.returnTo : "";
   if (!restaurant) redirect("/onboarding");
 
-  const [accessLevel, [{ data: dishes, error }, invRes, catRes]] = await Promise.all([
+  const [accessLevel, [{ data: dishes, error }, catRes]] = await Promise.all([
     getNavAccessLevel("dishes"),
     Promise.all([
       cachedGetDishes(restaurant.id),
-      cachedGetInventoryItems(restaurant.id),
       listRestaurantCategories(restaurant.id),
     ]),
   ]);
@@ -51,11 +51,6 @@ export default async function DishesPage({ searchParams }: Props) {
 
   const flatCats = catRes.data ?? [];
   const list = dishes ?? [];
-  const suggestions = buildTemplateSuggestionsFromRows({
-    templateSlug: restaurant.template_slug,
-    inventoryItems: invRes.data ?? [],
-    dishes: list,
-  });
 
   const dishIds = list.map((d) => d.id);
   const { data: componentCounts } = await getDishComponentCounts(restaurant.id, dishIds);
@@ -84,39 +79,38 @@ export default async function DishesPage({ searchParams }: Props) {
   );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-      <div>
-        <Link href="/dashboard" className={uiBackLink}>
-          ← Tableau de bord
-        </Link>
-      </div>
-
-      <div>
-        <h1 className={uiPageTitle}>Plats vendus</h1>
-        <p className={`mt-2 ${uiLead}`}>
-          Définir le mode (préparé / revente) et les composants pour le calcul de consommation.
-        </p>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        breadcrumbs={[{ label: "Cuisine", href: "/cuisine" }, { label: "Plats" }]}
+        title="Plats vendus"
+        subtitle="Définir le mode (préparé / revente) et les composants pour le calcul de consommation."
+        actions={
+          canWrite ? (
+            <>
+              <Link href="/dishes/import-menu" className={`${uiBtnSecondary} inline-flex items-center gap-1.5`}>
+                <Camera className="h-4 w-4" aria-hidden />
+                Importer (photo)
+              </Link>
+              <Link href="/account#rubriques" className={`${uiBtnSecondary} inline-flex items-center gap-1.5`}>
+                <FolderTree className="h-4 w-4" aria-hidden />
+                Rubriques
+              </Link>
+            </>
+          ) : undefined
+        }
+      />
 
       {canWrite && <CreateDishForm initialName={initialDishName} returnTo={returnTo} />}
 
-      {canWrite && (
-        <p className="flex flex-wrap gap-x-4 gap-y-2">
-          <Link href="/dishes/import-menu" className={uiBackLink}>
-            Importer des plats depuis une photo de carte →
-          </Link>
-          <Link href="/account#rubriques" className={uiBackLink}>
-            Rubriques (carte & stock) →
-          </Link>
-        </p>
-      )}
-
-      {canWrite && <DishTemplateSuggestionsBlock restaurantId={restaurant.id} suggestions={suggestions} />}
-
       {!dishes?.length ? (
-        <p className={uiLead}>
-          Aucun plat. Créez-en depuis un service (ligne inconnue → + Nouveau plat) ou ajoutez une page de création si besoin.
-        </p>
+        <EmptyState
+          icon={UtensilsCrossed}
+          title="Aucun plat pour l’instant"
+          description="Créez votre premier plat avec le formulaire ci-dessus, ou importez votre carte depuis une photo."
+          actionLabel="Importer depuis une photo"
+          actionHref="/dishes/import-menu"
+          actionIcon={Camera}
+        />
       ) : (
         <DishesNestedCategoryTiles
           roots={prunedRoots}
@@ -126,6 +120,6 @@ export default async function DishesPage({ searchParams }: Props) {
           canWrite={canWrite}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

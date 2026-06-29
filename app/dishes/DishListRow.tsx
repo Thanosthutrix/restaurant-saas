@@ -8,9 +8,9 @@ import type { Dish } from "@/lib/db";
 import { CategoryPictogram } from "@/components/catalog/CategoryPictogram";
 import { leafSegmentFromCategoryPath } from "@/lib/catalog/restaurantCategories";
 import { applySuggestedRecipeToDish, deleteDish } from "./[id]/actions";
-import { uiBadgeAmber, uiBadgeSlate, uiBtnPrimarySm, uiListRow } from "@/components/ui/premium";
+import { uiBadgeAmber, uiBadgeEmerald, uiBadgeSlate, uiBtnPrimarySm } from "@/components/ui/premium";
 
-/** Aligné sur les points du stock : préparation = indigo, revente = vert. */
+/** préparation = cuivre, revente = vert. */
 const DISH_MODE_DOT: Record<string, { dotClass: string; label: string }> = {
   prepared: { dotClass: "bg-copper-600", label: "Préparé" },
   resale: { dotClass: "bg-emerald-500", label: "Revente" },
@@ -56,11 +56,16 @@ export function DishListRow({
   }
 
   const recipeBadge =
-    status === "validated" ? null : status === "draft" ? (
+    status === "validated" ? (
+      <span className={uiBadgeEmerald}>Recette OK</span>
+    ) : status === "draft" ? (
       <span className={uiBadgeAmber}>Brouillon</span>
     ) : (
       <span className={uiBadgeSlate}>Sans recette</span>
     );
+
+  const leafLabel = categoryPath ? leafSegmentFromCategoryPath(categoryPath) ?? categoryPath : null;
+  const subtitle = [showCategoryInRow ? leafLabel : null, modeDot.label].filter(Boolean).join(" · ");
 
   async function handleSuggest() {
     const result = await applySuggestedRecipeToDish({ restaurantId: dish.restaurant_id, dishId: dish.id });
@@ -69,38 +74,30 @@ export function DishListRow({
   }
 
   return (
-    <div className={uiListRow}>
-      <Link
-        href={`/dishes/${dish.id}`}
-        className="flex min-w-0 flex-1 items-center gap-2.5 font-semibold text-stone-900 transition hover:text-copper-700"
-      >
-        <span
-          className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white ${modeDot.dotClass}`}
-          title={modeDot.label}
-          aria-label={modeDot.label}
-          role="img"
-        />
-        <span className="truncate">{dish.name}</span>
-      </Link>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-stone-500">
-        {showCategoryInRow && categoryPath ? (
+    <div className="group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition hover:border-copper-200 hover:shadow-md">
+      <Link href={`/dishes/${dish.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
+          <CategoryPictogram title={leafLabel ?? dish.name} depth={1} />
           <span
-            className="flex max-w-[15rem] items-center gap-1.5 truncate text-xs text-stone-500"
-            title={categoryPath}
-          >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-copper-50 ring-1 ring-copper-100/90">
-              <CategoryPictogram
-                title={leafSegmentFromCategoryPath(categoryPath) ?? categoryPath}
-                depth={1}
-              />
-            </span>
-            <span className="truncate">{categoryPath}</span>
+            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white ${modeDot.dotClass}`}
+            title={modeDot.label}
+            aria-label={modeDot.label}
+            role="img"
+          />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-semibold text-stone-900 transition group-hover:text-copper-700">
+            {dish.name}
           </span>
-        ) : null}
+          {subtitle ? <span className="mt-0.5 block truncate text-xs text-stone-500">{subtitle}</span> : null}
+        </span>
+      </Link>
+
+      <div className="flex shrink-0 items-center gap-2.5">
         {recipeBadge}
         {ttc != null && ttc > 0 && (
-          <span className="tabular-nums text-stone-700">
-            {ttc.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} TTC
+          <span className="text-[15px] font-semibold tabular-nums text-stone-900">
+            {ttc.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
           </span>
         )}
         {canWrite && suggestionAvailable && (
@@ -113,7 +110,7 @@ export function DishListRow({
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="rounded-lg p-1.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+            className="rounded-lg p-1.5 text-stone-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50"
             title="Supprimer le plat"
             aria-label={`Supprimer le plat « ${dish.name} »`}
           >

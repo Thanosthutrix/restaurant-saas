@@ -2,9 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listDiningTables, listOpenDiningOrdersWithCustomerNames } from "@/lib/dining/diningDb";
-import { diningTableTicketLineLabel } from "@/lib/dining/ticketLabel";
 import { Armchair } from "lucide-react";
-import { uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -38,12 +36,18 @@ export default async function SallePage() {
         { orderId: o.id, customerId: o.customer_id as string | null },
       ])
   );
+  const openCount = tables.filter((t) => openByTable.has(t.id)).length;
+
   return (
-    <PageContainer width="narrow">
+    <PageContainer>
       <PageHeader
         breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Salle" }]}
         title="Salle"
-        subtitle="Tables actives et commandes en cours."
+        subtitle={
+          tables.length
+            ? `${tables.length} table${tables.length > 1 ? "s" : ""} · ${openCount} ouverte${openCount > 1 ? "s" : ""}`
+            : "Tables actives et commandes en cours."
+        }
         actions={
           <Link
             href="/salle/tables"
@@ -63,40 +67,46 @@ export default async function SallePage() {
           actionHref="/salle/tables"
         />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {tables.map((t) => {
             const open = openByTable.get(t.id);
-            const orderId = open?.orderId;
+            const occupied = open != null;
             const clientName =
               open?.customerId != null ? customerNameById.get(open.customerId) : undefined;
-            const tableLineLabel = orderId
-              ? diningTableTicketLineLabel(t.label, clientName)
-              : t.label;
             return (
               <li key={t.id}>
                 <Link
                   href={`/salle/table/${t.id}`}
-                  className={`${uiCard} block transition hover:border-copper-100 hover:shadow-md`}
+                  className={`group flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition hover:-translate-y-0.5 hover:shadow-md ${
+                    occupied
+                      ? "border-copper-300 bg-copper-50/60 ring-1 ring-copper-200"
+                      : "border-stone-200/70 bg-white shadow-sm hover:border-copper-200"
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className={`${uiSectionTitleSm} break-words`} title={tableLineLabel}>
-                        {tableLineLabel}
-                      </p>
-                      <p className={`mt-1 ${uiLead}`}>
-                        {orderId ? "Commande en cours — reprendre" : "Ouvrir une commande"}
-                      </p>
-                    </div>
-                    {orderId ? (
-                      <span className="inline-flex shrink-0 rounded-lg bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
-                        Ouverte
-                      </span>
-                    ) : (
-                      <span className="inline-flex shrink-0 rounded-lg bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600">
-                        Libre
-                      </span>
-                    )}
-                  </div>
+                  <span
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                      occupied ? "bg-copper-100 text-copper-800" : "bg-stone-100 text-stone-500"
+                    }`}
+                  >
+                    <Armchair className="h-6 w-6" aria-hidden />
+                  </span>
+                  <span className="line-clamp-1 font-semibold text-stone-900" title={t.label}>
+                    {t.label}
+                  </span>
+                  {occupied ? (
+                    <span className="line-clamp-1 text-xs font-medium text-copper-800">
+                      {clientName ?? "Commande en cours"}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-stone-400">Libre</span>
+                  )}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      occupied ? "bg-copper-700 text-white" : "bg-stone-100 text-stone-500"
+                    }`}
+                  >
+                    {occupied ? "Ouverte" : "Libre"}
+                  </span>
                 </Link>
               </li>
             );

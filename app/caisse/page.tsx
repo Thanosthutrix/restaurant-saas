@@ -18,10 +18,11 @@ import {
 import { listRecentCustomersForLookup } from "@/lib/customers/customersDb";
 import { getDishes } from "@/lib/db";
 import { toNumber } from "@/lib/utils/safeNumeric";
-import { Armchair, Receipt } from "lucide-react";
+import { Armchair, Receipt, ShoppingBag } from "lucide-react";
 import { uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CaisseDishPicker } from "./CaisseDishPicker";
+import { CaisseSettledTickets } from "./CaisseSettledTickets";
 
 function fmtEur(n: number) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
@@ -167,22 +168,29 @@ export default async function CaissePage() {
             actionHref="/salle"
           />
         ) : (
-          <ul className="space-y-2">
-            {open.map((row) => (
-              <li key={row.orderId}>
-                <Link
-                  href={`/salle/commande/${row.orderId}?from=caisse`}
-                  className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper-600`}
-                >
-                  <p className="font-medium text-stone-900">
-                    {row.kind === "counter" ? row.label : `Table ${row.label}`}
-                  </p>
-                  <p className={`mt-0.5 text-sm ${uiLead}`}>
-                    {row.lineCount} ligne{row.lineCount !== 1 ? "s" : ""} · {fmtEur(row.totalTtc)}
-                  </p>
-                </Link>
-              </li>
-            ))}
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {open.map((row) => {
+              const RowIcon = row.kind === "counter" ? ShoppingBag : Armchair;
+              return (
+                <li key={row.orderId}>
+                  <Link
+                    href={`/salle/commande/${row.orderId}?from=caisse`}
+                    className="group flex aspect-square flex-col items-center justify-center gap-1.5 rounded-2xl border border-copper-300 bg-copper-50/60 p-3 text-center shadow-sm ring-1 ring-copper-200 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper-600"
+                  >
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-copper-100 text-copper-800">
+                      <RowIcon className="h-5 w-5" aria-hidden />
+                    </span>
+                    <span className="line-clamp-1 font-semibold text-stone-900">
+                      {row.kind === "counter" ? row.label : `Table ${row.label}`}
+                    </span>
+                    <span className="text-lg font-bold tabular-nums text-copper-800">{fmtEur(row.totalTtc)}</span>
+                    <span className="text-[11px] text-stone-500">
+                      {row.lineCount} ligne{row.lineCount !== 1 ? "s" : ""}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -216,42 +224,16 @@ export default async function CaissePage() {
               </ul>
             </div>
 
-            <div>
-              <p className={`mb-2 text-sm font-semibold text-stone-700`}>Détail</p>
-              <ul className="space-y-2">
-                {settledList.map(({ order, table_label: displayLabel, payment }) => (
-                  <li key={order.id} className="space-y-2">
-                    <Link
-                      href={`/salle/commande/${order.id}?from=caisse`}
-                      className={`${uiCard} block transition hover:border-copper-200 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper-600`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-stone-900">{displayLabel}</p>
-                          <p className={`mt-0.5 text-sm ${uiLead}`}>
-                            {settledTimeParis(order.settled_at)} ·{" "}
-                            {paymentLabel(payment?.payment_method)}
-                          </p>
-                        </div>
-                        <p className="text-lg font-semibold tabular-nums text-stone-900">
-                          {fmtEur(toNumber(payment?.amount_ttc))}
-                        </p>
-                      </div>
-                    </Link>
-                    {order.service_id ? (
-                      <p className="px-1">
-                        <Link
-                          href={`/service/${order.service_id}`}
-                          className="text-xs font-semibold text-copper-700 hover:text-copper-600"
-                        >
-                          Service →
-                        </Link>
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <CaisseSettledTickets
+              tickets={settledList.map(({ order, table_label: displayLabel, payment }) => ({
+                orderId: order.id,
+                label: displayLabel,
+                time: settledTimeParis(order.settled_at),
+                payment: paymentLabel(payment?.payment_method),
+                amount: toNumber(payment?.amount_ttc),
+                serviceId: order.service_id ?? null,
+              }))}
+            />
           </>
         )}
       </section>

@@ -16,6 +16,7 @@ import { CreateInventoryItemForm } from "./CreateInventoryItemForm";
 import { Boxes, FolderTree } from "lucide-react";
 import { uiBtnSecondary, uiError, uiInfoBanner, uiSectionTitle } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export default async function InventoryPage() {
@@ -42,6 +43,8 @@ export default async function InventoryPage() {
   return (
     <PageContainer width="narrow">
       <PageHeader
+        accentIcon={SECTION_ACCENT.inventory.icon}
+        accentTone={SECTION_ACCENT.inventory.tone}
         breadcrumbs={[{ label: "Achats & stock", href: "/achats" }, { label: "Stock" }]}
         title="Composants stockés"
         subtitle="Matières premières, préparations intermédiaires, articles en revente."

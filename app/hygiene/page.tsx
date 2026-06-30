@@ -9,6 +9,7 @@ import {
 import { cachedEnsureHygieneTasks } from "@/lib/cache";
 import { uiCard, uiCardMuted, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 
 export default async function HygieneHubPage() {
   const restaurant = await getRestaurantForPage();
@@ -24,6 +25,8 @@ export default async function HygieneHubPage() {
   return (
     <PageContainer width="narrow">
       <PageHeader
+        accentIcon={SECTION_ACCENT.hygiene.icon}
+        accentTone={SECTION_ACCENT.hygiene.tone}
         breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Hygiène" }]}
         title="Nettoyage & désinfection"
         subtitle="Plan de nettoyage (PND) : éléments à nettoyer, tâches générées selon la récurrence, registre et score hygiène sur les 7 derniers jours."

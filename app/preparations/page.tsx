@@ -2,55 +2,35 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
+  listActivePreparations,
   listPreparationDishes,
   listPreparationInventoryItems,
-  listPreparationRecordsAwaiting2hCheck,
-  listPreparationRecordsAwaitingTempEnd,
-  listPreparationRecordsWithLotForLookup,
 } from "@/lib/preparations/preparationsDb";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 import { PreparationsClient } from "./PreparationsClient";
 
-type Search = { lot?: string; recordId?: string };
-
-export default async function PreparationsPage({
-  searchParams,
-}: {
-  searchParams: Promise<Search>;
-}) {
+export default async function PreparationsPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const sp = await searchParams;
-  const initialLotSearch = typeof sp.lot === "string" ? sp.lot : "";
-  const initialRecordId = typeof sp.recordId === "string" ? sp.recordId : null;
-
-  const [preps, dishes, awaitingEnd, awaiting2h, recordsWithLot] = await Promise.all([
+  const [preps, dishes, active] = await Promise.all([
     listPreparationInventoryItems(restaurant.id),
     listPreparationDishes(restaurant.id),
-    listPreparationRecordsAwaitingTempEnd(restaurant.id),
-    listPreparationRecordsAwaiting2hCheck(restaurant.id),
-    listPreparationRecordsWithLotForLookup(restaurant.id),
+    listActivePreparations(restaurant.id),
   ]);
 
   return (
     <PageContainer width="narrow">
       <PageHeader
+        accentIcon={SECTION_ACCENT.preparations.icon}
+        accentTone={SECTION_ACCENT.preparations.tone}
         breadcrumbs={[{ label: "Cuisine", href: "/cuisine" }, { label: "Préparations" }]}
         title="Préparations"
-        subtitle="Enregistrez un lot, la température en fin de préparation, le contrôle après refroidissement (+2 h) et la DLC."
+        subtitle="Lancez une préparation (DLC + température de fin), puis enregistrez le contrôle à +2 h. La fiche reste affichée jusqu'à sa clôture."
       />
 
-      <PreparationsClient
-        restaurantId={restaurant.id}
-        inventoryPreps={preps}
-        dishes={dishes}
-        awaitingTempEnd={awaitingEnd}
-        awaiting2h={awaiting2h}
-        recordsWithLot={recordsWithLot}
-        initialLotSearch={initialLotSearch}
-        initialRecordId={initialRecordId}
-      />
+      <PreparationsClient restaurantId={restaurant.id} inventoryPreps={preps} dishes={dishes} active={active} />
 
       <p className="text-center text-sm">
         <Link href="/preparations/registre" className="font-medium text-copper-800 underline">

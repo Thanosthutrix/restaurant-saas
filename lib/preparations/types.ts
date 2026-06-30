@@ -16,6 +16,9 @@ export type PreparationRecord = {
   recorded_by_user_id: string | null;
   recorded_by_display: string | null;
   comment: string | null;
+  /** Clôture manuelle (stock épuisé, DLC dépassée, ou autre) — retire la fiche de la page active. */
+  closed_at: string | null;
+  closed_reason: string | null;
   created_at: string;
   updated_at: string;
 };

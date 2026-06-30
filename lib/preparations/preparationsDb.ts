@@ -23,9 +23,65 @@ function mapRecord(row: Record<string, unknown>): PreparationRecord {
     recorded_by_user_id: row.recorded_by_user_id == null ? null : String(row.recorded_by_user_id),
     recorded_by_display: row.recorded_by_display == null ? null : String(row.recorded_by_display),
     comment: row.comment == null ? null : String(row.comment),
+    closed_at: row.closed_at == null ? null : String(row.closed_at),
+    closed_reason: row.closed_reason == null ? null : String(row.closed_reason),
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
   };
+}
+
+/**
+ * Préparations actives : non clôturées et déjà loties (1er relevé fait).
+ * Restent affichées tant que le restaurateur ne les clôture pas (stock épuisé,
+ * DLC dépassée, etc.). Tri : celles dont le contrôle +2 h manque d'abord
+ * (alerte), puis par DLC la plus proche.
+ */
+export async function listActivePreparations(restaurantId: string): Promise<PreparationRecord[]> {
+  const { data, error } = await supabaseServer
+    .from("preparation_records")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .is("closed_at", null)
+    .not("lot_reference", "is", null)
+    .order("temp_2h_recorded_at", { ascending: true, nullsFirst: true })
+    .order("dlc_date", { ascending: true, nullsFirst: false })
+    .limit(300);
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map(mapRecord);
+}
+
+/**
+ * Signaux du contrôle de température à +2 h sur les préparations actives :
+ * - `reminder` : échéance dans les 15 prochaines minutes (rappel, dès ~1h45) → bleu
+ * - `overdue`  : échéance déjà passée (action requise) → rouge
+ * Sert aux pastilles du hub Cuisine et du menu latéral.
+ */
+export async function countPreparations2hSignals(
+  restaurantId: string
+): Promise<{ reminder: number; overdue: number }> {
+  const nowMs = Date.now();
+  const windowEndIso = new Date(nowMs + 15 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabaseServer
+    .from("preparation_records")
+    .select("temp_2h_due_at")
+    .eq("restaurant_id", restaurantId)
+    .is("closed_at", null)
+    .not("lot_reference", "is", null)
+    .is("temp_2h_recorded_at", null)
+    .not("temp_2h_due_at", "is", null)
+    .lt("temp_2h_due_at", windowEndIso);
+
+  if (error || !data) return { reminder: 0, overdue: 0 };
+
+  let reminder = 0;
+  let overdue = 0;
+  for (const row of data as { temp_2h_due_at: string }[]) {
+    const due = new Date(row.temp_2h_due_at).getTime();
+    if (due < nowMs) overdue++;
+    else reminder++;
+  }
+  return { reminder, overdue };
 }
 
 /** Préparations stock (type prep). */

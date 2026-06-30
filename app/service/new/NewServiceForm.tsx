@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChefHat, Minus, Plus, ScanLine, Soup, UtensilsCrossed } from "lucide-react";
 import { createServiceAndSales, analyzeReceiptAndMatch } from "./actions";
 import type { AnalyzedTicketLine } from "./actions";
 import { supabase } from "@/lib/supabaseClient";
 import type { Dish } from "@/lib/db";
 import type { ServiceType } from "@/lib/constants";
 import { SERVICE_TYPES } from "@/lib/constants";
+import { uiBtnPrimary, uiBtnSecondary, uiCard, uiFileInput, uiInput, uiLabel } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 
 const BUCKET = "receipts";
 
@@ -222,69 +226,72 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
 
   const serviceDate = date;
 
+  const totalQty = dishesWithQty.reduce((sum, d) => sum + (quantities[d.id] ?? 0), 0);
+
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-6">
-      <div className="mb-6 flex items-center gap-4">
-        <Link
-          href="/dashboard"
-          className="text-stone-600 underline decoration-stone-400 underline-offset-2"
-        >
-          ← Tableau de bord
-        </Link>
-      </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        accentIcon={SECTION_ACCENT.service.icon}
+        accentTone={SECTION_ACCENT.service.tone}
+        breadcrumbs={[{ label: "Cuisine", href: "/cuisine" }, { label: "Nouveau service" }]}
+        title="Nouveau service"
+        subtitle="Saisissez les ventes du service — par photo de relevé (lecture automatique) ou à la main."
+      />
 
-      <h1 className="mb-6 text-2xl font-semibold text-stone-900">
-        Nouveau service
-      </h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Date + type de service */}
+        <div className={`${uiCard} space-y-4`}>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="date" className={uiLabel}>
+              Date
+            </label>
+            <input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className={`${uiInput} h-11 w-full sm:w-56`}
+              required
+            />
+          </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="date" className="mb-1 block text-sm font-medium text-stone-700">
-            Date
-          </label>
-          <input
-            id="date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900"
-            required
-          />
-        </div>
-
-        <div>
-          <span className="mb-2 block text-sm font-medium text-stone-700">
-            Type de service
-          </span>
-          <div className="flex gap-4">
-            {SERVICE_TYPES.map((type) => (
-              <label key={type} className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="radio"
-                  name="serviceType"
-                  value={type}
-                  checked={serviceType === type}
-                  onChange={() => setServiceType(type)}
-                  className="h-4 w-4"
-                />
-                <span className="text-stone-800">
-                  {type === "lunch" ? "Déjeuner" : "Dîner"}
-                </span>
-              </label>
-            ))}
+          <div className="flex flex-col gap-1">
+            <span className={uiLabel}>Type de service</span>
+            <div className="inline-flex h-11 items-center gap-1 self-start rounded-xl border border-stone-200 bg-stone-50 p-1">
+              {SERVICE_TYPES.map((type) => {
+                const on = serviceType === type;
+                const TypeIcon = type === "lunch" ? Soup : UtensilsCrossed;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setServiceType(type)}
+                    className={`flex h-full items-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition ${
+                      on ? "bg-white text-copper-800 shadow-sm ring-1 ring-stone-200" : "text-stone-500 hover:text-stone-700"
+                    }`}
+                  >
+                    <TypeIcon className="h-4 w-4" aria-hidden />
+                    {type === "lunch" ? "Déjeuner" : "Dîner"}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-stone-200 bg-white p-4">
-          <label
-            htmlFor="receipt"
-            className="mb-1 block text-sm font-medium text-stone-700"
-          >
-            Relevé de caisse (optionnel)
-          </label>
-          <p className="mb-2 text-xs text-stone-500">
-            Uploadez une photo pour analyser les ventes automatiquement, ou saisissez les quantités manuellement ci‑dessous.
-          </p>
+        {/* Relevé de caisse */}
+        <div className={`${uiCard} space-y-3`}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 text-copper-700 ring-1 ring-copper-100/90">
+              <ScanLine className="h-5 w-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900">Relevé de caisse (optionnel)</h2>
+              <p className="text-xs text-stone-500">Photo → lecture automatique des ventes, ou saisie manuelle plus bas.</p>
+            </div>
+          </div>
+
           <input
             id="receipt"
             type="file"
@@ -295,76 +302,68 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
               setAnalyzeError(null);
               setAnalyzeMessage(null);
             }}
-            className="mb-3 w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-200 file:px-4 file:py-2 file:text-stone-800"
+            className={uiFileInput}
           />
           {receiptFile && (
-            <p className="mb-3 text-xs text-stone-500">
+            <p className="text-xs text-stone-500">
               {receiptFile.name} ({(receiptFile.size / 1024).toFixed(1)} Ko)
             </p>
           )}
           {receiptImageUrl && !receiptFile && analysisLines && (
-            <p className="mb-3 text-xs text-emerald-600">
-              Relevé analysé en mémoire — vous pouvez continuer à associer les lignes ou enregistrer le service.
+            <p className="text-xs text-emerald-700">
+              Relevé analysé — vous pouvez associer les lignes ou enregistrer le service.
             </p>
           )}
           <button
             type="button"
             onClick={handleAnalyzeReceipt}
             disabled={analyzePending || !receiptFile}
-            className="rounded-lg border border-stone-300 bg-stone-100 px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-200 disabled:opacity-50"
+            className={`${uiBtnSecondary} inline-flex items-center gap-1.5`}
           >
+            <ScanLine className="h-4 w-4" aria-hidden />
             {analyzePending ? "Analyse en cours…" : "Analyser le relevé"}
           </button>
-          {analyzeError && (
-            <p className="mt-2 text-sm text-red-600">{analyzeError}</p>
-          )}
-          {analyzeMessage && (
-            <p className="mt-2 text-sm text-green-700">{analyzeMessage}</p>
-          )}
+          {analyzeError && <p className="text-sm text-rose-600">{analyzeError}</p>}
+          {analyzeMessage && <p className="text-sm text-emerald-700">{analyzeMessage}</p>}
         </div>
 
+        {/* Lignes à associer */}
         {analysisLines && analysisLines.some((l, i) => l.status !== "matched" && !resolvedLineIndices.has(i)) && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <h2 className="mb-2 text-sm font-medium text-amber-800">
-              Lignes à associer
-            </h2>
-            <p className="mb-3 text-xs text-amber-700">
-              Associez chaque ligne à un plat (suggestion ou choix manuel) ou créez un nouveau plat.
-            </p>
-            <ul className="space-y-3">
+          <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
+            <div>
+              <h2 className="text-sm font-semibold text-amber-900">Lignes à associer</h2>
+              <p className="mt-0.5 text-xs text-amber-700">
+                Associez chaque ligne à un plat (suggestion ou choix manuel) ou créez un nouveau plat.
+              </p>
+            </div>
+            <ul className="space-y-2">
               {analysisLines
                 .map((line, lineIndex) => ({ line, lineIndex }))
                 .filter(({ line, lineIndex }) => line.status !== "matched" && !resolvedLineIndices.has(lineIndex))
                 .map(({ line, lineIndex }) => (
-                  <li
-                    key={lineIndex}
-                    className="flex flex-col gap-2 rounded border border-amber-200 bg-white p-2"
-                  >
-                    <span className="font-medium text-stone-900">
-                      « {line.raw_label} » × {line.qty}
+                  <li key={lineIndex} className="flex flex-col gap-2 rounded-xl border border-amber-200/80 bg-white p-3">
+                    <span className="font-semibold text-stone-900">
+                      « {line.raw_label} » <span className="text-stone-500">× {line.qty}</span>
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
-                      {line.suggestions.length > 0 && (
-                        <span className="flex flex-wrap gap-1.5">
-                          {line.suggestions.map((s) => (
-                            <button
-                              key={s.dish_id}
-                              type="button"
-                              onClick={() => associateLineToDish(line, s.dish_id, lineIndex)}
-                              className="rounded bg-stone-800 px-2 py-1 text-xs font-medium text-white hover:bg-stone-700"
-                            >
-                              Ajouter à {s.dish_name}
-                            </button>
-                          ))}
-                        </span>
-                      )}
+                      {line.suggestions.map((s) => (
+                        <button
+                          key={s.dish_id}
+                          type="button"
+                          onClick={() => associateLineToDish(line, s.dish_id, lineIndex)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-copper-700 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-copper-600"
+                        >
+                          <Plus className="h-3.5 w-3.5" aria-hidden />
+                          {s.dish_name}
+                        </button>
+                      ))}
                       <span className="flex flex-wrap items-center gap-1.5">
                         <select
                           value={selectedDishForLine[lineIndex] ?? ""}
                           onChange={(e) =>
                             setSelectedDishForLine((prev) => ({ ...prev, [lineIndex]: e.target.value }))
                           }
-                          className="rounded border border-stone-300 bg-white px-2 py-1 text-xs"
+                          className={`${uiInput} h-9 py-0 text-xs`}
                           aria-label="Associer à un plat"
                         >
                           <option value="">Choisir un plat…</option>
@@ -381,17 +380,17 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                             if (dishId) associateLineToDish(line, dishId, lineIndex);
                           }}
                           disabled={!selectedDishForLine[lineIndex]}
-                          className="rounded border border-stone-400 bg-stone-100 px-2 py-1 text-xs font-medium text-stone-800 hover:bg-stone-200 disabled:opacity-50"
+                          className="h-9 rounded-lg border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
                         >
-                          Associer à ce plat
+                          Associer
                         </button>
                       </span>
                       <button
                         type="button"
                         onClick={() => saveStateAndGoToCreateDish(line.raw_label)}
-                        className="text-xs text-stone-600 underline hover:text-stone-800"
+                        className="text-xs font-semibold text-copper-700 underline-offset-2 hover:underline"
                       >
-                        Créer un nouveau plat
+                        + Nouveau plat
                       </button>
                     </div>
                   </li>
@@ -400,49 +399,60 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
           </div>
         )}
 
-        <div>
-          <h2 className="mb-3 text-sm font-medium text-stone-700">
-            Quantités vendues par plat
-          </h2>
+        {/* Quantités vendues */}
+        <div className={`${uiCard} space-y-3`}>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-stone-900">Quantités vendues</h2>
+            {totalQty > 0 ? (
+              <span className="rounded-full bg-copper-50 px-2.5 py-1 text-xs font-semibold text-copper-800">
+                {totalQty} vendu{totalQty > 1 ? "s" : ""}
+              </span>
+            ) : null}
+          </div>
+
           {dishes.length === 0 ? (
-            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-              Aucun plat pour ce restaurant. Créez des plats dans <Link href="/dishes" className="underline">Plats</Link>.
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Aucun plat pour ce restaurant. Créez des plats dans{" "}
+              <Link href="/dishes" className="font-semibold underline">
+                Plats
+              </Link>
+              .
             </p>
           ) : (
             <>
               {dishesWithQty.length === 0 && !showManualAdd && (
-                <p className="mb-3 text-sm text-stone-500">
+                <p className="text-sm text-stone-500">
                   Aucune vente pour l’instant. Analysez un relevé ou ajoutez des ventes manuellement.
                 </p>
               )}
               {dishesWithQty.length > 0 && (
-                <ul className="mb-4 space-y-3">
+                <ul className="space-y-2">
                   {dishesWithQty.map((dish) => (
                     <li
                       key={dish.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-3"
+                      className="flex items-center justify-between gap-2 rounded-xl border border-stone-200/70 bg-white px-3 py-2"
                     >
-                      <span className="font-medium text-stone-900">{dish.name}</span>
-                      <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate font-medium text-stone-900">{dish.name}</span>
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => updateQty(dish.id, -1)}
                           disabled={(quantities[dish.id] ?? 0) === 0}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-stone-50 text-lg font-medium text-stone-700 disabled:opacity-40"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 transition hover:bg-stone-50 active:scale-95 disabled:opacity-40"
                           aria-label={`Diminuer ${dish.name}`}
                         >
-                          −
+                          <Minus className="h-4 w-4" aria-hidden />
                         </button>
-                        <span className="min-w-[2rem] text-center text-stone-900">
+                        <span className="min-w-[2rem] text-center text-base font-semibold tabular-nums text-stone-900">
                           {quantities[dish.id] ?? 0}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateQty(dish.id, 1)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-stone-50 text-lg font-medium text-stone-700"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-700 transition hover:bg-stone-50 active:scale-95"
                           aria-label={`Augmenter ${dish.name}`}
                         >
-                          +
+                          <Plus className="h-4 w-4" aria-hidden />
                         </button>
                       </div>
                     </li>
@@ -453,22 +463,21 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowManualAdd(true)}
-                  className="rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
+                  className={`${uiBtnSecondary} inline-flex items-center gap-1.5`}
                 >
-                  Ajouter des ventes manuellement
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Ajouter un plat
                 </button>
               ) : (
-                <div className="rounded-lg border border-stone-200 bg-stone-50/50 p-3">
-                  <p className="mb-2 text-xs font-medium text-stone-600">
-                    Ajouter un plat au récap
-                  </p>
+                <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+                  <p className="mb-2 text-xs font-medium text-stone-600">Ajouter un plat au récap</p>
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="flex flex-col gap-1">
-                      <span className="text-xs text-stone-500">Plat</span>
+                      <span className={uiLabel}>Plat</span>
                       <select
                         value={manualAddDishId}
                         onChange={(e) => setManualAddDishId(e.target.value)}
-                        className="min-w-[180px] rounded border border-stone-300 bg-white px-2 py-1.5 text-sm"
+                        className={`${uiInput} h-10 min-w-[180px]`}
                       >
                         <option value="">Choisir un plat</option>
                         {dishes.map((d) => (
@@ -487,14 +496,14 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
                         }
                       }}
                       disabled={!manualAddDishId}
-                      className="rounded bg-stone-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50"
+                      className={`${uiBtnPrimary} h-10`}
                     >
-                      Ajouter (×1)
+                      Ajouter
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowManualAdd(false)}
-                      className="text-sm text-stone-500 underline hover:text-stone-700"
+                      className="h-10 px-2 text-sm font-medium text-stone-500 hover:text-stone-700"
                     >
                       Fermer
                     </button>
@@ -506,25 +515,23 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
         </div>
 
         {uploadError && (
-          <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             Photo non enregistrée : {uploadError}. Le service sera enregistré sans photo.
-          </div>
+          </p>
         )}
-
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
-            {error}
-          </div>
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>
         )}
 
         <button
           type="submit"
           disabled={pending || dishes.length === 0}
-          className="w-full rounded-lg bg-stone-900 px-4 py-3 font-medium text-white disabled:opacity-50"
+          className={`${uiBtnPrimary} min-h-[52px] w-full text-base`}
         >
+          <ChefHat className="mr-1.5 inline h-5 w-5 align-[-3px]" aria-hidden />
           {pending ? "Enregistrement…" : "Enregistrer le service"}
         </button>
       </form>
-    </div>
+    </PageContainer>
   );
 }

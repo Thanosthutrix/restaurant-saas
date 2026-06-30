@@ -23,6 +23,8 @@ export type AppShellHeaderBootstrap = {
   allowedNavKeys: ShellNavKey[];
   /** Tâches hygiène + relevés température en attente (badge sidebar). Null si non applicable. */
   hygienePendingCount?: number | null;
+  /** Badge Cuisine : préparations dont le contrôle +2 h est imminent (bleu) ou en retard (rouge). */
+  preparationsBadge?: { count: number; tone: "red" | "blue" } | null;
   /**
    * Profil de l'utilisateur connecté tel qu'affiché dans l'avatar du header.
    * `staffMemberId` + `colorIndex` uniquement pour les collaborateurs (null pour les propriétaires).
@@ -119,6 +121,20 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     }
   }
 
+  // Badge préparations (contrôle +2 h) sur l'entrée Cuisine : retard (rouge) prioritaire sur rappel (bleu).
+  let preparationsBadge: { count: number; tone: "red" | "blue" } | null = null;
+  const canSeeCuisine = access.isOwner || access.allowedNavKeys.includes("cuisine");
+  if (access.currentRestaurantId && canSeeCuisine) {
+    try {
+      const { cachedCountPreparations2hSignals } = await import("@/lib/cache");
+      const sig = await cachedCountPreparations2hSignals(access.currentRestaurantId);
+      if (sig.overdue > 0) preparationsBadge = { count: sig.overdue, tone: "red" };
+      else if (sig.reminder > 0) preparationsBadge = { count: sig.reminder, tone: "blue" };
+    } catch {
+      preparationsBadge = null;
+    }
+  }
+
   return {
     restaurants: rows,
     currentRestaurantId: access.currentRestaurantId,
@@ -127,6 +143,7 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     weatherHint: null,
     allowedNavKeys: access.allowedNavKeys,
     hygienePendingCount,
+    preparationsBadge,
     userProfile,
   };
 }

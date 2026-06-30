@@ -13,6 +13,7 @@ import { MarginsCustomRangeForm } from "./MarginsCustomRangeForm";
 import { MarginsDateRangeLinks } from "./MarginsDateRangeLinks";
 import { uiCard, uiTableLink } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 
 function formatEur(n: number) {
   return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
@@ -113,6 +114,8 @@ export default async function MarginsPage({
   return (
     <PageContainer>
       <PageHeader
+        accentIcon={SECTION_ACCENT.margins.icon}
+        accentTone={SECTION_ACCENT.margins.tone}
         breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "Marges" }]}
         title="Analyse des marges"
       />

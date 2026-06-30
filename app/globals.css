@@ -54,6 +54,36 @@
     linear-gradient(180deg, #36393d 0%, #2c2f32 55%, #26292c 100%);
 }
 
+/* Illumination de tuile par section (identité couleur) — classes dédiées pour
+   garantir la génération (les variantes hover:border-* dans des tableaux de
+   données ne sont pas toujours détectées par Tailwind). */
+@media (hover: hover) {
+  .tile-copper:hover {
+    border-color: #eea585;
+    background-color: rgba(253, 243, 238, 0.55);
+  }
+  .tile-violet:hover {
+    border-color: #c4b5fd;
+    background-color: rgba(245, 243, 255, 0.6);
+  }
+  .tile-sky:hover {
+    border-color: #7dd3fc;
+    background-color: rgba(240, 249, 255, 0.6);
+  }
+  .tile-emerald:hover {
+    border-color: #6ee7b7;
+    background-color: rgba(236, 253, 245, 0.6);
+  }
+  .tile-amber:hover {
+    border-color: #fcd34d;
+    background-color: rgba(255, 251, 235, 0.6);
+  }
+  .tile-cyan:hover {
+    border-color: #67e8f9;
+    background-color: rgba(236, 254, 255, 0.6);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .page-transition-enter {
     animation: page-transition-enter 0.16s ease-out;

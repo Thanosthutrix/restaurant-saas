@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { uiLead, uiPageTitle } from "@/components/ui/premium";
 
 export type Breadcrumb = { label: string; href?: string };
@@ -32,12 +33,18 @@ export function PageHeader({
   breadcrumbs,
   eyebrow,
   actions,
+  accentIcon: AccentIcon,
+  accentTone,
 }: {
   title: string;
   subtitle?: React.ReactNode;
   breadcrumbs?: Breadcrumb[];
   eyebrow?: string;
   actions?: React.ReactNode;
+  /** Identité couleur de la section : pictogramme affiché à gauche du titre. */
+  accentIcon?: LucideIcon;
+  /** Classes du carré d'accent (fond + texte), ex. "bg-cyan-50 text-cyan-700". */
+  accentTone?: string;
 }) {
   return (
     <header className="space-y-2">
@@ -64,9 +71,20 @@ export function PageHeader({
       ) : null}
 
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-        <div className="min-w-0">
-          <h1 className={uiPageTitle}>{title}</h1>
-          {subtitle ? <p className={`mt-2 ${uiLead}`}>{subtitle}</p> : null}
+        <div className="flex min-w-0 items-center gap-3">
+          {AccentIcon ? (
+            <span
+              className={`hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:flex ${
+                accentTone ?? "bg-copper-50 text-copper-700"
+              }`}
+            >
+              <AccentIcon className="h-6 w-6" aria-hidden />
+            </span>
+          ) : null}
+          <div className="min-w-0">
+            <h1 className={uiPageTitle}>{title}</h1>
+            {subtitle ? <p className={`mt-2 ${uiLead}`}>{subtitle}</p> : null}
+          </div>
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>

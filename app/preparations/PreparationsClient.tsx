@@ -1,22 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, Boxes, Check, ChefHat, Clock, Plus, Sparkles, X } from "lucide-react";
 import type { PreparationCandidateDish, PreparationCandidatePrep, PreparationRecord } from "@/lib/preparations/types";
-import {
-  lookupPreparationByLotAction,
-  recordPreparation2hAndDlcAction,
-  recordPreparationTempEndAction,
-  startPreparationAction,
-} from "./actions";
-import { uiBtnPrimarySm, uiBtnSecondary, uiCard, uiInput, uiLabel, uiSelect } from "@/components/ui/premium";
+import { closePreparationAction, recordPreparation2hAction, startPreparationAction } from "./actions";
+import { uiBtnPrimary, uiBtnSecondary, uiInput, uiLabel, uiSelect } from "@/components/ui/premium";
+import { EmptyState } from "@/components/ui/EmptyState";
+
+const UNITS_NEW = ["kg", "g", "l", "ml", "unit", "sceau"] as const;
 
 function normalizeSearch(s: string): string {
   return s.trim().toLowerCase();
 }
 
-/** DLC : jour J+n par rapport à aujourd’hui (calendrier local), format AAAA-MM-JJ pour l’input date. */
+/** Date locale J+n au format AAAA-MM-JJ (pour input date et comparaisons). */
 function localDatePlusDaysISO(offsetDays: number): string {
   const now = new Date();
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays);
@@ -26,165 +24,136 @@ function localDatePlusDaysISO(offsetDays: number): string {
   return `${y}-${m}-${day}`;
 }
 
-function needsComplement2hDlc(r: PreparationRecord): boolean {
-  return Boolean(r.temp_end_recorded_at && !r.temp_2h_recorded_at);
+/** Date + heure déterministe (fuseau Paris, connecteur littéral) — évite le mismatch d'hydratation. */
+function fmtDateTimeParis(value: string | Date): string {
+  const d = value instanceof Date ? value : new Date(value);
+  const date = d.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "short" });
+  const time = d.toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
+  return `${date} à ${time}`;
 }
 
-function lotLookupStatusLabel(rec: PreparationRecord): string {
-  if (rec.temp_2h_recorded_at) return "Clôturé";
-  if (!rec.temp_end_recorded_at) return "1er relevé manquant";
-  return "En attente complément";
+function fmtDlc(dlc: string): string {
+  return new Date(dlc + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Même idée que `matchesSearch` dans InventoryItemSearchOrCreate : lot + libellé. */
-function matchesLotRecord(rec: PreparationRecord, searchNorm: string): boolean {
-  const labelNorm = normalizeSearch(rec.label);
-  const lotCompact = normalizeSearch((rec.lot_reference ?? "").replace(/\s+/g, ""));
-  const sn = searchNorm.replace(/\s+/g, "");
-  return (
-    lotCompact.includes(sn) ||
-    sn.includes(lotCompact) ||
-    labelNorm.includes(searchNorm) ||
-    searchNorm.includes(labelNorm)
-  );
+/**
+ * Badge DLC. `todayIso` (null avant montage client) évite tout mismatch
+ * d'hydratation : au 1er rendu (serveur + client) on affiche la date neutre,
+ * l'urgence (rouge/ambre) n'apparaît qu'après montage.
+ */
+function dlcBadge(dlc: string | null, todayIso: string | null): { label: string; cls: string } | null {
+  if (!dlc) return null;
+  const neutral = { label: `DLC ${fmtDlc(dlc)}`, cls: "bg-stone-100 text-stone-600" };
+  if (!todayIso) return neutral;
+  const d = new Date(todayIso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 1);
+  const tomorrow = d.toISOString().slice(0, 10);
+  if (dlc < todayIso) return { label: "DLC dépassée", cls: "bg-rose-100 text-rose-800" };
+  if (dlc === todayIso) return { label: "DLC aujourd’hui", cls: "bg-rose-100 text-rose-800" };
+  if (dlc === tomorrow) return { label: `DLC ${fmtDlc(dlc)}`, cls: "bg-amber-100 text-amber-900" };
+  return neutral;
 }
 
-function formatIsoDateFr(ymd: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd;
-  return new Date(ymd + "T12:00:00").toLocaleDateString("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+function overdue2h(r: PreparationRecord, nowMs: number | null): boolean {
+  if (nowMs == null) return false;
+  if (r.temp_2h_recorded_at) return false;
+  if (!r.temp_2h_due_at) return false;
+  return new Date(r.temp_2h_due_at).getTime() < nowMs;
 }
 
-const UNITS_NEW = ["kg", "g", "l", "ml", "unit", "sceau"] as const;
+/** Rappel : échéance +2 h dans les 15 prochaines minutes (à partir de ~1h45). */
+function reminder2h(r: PreparationRecord, nowMs: number | null): boolean {
+  if (nowMs == null) return false;
+  if (r.temp_2h_recorded_at) return false;
+  if (!r.temp_2h_due_at) return false;
+  const due = new Date(r.temp_2h_due_at).getTime();
+  return due >= nowMs && due < nowMs + 15 * 60 * 1000;
+}
 
 type Props = {
   restaurantId: string;
   inventoryPreps: PreparationCandidatePrep[];
   dishes: PreparationCandidateDish[];
-  awaitingTempEnd: PreparationRecord[];
-  awaiting2h: PreparationRecord[];
-  /** Derniers lots (filtrage instantané dans le champ, comme les composants dans un plat). */
-  recordsWithLot: PreparationRecord[];
-  initialLotSearch?: string;
-  initialRecordId?: string | null;
+  active: PreparationRecord[];
 };
 
-export function PreparationsClient({
-  restaurantId,
-  inventoryPreps,
-  dishes,
-  awaitingTempEnd,
-  awaiting2h,
-  recordsWithLot,
-  initialLotSearch = "",
-  initialRecordId = null,
-}: Props) {
+export function PreparationsClient({ restaurantId, inventoryPreps, dishes, active }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [showModal, setShowModal] = useState(false);
-  const [mode, setMode] = useState<"inventory" | "dish" | "new">("inventory");
-  const [inventoryId, setInventoryId] = useState("");
-  const [dishId, setDishId] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newUnit, setNewUnit] = useState<(typeof UNITS_NEW)[number]>("kg");
-  const [startComment, setStartComment] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  const [tempEndById, setTempEndById] = useState<Record<string, string>>({});
-  const [temp2hById, setTemp2hById] = useState<Record<string, string>>({});
-  const [dlcById, setDlcById] = useState<Record<string, string>>({});
-
-  const [inventoryFilter, setInventoryFilter] = useState("");
-  const [dishFilter, setDishFilter] = useState("");
-
-  const [lotSearchInput, setLotSearchInput] = useState(initialLotSearch);
-  const [lookupRecord, setLookupRecord] = useState<PreparationRecord | null>(null);
-  const [lookupHint, setLookupHint] = useState<"none" | "notfound" | "done" | "need_first" | "found">("none");
   const [lastLotAck, setLastLotAck] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialRecordId) {
-      const rec = recordsWithLot.find((r) => r.id === initialRecordId);
-      if (rec) {
-        setLookupRecord(rec);
-        setLookupHint(rec.temp_2h_recorded_at ? "done" : rec.temp_end_recorded_at ? "found" : "need_first");
-        if (rec.lot_reference) setLotSearchInput(rec.lot_reference);
-        return;
-      }
-    }
-    if (initialLotSearch.trim()) {
-      setLotSearchInput(initialLotSearch);
-      const norm = normalizeSearch(initialLotSearch);
-      const match = recordsWithLot.find((r) => matchesLotRecord(r, norm));
-      if (match) {
-        setLookupRecord(match);
-        setLookupHint(match.temp_2h_recorded_at ? "done" : match.temp_end_recorded_at ? "found" : "need_first");
-      }
-    }
-  }, [initialLotSearch, initialRecordId, recordsWithLot]);
+  const [showModal, setShowModal] = useState(false);
+  const [mode, setMode] = useState<"inventory" | "dish" | "new">("inventory");
+  const [inventoryId, setInventoryId] = useState<string>(inventoryPreps[0]?.id ?? "");
+  const [dishId, setDishId] = useState<string>(dishes[0]?.id ?? "");
+  const [inventoryFilter, setInventoryFilter] = useState("");
+  const [dishFilter, setDishFilter] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newUnit, setNewUnit] = useState<(typeof UNITS_NEW)[number]>("kg");
+  const [dlc, setDlc] = useState<string>(() => localDatePlusDaysISO(2));
+  const [tempEnd, setTempEnd] = useState("");
+  const [startComment, setStartComment] = useState("");
 
-  const lotSearchNorm = normalizeSearch(lotSearchInput);
-  const lotMatches = useMemo(() => {
-    if (lotSearchNorm.length < 1) return [];
-    return recordsWithLot.filter((r) => matchesLotRecord(r, lotSearchNorm)).slice(0, 10);
-  }, [recordsWithLot, lotSearchNorm]);
+  const [temp2hById, setTemp2hById] = useState<Record<string, string>>({});
+
+  // Temps « courant » côté client uniquement (évite mismatch d'hydratation + date figée serveur).
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  const [todayIso, setTodayIso] = useState<string | null>(null);
+  useEffect(() => {
+    setNowMs(Date.now());
+    setTodayIso(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date()));
+  }, []);
 
   const filteredPreps = useMemo(() => {
     const q = normalizeSearch(inventoryFilter);
-    if (!q) return inventoryPreps;
-    return inventoryPreps.filter((p) => p.name.toLowerCase().includes(q));
+    return q ? inventoryPreps.filter((p) => normalizeSearch(p.name).includes(q)) : inventoryPreps;
   }, [inventoryPreps, inventoryFilter]);
 
   const filteredDishes = useMemo(() => {
     const q = normalizeSearch(dishFilter);
-    if (!q) return dishes;
-    return dishes.filter((d) => d.name.toLowerCase().includes(q));
+    return q ? dishes.filter((d) => normalizeSearch(d.name).includes(q)) : dishes;
   }, [dishes, dishFilter]);
 
-  const mergedAwaiting2h = useMemo(() => {
-    const byId = new Map<string, PreparationRecord>();
-    for (const r of awaiting2h) byId.set(r.id, r);
-    if (lookupRecord && needsComplement2hDlc(lookupRecord)) {
-      byId.set(lookupRecord.id, lookupRecord);
-    }
-    return Array.from(byId.values()).sort((a, b) => {
-      const ta = a.temp_2h_due_at ? new Date(a.temp_2h_due_at).getTime() : 0;
-      const tb = b.temp_2h_due_at ? new Date(b.temp_2h_due_at).getTime() : 0;
-      return ta - tb;
-    });
-  }, [awaiting2h, lookupRecord]);
+  const overdueCount = active.filter((r) => overdue2h(r, nowMs)).length;
+  const reminderCount = active.filter((r) => reminder2h(r, nowMs)).length;
+
+  useEffect(() => {
+    if (!showModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowModal(false);
+        setError(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [showModal]);
 
   function openModal() {
-    setShowModal(true);
     setError(null);
-    setNewName("");
-    setNewUnit("kg");
-    setStartComment("");
+    setMode("inventory");
     setInventoryFilter("");
     setDishFilter("");
-    if (inventoryPreps.length > 0) {
-      setMode("inventory");
-      setInventoryId(inventoryPreps[0].id);
-      setDishId(dishes[0]?.id ?? "");
-    } else if (dishes.length > 0) {
-      setMode("dish");
-      setDishId(dishes[0].id);
-      setInventoryId("");
-    } else {
-      setMode("new");
-      setInventoryId("");
-      setDishId("");
-    }
+    setInventoryId(inventoryPreps[0]?.id ?? "");
+    setDishId(dishes[0]?.id ?? "");
+    setNewName("");
+    setNewUnit("kg");
+    setDlc(localDatePlusDaysISO(2));
+    setTempEnd("");
+    setStartComment("");
+    setShowModal(true);
   }
 
   const canStart =
-    (mode === "inventory" && Boolean(inventoryId)) ||
-    (mode === "dish" && Boolean(dishId)) ||
-    (mode === "new" && newName.trim().length > 0);
+    tempEnd.trim().length > 0 &&
+    /^\d{4}-\d{2}-\d{2}$/.test(dlc) &&
+    (mode === "inventory" ? !!inventoryId : mode === "dish" ? !!dishId : newName.trim().length > 0);
 
   function startPrep() {
     setError(null);
@@ -195,93 +164,26 @@ export function PreparationsClient({
         dishId: mode === "dish" ? dishId : null,
         newName: mode === "new" ? newName : null,
         newUnit: mode === "new" ? newUnit : null,
-        comment: startComment.trim() || null,
+        comment: startComment || null,
+        tempEndRaw: tempEnd,
+        dlcDate: dlc,
       });
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      setShowModal(false);
-      router.refresh();
-    });
-  }
-
-  function submitTempEnd(id: string) {
-    const raw = tempEndById[id] ?? "";
-    setError(null);
-    start(async () => {
-      const r = await recordPreparationTempEndAction(restaurantId, id, raw);
       if (!r.ok) {
         setError(r.error);
         return;
       }
       setLastLotAck(r.lotReference);
-      setLookupHint("none");
-      setLookupRecord(null);
-      setTempEndById((m) => {
-        const n = { ...m };
-        delete n[id];
-        return n;
-      });
+      setShowModal(false);
       router.refresh();
     });
-  }
-
-  function applyLotLookupResult(rec: PreparationRecord) {
-    setError(null);
-    if (rec.temp_2h_recorded_at) {
-      setLookupHint("done");
-      setLookupRecord(rec);
-      return;
-    }
-    if (!rec.temp_end_recorded_at) {
-      setLookupHint("need_first");
-      setLookupRecord(rec);
-      return;
-    }
-    setLookupHint("found");
-    setLookupRecord(rec);
-    start(() => {
-      router.refresh();
-    });
-  }
-
-  function searchByLot() {
-    if (lotMatches.length >= 1) {
-      applyLotLookupResult(lotMatches[0]);
-      return;
-    }
-    setError(null);
-    setLookupHint("none");
-    setLookupRecord(null);
-    start(async () => {
-      const r = await lookupPreparationByLotAction(restaurantId, lotSearchInput);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      if (!r.record) {
-        setLookupHint("notfound");
-        return;
-      }
-      applyLotLookupResult(r.record);
-    });
-  }
-
-  function selectLotSuggestion(rec: PreparationRecord) {
-    setLotSearchInput(rec.lot_reference ?? "");
-    applyLotLookupResult(rec);
   }
 
   function submit2h(id: string) {
-    const t = temp2hById[id] ?? "";
-    const dlc = dlcById[id] ?? "";
+    const v = temp2hById[id];
+    if (!v || !v.trim()) return;
     setError(null);
     start(async () => {
-      const r = await recordPreparation2hAndDlcAction(restaurantId, id, {
-        temperatureRaw: t,
-        dlcDate: dlc,
-      });
+      const r = await recordPreparation2hAction(restaurantId, id, v);
       if (!r.ok) {
         setError(r.error);
         return;
@@ -291,508 +193,395 @@ export function PreparationsClient({
         delete n[id];
         return n;
       });
-      setDlcById((m) => {
-        const n = { ...m };
-        delete n[id];
-        return n;
-      });
-      setLookupRecord(null);
-      setLookupHint("none");
+      router.refresh();
+    });
+  }
+
+  function closePrep(r: PreparationRecord) {
+    if (!window.confirm(`Clôturer « ${r.label} » (lot ${r.lot_reference}) ? Elle quitte la page mais reste au registre.`)) {
+      return;
+    }
+    setError(null);
+    start(async () => {
+      const res = await closePreparationAction(restaurantId, r.id);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
       router.refresh();
     });
   }
 
   return (
-    <div className="space-y-8">
-      {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>}
+    <div className="space-y-4">
+      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>}
 
       {lastLotAck && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          <p>
-            <span className="font-semibold">1er relevé enregistré.</span> Lot attribué :{" "}
-            <span className="font-mono font-bold tracking-tight">{lastLotAck}</span>
-          </p>
-          <p className="mt-1 text-xs text-emerald-800">
-            La fiche est en attente du complément (T° +2 h & DLC). Vous pouvez revenir plus tard : saisissez ce numéro
-            ci-dessous pour la retrouver.
-          </p>
-          <button
-            type="button"
-            className="mt-2 text-xs font-medium text-emerald-900 underline"
-            onClick={() => setLastLotAck(null)}
-          >
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <Check className="h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            Préparation lancée — lot <span className="font-mono font-bold">{lastLotAck}</span>. Pensez au contrôle à +2 h.
+          </span>
+          <button type="button" className="ml-auto text-xs font-semibold underline" onClick={() => setLastLotAck(null)}>
             Masquer
           </button>
         </div>
       )}
 
-      <section className={`${uiCard}`}>
-        <h2 className="text-sm font-semibold text-stone-900">Retrouver une préparation par n° de lot</h2>
-        <p className="mt-1 text-xs text-stone-500">
-          Comme pour les composants d’un plat : tapez pour filtrer la liste (n° de lot ou libellé). Douchette ou saisie
-          exacte possible en secours.
-        </p>
-        <div className="mt-3 space-y-2">
-          <div className="flex flex-wrap gap-2">
-            <input
-              type="text"
-              autoComplete="off"
-              spellCheck={false}
-              className={`${uiInput} min-w-[12rem] flex-1 font-mono text-sm`}
-              value={lotSearchInput}
-              onChange={(e) => setLotSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && searchByLot()}
-              placeholder="Filtrer les lots récents…"
-              aria-autocomplete="list"
-              aria-expanded={lotMatches.length > 0}
-            />
-            <button type="button" disabled={pending} className={uiBtnSecondary} onClick={searchByLot}>
-              {lotMatches.length >= 1 ? "Ouvrir le 1er résultat" : "Rechercher (exact)"}
-            </button>
-          </div>
-          {lotMatches.length > 0 && (
-            <ul
-              className="max-h-48 overflow-auto rounded-xl border border-stone-100 bg-white shadow-sm"
-              role="listbox"
-            >
-              {lotMatches.map((rec) => (
-                <li key={rec.id} role="option">
-                  <button
-                    type="button"
-                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition hover:bg-copper-50/60"
-                    onClick={() => selectLotSuggestion(rec)}
-                  >
-                    <span className="font-mono font-semibold tracking-tight text-copper-900">
-                      {rec.lot_reference ?? "—"}
-                    </span>
-                    <span className="text-stone-800">{rec.label}</span>
-                    <span className="text-xs text-stone-500">{lotLookupStatusLabel(rec)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+      {overdueCount > 0 && (
+        <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-800">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600" aria-hidden />
+          <span>
+            <span className="font-semibold">{overdueCount}</span> préparation{overdueCount > 1 ? "s" : ""} en retard pour
+            le contrôle de température à +2 h.
+          </span>
         </div>
-        {lookupHint === "notfound" && lotSearchInput.trim().length > 0 && (
-          <p className="mt-2 text-sm text-stone-600">Aucune fiche ne correspond exactement à ce numéro.</p>
-        )}
-        {lookupHint === "none" && lotSearchNorm.length >= 1 && lotMatches.length === 0 && (
-          <p className="mt-2 text-sm text-stone-600">
-            Aucune concordance parmi les derniers lots chargés — affinez ou utilisez « Rechercher (exact) » avec le numéro
-            complet.
-          </p>
-        )}
-        {lookupHint === "done" && lookupRecord && (
-          <p className="mt-2 text-sm text-stone-600">
-            Ce lot est déjà clôturé (T° +2 h et DLC enregistrés). Consultez le{" "}
-            <Link href="/preparations/registre" className="font-medium text-copper-800 underline">
-              registre
-            </Link>
-            .
-          </p>
-        )}
-        {lookupHint === "need_first" && lookupRecord && (
-          <p className="mt-2 text-sm text-amber-800">
-            Ce lot n’a pas encore de 1er relevé de température : complétez la section « 1er relevé » ci-dessous pour la
-            préparation « {lookupRecord.label} ».
-          </p>
-        )}
-        {lookupHint === "found" && lookupRecord && (
-          <p className="mt-2 text-sm text-emerald-800">
-            Fiche ouverte : complément (T° +2 h & DLC) affiché dans la section en attente.
-          </p>
-        )}
-      </section>
-
-      <section>
-        <button type="button" className={uiBtnPrimarySm} onClick={openModal}>
-          Préparation
-        </button>
-        <p className="mt-2 text-xs text-stone-500">
-          Choisissez une préparation (stock), un plat de la carte, ou créez un nouveau composant « préparation ».
-        </p>
-      </section>
-
-      {awaitingTempEnd.length > 0 && (
-        <section>
-          <h2 className="mb-1 text-sm font-semibold text-stone-900">1er relevé — température en fin de préparation</h2>
-          <p className="mb-3 text-xs text-stone-500">
-            Tant que le 1er relevé n’est pas fait, aucun numéro de lot n’est attribué. Ensuite la fiche passe en attente
-            du complément (vous pouvez la reprendre plus tard).
-          </p>
-          <ul className="space-y-3">
-            {awaitingTempEnd.map((r) => (
-              <li key={r.id} className={uiCard}>
-                <p className="font-medium text-stone-900">{r.label}</p>
-                <p className="text-xs text-stone-500">
-                  Démarré le{" "}
-                  {new Date(r.started_at).toLocaleString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-                <div className="mt-3 flex flex-wrap items-end gap-2">
-                  <div className="min-w-[8rem] flex-1">
-                    <label className={uiLabel} htmlFor={`te-${r.id}`}>
-                      T° fin (°C)
-                    </label>
-                    <input
-                      id={`te-${r.id}`}
-                      type="text"
-                      inputMode="decimal"
-                      className={`${uiInput} mt-1 w-full tabular-nums`}
-                      value={tempEndById[r.id] ?? ""}
-                      onChange={(e) => setTempEndById((m) => ({ ...m, [r.id]: e.target.value }))}
-                      placeholder="ex. 63"
-                    />
-                  </div>
-                  <button type="button" disabled={pending} className={uiBtnPrimarySm} onClick={() => submitTempEnd(r.id)}>
-                    Enregistrer
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
       )}
 
-      {mergedAwaiting2h.length > 0 && (
-        <section>
-          <h2 className="mb-1 text-sm font-semibold text-stone-900">En attente — T° +2 h & DLC</h2>
-          <p className="mb-3 text-xs text-stone-500">
-            Après le 1er relevé, un numéro de lot est créé. Vous pouvez interrompre et revenir plus tard : recherche par
-            lot ci-dessus. Les données sont enregistrées au registre une fois le complément validé.
-          </p>
-          <ul className="space-y-4">
-            {mergedAwaiting2h.map((r) => {
-              const due = r.temp_2h_due_at ? new Date(r.temp_2h_due_at) : null;
-              return (
-                <li
-                  key={r.id}
-                  className={`${uiCard} ${lookupRecord?.id === r.id ? "ring-2 ring-copper-300" : ""}`}
-                >
-                  {r.lot_reference && (
-                    <p className="font-mono text-sm font-semibold tracking-tight text-copper-900">
-                      Lot {r.lot_reference}
-                    </p>
-                  )}
-                  <p className="font-medium text-stone-900">{r.label}</p>
-                  <p className="text-xs text-stone-500">
-                    Fin prépa :{" "}
-                    {r.temp_end_recorded_at
-                      ? new Date(r.temp_end_recorded_at).toLocaleString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                    {due && (
-                      <>
-                        {" "}
-                        · Contrôle cible vers{" "}
-                        {due.toLocaleString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </>
-                    )}
-                  </p>
-                  <div className="mt-3 space-y-4">
-                    <div>
-                      <label className={uiLabel} htmlFor={`t2-${r.id}`}>
-                        T° à +2 h (°C)
-                      </label>
-                      <input
-                        id={`t2-${r.id}`}
-                        type="text"
-                        inputMode="decimal"
-                        className={`${uiInput} mt-1 w-full max-w-xs tabular-nums`}
-                        value={temp2hById[r.id] ?? ""}
-                        onChange={(e) => setTemp2hById((m) => ({ ...m, [r.id]: e.target.value }))}
-                      />
+      {reminderCount > 0 && (
+        <div className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-900">
+          <Clock className="h-5 w-5 shrink-0 text-sky-600" aria-hidden />
+          <span>
+            <span className="font-semibold">{reminderCount}</span> préparation{reminderCount > 1 ? "s" : ""} à relever
+            bientôt (contrôle +2 h sous 15 min).
+          </span>
+        </div>
+      )}
+
+      <div>
+        <button type="button" className={`${uiBtnPrimary} inline-flex items-center gap-1.5`} onClick={openModal}>
+          <Plus className="h-4 w-4" aria-hidden />
+          Nouvelle préparation
+        </button>
+      </div>
+
+      {active.length === 0 ? (
+        <EmptyState
+          icon={ChefHat}
+          title="Aucune préparation en cours"
+          description="Lancez une préparation : choisissez la DLC et la température de fin, puis suivez le contrôle à +2 h ici."
+        />
+      ) : (
+        <ul className="space-y-2">
+          {active.map((r) => {
+            const od = overdue2h(r, nowMs);
+            const rm = !od && reminder2h(r, nowMs);
+            const done2h = !!r.temp_2h_recorded_at;
+            const badge = dlcBadge(r.dlc_date, todayIso);
+            return (
+              <li
+                key={r.id}
+                className={`rounded-2xl border bg-white p-3 shadow-sm ${
+                  od
+                    ? "border-rose-300 ring-1 ring-rose-200"
+                    : rm
+                      ? "border-sky-300 ring-1 ring-sky-200"
+                      : "border-stone-200/70"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
+                    <Boxes className="h-5 w-5" aria-hidden />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate font-semibold text-stone-900">{r.label}</span>
+                      {badge ? (
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                      ) : null}
                     </div>
-                    <div>
-                      <label className={uiLabel} htmlFor={`dlc-${r.id}`}>
-                        DLC
-                      </label>
-                      <p className="mb-2 text-xs text-stone-500">
-                        J = aujourd’hui (calendrier local). La liste calcule automatiquement la date limite.
-                      </p>
-                      <label className="sr-only" htmlFor={`dlc-quick-${r.id}`}>
-                        Proposition de DLC (J à J+4)
-                      </label>
-                      <select
-                        id={`dlc-quick-${r.id}`}
-                        className={`${uiSelect} mt-1 w-full max-w-lg`}
-                        value={
-                          (() => {
-                            const cur = dlcById[r.id] ?? "";
-                            const quick = [0, 1, 2, 3, 4].map(localDatePlusDaysISO);
-                            return quick.includes(cur) ? cur : "";
-                          })()
-                        }
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setDlcById((m) => ({ ...m, [r.id]: v }));
-                        }}
-                      >
-                        <option value="">— Choisir J, J+1 … J+4 —</option>
-                        {[0, 1, 2, 3, 4].map((offset) => {
-                          const iso = localDatePlusDaysISO(offset);
-                          const label = offset === 0 ? "J" : `J+${offset}`;
-                          return (
-                            <option key={offset} value={iso}>
-                              {label} — {formatIsoDateFr(iso)}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <p className="mt-2 text-xs text-stone-500">Ou autre date (saisie manuelle) :</p>
-                      <input
-                        id={`dlc-${r.id}`}
-                        type="date"
-                        className={`${uiInput} mt-1 w-full max-w-[12rem]`}
-                        value={dlcById[r.id] ?? ""}
-                        onChange={(e) => setDlcById((m) => ({ ...m, [r.id]: e.target.value }))}
-                      />
-                      {dlcById[r.id] && (
-                        <p className="mt-1 text-xs text-stone-600">
-                          DLC retenue : <span className="font-medium">{formatIsoDateFr(dlcById[r.id])}</span>
-                        </p>
+                    <p className="mt-0.5 truncate text-xs text-stone-500">
+                      <span className="font-mono font-semibold text-copper-800">{r.lot_reference}</span>
+                      {r.temp_end_recorded_at ? <> · fin {fmtDateTimeParis(r.temp_end_recorded_at)}</> : null}
+                    </p>
+                  </div>
+
+                  {/* Deux cases : T° fin (remplie) + T° +2 h (à saisir) */}
+                  <div className="flex items-end gap-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-stone-400">T° fin</span>
+                      <span className="flex h-10 min-w-[3.5rem] items-center justify-center rounded-xl border border-stone-200 bg-stone-50 px-2 text-sm font-semibold tabular-nums text-stone-800">
+                        {r.temp_end_celsius != null ? `${r.temp_end_celsius}°` : "—"}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={`flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide ${od ? "text-rose-600" : rm ? "text-sky-600" : "text-stone-400"}`}>
+                        {rm ? <Clock className="h-3 w-3" aria-hidden /> : null}
+                        T° +2 h
+                      </span>
+                      {done2h ? (
+                        <span className="flex h-10 min-w-[3.5rem] items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2 text-sm font-semibold tabular-nums text-emerald-800">
+                          <Check className="h-3.5 w-3.5" aria-hidden />
+                          {r.temp_2h_celsius}°
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={temp2hById[r.id] ?? ""}
+                            onChange={(e) => setTemp2hById((m) => ({ ...m, [r.id]: e.target.value }))}
+                            onKeyDown={(e) => e.key === "Enter" && submit2h(r.id)}
+                            placeholder="°C"
+                            className={`${uiInput} h-10 w-16 text-center tabular-nums ${od ? "border-rose-300" : rm ? "border-sky-300" : ""}`}
+                            aria-label={`Température +2 h pour ${r.label}`}
+                          />
+                          <button
+                            type="button"
+                            disabled={pending || !(temp2hById[r.id] ?? "").trim()}
+                            onClick={() => submit2h(r.id)}
+                            className={`${uiBtnPrimary} h-10 px-3`}
+                          >
+                            OK
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
+
                   <button
                     type="button"
                     disabled={pending}
-                    className={`${uiBtnPrimarySm} mt-3`}
-                    onClick={() => submit2h(r.id)}
+                    onClick={() => closePrep(r)}
+                    className="flex h-9 items-center rounded-lg px-2.5 text-xs font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 disabled:opacity-50"
+                    title="Clôturer (stock épuisé, DLC dépassée…)"
                   >
-                    Valider contrôle & DLC
+                    Clôturer
                   </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {awaitingTempEnd.length === 0 && mergedAwaiting2h.length === 0 && (
-        <p className="text-sm text-stone-500">Aucune préparation en cours. Utilisez le bouton « Préparation » pour démarrer.</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
-            <h3 className="text-sm font-semibold text-stone-900">Nouvelle préparation</h3>
-            <div className="mt-3 flex gap-2 text-sm">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nouvelle préparation"
+          onClick={() => {
+            setShowModal(false);
+            setError(null);
+          }}
+        >
+          <div
+            className="my-6 w-full max-w-md overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
+                <Boxes className="h-5 w-5" aria-hidden />
+              </span>
+              <p className="text-sm font-semibold text-stone-900">Nouvelle préparation</p>
               <button
                 type="button"
-                className={mode === "inventory" ? uiBtnPrimarySm : uiBtnSecondary}
-                onClick={() => {
-                  setMode("inventory");
-                  setInventoryFilter("");
-                  if (inventoryPreps[0]) setInventoryId(inventoryPreps[0].id);
-                }}
-              >
-                Composant
-              </button>
-              <button
-                type="button"
-                className={mode === "dish" ? uiBtnPrimarySm : uiBtnSecondary}
-                onClick={() => {
-                  setMode("dish");
-                  setDishFilter("");
-                  if (dishes[0]) setDishId(dishes[0].id);
-                }}
-              >
-                Plat
-              </button>
-              <button
-                type="button"
-                className={mode === "new" ? uiBtnPrimarySm : uiBtnSecondary}
-                onClick={() => setMode("new")}
-              >
-                Créer
-              </button>
-            </div>
-
-            {mode === "inventory" && (
-              <div className="mt-3">
-                <label className={uiLabel} htmlFor="prep-inv-search">
-                  Préparation (stock)
-                </label>
-                <p className="mb-1 text-xs text-stone-500">Tapez pour filtrer la liste.</p>
-                <input
-                  id="prep-inv-search"
-                  type="search"
-                  autoComplete="off"
-                  className={`${uiInput} w-full`}
-                  value={inventoryFilter}
-                  onChange={(e) => setInventoryFilter(e.target.value)}
-                  placeholder="Rechercher par nom…"
-                />
-                {inventoryPreps.length === 0 ? (
-                  <p className="mt-2 text-sm text-stone-500">Aucune préparation en stock (type « préparation »).</p>
-                ) : (
-                  <ul
-                    className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-stone-200 bg-white"
-                    role="listbox"
-                  >
-                    {filteredPreps.length === 0 ? (
-                      <li className="px-3 py-4 text-center text-sm text-stone-500">Aucun résultat pour cette recherche.</li>
-                    ) : (
-                      filteredPreps.map((p) => (
-                        <li key={p.id} role="option" aria-selected={inventoryId === p.id}>
-                          <button
-                            type="button"
-                            className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-stone-50 ${
-                              inventoryId === p.id ? "bg-copper-50 font-medium text-copper-900" : "text-stone-800"
-                            }`}
-                            onClick={() => setInventoryId(p.id)}
-                          >
-                            {p.name}{" "}
-                            <span className="font-normal text-stone-500">({p.unit})</span>
-                          </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                )}
-                {inventoryId && (
-                  <p className="mt-2 text-xs text-stone-600">
-                    Sélection :{" "}
-                    <span className="font-medium text-stone-900">
-                      {inventoryPreps.find((x) => x.id === inventoryId)?.name ?? "—"}
-                    </span>
-                  </p>
-                )}
-              </div>
-            )}
-
-            {mode === "dish" && (
-              <div className="mt-3">
-                <label className={uiLabel} htmlFor="prep-dish-search">
-                  Plat
-                </label>
-                <p className="mb-1 text-xs text-stone-500">Tapez pour filtrer la liste.</p>
-                <input
-                  id="prep-dish-search"
-                  type="search"
-                  autoComplete="off"
-                  className={`${uiInput} w-full`}
-                  value={dishFilter}
-                  onChange={(e) => setDishFilter(e.target.value)}
-                  placeholder="Rechercher un plat…"
-                />
-                {dishes.length === 0 ? (
-                  <p className="mt-2 text-sm text-stone-500">Aucun plat sur la carte.</p>
-                ) : (
-                  <ul
-                    className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-stone-200 bg-white"
-                    role="listbox"
-                  >
-                    {filteredDishes.length === 0 ? (
-                      <li className="px-3 py-4 text-center text-sm text-stone-500">Aucun résultat pour cette recherche.</li>
-                    ) : (
-                      filteredDishes.map((d) => (
-                        <li key={d.id} role="option" aria-selected={dishId === d.id}>
-                          <button
-                            type="button"
-                            className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-stone-50 ${
-                              dishId === d.id ? "bg-copper-50 font-medium text-copper-900" : "text-stone-800"
-                            }`}
-                            onClick={() => setDishId(d.id)}
-                          >
-                            {d.name}
-                          </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                )}
-                {dishId && (
-                  <p className="mt-2 text-xs text-stone-600">
-                    Sélection :{" "}
-                    <span className="font-medium text-stone-900">
-                      {dishes.find((x) => x.id === dishId)?.name ?? "—"}
-                    </span>
-                  </p>
-                )}
-              </div>
-            )}
-
-            {mode === "new" && (
-              <div className="mt-3 space-y-3">
-                <div>
-                  <label className={uiLabel} htmlFor="prep-new-name">
-                    Nom de la préparation
-                  </label>
-                  <input
-                    id="prep-new-name"
-                    className={`${uiInput} mt-1 w-full`}
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="ex. Sauce béchamel"
-                  />
-                </div>
-                <div>
-                  <label className={uiLabel} htmlFor="prep-new-unit">
-                    Unité de stock
-                  </label>
-                  <select
-                    id="prep-new-unit"
-                    className={`${uiSelect} mt-1 w-full`}
-                    value={newUnit}
-                    onChange={(e) => setNewUnit(e.target.value as (typeof UNITS_NEW)[number])}
-                  >
-                    {UNITS_NEW.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <p className="text-xs text-stone-500">
-                  Un composant « préparation » sera ajouté au stock (recette à compléter plus tard dans Stock).
-                </p>
-              </div>
-            )}
-
-            <div className="mt-3">
-              <label className={uiLabel}>Commentaire (optionnel)</label>
-              <textarea
-                className={`${uiInput} mt-1 min-h-[3rem] w-full`}
-                value={startComment}
-                onChange={(e) => setStartComment(e.target.value)}
-              />
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={pending || !canStart}
-                className={uiBtnPrimarySm}
-                onClick={startPrep}
-              >
-                {pending ? "Création…" : "Démarrer"}
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                className={uiBtnSecondary}
                 onClick={() => {
                   setShowModal(false);
                   setError(null);
                 }}
+                className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
+                aria-label="Fermer"
               >
-                Annuler
+                <X className="h-5 w-5" aria-hidden />
               </button>
+            </div>
+
+            <div className="max-h-[78vh] space-y-4 overflow-y-auto px-4 py-4">
+              {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>}
+
+              <div className="grid grid-cols-3 gap-1 rounded-xl border border-stone-200 bg-stone-50 p-1">
+                {(
+                  [
+                    { v: "inventory", label: "Composant", icon: Boxes },
+                    { v: "dish", label: "Plat", icon: ChefHat },
+                    { v: "new", label: "Créer", icon: Sparkles },
+                  ] as const
+                ).map(({ v, label, icon: ModeIcon }) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={mode === v}
+                    className={`flex h-9 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition ${
+                      mode === v ? "bg-white text-copper-800 shadow-sm ring-1 ring-stone-200" : "text-stone-500 hover:text-stone-700"
+                    }`}
+                    onClick={() => setMode(v)}
+                  >
+                    <ModeIcon className="h-4 w-4" aria-hidden />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {mode === "inventory" && (
+                <div>
+                  <label className={uiLabel}>Préparation (stock)</label>
+                  <input
+                    type="search"
+                    autoComplete="off"
+                    className={`${uiInput} mt-1 w-full`}
+                    value={inventoryFilter}
+                    onChange={(e) => setInventoryFilter(e.target.value)}
+                    placeholder="Rechercher par nom…"
+                  />
+                  {inventoryPreps.length === 0 ? (
+                    <p className="mt-2 text-sm text-stone-500">Aucune préparation en stock (type « préparation »).</p>
+                  ) : (
+                    <ul className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-stone-200 bg-white" role="listbox">
+                      {filteredPreps.length === 0 ? (
+                        <li className="px-3 py-4 text-center text-sm text-stone-500">Aucun résultat.</li>
+                      ) : (
+                        filteredPreps.map((p) => (
+                          <li key={p.id} role="option" aria-selected={inventoryId === p.id}>
+                            <button
+                              type="button"
+                              className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-stone-50 ${
+                                inventoryId === p.id ? "bg-copper-50 font-medium text-copper-900" : "text-stone-800"
+                              }`}
+                              onClick={() => setInventoryId(p.id)}
+                            >
+                              {p.name} <span className="font-normal text-stone-500">({p.unit})</span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {mode === "dish" && (
+                <div>
+                  <label className={uiLabel}>Plat</label>
+                  <input
+                    type="search"
+                    autoComplete="off"
+                    className={`${uiInput} mt-1 w-full`}
+                    value={dishFilter}
+                    onChange={(e) => setDishFilter(e.target.value)}
+                    placeholder="Rechercher un plat…"
+                  />
+                  {dishes.length === 0 ? (
+                    <p className="mt-2 text-sm text-stone-500">Aucun plat sur la carte.</p>
+                  ) : (
+                    <ul className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-stone-200 bg-white" role="listbox">
+                      {filteredDishes.length === 0 ? (
+                        <li className="px-3 py-4 text-center text-sm text-stone-500">Aucun résultat.</li>
+                      ) : (
+                        filteredDishes.map((d) => (
+                          <li key={d.id} role="option" aria-selected={dishId === d.id}>
+                            <button
+                              type="button"
+                              className={`w-full px-3 py-2.5 text-left text-sm transition hover:bg-stone-50 ${
+                                dishId === d.id ? "bg-copper-50 font-medium text-copper-900" : "text-stone-800"
+                              }`}
+                              onClick={() => setDishId(d.id)}
+                            >
+                              {d.name}
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {mode === "new" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className={uiLabel} htmlFor="prep-new-name">
+                      Nom de la préparation
+                    </label>
+                    <input
+                      id="prep-new-name"
+                      className={`${uiInput} mt-1 w-full`}
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="ex. Sauce béchamel"
+                    />
+                  </div>
+                  <div>
+                    <label className={uiLabel} htmlFor="prep-new-unit">
+                      Unité de stock
+                    </label>
+                    <select
+                      id="prep-new-unit"
+                      className={`${uiSelect} mt-1 w-full`}
+                      value={newUnit}
+                      onChange={(e) => setNewUnit(e.target.value as (typeof UNITS_NEW)[number])}
+                    >
+                      {UNITS_NEW.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* DLC + T° fin (obligatoires au lancement) */}
+              <div className="grid grid-cols-2 gap-3 rounded-xl border border-stone-100 bg-stone-50/60 p-3">
+                <div>
+                  <label className={uiLabel} htmlFor="prep-dlc">
+                    DLC
+                  </label>
+                  <input
+                    id="prep-dlc"
+                    type="date"
+                    min={todayIso ?? undefined}
+                    className={`${uiInput} mt-1 h-10 w-full`}
+                    value={dlc}
+                    onChange={(e) => setDlc(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={uiLabel} htmlFor="prep-tempend">
+                    T° fin (°C)
+                  </label>
+                  <input
+                    id="prep-tempend"
+                    type="text"
+                    inputMode="decimal"
+                    className={`${uiInput} mt-1 h-10 w-full tabular-nums`}
+                    value={tempEnd}
+                    onChange={(e) => setTempEnd(e.target.value)}
+                    placeholder="ex. 63"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={uiLabel}>Commentaire (optionnel)</label>
+                <textarea
+                  className={`${uiInput} mt-1 min-h-[3rem] w-full`}
+                  value={startComment}
+                  onChange={(e) => setStartComment(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button type="button" disabled={pending || !canStart} className={`${uiBtnPrimary} flex-1`} onClick={startPrep}>
+                  {pending ? "Création…" : "Démarrer la préparation"}
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  className={uiBtnSecondary}
+                  onClick={() => {
+                    setShowModal(false);
+                    setError(null);
+                  }}
+                >
+                  Annuler
+                </button>
+              </div>
             </div>
           </div>
         </div>

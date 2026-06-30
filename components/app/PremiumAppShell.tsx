@@ -31,12 +31,14 @@ function NavLinks({
   pathname,
   allowedNavKeys,
   hygieneBadge,
+  cuisineBadge,
   onNavigate,
   onPrefetch,
 }: {
   pathname: string | null;
   allowedNavKeys?: ShellNavKey[] | null;
   hygieneBadge?: number | null;
+  cuisineBadge?: { count: number; tone: "red" | "blue" } | null;
   onNavigate?: () => void;
   onPrefetch?: (href: string) => void;
 }) {
@@ -66,7 +68,15 @@ function NavLinks({
           {entry.items.map((item) => {
             const active = item.match(pathname ?? "");
             const Icon = item.icon;
-            const badge = item.navKey === "hygiene" && hygieneBadge ? hygieneBadge : null;
+            // Hygiène = pastille cuivre ; Cuisine = rappel +2 h (bleu) ou retard (rouge).
+            const hygieneN = item.navKey === "hygiene" && hygieneBadge ? hygieneBadge : null;
+            const cuisineN = item.navKey === "cuisine" ? cuisineBadge ?? null : null;
+            const badgeCount = cuisineN ? cuisineN.count : hygieneN;
+            const badgeCls = cuisineN
+              ? cuisineN.tone === "red"
+                ? "bg-rose-600"
+                : "bg-sky-500"
+              : "copper-sheen";
             return (
               <Link
                 key={item.href}
@@ -78,9 +88,11 @@ function NavLinks({
               >
                 <Icon className="h-[1.125rem] w-[1.125rem] shrink-0 opacity-90" aria-hidden />
                 {item.label}
-                {badge != null && (
-                  <span className="copper-sheen ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[0.7rem] font-bold leading-none text-white">
-                    {badge > 99 ? "99+" : badge}
+                {badgeCount != null && (
+                  <span
+                    className={`ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[0.7rem] font-bold leading-none text-white ${badgeCls}`}
+                  >
+                    {badgeCount > 99 ? "99+" : badgeCount}
                   </span>
                 )}
               </Link>
@@ -184,6 +196,7 @@ export function PremiumAppShell({
           pathname={pathname}
           allowedNavKeys={shellPayload?.allowedNavKeys}
           hygieneBadge={headerBootstrap?.hygienePendingCount}
+          cuisineBadge={headerBootstrap?.preparationsBadge}
           onPrefetch={prefetchRoute}
         />
         <div className="mt-auto border-t border-white/5 p-3">
@@ -233,6 +246,7 @@ export function PremiumAppShell({
           pathname={pathname}
           allowedNavKeys={shellPayload?.allowedNavKeys}
           hygieneBadge={headerBootstrap?.hygienePendingCount}
+          cuisineBadge={headerBootstrap?.preparationsBadge}
           onNavigate={() => setMobileNavOpen(false)}
           onPrefetch={prefetchRoute}
         />

@@ -103,6 +103,19 @@ export function cachedCountHygienePending(restaurantId: string) {
   )();
 }
 
+// ─── Badge préparations (contrôle +2 h : rappel bleu / retard rouge) ────────────
+
+export function cachedCountPreparations2hSignals(restaurantId: string) {
+  return unstable_cache(
+    async () => {
+      const { countPreparations2hSignals } = await import("@/lib/preparations/preparationsDb");
+      return countPreparations2hSignals(restaurantId);
+    },
+    ["preparations-2h-signals", restaurantId],
+    { revalidate: 30 }
+  )();
+}
+
 // ─── Staff ─────────────────────────────────────────────────────────────────────
 
 export function cachedListStaffMembers(restaurantId: string) {

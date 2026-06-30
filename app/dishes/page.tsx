@@ -19,6 +19,7 @@ import { DishesNestedCategoryTiles } from "./DishesNestedCategoryTiles";
 import { uiBtnSecondary, uiError } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 
 type Props = { searchParams: Promise<{ name?: string; returnTo?: string }> };
 
@@ -81,6 +82,8 @@ export default async function DishesPage({ searchParams }: Props) {
   return (
     <PageContainer width="narrow">
       <PageHeader
+        accentIcon={SECTION_ACCENT.dishes.icon}
+        accentTone={SECTION_ACCENT.dishes.tone}
         breadcrumbs={[{ label: "Cuisine", href: "/cuisine" }, { label: "Plats" }]}
         title="Plats vendus"
         subtitle="Définir le mode (préparé / revente) et les composants pour le calcul de consommation."

@@ -70,10 +70,20 @@ export async function startPreparationAction(
     newName?: string | null;
     newUnit?: string | null;
     comment?: string | null;
+    /** Température de fin de préparation (saisie dès le lancement). */
+    tempEndRaw: string;
+    /** DLC choisie au lancement (AAAA-MM-JJ). */
+    dlcDate: string;
   }
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; id: string; lotReference: string } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const parsedTemp = parseTemperatureInput(params.tempEndRaw);
+  if (!parsedTemp.ok) return parsedTemp;
+
+  const dlc = params.dlcDate.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dlc)) return { ok: false, error: "Choisissez une DLC (date limite de consommation)." };
 
   const display = displayFromUser(user);
   let label = "";
@@ -120,102 +130,91 @@ export async function startPreparationAction(
     label = name;
   }
 
-  const { data: ins, error: insErr } = await supabaseServer
-    .from("preparation_records")
-    .insert({
-      restaurant_id: restaurantId,
-      inventory_item_id: inventoryItemId,
-      dish_id: dishId,
-      label,
-      recorded_by_user_id: user.id,
-      recorded_by_display: display,
-      comment: params.comment?.trim() || null,
-    })
-    .select("id")
-    .single();
-
-  if (insErr || !ins) return { ok: false, error: insErr?.message ?? "Enregistrement impossible." };
-
-  revalidatePath("/preparations");
-  revalidatePath("/preparations/registre");
-  return { ok: true, id: String((ins as { id: string }).id) };
-}
-
-export async function recordPreparationTempEndAction(
-  restaurantId: string,
-  recordId: string,
-  temperatureRaw: string
-): Promise<{ ok: true; lotReference: string } | { ok: false; error: string }> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "Non connecté." };
-
-  const rec = await getPreparationRecord(restaurantId, recordId);
-  if (!rec) return { ok: false, error: "Fiche introuvable." };
-  if (rec.temp_end_recorded_at) return { ok: false, error: "La température de fin est déjà enregistrée." };
-
-  const parsed = parseTemperatureInput(temperatureRaw);
-  if (!parsed.ok) return parsed;
-
   const now = new Date().toISOString();
   const due2h = addHoursUtc(now, 2);
 
+  // Lot attribué dès le lancement (avec relevé T° fin). Retry sur collision.
   let lotReference = generateLotReference();
   for (let attempt = 0; attempt < 8; attempt++) {
-    const { error } = await supabaseServer
+    const { data: ins, error: insErr } = await supabaseServer
       .from("preparation_records")
-      .update({
-        temp_end_celsius: parsed.value,
+      .insert({
+        restaurant_id: restaurantId,
+        inventory_item_id: inventoryItemId,
+        dish_id: dishId,
+        label,
+        lot_reference: lotReference,
+        temp_end_celsius: parsedTemp.value,
         temp_end_recorded_at: now,
         temp_2h_due_at: due2h,
-        lot_reference: lotReference,
+        dlc_date: dlc,
+        recorded_by_user_id: user.id,
+        recorded_by_display: display,
+        comment: params.comment?.trim() || null,
       })
-      .eq("id", recordId)
-      .eq("restaurant_id", restaurantId);
+      .select("id")
+      .single();
 
-    if (!error) {
+    if (!insErr && ins) {
       revalidatePath("/preparations");
       revalidatePath("/preparations/registre");
-      return { ok: true, lotReference };
+      return { ok: true, id: String((ins as { id: string }).id), lotReference };
     }
-    const code = (error as { code?: string }).code;
+    const code = (insErr as { code?: string } | null)?.code;
     if (code === "23505") {
       lotReference = generateLotReference();
       continue;
     }
-    return { ok: false, error: error.message };
+    return { ok: false, error: insErr?.message ?? "Enregistrement impossible." };
   }
 
   return { ok: false, error: "Impossible d’attribuer un numéro de lot unique. Réessayez." };
 }
 
-export async function recordPreparation2hAndDlcAction(
+/** Relevé de température à +2 h (refroidissement). La DLC est déjà saisie au lancement. */
+export async function recordPreparation2hAction(
   restaurantId: string,
   recordId: string,
-  params: { temperatureRaw: string; dlcDate: string }
+  temperatureRaw: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
   const rec = await getPreparationRecord(restaurantId, recordId);
   if (!rec) return { ok: false, error: "Fiche introuvable." };
-  if (!rec.temp_end_recorded_at) return { ok: false, error: "Enregistrez d’abord la température de fin de préparation." };
   if (rec.temp_2h_recorded_at) return { ok: false, error: "Le contrôle à +2 h est déjà enregistré." };
 
-  const parsed = parseTemperatureInput(params.temperatureRaw);
+  const parsed = parseTemperatureInput(temperatureRaw);
   if (!parsed.ok) return parsed;
-
-  const dlc = params.dlcDate.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dlc)) return { ok: false, error: "DLC invalide (format AAAA-MM-JJ)." };
-
-  const now = new Date().toISOString();
 
   const { error } = await supabaseServer
     .from("preparation_records")
     .update({
       temp_2h_celsius: parsed.value,
-      temp_2h_recorded_at: now,
-      dlc_date: dlc,
+      temp_2h_recorded_at: new Date().toISOString(),
     })
+    .eq("id", recordId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/preparations");
+  revalidatePath("/preparations/registre");
+  return { ok: true };
+}
+
+/** Clôture une préparation (stock épuisé, DLC dépassée, ou autre) — la retire de la page active. */
+export async function closePreparationAction(
+  restaurantId: string,
+  recordId: string,
+  reason?: string | null
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { error } = await supabaseServer
+    .from("preparation_records")
+    .update({ closed_at: new Date().toISOString(), closed_reason: reason?.trim() || null })
     .eq("id", recordId)
     .eq("restaurant_id", restaurantId);
 

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Snowflake } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listColdTemperatureRegister } from "@/lib/hygiene/hygieneDb";
 import { cachedListColdHygieneElements } from "@/lib/cache";
@@ -15,15 +16,18 @@ export default async function HygieneTemperaturesPage() {
   ]);
 
   return (
-    <PageContainer width="narrow">
+    <PageContainer>
       <PageHeader
-        breadcrumbs={[{ label: "Hygiène", href: "/hygiene" }, { label: "Froid : ouverture / fermeture" }]}
+        accentIcon={Snowflake}
+        accentTone="bg-sky-50 text-sky-700"
+        breadcrumbs={[
+          { label: "Cuisine", href: "/cuisine" },
+          { label: "Nettoyage", href: "/hygiene" },
+          { label: "Froid : ouverture / fermeture" },
+        ]}
         title="Froid : ouverture & fermeture"
-        subtitle="Pour chaque chambre froide, frigo ou congélateur, enregistrez la température à l’ouverture et à la fermeture. Les relevés sont conservés dans le registre dédié."
+        subtitle="Touchez un équipement pour enregistrer sa température à l’ouverture ou à la fermeture. Les relevés sont conservés dans le registre dédié."
       />
-      <p className="text-xs text-stone-500">
-        Support de traçabilité interne ; adaptez la fréquence et les seuils à votre procédure HACCP.
-      </p>
 
       <HygieneColdTemperaturesClient
         restaurantId={restaurant.id}

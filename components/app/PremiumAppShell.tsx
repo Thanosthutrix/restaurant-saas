@@ -163,6 +163,26 @@ export function PremiumAppShell({
     return prefetchRoutesWhenIdle((href) => router.prefetch(href), urls);
   }, [bare, router, shellPayload?.allowedNavKeys]);
 
+  // Resynchronise le shell serveur (badges Cuisine +2 h / hygiène) : les compteurs
+  // sont temporels (le rappel bleu apparaît à 1h45) et le root layout n'est pas
+  // re-rendu lors des navigations SPA. On rafraîchit à intervalle + au retour d'onglet.
+  useEffect(() => {
+    if (bare) return;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+
+    const id = window.setInterval(refreshIfVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    window.addEventListener("focus", refreshIfVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+      window.removeEventListener("focus", refreshIfVisible);
+    };
+  }, [bare, router]);
+
   if (bare) {
     return <>{children}</>;
   }

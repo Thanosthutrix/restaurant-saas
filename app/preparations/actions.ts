@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { createInventoryItem } from "@/app/inventory/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { parseTemperatureInput } from "@/lib/haccpTemperature/rules";
@@ -158,6 +158,7 @@ export async function startPreparationAction(
     if (!insErr && ins) {
       revalidatePath("/preparations");
       revalidatePath("/preparations/registre");
+      updateTag("preparations");
       return { ok: true, id: String((ins as { id: string }).id), lotReference };
     }
     const code = (insErr as { code?: string } | null)?.code;
@@ -200,6 +201,7 @@ export async function recordPreparation2hAction(
 
   revalidatePath("/preparations");
   revalidatePath("/preparations/registre");
+  updateTag("preparations");
   return { ok: true };
 }
 
@@ -222,5 +224,6 @@ export async function closePreparationAction(
 
   revalidatePath("/preparations");
   revalidatePath("/preparations/registre");
+  updateTag("preparations");
   return { ok: true };
 }

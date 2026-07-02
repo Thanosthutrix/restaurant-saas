@@ -3,6 +3,7 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { listHygieneRecurrencePresets } from "@/lib/hygiene/hygieneDb";
 import { cachedListHygieneElements } from "@/lib/cache";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 import { HygieneElementsClient } from "./HygieneElementsClient";
 
 type Search = { elementId?: string };
@@ -24,15 +25,21 @@ export default async function HygieneElementsPage({
   ]);
 
   return (
-    <PageContainer width="narrow">
+    <PageContainer>
       <PageHeader
-        breadcrumbs={[{ label: "Hygiène", href: "/hygiene" }, { label: "Éléments à nettoyer" }]}
+        accentIcon={SECTION_ACCENT.hygiene.icon}
+        accentTone={SECTION_ACCENT.hygiene.tone}
+        breadcrumbs={[
+          { label: "Cuisine", href: "/cuisine" },
+          { label: "Nettoyage", href: "/hygiene" },
+          { label: "Éléments à nettoyer" },
+        ]}
         title="Éléments à nettoyer"
         subtitle={
           <>
-            Référentiel par restaurant. Les fréquences par défaut sont des suggestions (référentiel métier), modifiables
-            par ligne. Utilisez <strong className="font-medium text-stone-700">Marquer comme fait</strong> pour enregistrer
-            tout de suite une exécution au registre (nom, heure, commentaire et photo optionnelle).
+            Votre référentiel de nettoyage en tuiles. Touchez une tuile pour voir le protocole et agir ; utilisez{" "}
+            <strong className="font-medium text-stone-700">Marquer comme fait</strong> pour enregistrer aussitôt une
+            exécution au registre (nom, heure, commentaire et photo optionnelle).
           </>
         }
       />

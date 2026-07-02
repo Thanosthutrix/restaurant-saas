@@ -112,7 +112,7 @@ export function cachedCountPreparations2hSignals(restaurantId: string) {
       return countPreparations2hSignals(restaurantId);
     },
     ["preparations-2h-signals", restaurantId],
-    { revalidate: 30 }
+    { revalidate: 30, tags: ["preparations"] }
   )();
 }
 

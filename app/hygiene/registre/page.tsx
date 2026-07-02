@@ -1,16 +1,16 @@
 import { redirect } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { CalendarCheck, Camera, ClipboardCheck, Sparkles } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listHygieneRegister, getHygieneProofPublicUrl } from "@/lib/hygiene/hygieneDb";
 import {
   HYGIENE_CATEGORY_LABEL_FR,
   HYGIENE_CLEANING_ACTION_LABEL_FR,
-  HYGIENE_RISK_LABEL_FR,
   type HygieneCleaningActionType,
 } from "@/lib/hygiene/types";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
+import { RiskPill } from "../hygieneUi";
 
 /** Date + heure déterministes (Europe/Paris) — rendu serveur stable. */
 function fmtDateTime(iso: string | null): string {
@@ -22,11 +22,27 @@ function fmtDateTime(iso: string | null): string {
   return `${date} · ${time}`;
 }
 
+/** Instant courant (isolé dans un helper : requête serveur dynamique, pas de rendu figé). */
+function currentMs(): number {
+  return Date.now();
+}
+
 export default async function HygieneRegistrePage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   const rows = await listHygieneRegister(restaurant.id, 200);
+
+  const total = rows.length;
+  const weekAgo = currentMs() - 7 * 24 * 60 * 60 * 1000;
+  const last7d = rows.filter((r) => r.completed_at && new Date(r.completed_at).getTime() >= weekAgo).length;
+  const withPhoto = rows.filter((r) => r.proof_photo_path).length;
+
+  const stats: { label: string; value: number; icon: typeof ClipboardCheck; tone: string }[] = [
+    { label: "Interventions enregistrées", value: total, icon: ClipboardCheck, tone: "bg-cyan-50 text-cyan-700" },
+    { label: "Sur les 7 derniers jours", value: last7d, icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
+    { label: "Avec preuve photo", value: withPhoto, icon: Camera, tone: "bg-violet-50 text-violet-700" },
+  ];
 
   return (
     <PageContainer>
@@ -39,10 +55,34 @@ export default async function HygieneRegistrePage() {
           { label: "Registre" },
         ]}
         title="Registre nettoyage"
-        subtitle="Historique des validations : qui a fait quoi, quand, avec preuve photo le cas échéant."
+        subtitle="Historique des validations : qui a fait quoi, quand, avec preuve photo le cas échéant. Conservez-le comme preuve de traçabilité."
       />
 
-      {rows.length === 0 ? (
+      {total > 0 ? (
+        <section className="grid grid-cols-3 gap-3" aria-label="Synthèse">
+          {stats.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.label}
+                className="flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white p-3 shadow-sm sm:p-4"
+              >
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.tone}`}>
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-2xl font-semibold tabular-nums leading-none tracking-tight text-stone-900">
+                    {s.value}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-stone-500">{s.label}</p>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
+
+      {total === 0 ? (
         <EmptyState
           icon={Sparkles}
           title="Aucune tâche validée"
@@ -79,11 +119,17 @@ export default async function HygieneRegistrePage() {
                           {r.area_label ? ` · ${r.area_label}` : ""}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-stone-700">{HYGIENE_RISK_LABEL_FR[r.risk_level]}</td>
-                      <td className="px-3 py-2.5 text-stone-700">
-                        {r.cleaning_action_type
-                          ? HYGIENE_CLEANING_ACTION_LABEL_FR[r.cleaning_action_type as HygieneCleaningActionType]
-                          : "—"}
+                      <td className="px-3 py-2.5">
+                        <RiskPill level={r.risk_level} />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {r.cleaning_action_type ? (
+                          <span className="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">
+                            {HYGIENE_CLEANING_ACTION_LABEL_FR[r.cleaning_action_type as HygieneCleaningActionType]}
+                          </span>
+                        ) : (
+                          <span className="text-stone-400">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-stone-700">
                         <span className="font-medium">{r.completed_by_initials ?? "—"}</span>

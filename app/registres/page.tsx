@@ -86,6 +86,7 @@ export default async function RegistresPage({ searchParams }: { searchParams: Pr
     categoryLabel:
       HYGIENE_CATEGORY_LABEL_FR[r.element_category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ?? r.element_category,
     areaLabel: r.area_label || "",
+    riskLevel: r.risk_level,
     riskLabel: HYGIENE_RISK_LABEL_FR[r.risk_level],
     actionLabel: r.cleaning_action_type
       ? HYGIENE_CLEANING_ACTION_LABEL_FR[r.cleaning_action_type as HygieneCleaningActionType]

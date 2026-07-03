@@ -2,32 +2,58 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowUpRight } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Boxes, FileClock, FileText, Sparkles, Thermometer, Truck } from "lucide-react";
 import type { RegistresTab } from "@/lib/registres/types";
 import { REGISTRES_TABS, REGISTRES_TAB_LABELS } from "@/lib/registres/types";
 import {
-  HYGIENE_CATEGORY_LABEL_FR,
-  HYGIENE_CLEANING_ACTION_LABEL_FR,
   HYGIENE_RISK_LABEL_FR,
-  type HygieneCleaningActionType,
+  type HygieneRiskLevel,
 } from "@/lib/hygiene/types";
 import {
   TEMPERATURE_LOG_STATUS_LABEL_FR,
-  TEMPERATURE_POINT_TYPE_LABEL_FR,
   type TemperatureLogStatus,
 } from "@/lib/haccpTemperature/types";
-import { uiCard, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { uiTableLink } from "@/components/ui/premium";
 
-const BL_STATUS_LABELS: Record<string, string> = {
-  draft: "Brouillon",
-  validated: "Validé",
-  received: "Reçu",
+const PILL: Record<string, string> = {
+  stone: "bg-stone-100 text-stone-700",
+  sky: "bg-sky-100 text-sky-800",
+  emerald: "bg-emerald-100 text-emerald-800",
+  amber: "bg-amber-100 text-amber-900",
+  rose: "bg-rose-100 text-rose-800",
 };
 
-const INVOICE_STATUS_LABELS: Record<string, string> = {
-  draft: "À traiter",
-  linked: "À contrôler",
-  reviewed: "Prête comptable",
+function Pill({ label, tone }: { label: string; tone: keyof typeof PILL }) {
+  return (
+    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${PILL[tone]}`}>{label}</span>
+  );
+}
+
+const BL_STATUS: Record<string, { label: string; tone: keyof typeof PILL }> = {
+  draft: { label: "Brouillon", tone: "stone" },
+  validated: { label: "Validé", tone: "sky" },
+  received: { label: "Reçu", tone: "emerald" },
+};
+
+const INVOICE_STATUS: Record<string, { label: string; tone: keyof typeof PILL }> = {
+  draft: { label: "À traiter", tone: "amber" },
+  linked: { label: "À contrôler", tone: "sky" },
+  reviewed: { label: "Prête comptable", tone: "emerald" },
+};
+
+const RISK_TONE: Record<HygieneRiskLevel, keyof typeof PILL> = {
+  critical: "rose",
+  important: "amber",
+  standard: "stone",
+};
+
+const TEMP_TONE: Record<TemperatureLogStatus, keyof typeof PILL> = {
+  normal: "emerald",
+  alert: "amber",
+  critical: "rose",
 };
 
 export type RegistresBlItem = {
@@ -56,6 +82,7 @@ export type RegistresCleaningItem = {
   elementName: string;
   categoryLabel: string;
   areaLabel: string;
+  riskLevel: HygieneRiskLevel;
   riskLabel: string;
   actionLabel: string;
   byLabel: string;
@@ -96,51 +123,20 @@ type Props = {
   preparations: RegistresPreparationItem[];
 };
 
-function RegisterRow({
-  href,
-  title,
-  subtitle,
-  meta,
-  badge,
-}: {
-  href: string;
-  title: string;
-  subtitle?: string;
-  meta?: string;
-  badge?: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`${uiCard} group flex items-start justify-between gap-3 transition hover:-translate-y-0.5 hover:border-copper-100 hover:shadow-md`}
-    >
-      <div className="min-w-0 flex-1">
-        <p className="font-medium text-stone-900 group-hover:text-copper-900">{title}</p>
-        {subtitle ? <p className="mt-0.5 text-sm text-stone-600">{subtitle}</p> : null}
-        {meta ? <p className="mt-1 text-xs text-stone-500">{meta}</p> : null}
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-2">
-        {badge ? (
-          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700">{badge}</span>
-        ) : null}
-        <ArrowUpRight className="h-4 w-4 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
-      </div>
-    </Link>
-  );
-}
+const TAB_META: Record<RegistresTab, { icon: LucideIcon; tone: string }> = {
+  bl: { icon: Truck, tone: "bg-sky-50 text-sky-700" },
+  factures: { icon: FileText, tone: "bg-amber-50 text-amber-700" },
+  nettoyage: { icon: Sparkles, tone: "bg-cyan-50 text-cyan-700" },
+  temperatures: { icon: Thermometer, tone: "bg-violet-50 text-violet-700" },
+  preparations: { icon: Boxes, tone: "bg-emerald-50 text-emerald-700" },
+};
 
-function EmptyTab({ message }: { message: string }) {
-  return <p className={`${uiLead} rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-8 text-center`}>{message}</p>;
-}
+const TABLE_WRAP = "overflow-hidden rounded-2xl border border-stone-200/70 bg-white shadow-sm";
+const THEAD = "border-b border-stone-100 bg-stone-50/60 text-[11px] font-semibold uppercase tracking-wide text-stone-500";
+const ROW = "cursor-pointer border-b border-stone-50 transition hover:bg-copper-50/40";
+const TD = "px-3 py-2.5 align-top";
 
-export function RegistresClient({
-  initialTab,
-  bl,
-  invoices,
-  cleaning,
-  temperatures,
-  preparations,
-}: Props) {
+export function RegistresClient({ initialTab, bl, invoices, cleaning, temperatures, preparations }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = (searchParams.get("tab") as RegistresTab | null) ?? initialTab;
@@ -160,142 +156,271 @@ export function RegistresClient({
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-copper-700">Recherche & contrôle</p>
-        <h1 className={`${uiPageTitle} mt-2`}>Registres</h1>
-        <p className={`${uiLead} mt-2 max-w-2xl`}>
-          Historiques et justificatifs : ouvrez une entrée pour accéder à la fiche détaillée (BL, facture, élément
-          d’hygiène, relevé ou préparation).
-        </p>
-      </header>
+    <PageContainer>
+      <PageHeader
+        accentIcon={FileClock}
+        accentTone="bg-blue-50 text-blue-700"
+        eyebrow="Recherche & contrôle"
+        title="Registres"
+        subtitle="Tous vos historiques et justificatifs au même endroit. Choisissez un registre, puis ouvrez une entrée pour accéder à sa fiche détaillée."
+      />
 
-      <div className="overflow-x-auto border-b border-stone-200">
-        <nav className="-mb-px flex min-w-max gap-1" aria-label="Registres">
-          {REGISTRES_TABS.map((key) => {
-            const active = tab === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition ${
-                  active
-                    ? "border-copper-700 text-copper-800"
-                    : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
-                }`}
-              >
-                {REGISTRES_TAB_LABELS[key]}
-                <span className={`ml-1.5 tabular-nums ${active ? "text-copper-600" : "text-stone-400"}`}>
-                  ({counts[key]})
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      {/* Sélecteur = cartes compteurs par registre */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Registres">
+        {REGISTRES_TABS.map((key) => {
+          const active = tab === key;
+          const meta = TAB_META[key];
+          const Icon = meta.icon;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              aria-pressed={active}
+              className={`flex items-center gap-3 rounded-2xl border p-3 text-left shadow-sm transition ${
+                active
+                  ? "border-copper-300 bg-copper-50/50 ring-1 ring-copper-200"
+                  : "border-stone-200/70 bg-white hover:-translate-y-0.5 hover:border-copper-200 hover:shadow-md"
+              }`}
+            >
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.tone}`}>
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xl font-semibold tabular-nums leading-none tracking-tight text-stone-900">
+                  {counts[key]}
+                </p>
+                <p className="mt-1 truncate text-xs font-medium text-stone-500">{REGISTRES_TAB_LABELS[key]}</p>
+              </div>
+            </button>
+          );
+        })}
+      </section>
 
-      {tab === "bl" && (
-        <section className="space-y-2" aria-label="Bons de livraison">
-          {bl.length === 0 ? (
-            <EmptyTab message="Aucun bon de livraison enregistré." />
-          ) : (
-            bl.map((row) => (
-              <RegisterRow
-                key={row.id}
-                href={row.href}
-                title={row.supplierName}
-                subtitle={[row.dateLabel, row.number ? `BL n° ${row.number}` : null].filter(Boolean).join(" · ")}
-                meta={`${row.linesCount} ligne${row.linesCount !== 1 ? "s" : ""}`}
-                badge={BL_STATUS_LABELS[row.status] ?? row.status}
-              />
-            ))
-          )}
-        </section>
-      )}
+      {/* ═══ BL ═══ */}
+      {tab === "bl" ? (
+        bl.length === 0 ? (
+          <EmptyState icon={Truck} title="Aucun bon de livraison" description="Les BL enregistrés à la réception apparaîtront ici." />
+        ) : (
+          <div className={TABLE_WRAP}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead>
+                  <tr className={THEAD}>
+                    <th className="px-3 py-2.5">Fournisseur</th>
+                    <th className="px-3 py-2.5">Date</th>
+                    <th className="px-3 py-2.5">N° BL</th>
+                    <th className="px-3 py-2.5 text-right">Lignes</th>
+                    <th className="px-3 py-2.5">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bl.map((r) => {
+                    const s = BL_STATUS[r.status] ?? { label: r.status, tone: "stone" as const };
+                    return (
+                      <tr key={r.id} className={ROW} onClick={() => router.push(r.href)}>
+                        <td className={TD}>
+                          <Link href={r.href} className={uiTableLink}>
+                            {r.supplierName}
+                          </Link>
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-stone-600`}>{r.dateLabel}</td>
+                        <td className={`${TD} text-stone-700`}>{r.number ?? "—"}</td>
+                        <td className={`${TD} text-right tabular-nums text-stone-700`}>{r.linesCount}</td>
+                        <td className={TD}>
+                          <Pill label={s.label} tone={s.tone} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : null}
 
-      {tab === "factures" && (
-        <section className="space-y-2" aria-label="Factures fournisseurs">
-          {invoices.length === 0 ? (
-            <EmptyTab message="Aucune facture fournisseur enregistrée." />
-          ) : (
-            invoices.map((row) => (
-              <RegisterRow
-                key={row.id}
-                href={row.href}
-                title={row.number ? `Facture ${row.number}` : "Facture sans numéro"}
-                subtitle={row.supplierName}
-                meta={[row.dateLabel, row.amountLabel].filter(Boolean).join(" · ")}
-                badge={INVOICE_STATUS_LABELS[row.status] ?? row.status}
-              />
-            ))
-          )}
-        </section>
-      )}
+      {/* ═══ Factures ═══ */}
+      {tab === "factures" ? (
+        invoices.length === 0 ? (
+          <EmptyState icon={FileText} title="Aucune facture fournisseur" description="Les factures importées apparaîtront ici." />
+        ) : (
+          <div className={TABLE_WRAP}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead>
+                  <tr className={THEAD}>
+                    <th className="px-3 py-2.5">Facture</th>
+                    <th className="px-3 py-2.5">Fournisseur</th>
+                    <th className="px-3 py-2.5">Date</th>
+                    <th className="px-3 py-2.5 text-right">Montant</th>
+                    <th className="px-3 py-2.5">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((r) => {
+                    const s = INVOICE_STATUS[r.status] ?? { label: r.status, tone: "stone" as const };
+                    return (
+                      <tr key={r.id} className={ROW} onClick={() => router.push(r.href)}>
+                        <td className={TD}>
+                          <Link href={r.href} className={uiTableLink}>
+                            {r.number ? `Facture ${r.number}` : "Facture sans n°"}
+                          </Link>
+                        </td>
+                        <td className={`${TD} text-stone-700`}>{r.supplierName}</td>
+                        <td className={`${TD} whitespace-nowrap text-stone-600`}>{r.dateLabel}</td>
+                        <td className={`${TD} whitespace-nowrap text-right tabular-nums text-stone-800`}>
+                          {r.amountLabel ?? "—"}
+                        </td>
+                        <td className={TD}>
+                          <Pill label={s.label} tone={s.tone} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : null}
 
-      {tab === "nettoyage" && (
-        <section className="space-y-2" aria-label="Registre nettoyage">
-          {cleaning.length === 0 ? (
-            <EmptyTab message="Aucune tâche de nettoyage validée." />
-          ) : (
-            cleaning.map((row) => (
-              <RegisterRow
-                key={row.id}
-                href={row.href}
-                title={row.elementName}
-                subtitle={[row.categoryLabel, row.areaLabel].filter(Boolean).join(" · ")}
-                meta={[row.completedAtLabel, row.actionLabel, row.byLabel, row.comment].filter(Boolean).join(" · ")}
-                badge={row.riskLabel}
-              />
-            ))
-          )}
-        </section>
-      )}
+      {/* ═══ Nettoyage ═══ */}
+      {tab === "nettoyage" ? (
+        cleaning.length === 0 ? (
+          <EmptyState icon={Sparkles} title="Aucune validation de nettoyage" description="Les tâches de nettoyage validées apparaîtront ici." />
+        ) : (
+          <div className={TABLE_WRAP}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px] text-left text-sm">
+                <thead>
+                  <tr className={THEAD}>
+                    <th className="px-3 py-2.5">Élément</th>
+                    <th className="px-3 py-2.5">Criticité</th>
+                    <th className="px-3 py-2.5">Intervention</th>
+                    <th className="px-3 py-2.5">Par</th>
+                    <th className="px-3 py-2.5">Réalisé le</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cleaning.map((r) => (
+                    <tr key={r.id} className={ROW} onClick={() => router.push(r.href)}>
+                      <td className={TD}>
+                        <Link href={r.href} className={uiTableLink}>
+                          {r.elementName}
+                        </Link>
+                        <span className="block text-xs text-stone-400">
+                          {[r.categoryLabel, r.areaLabel].filter(Boolean).join(" · ")}
+                        </span>
+                      </td>
+                      <td className={TD}>
+                        <Pill label={HYGIENE_RISK_LABEL_FR[r.riskLevel]} tone={RISK_TONE[r.riskLevel]} />
+                      </td>
+                      <td className={`${TD} text-stone-700`}>{r.actionLabel}</td>
+                      <td className={`${TD} text-stone-700`}>{r.byLabel}</td>
+                      <td className={`${TD} whitespace-nowrap text-stone-600`}>{r.completedAtLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : null}
 
-      {tab === "temperatures" && (
-        <section className="space-y-2" aria-label="Registre températures">
-          {temperatures.length === 0 ? (
-            <EmptyTab message="Aucun relevé de température enregistré." />
-          ) : (
-            temperatures.map((row) => (
-              <RegisterRow
-                key={row.id}
-                href={row.href}
-                title={row.pointName}
-                subtitle={row.pointTypeLabel}
-                meta={[row.dateLabel, `${row.value} °C`, row.byLabel, row.comment].filter(Boolean).join(" · ")}
-                badge={TEMPERATURE_LOG_STATUS_LABEL_FR[row.status]}
-              />
-            ))
-          )}
-        </section>
-      )}
+      {/* ═══ Températures ═══ */}
+      {tab === "temperatures" ? (
+        temperatures.length === 0 ? (
+          <EmptyState icon={Thermometer} title="Aucun relevé de température" description="Les relevés HACCP apparaîtront ici." />
+        ) : (
+          <div className={TABLE_WRAP}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[780px] text-left text-sm">
+                <thead>
+                  <tr className={THEAD}>
+                    <th className="px-3 py-2.5">Point</th>
+                    <th className="px-3 py-2.5">Type</th>
+                    <th className="px-3 py-2.5 text-center">Mesure</th>
+                    <th className="px-3 py-2.5">Statut</th>
+                    <th className="px-3 py-2.5">Par</th>
+                    <th className="px-3 py-2.5">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {temperatures.map((r) => (
+                    <tr key={r.id} className={ROW} onClick={() => router.push(r.href)}>
+                      <td className={TD}>
+                        <Link href={r.href} className={uiTableLink}>
+                          {r.pointName}
+                        </Link>
+                      </td>
+                      <td className={`${TD} text-stone-600`}>{r.pointTypeLabel}</td>
+                      <td className={`${TD} text-center`}>
+                        <span className="inline-flex items-center justify-center rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-stone-800">
+                          {String(r.value).replace(".", ",")}°
+                        </span>
+                      </td>
+                      <td className={TD}>
+                        <Pill label={TEMPERATURE_LOG_STATUS_LABEL_FR[r.status]} tone={TEMP_TONE[r.status]} />
+                      </td>
+                      <td className={`${TD} text-stone-700`}>{r.byLabel}</td>
+                      <td className={`${TD} whitespace-nowrap text-stone-600`}>{r.dateLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : null}
 
-      {tab === "preparations" && (
-        <section className="space-y-2" aria-label="Registre préparations">
-          {preparations.length === 0 ? (
-            <EmptyTab message="Aucune préparation enregistrée." />
-          ) : (
-            preparations.map((row) => (
-              <RegisterRow
-                key={row.id}
-                href={row.href}
-                title={row.label}
-                subtitle={row.lotReference ? `Lot ${row.lotReference}` : undefined}
-                meta={[
-                  row.startedAtLabel,
-                  row.tempEndLabel ? `T° fin ${row.tempEndLabel}` : null,
-                  row.temp2hLabel ? `T° +2 h ${row.temp2hLabel}` : null,
-                  row.dlcLabel ? `DLC ${row.dlcLabel}` : null,
-                  row.byLabel,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              />
-            ))
-          )}
-        </section>
-      )}
-    </div>
+      {/* ═══ Préparations ═══ */}
+      {tab === "preparations" ? (
+        preparations.length === 0 ? (
+          <EmptyState icon={Boxes} title="Aucune préparation" description="Les lots de préparation enregistrés apparaîtront ici." />
+        ) : (
+          <div className={TABLE_WRAP}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-left text-sm">
+                <thead>
+                  <tr className={THEAD}>
+                    <th className="px-3 py-2.5">Préparation</th>
+                    <th className="px-3 py-2.5">N° lot</th>
+                    <th className="px-3 py-2.5 text-center">T° fin</th>
+                    <th className="px-3 py-2.5 text-center">T° +2 h</th>
+                    <th className="px-3 py-2.5">DLC</th>
+                    <th className="px-3 py-2.5">Démarrée le</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preparations.map((r) => (
+                    <tr key={r.id} className={ROW} onClick={() => router.push(r.href)}>
+                      <td className={TD}>
+                        <Link href={r.href} className={uiTableLink}>
+                          {r.label}
+                        </Link>
+                      </td>
+                      <td className={`${TD} whitespace-nowrap`}>
+                        {r.lotReference ? (
+                          <span className="rounded-md bg-copper-50 px-1.5 py-0.5 font-mono text-xs font-semibold text-copper-800">
+                            {r.lotReference}
+                          </span>
+                        ) : (
+                          <span className="text-stone-400">—</span>
+                        )}
+                      </td>
+                      <td className={`${TD} text-center tabular-nums text-stone-700`}>{r.tempEndLabel ?? "—"}</td>
+                      <td className={`${TD} text-center tabular-nums text-stone-700`}>{r.temp2hLabel ?? "—"}</td>
+                      <td className={`${TD} whitespace-nowrap text-stone-700`}>{r.dlcLabel ?? "—"}</td>
+                      <td className={`${TD} whitespace-nowrap text-stone-600`}>{r.startedAtLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : null}
+    </PageContainer>
   );
 }

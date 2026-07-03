@@ -2,8 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowRight,
-  CalendarClock,
   CheckCircle2,
   ClipboardList,
   FileClock,
@@ -27,6 +25,7 @@ import { cachedEnsureHygieneTasks } from "@/lib/cache";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 import { RiskPill, ScoreGauge, StatTile, fmtWhen, scoreBand } from "./hygieneUi";
+import { HygieneDueTasksClient } from "./HygieneDueTasksClient";
 
 type Shortcut = {
   href: string;
@@ -174,41 +173,9 @@ export default async function HygieneHubPage() {
         </div>
       </section>
 
-      {/* ═══ À traiter maintenant ═══ */}
+      {/* ═══ À traiter maintenant (cliquable → validation) ═══ */}
       {dueTasks.length > 0 ? (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-stone-900">À traiter maintenant</h2>
-            <Link
-              href="/hygiene/a-faire"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-copper-700 transition hover:text-copper-600"
-            >
-              Tout voir{dueCount > dueTasks.slice(0, 6).length ? ` (${dueCount})` : ""}
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
-          <ul className="space-y-2">
-            {dueTasks.slice(0, 6).map((t) => {
-              const when = fmtWhen(t.due_at, nowMs);
-              return (
-                <li
-                  key={t.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-rose-200/70 bg-white px-4 py-3 shadow-sm"
-                >
-                  <RiskPill level={t.risk_level} />
-                  <span className="min-w-0 flex-1">
-                    <span className="truncate font-medium text-stone-900">{t.element_name}</span>
-                    {t.area_label ? <span className="ml-1.5 text-xs text-stone-400">· {t.area_label}</span> : null}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-600">
-                    <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-                    {when.hint}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <HygieneDueTasksClient restaurantId={restaurant.id} tasks={dueTasks.slice(0, 6)} dueCount={dueCount} />
       ) : null}
 
       {/* ═══ À venir ═══ */}

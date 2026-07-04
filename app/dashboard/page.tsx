@@ -9,6 +9,7 @@ import {
   ChefHat,
   Droplets,
   Layers,
+  LayoutDashboard,
   Package,
   Truck,
   UtensilsCrossed,
@@ -55,7 +56,7 @@ function StatTile({
   iconClass?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-stone-100 bg-white p-4 shadow-sm sm:p-5">
+    <div className="rounded-2xl border border-stone-200/70 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</p>
@@ -76,6 +77,10 @@ const quickActions: {
   description: string;
   icon: LucideIcon;
   navKey: ShellNavKey;
+  /** Carré d'icône (fond + texte). */
+  tone: string;
+  /** Bordure colorée au survol. */
+  tile: string;
 }[] = [
   {
     label: "Salle",
@@ -83,6 +88,8 @@ const quickActions: {
     description: "Tickets ouverts et service en cours",
     icon: Armchair,
     navKey: "salle",
+    tone: "bg-copper-50 text-copper-700",
+    tile: "tile-copper",
   },
   {
     label: "Caisse",
@@ -90,6 +97,8 @@ const quickActions: {
     description: "Encaissements et tickets réglés",
     icon: Wallet,
     navKey: "caisse",
+    tone: "bg-emerald-50 text-emerald-700",
+    tile: "tile-emerald",
   },
   {
     label: "Cuisine",
@@ -97,6 +106,8 @@ const quickActions: {
     description: "Service, fiches plats, stock et hygiène",
     icon: ChefHat,
     navKey: "cuisine",
+    tone: "bg-violet-50 text-violet-700",
+    tile: "tile-violet",
   },
   {
     label: "Achats & stock",
@@ -104,6 +115,8 @@ const quickActions: {
     description: "Commandes, BL, factures fournisseurs",
     icon: Truck,
     navKey: "achats",
+    tone: "bg-sky-50 text-sky-700",
+    tile: "tile-sky",
   },
   {
     label: "Registres",
@@ -111,6 +124,8 @@ const quickActions: {
     description: "Historiques et justificatifs",
     icon: Archive,
     navKey: "registres",
+    tone: "bg-amber-50 text-amber-700",
+    tile: "tile-amber",
   },
   {
     label: "Assistant IA",
@@ -118,6 +133,8 @@ const quickActions: {
     description: "Réimporter carte, recettes et rubriques",
     icon: WandSparkles,
     navKey: "ai_assistant",
+    tone: "bg-cyan-50 text-cyan-700",
+    tile: "tile-cyan",
   },
 ];
 
@@ -206,12 +223,14 @@ export default async function DashboardPage() {
   // L'état calme n'est montré qu'aux utilisateurs concernés par ces signaux.
   const showFocusBand = hasHygieneAccess || showStockAlert;
 
-  const cardBase = "rounded-2xl border border-stone-100 bg-white shadow-sm";
+  const cardBase = "rounded-2xl border border-stone-200/70 bg-white shadow-sm";
 
   return (
     <DayClockShell restaurantId={restaurant.id} myShifts={myShiftsForClock} temperaturePoints={temperaturePoints}>
       <PageContainer>
         <PageHeader
+          accentIcon={LayoutDashboard}
+          accentTone="bg-copper-50 text-copper-700"
           title="Tableau de bord"
           subtitle={
             <>
@@ -225,33 +244,25 @@ export default async function DashboardPage() {
         {showFocusBand ? <DashboardFocusBand items={focusItems} /> : null}
 
         <section aria-labelledby="quick-actions-heading">
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2 id="quick-actions-heading" className="text-sm font-semibold text-stone-900">
-                Où voulez-vous aller ?
-              </h2>
-              <p className="mt-0.5 text-xs text-stone-500">
-                Les accès rapides suivent les grandes zones du restaurant.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
+          <h2 id="quick-actions-heading" className="mb-3 text-lg font-semibold text-stone-900">
+            Où voulez-vous aller ?
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {visibleQuickActions.map((action) => {
               const Icon = action.icon;
               return (
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="group rounded-2xl border border-stone-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-copper-100 hover:shadow-md"
+                  title={action.description}
+                  className={`group flex aspect-square flex-col items-center justify-center gap-2.5 rounded-2xl border border-stone-200/60 bg-white p-3 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${action.tile}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="rounded-xl bg-copper-50 p-2.5 text-copper-800">
-                      <Icon className="h-5 w-5" aria-hidden />
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
-                  </div>
-                  <p className="mt-3 text-sm font-semibold text-stone-900">{action.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-stone-500">{action.description}</p>
+                  <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${action.tone}`}>
+                    <Icon className="h-6 w-6" aria-hidden />
+                  </span>
+                  <span className="line-clamp-2 text-[13px] font-semibold leading-tight tracking-tight text-stone-900">
+                    {action.label}
+                  </span>
                 </Link>
               );
             })}
@@ -269,7 +280,7 @@ export default async function DashboardPage() {
         {/* Stats */}
       {showStats && (
       <section aria-label="Indicateurs récents">
-        <h2 className="sr-only">Statistiques</h2>
+        <h2 className="mb-3 text-lg font-semibold text-stone-900">Activité récente</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile
             label="Services récents"

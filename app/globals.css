@@ -54,6 +54,17 @@
     linear-gradient(180deg, #36393d 0%, #2c2f32 55%, #26292c 100%);
 }
 
+/* Largeur de la sidebar + décalage du contenu — définis en CSS pur pour être
+   garantis (indépendant de la génération JIT de Tailwind, capricieuse en dev). */
+.app-sidebar-w {
+  width: 14rem;
+}
+@media (min-width: 1024px) {
+  .app-content-offset {
+    padding-left: 14rem;
+  }
+}
+
 /* Illumination de tuile par section (identité couleur) — classes dédiées pour
    garantir la génération (les variantes hover:border-* dans des tableaux de
    données ne sont pas toujours détectées par Tailwind). */

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 export type FocusItem = {
   tone: "copper" | "amber";
@@ -67,10 +67,6 @@ export function DashboardFocusBand({ items }: { items: FocusItem[] }) {
                   ) : null}
                   <p className="truncate text-sm font-semibold text-stone-900">{item.title}</p>
                 </div>
-                <p className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold ${tone.cta}`}>
-                  {item.cta}
-                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-                </p>
               </div>
             </Link>
           );

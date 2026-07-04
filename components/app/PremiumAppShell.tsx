@@ -203,7 +203,7 @@ export function PremiumAppShell({
       ) : null}
 
       {/* Sidebar desktop */}
-      <aside className="sidebar-graphite fixed left-0 top-0 z-40 hidden h-full w-56 flex-col lg:flex">
+      <aside className="app-sidebar-w sidebar-graphite fixed left-0 top-0 z-40 hidden h-full flex-col lg:flex">
         <div className="flex items-center justify-center border-b border-white/5 px-4 py-5">
           <Link
             href="/dashboard"
@@ -290,7 +290,7 @@ export function PremiumAppShell({
         </div>
       </aside>
 
-      <div className="min-w-0 lg:pl-[14rem]">
+      <div className="app-content-offset min-w-0">
         <header className="sticky top-0 z-[45] border-b border-slate-300/50 bg-[#E9EDF2]/95 supports-[backdrop-filter]:bg-[#E9EDF2]/80 supports-[backdrop-filter]:backdrop-blur-sm">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">

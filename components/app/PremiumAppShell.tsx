@@ -9,6 +9,7 @@ import { SHELL_NAV_ITEMS, isBareShellPath } from "@/components/app/premium/shell
 import { HeaderRestaurantSelect } from "@/components/app/premium/HeaderRestaurantSelect";
 import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidget";
 import { HeaderUserAvatar } from "@/components/app/HeaderUserAvatar";
+import { BrandLogo } from "@/components/app/BrandLogo";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { type ShellNavKey, canAccessPage } from "@/lib/auth/appRoles";
 import { prefetchRoutesWhenIdle } from "@/lib/ui/deferIdle";
@@ -44,6 +45,8 @@ function NavLinks({
 }) {
   const hasKeys = allowedNavKeys != null && allowedNavKeys.length > 0;
   const items = SHELL_NAV_ITEMS.filter((item) => {
+    // Le logo (cliquable) renvoie déjà au tableau de bord → pas de ligne dédiée.
+    if (item.navKey === "dashboard") return false;
     if (!hasKeys) return true;
     if (item.hideIfKeys?.some((k) => allowedNavKeys.includes(k))) return false;
     if (canAccessPage(item.navKey, allowedNavKeys)) return true;
@@ -200,16 +203,18 @@ export function PremiumAppShell({
       ) : null}
 
       {/* Sidebar desktop */}
-      <aside className="sidebar-graphite fixed left-0 top-0 z-40 hidden h-full w-64 flex-col lg:flex">
-        <div className="flex h-14 items-center border-b border-white/5 px-4">
+      <aside className="sidebar-graphite fixed left-0 top-0 z-40 hidden h-full w-56 flex-col lg:flex">
+        <div className="flex items-center justify-center border-b border-white/5 px-4 py-5">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-zinc-100 transition hover:text-copper-300"
+            aria-label="ubion — tableau de bord"
+            className="group flex items-center justify-center"
           >
-            <span className="copper-sheen flex h-7 w-7 items-center justify-center rounded-lg bg-copper-700 text-sm font-bold text-white">
-              R
-            </span>
-            Restaurant SaaS
+            <BrandLogo
+              role="img"
+              aria-label="ubion"
+              className="h-24 w-24"
+            />
           </Link>
         </div>
         <NavLinks
@@ -242,16 +247,18 @@ export function PremiumAppShell({
             : "-translate-x-full pointer-events-none"
         }`}
       >
-        <div className="flex h-14 items-center justify-between border-b border-white/5 px-4">
+        <div className="flex items-center justify-between border-b border-white/5 px-4 py-5">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-zinc-100"
+            aria-label="ubion — tableau de bord"
+            className="group flex items-center"
             onClick={() => setMobileNavOpen(false)}
           >
-            <span className="copper-sheen flex h-7 w-7 items-center justify-center rounded-lg bg-copper-700 text-sm font-bold text-white">
-              R
-            </span>
-            Restaurant SaaS
+            <BrandLogo
+              role="img"
+              aria-label="ubion"
+              className="h-12 w-12"
+            />
           </Link>
           <button
             type="button"
@@ -283,7 +290,7 @@ export function PremiumAppShell({
         </div>
       </aside>
 
-      <div className="min-w-0 lg:pl-64">
+      <div className="min-w-0 lg:pl-[14rem]">
         <header className="sticky top-0 z-[45] border-b border-slate-300/50 bg-[#E9EDF2]/95 supports-[backdrop-filter]:bg-[#E9EDF2]/80 supports-[backdrop-filter]:backdrop-blur-sm">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">

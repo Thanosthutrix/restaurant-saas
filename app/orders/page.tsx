@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getPurchaseOrders } from "@/lib/db";
+import { getPurchaseOrders, getSuppliers, getInventoryItems } from "@/lib/db";
 import { cachedGetSuppliers } from "@/lib/cache";
 import { ClipboardList } from "lucide-react";
 import { uiBadgeSlate, uiBtnPrimarySm } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { NewOrderButton } from "./NewOrderButton";
 
 const STATUS_LABELS: Record<string, string> = {
   generated: "Créée",
@@ -20,11 +21,15 @@ export default async function OrdersPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [{ data: purchaseOrders }, { data: suppliers }] = await Promise.all([
+  const [{ data: purchaseOrders }, { data: suppliers }, activeSuppliersRes, itemsRes] = await Promise.all([
     getPurchaseOrders(restaurant.id),
     cachedGetSuppliers(restaurant.id),
+    getSuppliers(restaurant.id, true),
+    getInventoryItems(restaurant.id),
   ]);
   const supplierById = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
+  const activeSuppliers = activeSuppliersRes.data ?? [];
+  const inventoryItems = itemsRes.data ?? [];
 
   return (
     <PageContainer width="narrow">
@@ -35,9 +40,12 @@ export default async function OrdersPage() {
       />
 
       <div className="flex flex-wrap gap-2">
-        <Link href="/orders/new" className={uiBtnPrimarySm}>
-          Créer une commande
-        </Link>
+        <NewOrderButton
+          restaurantId={restaurant.id}
+          restaurantName={restaurant.name}
+          suppliers={activeSuppliers}
+          inventoryItems={inventoryItems}
+        />
         <Link href="/orders/suggestions" className={uiBtnPrimarySm}>
           Voir les suggestions de commande
         </Link>

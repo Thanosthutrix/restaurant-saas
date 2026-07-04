@@ -13,6 +13,7 @@ import {
   type AllowedUnit,
 } from "@/lib/constants";
 import { Camera, Check, Loader2 } from "lucide-react";
+import { uiBtnPrimary, uiBtnSecondary } from "@/components/ui/premium";
 import {
   updateDeliveryNoteLinesAction,
   validateReceptionAction,
@@ -291,7 +292,7 @@ function LinePurchaseConversionFix({
   return (
     <form
       onSubmit={(e) => void handleSubmit(e)}
-      className="mt-2 space-y-2 rounded border border-copper-200 bg-copper-50/70 px-2 py-2"
+      className="space-y-2 rounded-lg border border-copper-200 bg-copper-50/70 px-2 py-2"
     >
       <p className="text-xs font-medium text-copper-950">Corriger la conversion achat → stock</p>
       <p className="text-xs text-copper-900/95">
@@ -720,10 +721,10 @@ export function ReceivingClient({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded border border-stone-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-stone-200/70 bg-white shadow-sm">
         {!readOnly && (
-          <p className="border-b border-stone-100 bg-stone-50/80 px-3 py-2 text-xs text-stone-600">
-            <strong className="font-medium text-stone-700">Traçabilité</strong> : cochez chaque ligne une fois le
+          <p className="border-b border-stone-100 bg-stone-50/60 px-3 py-2.5 text-xs leading-relaxed text-stone-500">
+            <strong className="font-semibold text-stone-700">Traçabilité</strong> : cochez chaque ligne une fois le
             produit vérifié physiquement ; température (°C), n° de lot et DLC ; photos en fin de ligne (le type au
             registre suit le composant stock lié). Optionnel sauf exigence hygiène.
           </p>
@@ -748,25 +749,18 @@ export function ReceivingClient({
               Aucune ligne de réception trouvée
             </p>
             {!readOnly && (
-              <button
-                type="button"
-                onClick={openAddLineForm}
-                className="mt-3 rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800"
-              >
+              <button type="button" onClick={openAddLineForm} className={`${uiBtnPrimary} mt-3`}>
                 Ajouter une ligne
               </button>
             )}
           </div>
         ) : (
           <>
-            <table className="w-full border-collapse text-sm [&_td]:align-top">
+            <table className="w-full border-collapse text-sm [&_td]:align-top [&_th]:pt-2.5 [&_th]:pl-3 [&_td]:pl-3">
               <thead>
-                <tr className="border-b border-stone-200 text-left text-stone-500">
-                  <th
-                    className="pb-2 pr-2 w-12 text-center"
-                    title="Contrôle physique effectué"
-                  >
-                    OK
+                <tr className="border-b border-stone-200 bg-stone-50/70 text-left text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+                  <th className="pb-2 pr-2 min-w-[5.5rem]" title="Contrôle physique effectué">
+                    Contrôle
                   </th>
                   <th className="pb-2 pr-2">Produit / libellé</th>
                   <th className="pb-2 pr-2 text-right">Qté commandée (achat)</th>
@@ -820,30 +814,30 @@ export function ReceivingClient({
                       key={line.id}
                       className={`border-b transition-colors ${
                         rowVerified
-                          ? "border-emerald-100 bg-emerald-50/90 hover:bg-emerald-50"
+                          ? "border-copper-100 bg-copper-50/70 hover:bg-copper-50"
                           : "border-stone-100 bg-white hover:bg-stone-50/80"
                       }`}
                     >
-                      <td className="py-2 pr-2 text-center">
+                      <td className="py-2 pr-2">
                         {readOnly ? (
                           rowVerified ? (
                             <span
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-200 text-emerald-800"
+                              className="inline-flex items-center gap-1 rounded-lg bg-copper-100 px-2.5 py-1.5 text-xs font-semibold text-copper-800"
                               title="Ligne contrôlée"
                             >
-                              <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                              <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                              Contrôlé
                             </span>
                           ) : (
-                            <span
-                              className="inline-flex h-9 min-h-9 w-9 items-center justify-center text-stone-300"
-                              title="Non contrôlée"
-                            >
-                              —
+                            <span className="text-xs text-stone-400" title="Non contrôlée">
+                              Non contrôlé
                             </span>
                           )
                         ) : (
                           <button
                             type="button"
+                            role="switch"
+                            aria-checked={rowVerified}
                             disabled={togglingVerifiedLineId === line.id}
                             onClick={() =>
                               void handleToggleLineVerified(line.id, !rowVerified)
@@ -853,21 +847,23 @@ export function ReceivingClient({
                                 ? "Annuler la validation du contrôle"
                                 : "Marquer comme contrôlé sur place"
                             }
-                            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors ${
-                              rowVerified
-                                ? "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
-                                : "border-stone-300 bg-white text-stone-400 hover:border-emerald-500 hover:text-emerald-600"
-                            } disabled:opacity-50`}
-                            aria-pressed={rowVerified}
                             aria-label={
                               rowVerified ? "Annuler la validation du contrôle" : "Valider le contrôle de la ligne"
                             }
+                            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-lg transition-colors disabled:opacity-50 ${
+                              rowVerified ? "bg-copper-700" : "bg-stone-300"
+                            }`}
                           >
-                            {togglingVerifiedLineId === line.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                            ) : (
-                              <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-                            )}
+                            <span
+                              style={{ transform: rowVerified ? "translateX(24px)" : "translateX(4px)" }}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-white shadow-sm transition-transform duration-200"
+                            >
+                              {togglingVerifiedLineId === line.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-copper-700" aria-hidden />
+                              ) : rowVerified ? (
+                                <Check className="h-3 w-3 text-copper-700" strokeWidth={3} aria-hidden />
+                              ) : null}
+                            </span>
                           </button>
                         )}
                       </td>
@@ -889,7 +885,7 @@ export function ReceivingClient({
                               Produit stock
                             </label>
                             <select
-                              className="box-border h-9 min-h-9 max-w-[min(100%,22rem)] rounded border border-stone-300 bg-white px-2 py-0 text-xs leading-none"
+                              className="box-border h-9 min-h-9 max-w-[min(100%,22rem)] rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-xs leading-none"
                               value={line.inventory_item_id ?? ""}
                               disabled={pendingInventoryLineId === line.id}
                               onChange={(e) => {
@@ -924,26 +920,31 @@ export function ReceivingClient({
                                 inventoryItems,
                                 deliveryLabelConversionHintsMap
                               ) ? (
-                                <p className="mt-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-900">
-                                  Conversion mise en place (unité d&apos;achat → stock).
+                                <p
+                                  className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700"
+                                  title="Conversion unité d'achat → stock en place"
+                                >
+                                  <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                                  Conversion en place
                                 </p>
                               ) : (
-                                <>
-                                  <p className="mt-1 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
-                                    Unité BL différente de l’unité stock ({line.unit} ≠ {line.stock_unit}). Corrigez la
-                                    conversion ci-dessous : les recettes restent dans l’unité stock (ex. 500 g), seule la
-                                    ligne de livraison est recalculée.
+                                <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-start">
+                                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 sm:w-44 sm:shrink-0">
+                                    Unité BL ≠ unité stock ({line.unit} ≠ {line.stock_unit}). Les recettes restent en unité
+                                    stock ; seule la ligne BL est recalculée.
                                   </p>
-                                  <LinePurchaseConversionFix
-                                    line={line}
-                                    inventoryItems={inventoryItems}
-                                    conversionHints={deliveryLabelConversionHintsMap}
-                                    restaurantId={deliveryNote.restaurant_id}
-                                    deliveryNoteId={deliveryNote.id}
-                                    readOnly={readOnly}
-                                    onApplied={() => router.refresh()}
-                                  />
-                                </>
+                                  <div className="min-w-0 sm:flex-1">
+                                    <LinePurchaseConversionFix
+                                      line={line}
+                                      inventoryItems={inventoryItems}
+                                      conversionHints={deliveryLabelConversionHintsMap}
+                                      restaurantId={deliveryNote.restaurant_id}
+                                      deliveryNoteId={deliveryNote.id}
+                                      readOnly={readOnly}
+                                      onApplied={() => router.refresh()}
+                                    />
+                                  </div>
+                                </div>
                               ))}
                             {!line.inventory_item_id && (
                               <button
@@ -1080,7 +1081,7 @@ export function ReceivingClient({
                                 : qtyDeliveredDisplay
                             }
                             onChange={(e) => onChangeLine(line.id, "qty_delivered", e.target.value)}
-                            className="box-border h-9 min-h-9 w-20 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-20 rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-right text-sm leading-none"
                           />
                         )}
                       </td>
@@ -1103,7 +1104,7 @@ export function ReceivingClient({
                                 : qtyReceivedDisplay
                             }
                             onChange={(e) => onChangeLine(line.id, "qty_received", e.target.value)}
-                            className="box-border h-9 min-h-9 w-20 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-20 rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-right text-sm leading-none"
                           />
                         )}
                       </td>
@@ -1133,7 +1134,7 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeReceivedTemperature(line.id, e.target.value)
                             }
-                            className="box-border h-9 min-h-9 w-[4.5rem] rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-[4.5rem] rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-right text-sm leading-none"
                           />
                         )}
                       </td>
@@ -1148,7 +1149,7 @@ export function ReceivingClient({
                             placeholder="—"
                             value={lotInputValue(line)}
                             onChange={(e) => onChangeLotNumber(line.id, e.target.value)}
-                            className="box-border h-9 min-h-9 w-full min-w-[5rem] max-w-[8rem] rounded border border-stone-300 px-2 py-0 text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-full min-w-[5rem] max-w-[8rem] rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-sm leading-none"
                           />
                         )}
                       </td>
@@ -1164,7 +1165,7 @@ export function ReceivingClient({
                             type="date"
                             value={expiryInputValue(line)}
                             onChange={(e) => onChangeExpiryDate(line.id, e.target.value)}
-                            className="box-border h-9 min-h-9 w-full min-w-[9rem] rounded border border-stone-300 px-2 py-0 text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-full min-w-[9rem] rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-sm leading-none"
                           />
                         )}
                       </td>
@@ -1182,7 +1183,7 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeBlLine(line.id, "bl_line_total_ht", e.target.value)
                             }
-                            className="box-border h-9 min-h-9 w-24 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-24 rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-right text-sm leading-none"
                           />
                         )}
                       </td>
@@ -1200,14 +1201,14 @@ export function ReceivingClient({
                             onChange={(e) =>
                               onChangeBlLine(line.id, "bl_unit_price_stock_ht", e.target.value)
                             }
-                            className="box-border h-9 min-h-9 w-24 rounded border border-stone-300 px-2 py-0 text-right text-sm leading-none"
+                            className="box-border h-9 min-h-9 w-24 rounded-lg border border-stone-200 bg-white px-2 py-0 shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20 text-right text-sm leading-none"
                           />
                         )}
                       </td>
                       <td className="py-2 pr-2 text-right">
                         <span
-                          className={`inline-flex h-9 min-h-9 items-center justify-end tabular-nums text-xs ${
-                            diff === 0 ? "text-emerald-600" : "text-amber-700"
+                          className={`inline-flex items-center justify-center rounded-md px-2 py-1 text-xs font-semibold tabular-nums ${
+                            diff === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
                           }`}
                         >
                           {diff > 0 ? `+${diff}` : diff}
@@ -1220,7 +1221,7 @@ export function ReceivingClient({
                               type="button"
                               disabled={uploadingPhotoLineId === line.id}
                               onClick={() => openPhotoDialog(line.id)}
-                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-stone-400 bg-white text-stone-800 hover:bg-stone-50 disabled:opacity-50"
+                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:opacity-50"
                               title="Prendre ou ajouter une photo"
                               aria-label="Prendre une photo"
                             >
@@ -1309,7 +1310,7 @@ export function ReceivingClient({
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 placeholder="ex. Tomates"
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1319,7 +1320,7 @@ export function ReceivingClient({
               <select
                 value={newInventoryItemId}
                 onChange={(e) => onSelectInventoryItem(e.target.value)}
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               >
                 <option value="">— Aucun —</option>
                 {inventoryItems.map((item) => (
@@ -1338,7 +1339,7 @@ export function ReceivingClient({
                 value={newUnit}
                 onChange={(e) => setNewUnit(e.target.value)}
                 placeholder="ex. kg"
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1351,7 +1352,7 @@ export function ReceivingClient({
                 step="any"
                 value={newQtyDelivered}
                 onChange={(e) => setNewQtyDelivered(e.target.value)}
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1364,7 +1365,7 @@ export function ReceivingClient({
                 step="any"
                 value={newQtyReceived}
                 onChange={(e) => setNewQtyReceived(e.target.value)}
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1380,7 +1381,7 @@ export function ReceivingClient({
                 value={newReceivedTemp}
                 onChange={(e) => setNewReceivedTemp(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1392,7 +1393,7 @@ export function ReceivingClient({
                 value={newLotNumber}
                 onChange={(e) => setNewLotNumber(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1403,7 +1404,7 @@ export function ReceivingClient({
                 type="date"
                 value={newExpiryDate}
                 onChange={(e) => setNewExpiryDate(e.target.value)}
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1416,7 +1417,7 @@ export function ReceivingClient({
                 value={newBlLineTotal}
                 onChange={(e) => setNewBlLineTotal(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
             <div>
@@ -1429,7 +1430,7 @@ export function ReceivingClient({
                 value={newBlUnitPrice}
                 onChange={(e) => setNewBlUnitPrice(e.target.value)}
                 placeholder="optionnel"
-                className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+                className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm shadow-sm transition focus:border-copper-500 focus:outline-none focus:ring-2 focus:ring-copper-500/20"
               />
             </div>
           </div>
@@ -1439,20 +1440,10 @@ export function ReceivingClient({
             </p>
           )}
           <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={handleAddLine}
-              disabled={addingLinePending}
-              className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
-            >
+            <button type="button" onClick={handleAddLine} disabled={addingLinePending} className={uiBtnPrimary}>
               {addingLinePending ? "Ajout…" : "Enregistrer la ligne"}
             </button>
-            <button
-              type="button"
-              onClick={closeAddLineForm}
-              disabled={addingLinePending}
-              className="rounded border border-stone-400 px-3 py-1.5 text-sm font-medium text-stone-700"
-            >
+            <button type="button" onClick={closeAddLineForm} disabled={addingLinePending} className={uiBtnSecondary}>
               Annuler
             </button>
           </div>
@@ -1469,20 +1460,16 @@ export function ReceivingClient({
         <div className="flex items-center gap-3">
           {!readOnly && (
             <>
-              <button
-                type="button"
-                disabled={saving || emptyLines}
-                onClick={handleSave}
-                className="rounded bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
-              >
+              <button type="button" disabled={saving || emptyLines} onClick={handleSave} className={uiBtnSecondary}>
                 {saving ? "Enregistrement…" : "Enregistrer"}
               </button>
               <button
                 type="button"
                 disabled={validating || emptyLines}
                 onClick={handleValidate}
-                className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50"
               >
+                <Check className="h-4 w-4" aria-hidden />
                 {validating ? "Validation…" : "Valider la réception"}
               </button>
             </>

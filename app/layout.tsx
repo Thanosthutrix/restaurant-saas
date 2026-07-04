@@ -16,8 +16,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Restaurant SaaS",
-    template: "%s · Restaurant SaaS",
+    default: "ubion",
+    template: "%s · ubion",
   },
   description:
     "Gestion des services, plats, stock, fournisseurs, base clients et analyses pour les restaurants.",

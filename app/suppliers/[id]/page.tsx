@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getSupplier, getPurchaseOrders, getDeliveryNotesBySupplier, getDeliveryNoteFileUrl, getDeliveryNotesByPurchaseOrderIds, getSupplierInvoicesBySupplier } from "@/lib/db";
+import { getSupplier, getPurchaseOrders, getDeliveryNotesBySupplier, getDeliveryNoteFileUrl, getDeliveryNotesByPurchaseOrderIds, getSupplierInvoicesBySupplier, getSuppliers, getInventoryItems } from "@/lib/db";
 import { EditSupplierForm } from "./EditSupplierForm";
 import { CreateReceptionFromPurchaseOrderButton } from "./CreateReceptionFromPurchaseOrderButton";
 import { InvoiceUpload } from "./InvoiceUpload";
+import { SupplierCreateOrderButton } from "./SupplierCreateOrderButton";
 
 export default async function SupplierEditPage({
   params,
@@ -15,14 +16,19 @@ export default async function SupplierEditPage({
   if (!restaurant) redirect("/onboarding");
 
   const { id } = await params;
-  const [supplierRes, ordersRes, notesRes, invoicesRes] = await Promise.all([
+  const [supplierRes, ordersRes, notesRes, invoicesRes, suppliersRes, itemsRes] = await Promise.all([
     getSupplier(id),
     getPurchaseOrders(restaurant.id, { supplierId: id, limit: 10 }),
     getDeliveryNotesBySupplier(id),
     getSupplierInvoicesBySupplier(id),
+    getSuppliers(restaurant.id, true),
+    getInventoryItems(restaurant.id),
   ]);
   const { data: supplier, error } = supplierRes;
   if (error || !supplier || supplier.restaurant_id !== restaurant.id) notFound();
+
+  const activeSuppliers = suppliersRes.data ?? [];
+  const inventoryItems = itemsRes.data ?? [];
 
   const purchaseOrders = ordersRes.data ?? [];
   const displayedPoIds = purchaseOrders.slice(0, 10).map((po) => po.id);
@@ -49,9 +55,16 @@ export default async function SupplierEditPage({
         <EditSupplierForm supplier={supplier} />
 
         <section className="mt-8 rounded-lg border border-stone-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-medium text-stone-500">
-            Commandes passées
-          </h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-stone-500">Commandes passées</h2>
+            <SupplierCreateOrderButton
+              restaurantId={restaurant.id}
+              restaurantName={restaurant.name}
+              suppliers={activeSuppliers}
+              inventoryItems={inventoryItems}
+              supplierId={supplier.id}
+            />
+          </div>
         {purchaseOrders.length === 0 ? (
             <p className="text-sm text-stone-600">
               Aucune commande pour ce fournisseur.

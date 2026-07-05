@@ -1,30 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import {
-  buildCategoryTree,
-  buildDirectItemsByCategoryId,
-  filterCategoryTreeByIds,
-  listRestaurantCategories,
-  pruneCategoryTreeWithItems,
-  visibleCategoryIdsWithAncestors,
-} from "@/lib/catalog/restaurantCategories";
-import { getDishes } from "@/lib/db";
 import { getRestaurantForPage } from "@/lib/auth";
-import { getCustomerById, listRecentCustomersForLookup } from "@/lib/customers/customersDb";
-import {
-  getDiningOrder,
-  getDiningOrderLines,
-  getDiningOrderPayment,
-  getDiningTable,
-  lineGrossTtc,
-  lineTtc,
-  orderTotalTtc,
-} from "@/lib/dining/diningDb";
-import { diningTableTicketTitle } from "@/lib/dining/ticketLabel";
-import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
+import { cachedLoadDiningOrderCatalogData } from "@/lib/cache";
+import { listRecentCustomersForLookup } from "@/lib/customers/customersDb";
+import { loadDiningOrderViewData } from "@/lib/dining/diningOrderViewData";
 import { uiBackLink, uiLead, uiPageTitle } from "@/components/ui/premium";
 import { DiningOrderClient } from "./DiningOrderClient";
-import type { DiningLineClient } from "../diningOrderTypes";
 
 type Props = {
   params: Promise<{ orderId: string }>;
@@ -55,122 +36,35 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
         : "← Base clients"
       : "← Salle";
 
-  const [
-    { data: order, error: oErr },
-    { data: lines, error: lErr },
-    { data: dishes, error: dErr },
-    { data: flatCats, error: catErr },
-    customerSearchPool,
-  ] = await Promise.all([
-    getDiningOrder(orderId, restaurant.id),
-    getDiningOrderLines(orderId, restaurant.id),
-    getDishes(restaurant.id),
-    listRestaurantCategories(restaurant.id),
-    listRecentCustomersForLookup(restaurant.id, 80),
+  const [viewRes, catalogRes, customerSearchPool] = await Promise.all([
+    loadDiningOrderViewData(restaurant.id, orderId),
+    cachedLoadDiningOrderCatalogData(restaurant.id),
+    listRecentCustomersForLookup(restaurant.id, 40),
   ]);
 
-  if (oErr) {
+  if (viewRes.error || !viewRes.data) {
+    if (viewRes.error === "Commande introuvable.") notFound();
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {oErr.message}
+          {viewRes.error}
         </p>
       </div>
     );
   }
 
-  if (!order) notFound();
-
-  if (lErr) {
+  if (catalogRes.error || !catalogRes.data) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {lErr.message}
+          {catalogRes.error ?? "Impossible de charger la carte."}
         </p>
       </div>
     );
   }
 
-  const [{ data: table }, payRes, linkedCustomerRaw] = await Promise.all([
-    order.dining_table_id != null
-      ? getDiningTable(order.dining_table_id, restaurant.id)
-      : Promise.resolve({ data: null }),
-    order.status === "settled"
-      ? getDiningOrderPayment(orderId, restaurant.id)
-      : Promise.resolve({ data: null, error: null }),
-    order.customer_id ? getCustomerById(restaurant.id, order.customer_id) : Promise.resolve(null),
-  ]);
-
-  if (dErr || catErr) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-8">
-        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {dErr?.message ?? catErr?.message ?? "Impossible de charger la carte."}
-        </p>
-      </div>
-    );
-  }
-
-  const cats = flatCats ?? [];
-  const dishList = dishes ?? [];
-  const directMap = buildDirectItemsByCategoryId(dishList);
-  const assignedIds = [...new Set(dishList.map((d) => d.category_id).filter(Boolean) as string[])];
-  const visible = visibleCategoryIdsWithAncestors(cats, assignedIds);
-  const tree = buildCategoryTree(cats);
-  const filtered = filterCategoryTreeByIds(tree, visible);
-  const prunedRoots = pruneCategoryTreeWithItems(filtered, directMap);
-  const uncategorized = dishList.filter((d) => !d.category_id);
-  const directByCategoryId = Object.fromEntries(directMap);
-
-  const lineClients: DiningLineClient[] = (lines ?? []).map((l) => {
-    const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
-    const dv = l.discount_value;
-    const discountValue = dv == null || dv === "" ? null : Number(dv);
-    return {
-      id: l.id,
-      dishId: l.dish_id,
-      dishName: d?.name ?? "Plat",
-      qty: Number(l.qty),
-      isPrepared: Boolean((l as { is_prepared?: boolean }).is_prepared),
-      lineGrossTtc: lineGrossTtc(l),
-      lineTotalTtc: lineTtc(l),
-      discountKind: parseDiningDiscountKind(l.discount_kind),
-      discountValue: discountValue != null && Number.isFinite(discountValue) ? discountValue : null,
-    };
-  });
-
-  const totalTtc = orderTotalTtc(lines ?? []);
-
-  let settledPaymentMethod: string | null = null;
-  if (!payRes.error) {
-    settledPaymentMethod = payRes.data?.payment_method ?? null;
-  }
-
-  const counterName = order.counter_ticket_label?.trim();
-  const isCounterOrder = order.dining_table_id == null && Boolean(counterName);
-
-  let linkedCustomer: {
-    id: string;
-    display_name: string;
-    service_memo: string | null;
-    allergens_note: string | null;
-  } | null = null;
-  let linkedCustomerEmail: string | null = null;
-  if (linkedCustomerRaw) {
-    const em = linkedCustomerRaw.email?.trim() ?? "";
-    linkedCustomerEmail = em || null;
-    linkedCustomer = {
-      id: linkedCustomerRaw.id,
-      display_name: linkedCustomerRaw.display_name,
-      service_memo: linkedCustomerRaw.service_memo,
-      allergens_note: linkedCustomerRaw.allergens_note,
-    };
-  }
-
-  /** Fiche liée = nom affiché (évite « Comptoir · Comptoir 21:28… »). */
-  const placeDescription = isCounterOrder
-    ? (linkedCustomer?.display_name?.trim() || counterName) ?? "Comptoir"
-    : diningTableTicketTitle(table?.label ?? "—", linkedCustomer?.display_name ?? null);
+  const view = viewRes.data;
+  const { catalogRoots, directByCategoryId, uncategorized } = catalogRes.data;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
@@ -178,32 +72,35 @@ export default async function DiningOrderPage({ params, searchParams }: Props) {
         <Link href={backHref} className={uiBackLink}>
           {backLabel}
         </Link>
-        {order.status === "settled" ? (
+        {view.status === "settled" ? (
           <span className="text-xs font-medium text-emerald-700">Encaissée</span>
         ) : null}
       </div>
 
       <div>
         <h1 className={uiPageTitle}>Commande</h1>
-        <p className={`mt-1 text-sm ${uiLead}`}>{placeDescription}</p>
+        <p className={`mt-1 text-sm ${uiLead}`}>{view.placeDescription}</p>
       </div>
 
       <DiningOrderClient
         restaurantId={restaurant.id}
-        orderId={orderId}
-        status={order.status as "open" | "settled"}
-        serviceId={order.service_id}
-        placeDescription={placeDescription}
+        orderId={view.orderId}
+        status={view.status}
+        serviceId={view.serviceId}
+        placeDescription={view.placeDescription}
         cancelRedirectHref={backHref}
-        settledPaymentMethod={settledPaymentMethod}
-        lines={lineClients}
-        totalTtc={totalTtc}
-        catalogRoots={prunedRoots}
+        settledPaymentMethod={view.settledPaymentMethod}
+        lines={view.lines}
+        totalTtc={view.totalTtc}
+        amountPaidTtc={view.amountPaidTtc}
+        catalogRoots={catalogRoots}
         directByCategoryId={directByCategoryId}
         uncategorized={uncategorized}
-        linkedCustomer={linkedCustomer}
-        linkedCustomerEmail={linkedCustomerEmail}
+        linkedCustomer={view.linkedCustomer}
+        linkedCustomerEmail={view.linkedCustomerEmail}
         customerSearchPool={customerSearchPool}
+        diningTableId={view.diningTableId}
+        guestLabel={view.guestLabel}
       />
     </div>
   );

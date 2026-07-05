@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getRestaurantForPage } from "@/lib/auth";
+import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
+import { getCurrentUser } from "@/lib/auth";
+import { createCustomer } from "@/lib/customers/customersDb";
 import { createService, deleteService, getService } from "@/lib/db";
 import { recordServiceSalesAndApplyStock } from "@/lib/service/recordServiceSalesAndApplyStock";
 import type { ServiceType } from "@/lib/constants";
@@ -13,10 +16,13 @@ import {
   getDiningOrder,
   getDiningOrderLineById,
   getDiningOrderLines,
+  listDiningOrderPayments,
   type LineWithDish,
   lineGrossTtc,
   orderTotalTtc,
   setDiningOrderCustomerId,
+  setDiningOrderGuestLabel,
+  sumDiningOrderPayments,
 } from "@/lib/dining/diningDb";
 import type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { lineNetAfterDiscount, parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
@@ -26,7 +32,18 @@ import { toNumber } from "@/lib/utils/safeNumeric";
 import { computeSalesConsumption } from "@/lib/recipes/computeSalesConsumption";
 import { revertConsumptionFromStock } from "@/lib/recipes/applyConsumptionToStock";
 import { trySendDiningOrderReadyEmail } from "@/lib/messaging/diningOrderReadyEmail";
+import {
+  loadDiningOrderViewData,
+  type DiningOrderViewData,
+} from "@/lib/dining/diningOrderViewData";
+import { fetchOrderTicketSnapshot, type OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
+
+function revalidateDiningOrderFull(orderId: string) {
+  revalidatePath("/salle");
+  revalidatePath("/caisse");
+  revalidatePath(`/salle/commande/${orderId}`);
+}
 
 function todayParisYmd(): string {
   return new Intl.DateTimeFormat("fr-CA", {
@@ -49,12 +66,40 @@ export async function openOrGetDiningOrder(params: {
   return { ok: true, data: { orderId } };
 }
 
+export async function loadTableOrderModalData(params: {
+  restaurantId: string;
+  diningTableId: string;
+}): Promise<ActionResult<DiningOrderViewData>> {
+  const { restaurantId, diningTableId } = params;
+  const { orderId, error } = await ensureOpenDiningOrder(restaurantId, diningTableId);
+  if (error || !orderId) {
+    return { ok: false, error: error?.message ?? "Impossible d’ouvrir la commande." };
+  }
+  const loaded = await loadDiningOrderViewData(restaurantId, orderId);
+  if (loaded.error || !loaded.data) {
+    return { ok: false, error: loaded.error ?? "Impossible de charger la commande." };
+  }
+  return { ok: true, data: loaded.data };
+}
+
+export async function loadDiningOrderModalData(params: {
+  restaurantId: string;
+  orderId: string;
+}): Promise<ActionResult<DiningOrderViewData>> {
+  const { restaurantId, orderId } = params;
+  const loaded = await loadDiningOrderViewData(restaurantId, orderId);
+  if (loaded.error || !loaded.data) {
+    return { ok: false, error: loaded.error ?? "Impossible de charger la commande." };
+  }
+  return { ok: true, data: loaded.data };
+}
+
 export async function addDishToDiningOrder(params: {
   restaurantId: string;
   orderId: string;
   dishId: string;
   qty?: number;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, orderId, dishId } = params;
   const qty = params.qty != null && Number.isFinite(params.qty) && params.qty > 0 ? params.qty : 1;
 
@@ -91,17 +136,18 @@ export async function addDishToDiningOrder(params: {
     if (insErr) return { ok: false, error: insErr.message };
   }
 
-  revalidatePath("/salle");
-  revalidatePath(`/salle/commande/${orderId}`);
-  revalidatePath("/caisse");
-  return { ok: true };
+  const snap = await fetchOrderTicketSnapshot(restaurantId, orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+  return { ok: true, data: snap.data };
 }
 
 export async function setDiningOrderLineQty(params: {
   restaurantId: string;
   lineId: string;
   qty: number;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, lineId, qty } = params;
   if (!Number.isFinite(qty) || qty <= 0) return { ok: false, error: "Quantité invalide." };
 
@@ -153,16 +199,17 @@ export async function setDiningOrderLineQty(params: {
     }
   }
 
-  revalidatePath("/salle");
-  revalidatePath("/caisse");
-  revalidatePath(`/salle/commande/${orderId}`);
-  return { ok: true };
+  const snap = await fetchOrderTicketSnapshot(restaurantId, orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+  return { ok: true, data: snap.data };
 }
 
 export async function removeDiningOrderLine(params: {
   restaurantId: string;
   lineId: string;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, lineId } = params;
 
   const { data: row, error: fErr } = await supabaseServer
@@ -183,10 +230,11 @@ export async function removeDiningOrderLine(params: {
   const { error: dErr } = await supabaseServer.from("dining_order_lines").delete().eq("id", lineId);
   if (dErr) return { ok: false, error: dErr.message };
 
-  revalidatePath("/salle");
-  revalidatePath("/caisse");
-  revalidatePath(`/salle/commande/${orderId}`);
-  return { ok: true };
+  const snap = await fetchOrderTicketSnapshot(restaurantId, orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+  return { ok: true, data: snap.data };
 }
 
 export async function setDiningOrderLineDiscount(params: {
@@ -195,7 +243,7 @@ export async function setDiningOrderLineDiscount(params: {
   kind: DiningDiscountKind;
   /** Pourcentage (0–100] ou montant TTC de remise ; ignoré si none / free. */
   discountValue: number | null;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, lineId, kind } = params;
   let discountValue = params.discountValue;
 
@@ -255,10 +303,183 @@ export async function setDiningOrderLineDiscount(params: {
 
   if (uErr) return { ok: false, error: uErr.message };
 
-  revalidatePath("/salle");
-  revalidatePath("/caisse");
-  revalidatePath(`/salle/commande/${orderId}`);
-  return { ok: true };
+  const snap = await fetchOrderTicketSnapshot(restaurantId, orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+  return { ok: true, data: snap.data };
+}
+
+export async function applyGlobalDiningOrderDiscount(params: {
+  restaurantId: string;
+  orderId: string;
+  kind: DiningDiscountKind;
+  /** Pourcentage (0–100] ou montant TTC total à répartir ; ignoré si none / free. */
+  discountValue: number | null;
+}): Promise<ActionResult<OrderTicketSnapshot>> {
+  const { restaurantId, orderId, kind } = params;
+  let discountValue = params.discountValue;
+
+  const ord = await getDiningOrder(orderId, restaurantId);
+  if (ord.error || !ord.data || ord.data.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+
+  const linesRes = await getDiningOrderLines(orderId, restaurantId);
+  if (linesRes.error) return { ok: false, error: linesRes.error.message };
+  const lines = linesRes.data;
+  if (lines.length === 0) return { ok: false, error: "Aucune ligne sur la commande." };
+
+  if (kind === "none" || kind === "free") {
+    discountValue = null;
+  } else if (kind === "percent") {
+    if (discountValue == null || !Number.isFinite(discountValue)) {
+      return { ok: false, error: "Indiquez un pourcentage de remise." };
+    }
+    if (discountValue <= 0 || discountValue > 100) {
+      return { ok: false, error: "Le pourcentage doit être entre 0 et 100." };
+    }
+    const hasPricedLine = lines.some((l) => lineGrossTtc(l) > 0);
+    if (!hasPricedLine) {
+      return { ok: false, error: "Prix TTC manquants : impossible d’appliquer un pourcentage." };
+    }
+  } else if (kind === "amount") {
+    if (discountValue == null || !Number.isFinite(discountValue)) {
+      return { ok: false, error: "Indiquez un montant de remise." };
+    }
+    if (discountValue <= 0) {
+      return { ok: false, error: "Le montant doit être positif." };
+    }
+    let grossSum = 0;
+    for (const l of lines) grossSum += lineGrossTtc(l);
+    if (grossSum <= 0) {
+      return { ok: false, error: "Total catalogue nul : impossible d’appliquer une remise." };
+    }
+    if (discountValue > grossSum + 0.0001) {
+      return { ok: false, error: "La remise ne peut pas dépasser le total catalogue." };
+    }
+  }
+
+  const updates: { id: string; discount_kind: DiningDiscountKind; discount_value: number | null }[] =
+    [];
+
+  if (kind === "amount") {
+    const grosses = lines.map((l) => lineGrossTtc(l));
+    const grossSum = grosses.reduce((a, b) => a + b, 0);
+    const totalDisc = discountValue ?? 0;
+    let assigned = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      const gross = grosses[i]!;
+      let lineDisc: number;
+      if (gross <= 0) {
+        updates.push({ id: line.id, discount_kind: "none", discount_value: null });
+        continue;
+      }
+      if (i === lines.length - 1) {
+        lineDisc = Math.round((totalDisc - assigned) * 100) / 100;
+      } else {
+        lineDisc = Math.round((gross / grossSum) * totalDisc * 100) / 100;
+        assigned += lineDisc;
+      }
+      if (lineDisc <= 0) {
+        updates.push({ id: line.id, discount_kind: "none", discount_value: null });
+      } else {
+        updates.push({ id: line.id, discount_kind: "amount", discount_value: lineDisc });
+      }
+    }
+  } else {
+    for (const line of lines) {
+      const gross = lineGrossTtc(line);
+      if (kind === "percent" && gross <= 0) {
+        updates.push({ id: line.id, discount_kind: "none", discount_value: null });
+        continue;
+      }
+      updates.push({ id: line.id, discount_kind: kind, discount_value: discountValue });
+    }
+  }
+
+  try {
+    await Promise.all(
+      updates.map(async (u) => {
+        const gross = lineGrossTtc(lines.find((l) => l.id === u.id)!);
+        const net = lineNetAfterDiscount(gross, u.discount_kind, u.discount_value);
+        if (net < 0) throw new Error("Remise incohérente.");
+
+        const { error: uErr } = await supabaseServer
+          .from("dining_order_lines")
+          .update({
+            discount_kind: u.discount_kind,
+            discount_value: u.discount_value,
+          })
+          .eq("id", u.id)
+          .eq("restaurant_id", restaurantId);
+        if (uErr) throw new Error(uErr.message);
+      })
+    );
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Remise incohérente." };
+  }
+
+  const snap = await fetchOrderTicketSnapshot(restaurantId, orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+  return { ok: true, data: snap.data };
+}
+
+export async function recordDiningOrderPartialPayment(params: {
+  restaurantId: string;
+  orderId: string;
+  paymentMethod: PaymentMethod;
+  amountTtc: number;
+}): Promise<ActionResult<{ amountPaidTtc: number; amountDueTtc: number }>> {
+  const { restaurantId, orderId, paymentMethod, amountTtc } = params;
+
+  if (!Number.isFinite(amountTtc) || amountTtc <= 0) {
+    return { ok: false, error: "Indiquez un montant positif." };
+  }
+
+  const orderRes = await getDiningOrder(orderId, restaurantId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  const order = orderRes.data;
+  if (!order || order.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+
+  const linesRes = await getDiningOrderLines(orderId, restaurantId);
+  if (linesRes.error) return { ok: false, error: linesRes.error.message };
+  const lines = linesRes.data;
+  if (lines.length === 0) return { ok: false, error: "Ajoutez au moins un plat." };
+
+  const totalTtc = orderTotalTtc(lines);
+  const payRes = await listDiningOrderPayments(orderId, restaurantId);
+  if (payRes.error) return { ok: false, error: payRes.error.message };
+  const alreadyPaid = sumDiningOrderPayments(payRes.data);
+  const remainder = Math.round((totalTtc - alreadyPaid) * 100) / 100;
+
+  if (remainder <= 0) {
+    return { ok: false, error: "L’addition est déjà entièrement payée." };
+  }
+  if (amountTtc > remainder + 0.009) {
+    return {
+      ok: false,
+      error: `Le montant dépasse le reste dû (${remainder.toFixed(2).replace(".", ",")} €).`,
+    };
+  }
+
+  const { error: payErr } = await supabaseServer.from("dining_order_payments").insert({
+    restaurant_id: restaurantId,
+    dining_order_id: orderId,
+    payment_method: paymentMethod,
+    amount_ttc: Math.round(amountTtc * 100) / 100,
+  });
+  if (payErr) return { ok: false, error: payErr.message };
+
+  const newPaid = Math.round((alreadyPaid + amountTtc) * 100) / 100;
+  const newDue = Math.max(0, Math.round((totalTtc - newPaid) * 100) / 100);
+
+  return { ok: true, data: { amountPaidTtc: newPaid, amountDueTtc: newDue } };
 }
 
 /**
@@ -294,24 +515,14 @@ export async function setDiningOrderLinePrepared(params: {
     .eq("restaurant_id", restaurantId);
   if (uErr) return { ok: false, error: uErr.message };
 
-  revalidatePath("/salle");
-  revalidatePath("/caisse");
-  revalidatePath(`/salle/commande/${orderId}`);
-
   if (!isPrepared) {
     return { ok: true, data: { orderReadyEmail: "none" } };
   }
 
-  const send = await trySendDiningOrderReadyEmail({ restaurantId, orderId, mode: "auto" });
-  if (!send.ok) {
-    return { ok: true, data: { orderReadyEmail: "none" } };
-  }
-  if (send.alreadySent) {
-    return { ok: true, data: { orderReadyEmail: "already_sent" } };
-  }
-  if (send.sent) {
-    return { ok: true, data: { orderReadyEmail: "sent" } };
-  }
+  void trySendDiningOrderReadyEmail({ restaurantId, orderId, mode: "auto" }).catch(() => {
+    /* e-mail en arrière-plan : ne bloque pas l’UI */
+  });
+
   return { ok: true, data: { orderReadyEmail: "none" } };
 }
 
@@ -352,7 +563,7 @@ export async function notifyDiningOrderReadyByEmail(params: {
 export async function cancelOpenDiningOrder(params: {
   restaurantId: string;
   orderId: string;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<{ diningTableId: string | null }>> {
   const { restaurantId, orderId } = params;
 
   const orderRes = await getDiningOrder(orderId, restaurantId);
@@ -374,7 +585,7 @@ export async function cancelOpenDiningOrder(params: {
   revalidatePath("/salle");
   revalidatePath("/caisse");
   revalidatePath(`/salle/commande/${orderId}`);
-  return { ok: true };
+  return { ok: true, data: { diningTableId: order.dining_table_id } };
 }
 
 /**
@@ -471,7 +682,7 @@ export async function settleDiningOrder(params: {
   orderId: string;
   serviceType: ServiceType;
   paymentMethod: PaymentMethod;
-}): Promise<ActionResult<{ serviceId: string; totalTtc: number }>> {
+}): Promise<ActionResult<{ serviceId: string; totalTtc: number; diningTableId: string | null }>> {
   const { restaurantId, orderId, serviceType, paymentMethod } = params;
 
   const orderRes = await getDiningOrder(orderId, restaurantId);
@@ -500,6 +711,14 @@ export async function settleDiningOrder(params: {
     return { ok: false, error: "Total incohérent après remises." };
   }
 
+  const payRes = await listDiningOrderPayments(orderId, restaurantId);
+  if (payRes.error) return { ok: false, error: payRes.error.message };
+  const alreadyPaid = sumDiningOrderPayments(payRes.data);
+  const remainder = Math.round((totalTtc - alreadyPaid) * 100) / 100;
+  if (remainder < -0.009) {
+    return { ok: false, error: "Les paiements enregistrés dépassent le total." };
+  }
+
   const serviceDate = todayParisYmd();
 
   const { data: service, error: svcErr } = await createService(
@@ -521,12 +740,15 @@ export async function settleDiningOrder(params: {
     return { ok: false, error: `Erreur enregistrement ventes / stock : ${stockErr.message}` };
   }
 
-  const { error: payErr } = await supabaseServer.from("dining_order_payments").insert({
-    restaurant_id: restaurantId,
-    dining_order_id: orderId,
-    payment_method: paymentMethod,
-    amount_ttc: totalTtc,
-  });
+  const { error: payErr } =
+    remainder > 0.009
+      ? await supabaseServer.from("dining_order_payments").insert({
+          restaurant_id: restaurantId,
+          dining_order_id: orderId,
+          payment_method: paymentMethod,
+          amount_ttc: remainder,
+        })
+      : { error: null };
   if (payErr) return { ok: false, error: payErr.message };
 
   const settledAt = new Date().toISOString();
@@ -570,7 +792,7 @@ export async function settleDiningOrder(params: {
   revalidatePath("/margins");
   revalidatePath("/clients");
 
-  return { ok: true, data: { serviceId: service.id, totalTtc } };
+  return { ok: true, data: { serviceId: service.id, totalTtc, diningTableId: order.dining_table_id } };
 }
 
 export async function setDiningOrderCustomerAction(params: {
@@ -591,6 +813,64 @@ export async function setDiningOrderCustomerAction(params: {
   revalidatePath("/caisse");
   revalidatePath("/clients");
   return { ok: true };
+}
+
+export async function setDiningOrderGuestLabelAction(params: {
+  restaurantId: string;
+  orderId: string;
+  guestLabel: string | null;
+}): Promise<ActionResult> {
+  const { restaurantId, orderId, guestLabel } = params;
+  const { error } = await setDiningOrderGuestLabel(restaurantId, orderId, guestLabel);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/salle");
+  revalidatePath(`/salle/commande/${orderId}`);
+  revalidatePath("/caisse");
+  return { ok: true };
+}
+
+export async function createCustomerFromDiningOrderAction(params: {
+  restaurantId: string;
+  orderId: string;
+  displayName: string;
+  email?: string | null;
+  phone?: string | null;
+}): Promise<ActionResult<{ customerId: string }>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, params.restaurantId, "clients.mutate");
+  if (!gate.ok) return gate;
+
+  const orderRes = await getDiningOrder(params.orderId, params.restaurantId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  const order = orderRes.data;
+  if (!order || order.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+
+  const name = params.displayName.trim();
+  if (!name) return { ok: false, error: "Indiquez un nom pour la fiche client." };
+
+  const customer = await createCustomer(params.restaurantId, {
+    display_name: name,
+    email: params.email?.trim() || null,
+    phone: params.phone?.trim() || null,
+    source: "walk_in",
+    created_by_user_id: user.id,
+  });
+  if (!customer) return { ok: false, error: "Impossible de créer la fiche client." };
+
+  const linkErr = await setDiningOrderCustomerId(params.restaurantId, params.orderId, customer.id);
+  if (linkErr.error) return { ok: false, error: linkErr.error.message };
+
+  await setDiningOrderGuestLabel(params.restaurantId, params.orderId, null);
+
+  revalidatePath("/salle");
+  revalidatePath(`/salle/commande/${params.orderId}`);
+  revalidatePath("/caisse");
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${customer.id}`);
+  return { ok: true, data: { customerId: customer.id } };
 }
 
 /** Vérifie que l’utilisateur est sur le bon restaurant (appels internes). */

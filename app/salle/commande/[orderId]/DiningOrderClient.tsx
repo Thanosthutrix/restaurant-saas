@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Dish } from "@/lib/db";
 import type { CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/lib/dining/diningPaymentMethods";
 import { ReopenSettledDiningOrderButton } from "@/app/salle/ReopenSettledDiningOrderButton";
 import { DiningLineDiscountModal } from "@/app/salle/DiningLineDiscountModal";
+import { DiningOrderTotalModal } from "@/app/salle/DiningOrderTotalModal";
 import type { DiningLineClient } from "../diningOrderTypes";
 import { DishCatalogTileButton, DishCatalogTiles } from "@/components/dining/DishCatalogTiles";
 import {
@@ -36,6 +37,15 @@ import type { CustomerLookupRow } from "@/lib/customers/customersDb";
 import { CustomerTicketMemoDialog } from "../CustomerTicketMemoDialog";
 import { DiningOrderCustomerLinkPanel } from "../DiningOrderCustomerLinkPanel";
 import { uiCard, uiError, uiLead, uiSuccess } from "@/components/ui/premium";
+import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
+import {
+  optimisticAddDishLine,
+  optimisticLinePrepared,
+  optimisticLineQty,
+  optimisticRemoveLine,
+  orderTotalFromLines,
+} from "@/lib/dining/optimisticTicketClient";
+import { resetTableToBaseLayout } from "@/lib/salle/floorPlanLayout";
 
 const DEFAULT_SERVICE = "lunch" as const;
 
@@ -43,12 +53,16 @@ function OrderDishTapButton({
   dish,
   restaurantId,
   orderId,
-  onAdded,
+  onOptimisticAdd,
+  onTicketApplied,
+  onRevert,
 }: {
   dish: Dish;
   restaurantId: string;
   orderId: string;
-  onAdded: () => void;
+  onOptimisticAdd: () => void;
+  onTicketApplied: (ticket: OrderTicketSnapshot) => void;
+  onRevert: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -57,6 +71,10 @@ function OrderDishTapButton({
 
   const tap = () => {
     setError(null);
+    onOptimisticAdd();
+    setAddedCount((n) => n + 1);
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 600);
     startTransition(async () => {
       const res = await addDishToDiningOrder({
         restaurantId,
@@ -64,14 +82,12 @@ function OrderDishTapButton({
         dishId: dish.id,
         qty: 1,
       });
-      if (!res.ok) {
-        setError(res.error);
+      if (!res.ok || !res.data) {
+        onRevert();
+        setError(res.ok === false ? res.error : "Erreur inattendue.");
         return;
       }
-      setAddedCount((n) => n + 1);
-      setFlash(true);
-      window.setTimeout(() => setFlash(false), 600);
-      onAdded();
+      onTicketApplied(res.data);
     });
   };
 
@@ -109,6 +125,7 @@ type Props = {
   settledPaymentMethod?: string | null;
   lines: DiningLineClient[];
   totalTtc: number;
+  amountPaidTtc?: number;
   catalogRoots: CategoryTreeNode[];
   directByCategoryId: Record<string, Dish[]>;
   uncategorized: Dish[];
@@ -121,6 +138,13 @@ type Props = {
   /** E-mail fiche client (notif. « commande prête »). */
   linkedCustomerEmail: string | null;
   customerSearchPool: CustomerLookupRow[];
+  diningTableId?: string | null;
+  guestLabel?: string | null;
+  /** Modale salle : fermeture sans navigation pleine page. */
+  embeddedInModal?: boolean;
+  onEmbeddedClose?: () => void;
+  /** Rafraîchir les données affichées (modale) après une action serveur. */
+  onOrderChanged?: () => void;
 };
 
 export function DiningOrderClient({
@@ -133,12 +157,18 @@ export function DiningOrderClient({
   settledPaymentMethod,
   lines,
   totalTtc,
+  amountPaidTtc = 0,
   catalogRoots,
   directByCategoryId,
   uncategorized,
   linkedCustomer,
   linkedCustomerEmail,
   customerSearchPool,
+  diningTableId = null,
+  guestLabel = null,
+  embeddedInModal = false,
+  onEmbeddedClose,
+  onOrderChanged,
 }: Props) {
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState<DiningPaymentMethod>("card");
@@ -146,7 +176,28 @@ export function DiningOrderClient({
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
+  const [totalModalOpen, setTotalModalOpen] = useState(false);
   const [memoOpen, setMemoOpen] = useState(false);
+  const [localLines, setLocalLines] = useState(lines);
+  const [localTotalTtc, setLocalTotalTtc] = useState(totalTtc);
+  const [localPaidTtc, setLocalPaidTtc] = useState(amountPaidTtc);
+  const ticketRollbackRef = useRef<{ lines: DiningLineClient[]; totalTtc: number } | null>(null);
+
+  useEffect(() => {
+    setLocalLines(lines);
+    setLocalTotalTtc(totalTtc);
+    setLocalPaidTtc(amountPaidTtc);
+  }, [orderId, lines, totalTtc, amountPaidTtc]);
+
+  const applyTicket = (ticket: OrderTicketSnapshot) => {
+    setLocalLines(ticket.lines);
+    setLocalTotalTtc(ticket.totalTtc);
+    setLocalPaidTtc(ticket.amountPaidTtc);
+  };
+
+  const notifyListStale = () => {
+    onOrderChanged?.();
+  };
 
   const totalPlats = useMemo(() => {
     const n = Object.values(directByCategoryId).reduce((s, arr) => s + arr.length, 0);
@@ -154,52 +205,60 @@ export function DiningOrderClient({
   }, [directByCategoryId, uncategorized]);
 
   const syncFromServer = () => {
-    router.refresh();
+    notifyListStale();
   };
 
   const adjustLine = (lineId: string, delta: number) => {
-    const line = lines.find((l) => l.id === lineId);
+    const line = localLines.find((l) => l.id === lineId);
     if (!line) return;
     const next = line.qty + delta;
     if (next <= 0) return;
     setError(null);
+    const prevLines = localLines;
+    const optimisticLines = optimisticLineQty(localLines, lineId, next);
+    setLocalLines(optimisticLines);
+    setLocalTotalTtc(orderTotalFromLines(optimisticLines));
     startTransition(async () => {
       const res = await setDiningOrderLineQty({ restaurantId, lineId, qty: next });
-      if (!res.ok) {
-        setError(res.error);
+      if (!res.ok || !res.data) {
+        setLocalLines(prevLines);
+        setLocalTotalTtc(orderTotalFromLines(prevLines));
+        setError(res.ok === false ? res.error : "Erreur inattendue.");
         return;
       }
-      syncFromServer();
+      applyTicket(res.data);
     });
   };
 
   const removeLine = (lineId: string) => {
     setError(null);
+    const prevLines = localLines;
+    const optimisticLines = optimisticRemoveLine(localLines, lineId);
+    setLocalLines(optimisticLines);
+    setLocalTotalTtc(orderTotalFromLines(optimisticLines));
     startTransition(async () => {
       const res = await removeDiningOrderLine({ restaurantId, lineId });
-      if (!res.ok) {
-        setError(res.error);
+      if (!res.ok || !res.data) {
+        setLocalLines(prevLines);
+        setLocalTotalTtc(orderTotalFromLines(prevLines));
+        setError(res.ok === false ? res.error : "Erreur inattendue.");
         return;
       }
-      syncFromServer();
+      applyTicket(res.data);
     });
   };
 
   const toggleLinePrepared = (lineId: string, next: boolean) => {
     setError(null);
     setSuccess(null);
+    const prevLines = localLines;
+    setLocalLines(optimisticLinePrepared(localLines, lineId, next));
     startTransition(async () => {
       const res = await setDiningOrderLinePrepared({ restaurantId, lineId, isPrepared: next });
       if (!res.ok) {
+        setLocalLines(prevLines);
         setError(res.error);
-        return;
       }
-      if (res.data?.orderReadyEmail === "sent") {
-        setSuccess("E-mail « commande prête » envoyé au client.");
-      } else if (res.data?.orderReadyEmail === "already_sent") {
-        setSuccess("Commande prête (e-mail déjà envoyé auparavant).");
-      }
-      syncFromServer();
     });
   };
 
@@ -217,7 +276,6 @@ export function DiningOrderClient({
       } else {
         setSuccess("E-mail « commande prête » envoyé.");
       }
-      syncFromServer();
     });
   };
 
@@ -236,6 +294,7 @@ export function DiningOrderClient({
         return;
       }
       setSuccess(`Encaissement enregistré (${fmtEur(res.data?.totalTtc ?? 0)}).`);
+      if (res.data?.diningTableId) resetTableToBaseLayout(restaurantId, res.data.diningTableId);
       syncFromServer();
     });
   };
@@ -245,6 +304,10 @@ export function DiningOrderClient({
       sessionStorage.removeItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
     } catch {
       /* ignore */
+    }
+    if (embeddedInModal && onEmbeddedClose) {
+      onEmbeddedClose();
+      return;
     }
     router.push(cancelRedirectHref);
     router.refresh();
@@ -258,7 +321,7 @@ export function DiningOrderClient({
         : "Conserver la commande ouverte et revenir à la salle";
 
   const handleCancel = () => {
-    const n = lines.length;
+    const n = localLines.length;
     const msg =
       n === 0
         ? `Annuler la commande (${placeDescription}) ? Aucune vente ne sera enregistrée.`
@@ -269,6 +332,11 @@ export function DiningOrderClient({
       const res = await cancelOpenDiningOrder({ restaurantId, orderId });
       if (!res.ok) {
         setError(res.error);
+        return;
+      }
+      if (res.data?.diningTableId) resetTableToBaseLayout(restaurantId, res.data.diningTableId);
+      if (embeddedInModal && onEmbeddedClose) {
+        onEmbeddedClose();
         return;
       }
       router.push(cancelRedirectHref);
@@ -287,7 +355,7 @@ export function DiningOrderClient({
           <div className="space-y-2 px-2 py-2 text-sm text-stone-800">
             <p>
               <span className="text-stone-600">Total TTC : </span>
-              <span className="font-bold tabular-nums">{fmtEur(totalTtc)}</span>
+              <span className="font-bold tabular-nums">{fmtEur(localTotalTtc)}</span>
             </p>
             <p>
               <span className="text-stone-600">Paiement : </span>
@@ -358,7 +426,8 @@ export function DiningOrderClient({
         </button>
       </div>
       <p className={`mt-0.5 text-[10px] ${uiLead}`}>
-        Touchez une ligne pour une remise (%, montant ou offert). « Prêt » = plat terminé côté cuisine
+        Touchez une ligne pour une remise (%, montant ou offert). Touchez le total pour remise globale,
+        diviser l&apos;addition ou paiement partiel. « Prêt » = plat terminé côté cuisine
         (e-mail client si toutes les lignes sont prêtes et fiche avec e-mail).
       </p>
     </div>
@@ -366,11 +435,11 @@ export function DiningOrderClient({
 
   const linesContent = (
     <DiningOrderTicketLinesScroll>
-      {lines.length === 0 ? (
+      {localLines.length === 0 ? (
         <DiningOrderTicketEmptyLines message="Ajoutez des plats depuis la carte ci‑dessous." />
       ) : (
         <ul className="space-y-1">
-          {lines.map((l) => (
+          {localLines.map((l) => (
             <DiningOrderTicketLineRow
               key={l.id}
               line={l}
@@ -388,13 +457,15 @@ export function DiningOrderClient({
 
   const footer = (
     <DiningOrderTicketFooterBar
-      totalTtc={totalTtc}
+      totalTtc={localTotalTtc}
+      amountPaidTtc={localPaidTtc}
       paymentMethod={paymentMethod}
       onPaymentMethod={setPaymentMethod}
       pending={pending}
-      linesCount={lines.length}
+      linesCount={localLines.length}
       onSettle={handleSettle}
       onCancel={handleCancel}
+      onTotalClick={status === "open" ? () => setTotalModalOpen(true) : undefined}
     />
   );
 
@@ -409,8 +480,11 @@ export function DiningOrderClient({
             orderId={orderId}
             linked={linkedCustomer}
             recentCustomerPool={customerSearchPool}
+            isTableOrder={diningTableId != null}
+            guestLabel={guestLabel}
+            onUpdated={syncFromServer}
           />
-          {lines.length > 0 && linkedCustomerEmail ? (
+          {localLines.length > 0 && linkedCustomerEmail ? (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/80 px-3 py-2">
               <p className="min-w-0 flex-1 text-[11px] text-stone-600">
                 Envoyer l’e-mail « commande prête » (sans attendre toutes les lignes Prêt) :
@@ -451,18 +525,30 @@ export function DiningOrderClient({
               dish={dish}
               restaurantId={restaurantId}
               orderId={orderId}
-              onAdded={syncFromServer}
+              onOptimisticAdd={() => {
+                ticketRollbackRef.current = { lines: localLines, totalTtc: localTotalTtc };
+                const optimisticLines = optimisticAddDishLine(localLines, dish);
+                setLocalLines(optimisticLines);
+                setLocalTotalTtc(orderTotalFromLines(optimisticLines));
+              }}
+              onTicketApplied={applyTicket}
+              onRevert={() => {
+                const prev = ticketRollbackRef.current;
+                if (!prev) return;
+                setLocalLines(prev.lines);
+                setLocalTotalTtc(prev.totalTtc);
+              }}
             />
           )}
           renderModalFooter={(close) => {
-            const count = lines.reduce((acc, l) => acc + l.qty, 0);
+            const count = localLines.reduce((acc, l) => acc + l.qty, 0);
             return (
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] uppercase tracking-wide text-stone-400">Commande en cours</p>
                   <p className="truncate text-sm font-semibold text-stone-900">
                     {count} article{count > 1 ? "s" : ""} ·{" "}
-                    <span className="tabular-nums text-copper-800">{fmtEur(totalTtc)}</span>
+                    <span className="tabular-nums text-copper-800">{fmtEur(localTotalTtc)}</span>
                   </p>
                 </div>
                 <button
@@ -482,7 +568,28 @@ export function DiningOrderClient({
         restaurantId={restaurantId}
         line={discountLine}
         onClose={() => setDiscountLine(null)}
-        onApplied={syncFromServer}
+        onApplied={(ticket) => {
+          if (ticket) applyTicket(ticket);
+        }}
+      />
+
+      <DiningOrderTotalModal
+        restaurantId={restaurantId}
+        orderId={orderId}
+        open={totalModalOpen}
+        totalTtc={localTotalTtc}
+        amountPaidTtc={localPaidTtc}
+        paymentMethod={paymentMethod}
+        onPaymentMethod={setPaymentMethod}
+        onClose={() => setTotalModalOpen(false)}
+        onApplied={(update) => {
+          if (!update) return;
+          if ("lines" in update) {
+            applyTicket(update);
+          } else {
+            setLocalPaidTtc(update.amountPaidTtc);
+          }
+        }}
       />
     </div>
   );

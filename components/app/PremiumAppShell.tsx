@@ -169,11 +169,14 @@ export function PremiumAppShell({
   // Resynchronise le shell serveur (badges Cuisine +2 h / hygiène) : les compteurs
   // sont temporels (le rappel bleu apparaît à 1h45) et le root layout n'est pas
   // re-rendu lors des navigations SPA. On rafraîchit à intervalle + au retour d'onglet.
+  // Salle / caisse : pas de refresh auto (évite de recharger tout le POS en plein service).
   useEffect(() => {
     if (bare) return;
 
     const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState !== "visible") return;
+      if (pathname.startsWith("/caisse") || pathname.startsWith("/salle")) return;
+      router.refresh();
     };
 
     const id = window.setInterval(refreshIfVisible, 60_000);
@@ -184,7 +187,7 @@ export function PremiumAppShell({
       document.removeEventListener("visibilitychange", refreshIfVisible);
       window.removeEventListener("focus", refreshIfVisible);
     };
-  }, [bare, router]);
+  }, [bare, router, pathname]);
 
   if (bare) {
     return <>{children}</>;

@@ -11,7 +11,7 @@ import { CaisseNewTicketForm } from "./CaisseNewTicketForm";
 import { CaisseQuickTicketPanel } from "./CaisseQuickTicketPanel";
 import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "./caisseQuickStorage";
 import { uiCard, uiError, uiLead, uiSuccess } from "@/components/ui/premium";
-import type { DishCatalogTilesProps } from "@/components/dining/DishCatalogTiles";
+import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 
 function DishTapButton({
   dish,
@@ -20,9 +20,8 @@ function DishTapButton({
 }: {
   dish: Dish;
   restaurantId: string;
-  onOrderChange: (orderId: string) => void;
+  onOrderChange: (orderId: string, ticket: OrderTicketSnapshot) => void;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [addedCount, setAddedCount] = useState(0);
@@ -55,8 +54,7 @@ function DishTapButton({
       setAddedCount((n) => n + 1);
       setFlash(true);
       window.setTimeout(() => setFlash(false), 600);
-      onOrderChange(oid);
-      router.refresh();
+      onOrderChange(oid, res.data.ticket);
     });
   };
 
@@ -105,6 +103,7 @@ export function CaisseDishPicker({
   const router = useRouter();
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [ticketRefreshTick, setTicketRefreshTick] = useState(0);
+  const [ticketPatch, setTicketPatch] = useState<OrderTicketSnapshot | null>(null);
   const [settledFlash, setSettledFlash] = useState<string | null>(null);
   const [ticketSummary, setTicketSummary] = useState<{ count: number; totalTtc: number } | null>(null);
 
@@ -148,9 +147,9 @@ export function CaisseDishPicker({
     return () => window.clearTimeout(t);
   }, [settledFlash]);
 
-  const onOrderChange = useCallback((orderId: string) => {
+  const onOrderChange = useCallback((orderId: string, ticket: OrderTicketSnapshot) => {
     setActiveOrderId(orderId);
-    setTicketRefreshTick((n) => n + 1);
+    setTicketPatch(ticket);
   }, []);
 
   if (totalPlats === 0) {
@@ -169,6 +168,8 @@ export function CaisseDishPicker({
             restaurantId={restaurantId}
             orderId={activeOrderId}
             refreshTick={ticketRefreshTick}
+            ticketPatch={ticketPatch}
+            onTicketPatchConsumed={() => setTicketPatch(null)}
             onReset={resetQuickTicket}
             onSettled={(msg) => setSettledFlash(msg)}
           />
@@ -197,6 +198,8 @@ export function CaisseDishPicker({
           restaurantId={restaurantId}
           orderId={activeOrderId}
           refreshTick={ticketRefreshTick}
+          ticketPatch={ticketPatch}
+          onTicketPatchConsumed={() => setTicketPatch(null)}
           onReset={resetQuickTicket}
           onSettled={(msg) => setSettledFlash(msg)}
           onSummary={handleSummary}

@@ -1,6 +1,6 @@
 import { supabaseServer } from "@/lib/supabaseServer";
 import { toNumber } from "@/lib/utils/safeNumeric";
-import { diningTableTicketLineLabel, diningTableTicketTitle } from "@/lib/dining/ticketLabel";
+import { diningTableTicketLineLabel, diningTableTicketTitle, diningOrderGuestDisplayName } from "@/lib/dining/ticketLabel";
 import {
   lineGrossFromUnit,
   lineNetAfterDiscount,
@@ -255,6 +255,39 @@ export async function setDiningOrderCustomerId(
   return { error: null };
 }
 
+/** Nom client à la table (sans fiche) — stocké dans `notes` pour les commandes table. */
+export async function setDiningOrderGuestLabel(
+  restaurantId: string,
+  orderId: string,
+  guestLabel: string | null
+): Promise<{ error: Error | null }> {
+  const { data: orderRow, error: oErr } = await supabaseServer
+    .from("dining_orders")
+    .select("dining_table_id, status")
+    .eq("id", orderId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (oErr) return { error: new Error(oErr.message) };
+  if (!orderRow) return { error: new Error("Commande introuvable.") };
+  if ((orderRow as { status: string }).status !== "open") {
+    return { error: new Error("Commande déjà encaissée.") };
+  }
+  if ((orderRow as { dining_table_id: string | null }).dining_table_id == null) {
+    return { error: new Error("Nom invité réservé aux commandes table.") };
+  }
+
+  const label = guestLabel?.trim() || null;
+  const { error } = await supabaseServer
+    .from("dining_orders")
+    .update({ notes: label })
+    .eq("id", orderId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { error: new Error(error.message) };
+  return { error: null };
+}
+
 export type OpenOrderCaisseRow = {
   orderId: string;
   kind: "table" | "counter";
@@ -281,34 +314,34 @@ export async function listOpenOrdersForCaisse(
   ];
 
   let labelById = new Map<string, string>();
-  if (tableIds.length > 0) {
-    const { data: tables, error: tErr } = await supabaseServer
-      .from("dining_tables")
-      .select("id, label")
-      .in("id", tableIds);
-    if (tErr) return { data: [], error: new Error(tErr.message) };
-    labelById = new Map(
-      (tables ?? []).map((t) => [(t as { id: string }).id, (t as { label: string }).label])
-    );
-  }
-
-  const customerNameById = await mapCustomerDisplayNames(
-    restaurantId,
-    orders.map((o) => o.customer_id)
-  );
 
   const orderIds = orders.map((o) => o.id);
+  const [tablesResult, customerNameById, linesResult] = await Promise.all([
+    tableIds.length > 0
+      ? supabaseServer.from("dining_tables").select("id, label").in("id", tableIds)
+      : Promise.resolve({ data: [] as { id: string; label: string }[], error: null }),
+    mapCustomerDisplayNames(
+      restaurantId,
+      orders.map((o) => o.customer_id)
+    ),
+    supabaseServer
+      .from("dining_order_lines")
+      .select(
+        "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+      )
+      .eq("restaurant_id", restaurantId)
+      .in("dining_order_id", orderIds)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (tablesResult.error) return { data: [], error: new Error(tablesResult.error.message) };
+  labelById = new Map(
+    (tablesResult.data ?? []).map((t) => [(t as { id: string }).id, (t as { label: string }).label])
+  );
+  if (linesResult.error) return { data: [], error: new Error(linesResult.error.message) };
+
   const linesByOrderId = new Map<string, LineWithDish[]>();
-  const { data: rawLines, error: linesErr } = await supabaseServer
-    .from("dining_order_lines")
-    .select(
-      "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
-    )
-    .eq("restaurant_id", restaurantId)
-    .in("dining_order_id", orderIds)
-    .order("created_at", { ascending: true });
-  if (linesErr) return { data: [], error: new Error(linesErr.message) };
-  for (const line of (rawLines ?? []) as unknown as LineWithDish[]) {
+  for (const line of (linesResult.data ?? []) as unknown as LineWithDish[]) {
     const arr = linesByOrderId.get(line.dining_order_id) ?? [];
     arr.push(line);
     linesByOrderId.set(line.dining_order_id, arr);
@@ -324,7 +357,10 @@ export async function listOpenOrdersForCaisse(
     const fromClient =
       isCounter && o.customer_id ? customerNameById.get(o.customer_id) : undefined;
     const tableLbl = o.dining_table_id ? labelById.get(o.dining_table_id) ?? "—" : "—";
-    const clientName = o.customer_id ? customerNameById.get(o.customer_id) : undefined;
+    const clientName = diningOrderGuestDisplayName(
+      o.customer_id ? customerNameById.get(o.customer_id) : undefined,
+      o.notes
+    );
     const label = isCounter
       ? (fromClient ?? counterLabel) ?? "—"
       : o.dining_table_id
@@ -479,10 +515,37 @@ export async function getDiningOrderPayment(
     .select("id, dining_order_id, payment_method, amount_ttc, created_at")
     .eq("dining_order_id", orderId)
     .eq("restaurant_id", restaurantId)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
   if (error) return { data: null, error: new Error(error.message) };
   return { data: data as SettledPaymentRow | null, error: null };
+}
+
+export async function listDiningOrderPayments(
+  orderId: string,
+  restaurantId: string
+): Promise<{ data: SettledPaymentRow[]; error: Error | null }> {
+  const { data, error } = await supabaseServer
+    .from("dining_order_payments")
+    .select("id, dining_order_id, payment_method, amount_ttc, created_at")
+    .eq("dining_order_id", orderId)
+    .eq("restaurant_id", restaurantId)
+    .order("created_at", { ascending: true });
+
+  if (error) return { data: [], error: new Error(error.message) };
+  return { data: (data ?? []) as SettledPaymentRow[], error: null };
+}
+
+export function sumDiningOrderPayments(rows: SettledPaymentRow[]): number {
+  let s = 0;
+  for (const row of rows) {
+    const raw = row.amount_ttc;
+    const n = raw == null || raw === "" ? NaN : Number(raw);
+    if (Number.isFinite(n)) s += n;
+  }
+  return Math.round(s * 100) / 100;
 }
 
 function parisDayUtcBounds(day = new Date()): { startIso: string; endIso: string } {
@@ -544,18 +607,23 @@ export async function listSettledOrdersToday(
         .filter((id): id is string => typeof id === "string" && id.length > 0)
     ),
   ];
-  const { data: tables } =
-    tableIds.length > 0
-      ? await supabaseServer.from("dining_tables").select("id, label").in("id", tableIds)
-      : { data: [] as { id: string; label: string }[] };
-  const labelById = new Map((tables ?? []).map((t) => [(t as { id: string }).id, (t as { label: string }).label]));
-
   const orderIds = list.map((o) => o.id);
-  const { data: pays } = await supabaseServer
-    .from("dining_order_payments")
-    .select("id, dining_order_id, payment_method, amount_ttc, created_at")
-    .eq("restaurant_id", restaurantId)
-    .in("dining_order_id", orderIds);
+
+  const [tablesResult, paysResult] = await Promise.all([
+    tableIds.length > 0
+      ? supabaseServer.from("dining_tables").select("id, label").in("id", tableIds)
+      : Promise.resolve({ data: [] as { id: string; label: string }[], error: null }),
+    supabaseServer
+      .from("dining_order_payments")
+      .select("id, dining_order_id, payment_method, amount_ttc, created_at")
+      .eq("restaurant_id", restaurantId)
+      .in("dining_order_id", orderIds),
+  ]);
+
+  const labelById = new Map(
+    (tablesResult.data ?? []).map((t) => [(t as { id: string }).id, (t as { label: string }).label])
+  );
+  const pays = paysResult.data;
 
   const payByOrder = new Map<string, SettledPaymentRow>();
   for (const p of pays ?? []) {

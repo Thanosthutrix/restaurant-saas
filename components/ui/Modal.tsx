@@ -26,7 +26,7 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "xl";
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -50,7 +50,9 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className={`my-6 w-full ${size === "lg" ? "max-w-2xl" : "max-w-lg"} overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl`}
+        className={`my-6 w-full ${
+          size === "xl" ? "max-w-4xl" : size === "lg" ? "max-w-2xl" : "max-w-lg"
+        } overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">

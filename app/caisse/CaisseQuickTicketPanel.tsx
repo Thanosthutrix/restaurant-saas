@@ -13,6 +13,7 @@ import {
 } from "@/app/salle/actions";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import { DiningLineDiscountModal } from "@/app/salle/DiningLineDiscountModal";
+import { DiningOrderTotalModal } from "@/app/salle/DiningOrderTotalModal";
 import type { DiningPaymentMethod } from "@/lib/dining/diningPaymentMethods";
 import {
   DiningOrderTicketCard,
@@ -25,6 +26,14 @@ import {
 import { getQuickCounterOrderSnapshot } from "./actions";
 import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "./caisseQuickStorage";
 import { uiLead, uiSuccess } from "@/components/ui/premium";
+import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
+import {
+  optimisticLinePrepared,
+  optimisticLineQty,
+  optimisticRemoveLine,
+  orderTotalFromLines,
+} from "@/lib/dining/optimisticTicketClient";
+import { resetTableToBaseLayout } from "@/lib/salle/floorPlanLayout";
 
 const QUICK_DEFAULT_SERVICE = "lunch" as const;
 
@@ -32,18 +41,30 @@ type Props = {
   restaurantId: string;
   orderId: string;
   refreshTick: number;
+  ticketPatch?: OrderTicketSnapshot | null;
+  onTicketPatchConsumed?: () => void;
   onReset: () => void;
   onSettled?: (message: string) => void;
   /** Remonte un récap live du ticket (pour l'afficher ailleurs, ex. pied de modale catalogue). */
   onSummary?: (summary: { count: number; totalTtc: number }) => void;
 };
 
-export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onReset, onSettled, onSummary }: Props) {
+export function CaisseQuickTicketPanel({
+  restaurantId,
+  orderId,
+  refreshTick,
+  ticketPatch = null,
+  onTicketPatchConsumed,
+  onReset,
+  onSettled,
+  onSummary,
+}: Props) {
   const router = useRouter();
   const [snapshot, setSnapshot] = useState<{
     ticketLabel: string;
     lines: DiningLineClient[];
     totalTtc: number;
+    amountPaidTtc: number;
     customerEmail: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +73,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
   const [pending, startTransition] = useTransition();
   const [paymentMethod, setPaymentMethod] = useState<DiningPaymentMethod>("card");
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
+  const [totalModalOpen, setTotalModalOpen] = useState(false);
 
   const prevOrderIdRef = useRef<string | null>(null);
 
@@ -82,43 +104,82 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
     [restaurantId, orderId, onReset]
   );
 
+  const applyTicket = useCallback((ticket: OrderTicketSnapshot) => {
+    setSnapshot((prev) =>
+      prev
+        ? {
+            ...prev,
+            lines: ticket.lines,
+            totalTtc: ticket.totalTtc,
+            amountPaidTtc: ticket.amountPaidTtc,
+          }
+        : prev
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!ticketPatch) return;
+    setSnapshot((prev) => ({
+      ticketLabel: prev?.ticketLabel ?? "Comptoir",
+      customerEmail: prev?.customerEmail ?? null,
+      lines: ticketPatch.lines,
+      totalTtc: ticketPatch.totalTtc,
+      amountPaidTtc: ticketPatch.amountPaidTtc,
+    }));
+    setLoading(false);
+    onTicketPatchConsumed?.();
+  }, [ticketPatch, onTicketPatchConsumed]);
+
   useEffect(() => {
     const orderSwitched = prevOrderIdRef.current !== orderId;
     prevOrderIdRef.current = orderId;
+    if (ticketPatch) return;
     const silent = !orderSwitched && refreshTick > 0;
     fetchSnapshot(silent);
-  }, [fetchSnapshot, refreshTick, orderId]);
-
-  const sync = () => {
-    fetchSnapshot(true);
-    router.refresh();
-  };
+  }, [fetchSnapshot, refreshTick, orderId, ticketPatch]);
 
   const adjustLine = (lineId: string, delta: number) => {
     const line = snapshot?.lines.find((l) => l.id === lineId);
-    if (!line) return;
+    if (!line || !snapshot) return;
     const next = line.qty + delta;
     if (next <= 0) return;
     setError(null);
+    const prevSnapshot = snapshot;
+    const optimisticLines = optimisticLineQty(snapshot.lines, lineId, next);
+    setSnapshot({
+      ...snapshot,
+      lines: optimisticLines,
+      totalTtc: orderTotalFromLines(optimisticLines),
+    });
     startTransition(async () => {
       const res = await setDiningOrderLineQty({ restaurantId, lineId, qty: next });
-      if (!res.ok) {
-        setError(res.error);
+      if (!res.ok || !res.data) {
+        setSnapshot(prevSnapshot);
+        setError(res.ok === false ? res.error : "Erreur inattendue.");
         return;
       }
-      sync();
+      applyTicket(res.data);
     });
   };
 
   const removeLine = (lineId: string) => {
+    if (!snapshot) return;
     setError(null);
+    const prevSnapshot = snapshot;
+    const optimisticLines = optimisticRemoveLine(snapshot.lines, lineId);
+    setSnapshot({
+      ...snapshot,
+      lines: optimisticLines,
+      totalTtc: orderTotalFromLines(optimisticLines),
+    });
     startTransition(async () => {
       const res = await removeDiningOrderLine({ restaurantId, lineId });
-      if (!res.ok) {
-        setError(res.error);
+      if (!res.ok || !res.data) {
+        setSnapshot(prevSnapshot);
+        setError(res.ok === false ? res.error : "Erreur inattendue.");
         return;
       }
-      sync();
+      applyTicket(res.data);
     });
   };
 
@@ -135,6 +196,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
         setError(res.error);
         return;
       }
+      if (res.data?.diningTableId) resetTableToBaseLayout(restaurantId, res.data.diningTableId);
       const msg = `Encaissement enregistré (${fmtEur(res.data?.totalTtc ?? 0)}).`;
       onSettled?.(msg);
       try {
@@ -148,20 +210,19 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
   };
 
   const toggleLinePrepared = (lineId: string, next: boolean) => {
+    if (!snapshot) return;
     setError(null);
     setInfo(null);
+    const prevSnapshot = snapshot;
+    const optimisticLines = optimisticLinePrepared(snapshot.lines, lineId, next);
+    setSnapshot({ ...snapshot, lines: optimisticLines });
     startTransition(async () => {
       const res = await setDiningOrderLinePrepared({ restaurantId, lineId, isPrepared: next });
       if (!res.ok) {
+        setSnapshot(prevSnapshot);
         setError(res.error);
         return;
       }
-      if (res.data?.orderReadyEmail === "sent") {
-        setInfo("E-mail « commande prête » envoyé.");
-      } else if (res.data?.orderReadyEmail === "already_sent") {
-        setInfo("E-mail déjà envoyé (commande prête).");
-      }
-      sync();
     });
   };
 
@@ -179,7 +240,6 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
       } else {
         setInfo("E-mail « commande prête » envoyé.");
       }
-      sync();
     });
   };
 
@@ -198,6 +258,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
         setError(res.error);
         return;
       }
+      if (res.data?.diningTableId) resetTableToBaseLayout(restaurantId, res.data.diningTableId);
       try {
         sessionStorage.removeItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
       } catch {
@@ -210,6 +271,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
 
   const lines = snapshot?.lines ?? [];
   const totalTtc = snapshot?.totalTtc ?? 0;
+  const amountPaidTtc = snapshot?.amountPaidTtc ?? 0;
   const ticketLabel = snapshot?.ticketLabel ?? "…";
   const customerEmail = snapshot?.customerEmail ?? null;
 
@@ -280,6 +342,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
   const footer = (
     <DiningOrderTicketFooterBar
       totalTtc={totalTtc}
+      amountPaidTtc={amountPaidTtc}
       paymentMethod={paymentMethod}
       onPaymentMethod={setPaymentMethod}
       pending={pending}
@@ -287,6 +350,7 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
       linesCount={lines.length}
       onSettle={handleSettle}
       onCancel={handleCancel}
+      onTotalClick={() => setTotalModalOpen(true)}
     />
   );
 
@@ -316,9 +380,33 @@ export function CaisseQuickTicketPanel({ restaurantId, orderId, refreshTick, onR
         restaurantId={restaurantId}
         line={discountLine}
         onClose={() => setDiscountLine(null)}
-        onApplied={() => {
+        onApplied={(ticket) => {
           setDiscountLine(null);
-          sync();
+          if (ticket) applyTicket(ticket);
+        }}
+      />
+
+      <DiningOrderTotalModal
+        restaurantId={restaurantId}
+        orderId={orderId}
+        open={totalModalOpen}
+        totalTtc={totalTtc}
+        amountPaidTtc={amountPaidTtc}
+        paymentMethod={paymentMethod}
+        onPaymentMethod={setPaymentMethod}
+        onClose={() => setTotalModalOpen(false)}
+        onApplied={(paid) => {
+          if (paid != null) {
+            setSnapshot((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    amountPaidTtc: paid.amountPaidTtc,
+                    totalTtc: prev.totalTtc,
+                  }
+                : prev
+            );
+          }
         }}
       />
     </>

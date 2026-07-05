@@ -4,13 +4,16 @@ import { revalidatePath } from "next/cache";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import { addDishToDiningOrder } from "@/app/salle/actions";
 import type { ActionResult } from "@/app/salle/actions";
+import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 import {
   createOpenCounterTicketOrder,
   getDiningOrder,
   getDiningOrderLines,
   lineGrossTtc,
   lineTtc,
+  listDiningOrderPayments,
   orderTotalTtc,
+  sumDiningOrderPayments,
 } from "@/lib/dining/diningDb";
 import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { supabaseServer } from "@/lib/supabaseServer";
@@ -81,7 +84,7 @@ export async function addDishToQuickCounterOrReuse(params: {
   dishId: string;
   /** Dernier ticket rapide (session navigateur), optionnel. */
   existingOrderId?: string | null;
-}): Promise<ActionResult<{ orderId: string }>> {
+}): Promise<ActionResult<{ orderId: string; ticket: OrderTicketSnapshot }>> {
   const { restaurantId, dishId } = params;
   const existing = params.existingOrderId?.trim() ?? "";
 
@@ -89,7 +92,8 @@ export async function addDishToQuickCounterOrReuse(params: {
     const ord = await getDiningOrder(existing, restaurantId);
     if (!ord.error && ord.data && isOpenCounterOrder(ord.data)) {
       const add = await addDishToDiningOrder({ restaurantId, orderId: existing, dishId });
-      if (add.ok) return { ok: true, data: { orderId: existing } };
+      if (!add.ok || !add.data) return add.ok === false ? add : { ok: false, error: "Erreur inattendue." };
+      return { ok: true, data: { orderId: existing, ticket: add.data } };
     }
   }
 
@@ -99,15 +103,18 @@ export async function addDishToQuickCounterOrReuse(params: {
   if (!newId) return { ok: false, error: "Création du ticket impossible." };
 
   const add = await addDishToDiningOrder({ restaurantId, orderId: newId, dishId });
-  if (!add.ok) return { ok: false, error: add.error };
+  if (!add.ok || !add.data) {
+    return add.ok === false ? add : { ok: false, error: "Erreur inattendue." };
+  }
 
-  return { ok: true, data: { orderId: newId } };
+  return { ok: true, data: { orderId: newId, ticket: add.data } };
 }
 
 export type QuickCounterSnapshot = {
   ticketLabel: string;
   lines: DiningLineClient[];
   totalTtc: number;
+  amountPaidTtc: number;
   customerEmail: string | null;
 };
 
@@ -151,6 +158,9 @@ export async function getQuickCounterOrderSnapshot(
   });
 
   const totalTtc = orderTotalTtc(lines ?? []);
+  const payRes = await listDiningOrderPayments(orderId, restaurantId);
+  if (payRes.error) return { ok: false, error: payRes.error.message };
+  const amountPaidTtc = sumDiningOrderPayments(payRes.data);
 
   let ticketLabel = (order.counter_ticket_label ?? "").trim() || "Comptoir";
   let customerEmail: string | null = null;
@@ -171,5 +181,5 @@ export async function getQuickCounterOrderSnapshot(
     }
   }
 
-  return { ok: true, data: { ticketLabel, lines: lineClients, totalTtc, customerEmail } };
+  return { ok: true, data: { ticketLabel, lines: lineClients, totalTtc, amountPaidTtc, customerEmail } };
 }

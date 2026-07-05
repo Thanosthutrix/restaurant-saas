@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { listDiningTables, listOpenDiningOrdersWithCustomerNames } from "@/lib/dining/diningDb";
+import { diningOrderGuestDisplayName } from "@/lib/dining/ticketLabel";
 import { Armchair } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { type FloorTable } from "@/components/salle/InteractiveFloorPlan";
+import { SalleOrderSessionLoader } from "./SalleOrderSessionLoader";
+
+function SallePlanFallback() {
+  return (
+    <div className="min-h-[320px] animate-pulse rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 aspect-video" />
+  );
+}
 
 export default async function SallePage() {
   const restaurant = await getRestaurantForPage();
@@ -33,10 +43,40 @@ export default async function SallePage() {
       .filter((o) => o.dining_table_id != null)
       .map((o) => [
         o.dining_table_id as string,
-        { orderId: o.id, customerId: o.customer_id as string | null },
+        {
+          orderId: o.id,
+          customerId: o.customer_id as string | null,
+          guestLabel: o.notes?.trim() || null,
+        },
       ])
   );
   const openCount = tables.filter((t) => openByTable.has(t.id)).length;
+  const floorTables: FloorTable[] = tables.map((table, index) => {
+    const column = index % 4;
+    const row = Math.floor(index / 4);
+    return {
+      id: table.id,
+      label: table.label,
+      capacity: 4,
+      x: 8 + column * 21,
+      y: 12 + row * 20,
+      width: 12,
+      height: 12,
+      rotation: 0,
+      status: openByTable.has(table.id) ? "occupied" : "free",
+    };
+  });
+
+  const tableSummaries = tables.map((t) => {
+    const open = openByTable.get(t.id);
+    const clientName = open
+      ? diningOrderGuestDisplayName(
+          open.customerId != null ? customerNameById.get(open.customerId) : undefined,
+          open.guestLabel
+        )
+      : undefined;
+    return { id: t.id, label: t.label, clientName: clientName ?? undefined };
+  });
 
   return (
     <PageContainer>
@@ -49,70 +89,40 @@ export default async function SallePage() {
             : "Tables actives et commandes en cours."
         }
         actions={
-          <Link
-            href="/salle/tables"
-            className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
-          >
-            Gérer les tables
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/salle/plan"
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
+            >
+              Configurer le plan
+            </Link>
+            <Link
+              href="/salle/tables"
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
+            >
+              Gérer les tables
+            </Link>
+          </div>
         }
       />
+
+      <Suspense fallback={<SallePlanFallback />}>
+        <SalleOrderSessionLoader
+          restaurantId={restaurant.id}
+          initialTables={floorTables}
+          tableSummaries={tables.length > 0 ? tableSummaries : undefined}
+        />
+      </Suspense>
 
       {!tables.length ? (
         <EmptyState
           icon={Armchair}
           title="Aucune table active"
-          description="Créez vos tables pour commencer à prendre des commandes en salle."
+          description="Ce compte est rattaché à un restaurant sans table active. Le plan reste visible, mais créez des tables pour les retrouver dans toute la salle."
           actionLabel="Ajouter des tables"
           actionHref="/salle/tables"
         />
-      ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {tables.map((t) => {
-            const open = openByTable.get(t.id);
-            const occupied = open != null;
-            const clientName =
-              open?.customerId != null ? customerNameById.get(open.customerId) : undefined;
-            return (
-              <li key={t.id}>
-                <Link
-                  href={`/salle/table/${t.id}`}
-                  className={`group flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition hover:-translate-y-0.5 hover:shadow-md ${
-                    occupied
-                      ? "border-copper-300 bg-copper-50/60 ring-1 ring-copper-200"
-                      : "border-stone-200/70 bg-white shadow-sm hover:border-copper-200"
-                  }`}
-                >
-                  <span
-                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                      occupied ? "bg-copper-100 text-copper-800" : "bg-stone-100 text-stone-500"
-                    }`}
-                  >
-                    <Armchair className="h-6 w-6" aria-hidden />
-                  </span>
-                  <span className="line-clamp-1 font-semibold text-stone-900" title={t.label}>
-                    {t.label}
-                  </span>
-                  {occupied ? (
-                    <span className="line-clamp-1 text-xs font-medium text-copper-800">
-                      {clientName ?? "Commande en cours"}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-stone-400">Libre</span>
-                  )}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      occupied ? "bg-copper-700 text-white" : "bg-stone-100 text-stone-500"
-                    }`}
-                  >
-                    {occupied ? "Ouverte" : "Libre"}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      ) : null}
     </PageContainer>
   );
 }

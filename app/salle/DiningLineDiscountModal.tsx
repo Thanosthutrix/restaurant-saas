@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { setDiningOrderLineDiscount } from "@/app/salle/actions";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { uiBtnOutlineSm, uiBtnPrimary, uiError, uiLabel, uiLead } from "@/components/ui/premium";
 
+import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
+
 type Props = {
   restaurantId: string;
   line: DiningLineClient | null;
   onClose: () => void;
-  onApplied: () => void;
+  onApplied: (ticket?: OrderTicketSnapshot) => void;
 };
 
 function fmtEur(n: number) {
@@ -25,7 +27,6 @@ function parseNum(raw: string): number | null {
 }
 
 export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [kind, setKind] = useState<DiningDiscountKind>("none");
   const [percentStr, setPercentStr] = useState("");
   const [amountStr, setAmountStr] = useState("");
@@ -47,21 +48,17 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
   }, [line]);
 
   useEffect(() => {
-    const el = dialogRef.current;
-    if (!el) return;
-    if (line) {
-      el.showModal();
-    } else {
-      el.close();
-    }
-  }, [line]);
+    if (!line) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [line, onClose]);
 
-  const handleClose = () => {
-    onClose();
-  };
+  if (!line) return null;
 
   const apply = () => {
-    if (!line) return;
     setError(null);
 
     let discountValue: number | null = null;
@@ -92,21 +89,23 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
         setError(res.error);
         return;
       }
-      onApplied();
+      onApplied(res.data);
       onClose();
     });
   };
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="w-[min(100%,22rem)] rounded-2xl border border-stone-200 bg-white p-0 shadow-xl backdrop:bg-stone-900/40"
-      onClose={handleClose}
-      onClick={(e) => {
-        if (e.target === dialogRef.current) handleClose();
-      }}
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Remise"
+      onClick={onClose}
     >
-      {line ? (
+      <div
+        className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-5">
           <h2 className="text-lg font-semibold text-stone-900">Remise</h2>
           <p className={`mt-1 text-sm ${uiLead}`}>{line.dishName}</p>
@@ -185,7 +184,7 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
           {error ? <p className={`mt-3 ${uiError}`}>{error}</p> : null}
 
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <button type="button" className={uiBtnOutlineSm} disabled={pending} onClick={handleClose}>
+            <button type="button" className={uiBtnOutlineSm} disabled={pending} onClick={onClose}>
               Annuler
             </button>
             <button type="button" className={uiBtnPrimary} disabled={pending} onClick={apply}>
@@ -193,7 +192,7 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
             </button>
           </div>
         </div>
-      ) : null}
-    </dialog>
+      </div>
+    </div>
   );
 }

@@ -106,6 +106,7 @@ export function DiningOrderTicketLineRow({
 
 type FooterBarProps = {
   totalTtc: number;
+  amountPaidTtc?: number;
   paymentMethod: DiningPaymentMethod;
   onPaymentMethod: (m: DiningPaymentMethod) => void;
   pending: boolean;
@@ -113,10 +114,12 @@ type FooterBarProps = {
   linesCount: number;
   onSettle: () => void;
   onCancel: () => void;
+  onTotalClick?: () => void;
 };
 
 export function DiningOrderTicketFooterBar({
   totalTtc,
+  amountPaidTtc = 0,
   paymentMethod,
   onPaymentMethod,
   pending,
@@ -124,12 +127,34 @@ export function DiningOrderTicketFooterBar({
   linesCount,
   onSettle,
   onCancel,
+  onTotalClick,
 }: FooterBarProps) {
+  const amountDueTtc = Math.max(0, Math.round((totalTtc - amountPaidTtc) * 100) / 100);
+  const hasPartial = amountPaidTtc > 0.009;
+
   return (
     <div className="space-y-2 border-t border-stone-100 bg-stone-50/60 px-2 py-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="text-sm font-semibold text-stone-600">Total</span>
-        <span className="text-xl font-bold tabular-nums text-stone-900">{fmtEur(totalTtc)}</span>
+        {onTotalClick ? (
+          <button
+            type="button"
+            disabled={pending || linesCount === 0}
+            onClick={onTotalClick}
+            title="Remise globale, diviser l'addition ou paiement partiel"
+            className="rounded-lg border border-copper-200 bg-white px-2 py-0.5 text-xl font-bold tabular-nums text-copper-900 shadow-sm transition hover:border-copper-300 hover:bg-copper-50 disabled:opacity-50"
+          >
+            {fmtEur(totalTtc)}
+          </button>
+        ) : (
+          <span className="text-xl font-bold tabular-nums text-stone-900">{fmtEur(totalTtc)}</span>
+        )}
+        {hasPartial ? (
+          <span className="text-xs font-medium text-stone-600">
+            Payé {fmtEur(amountPaidTtc)} · Reste{" "}
+            <span className="font-semibold text-copper-800">{fmtEur(amountDueTtc)}</span>
+          </span>
+        ) : null}
         <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5">
           {DINING_PAYMENT_METHODS.map((m) => (
             <button
@@ -152,10 +177,10 @@ export function DiningOrderTicketFooterBar({
         <button
           type="button"
           className={`${uiBtnPrimary} min-h-[52px] flex-1 text-base`}
-          disabled={pending || loading || linesCount === 0 || totalTtc < 0}
+          disabled={pending || loading || linesCount === 0 || amountDueTtc < 0}
           onClick={onSettle}
         >
-          Encaisser
+          {hasPartial && amountDueTtc > 0.009 ? `Encaisser le solde (${fmtEur(amountDueTtc)})` : "Encaisser"}
         </button>
         <button
           type="button"

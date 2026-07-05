@@ -9,6 +9,10 @@ export function invalidateDishesCache() {
   revalidateTag("dishes", "default");
 }
 
+export function invalidateCategoriesCache() {
+  revalidateTag("categories", "default");
+}
+
 export function invalidateSuppliersCache() {
   revalidateTag("suppliers", "default");
 }

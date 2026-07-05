@@ -3,6 +3,17 @@
  * Ex. "12 · Martin Dupont" (sans le préfixe « Table ») pour les listes qui ajoutent « Table ».
  */
 
+/** Nom affiché : fiche client prioritaire, sinon libellé invité (notes table). */
+export function diningOrderGuestDisplayName(
+  customerDisplayName: string | null | undefined,
+  guestLabel: string | null | undefined
+): string | null {
+  const customer = customerDisplayName?.trim();
+  if (customer) return customer;
+  const guest = guestLabel?.trim();
+  return guest || null;
+}
+
 /** Ligne courte : "12" ou "12 · Nom" (sert aussi dans la caisse : affichage `Table ${ligne}`). */
 export function diningTableTicketLineLabel(
   tableLabel: string,

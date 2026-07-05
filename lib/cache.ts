@@ -8,6 +8,8 @@
 
 import { unstable_cache } from "next/cache";
 import { getDishes, getSuppliers, getInventoryItems } from "@/lib/db";
+import { listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
+import { loadDiningOrderCatalogData } from "@/lib/dining/diningOrderViewData";
 import { listHygieneElements, listColdHygieneElements, ensureHygieneTasksForRestaurant } from "@/lib/hygiene/hygieneDb";
 import { listTemperaturePoints, ensureTemperatureTasksForRestaurant } from "@/lib/haccpTemperature/haccpTemperatureDb";
 import { listStaffMembers } from "@/lib/staff/staffDb";
@@ -21,6 +23,23 @@ export function cachedGetDishes(restaurantId: string) {
     () => getDishes(restaurantId),
     ["dishes", restaurantId],
     { revalidate: TTL, tags: ["dishes"] }
+  )();
+}
+
+export function cachedListRestaurantCategories(restaurantId: string) {
+  return unstable_cache(
+    () => listRestaurantCategories(restaurantId),
+    ["categories", restaurantId],
+    { revalidate: TTL, tags: ["categories"] }
+  )();
+}
+
+/** Carte salle/caisse (arborescence + plats par catégorie), cache 5 min. */
+export function cachedLoadDiningOrderCatalogData(restaurantId: string) {
+  return unstable_cache(
+    () => loadDiningOrderCatalogData(restaurantId),
+    ["dining-catalog", restaurantId],
+    { revalidate: TTL, tags: ["dishes", "categories"] }
   )();
 }
 

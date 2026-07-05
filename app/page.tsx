@@ -1,16 +1,15 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/app/BrandLogo";
 import { uiBtnPrimary, uiBtnSecondary } from "@/components/ui/premium";
 
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-stone-50 px-4">
       <main className="flex w-full max-w-md flex-col items-center gap-10 py-20">
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-            Pilotage quotidien
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">Restaurant SaaS</h1>
-          <p className="mt-3 text-sm leading-relaxed text-stone-600">
+        <div className="flex flex-col items-center text-center">
+          <h1 className="sr-only">ubion</h1>
+          <BrandLogo role="img" aria-label="ubion" className="h-28 w-28" />
+          <p className="mt-4 text-sm leading-relaxed text-stone-600">
             Services, plats, stock, fournisseurs et indicateurs — au même endroit.
           </p>
         </div>

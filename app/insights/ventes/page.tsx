@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getRestaurantMonthlyRevenues } from "@/lib/db";
+import { BarChart3 } from "lucide-react";
 import { getSalesInsightsData } from "@/lib/insights/salesInsights";
 import {
   defaultMarginDateRange,
@@ -41,27 +42,20 @@ export default async function VentesInsightsPage({
   return (
     <PageContainer>
       <PageHeader
+        accentIcon={BarChart3}
+        accentTone="bg-copper-50 text-copper-700"
         breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "Analyse des ventes" }]}
         title="Analyse des ventes"
         subtitle={restaurant.name}
         actions={
           <>
-            <Link
-              href="/insights/revenue"
-              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
-            >
+            <Link href="/insights/revenue" className={uiBtnSecondary}>
               CA importé (historique)
             </Link>
-            <Link
-              href="/margins"
-              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
-            >
+            <Link href="/margins" className={uiBtnSecondary}>
               Marges détaillées
             </Link>
-            <Link
-              href="/insights/calendar"
-              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50"
-            >
+            <Link href="/insights/calendar" className={uiBtnSecondary}>
               Calendrier
             </Link>
           </>

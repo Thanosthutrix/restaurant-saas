@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { ArrowUpRight, BarChart3, CalendarDays, ClipboardList, Percent } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, Percent } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { ALL_SHELL_NAV_KEYS, canAccessPage, type ShellNavKey } from "@/lib/auth/appRoles";
-import { uiCard } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 const tiles: {
@@ -15,6 +14,7 @@ const tiles: {
   icon: LucideIcon;
   navKey: ShellNavKey;
   tone: string;
+  tile: string;
 }[] = [
   {
     title: "Analyse des ventes",
@@ -23,6 +23,7 @@ const tiles: {
     icon: BarChart3,
     navKey: "insights",
     tone: "bg-copper-50 text-copper-700",
+    tile: "tile-copper",
   },
   {
     title: "Pilotage calendrier",
@@ -31,6 +32,7 @@ const tiles: {
     icon: CalendarDays,
     navKey: "insights",
     tone: "bg-sky-50 text-sky-700",
+    tile: "tile-sky",
   },
   {
     title: "Marges",
@@ -39,6 +41,7 @@ const tiles: {
     icon: Percent,
     navKey: "margins",
     tone: "bg-emerald-50 text-emerald-700",
+    tile: "tile-emerald",
   },
   {
     title: "Historique services",
@@ -47,6 +50,7 @@ const tiles: {
     icon: ClipboardList,
     navKey: "services",
     tone: "bg-violet-50 text-violet-700",
+    tile: "tile-violet",
   },
 ];
 
@@ -64,24 +68,29 @@ export default async function PilotagePage() {
   return (
     <PageContainer>
       <PageHeader
+        accentIcon={BarChart3}
+        accentTone="bg-blue-50 text-blue-700"
         eyebrow="Espace gestion"
         title="Pilotage"
         subtitle="Les chiffres pour décider : ventes, marges, prévisions d'activité et historique des services."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {visibleTiles.map((tile) => {
           const Icon = tile.icon;
           return (
-            <Link key={tile.href} href={tile.href} className={`${uiCard} group block transition hover:-translate-y-0.5 hover:shadow-md`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className={`rounded-xl p-2.5 ${tile.tone}`}>
-                  <Icon className="h-5 w-5" aria-hidden />
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-stone-300 transition group-hover:text-copper-600" aria-hidden />
-              </div>
-              <p className="mt-3 text-sm font-semibold text-stone-900">{tile.title}</p>
-              <p className="mt-1 text-xs leading-5 text-stone-500">{tile.description}</p>
+            <Link
+              key={tile.href}
+              href={tile.href}
+              title={tile.description}
+              className={`group flex aspect-square flex-col items-center justify-center gap-2.5 rounded-2xl border border-stone-200/60 bg-white p-3 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${tile.tile}`}
+            >
+              <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tile.tone}`}>
+                <Icon className="h-6 w-6" aria-hidden />
+              </span>
+              <span className="line-clamp-2 text-[13px] font-semibold leading-tight tracking-tight text-stone-900">
+                {tile.title}
+              </span>
             </Link>
           );
         })}

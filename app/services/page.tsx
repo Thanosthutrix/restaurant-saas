@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getServicesForRestaurant, getServiceSalesAggregate } from "@/lib/db";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, ClipboardList } from "lucide-react";
 import { uiBackLink, uiError } from "@/components/ui/premium";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -39,6 +39,8 @@ export default async function ServicesHistoryPage() {
   return (
     <PageContainer width="narrow">
       <PageHeader
+        accentIcon={ClipboardList}
+        accentTone="bg-violet-50 text-violet-700"
         breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "Historique services" }]}
         title="Historique des services"
         subtitle={restaurant.name}

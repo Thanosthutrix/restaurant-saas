@@ -7,7 +7,7 @@ import {
   getValidatedDeliveryNotesAwaitingInvoice,
 } from "@/lib/db";
 import { FileText } from "lucide-react";
-import { uiBadgeAmber, uiBadgeEmerald, uiBadgeSlate, uiCard, uiLead, uiSectionTitleSm } from "@/components/ui/premium";
+import { uiBadgeAmber, uiBadgeEmerald, uiBadgeSlate, uiCard, uiSectionTitleSm } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SupplierInvoiceUpload } from "./SupplierInvoiceUpload";
@@ -73,52 +73,6 @@ export default async function SupplierInvoicesPage() {
       <section className={`${uiCard} space-y-4`}>
         <h2 className={uiSectionTitleSm}>Importer une facture</h2>
         <SupplierInvoiceUpload restaurantId={restaurant.id} suppliers={suppliers} />
-      </section>
-
-      <section className={`${uiCard} space-y-3`}>
-        <h2 className={uiSectionTitleSm}>Sandbox comptable</h2>
-        <p className={uiLead}>
-          Les factures marquées “Prêtes comptable” peuvent être exportées au format CSV avec lien fichier, fournisseur,
-          numéro et montants. C’est la première étape avant une intégration API comptable/PDP.
-        </p>
-        <p>
-          <Link
-            href="/supplier-invoices/accounting-export"
-            className="inline-flex rounded-xl bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600"
-          >
-            Exporter les factures prêtes (CSV)
-          </Link>
-        </p>
-      </section>
-
-      <section className={uiCard}>
-        <h2 className={uiSectionTitleSm}>Réceptions validées en attente de facture</h2>
-        {awaitingDeliveryNotes.length === 0 ? (
-          <p className={`mt-2 ${uiLead}`}>Aucun BL validé en attente de facture.</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-stone-100">
-            {awaitingDeliveryNotes.slice(0, 12).map((dn) => {
-              const supplier = supplierById.get(dn.supplier_id);
-              const displayDate = dn.delivery_date ?? dn.created_at;
-              return (
-                <li key={dn.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                  <div>
-                    <p className="text-sm font-semibold text-stone-900">{supplier?.name ?? "Fournisseur"}</p>
-                    <p className="text-xs text-stone-500">
-                      {displayDate
-                        ? new Date(displayDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
-                        : "—"}{" "}
-                      · {dn.lines_count} ligne{dn.lines_count !== 1 ? "s" : ""} · BL validé
-                    </p>
-                  </div>
-                  <Link href={`/receiving/${dn.id}`} className="text-sm font-semibold text-copper-800 underline">
-                    Ouvrir le BL
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
       </section>
 
       <section>

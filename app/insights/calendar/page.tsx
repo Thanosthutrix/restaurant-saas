@@ -7,6 +7,7 @@ import {
   parseCalendarDateParam,
 } from "@/lib/calendar/buildCalendarInsights";
 import { resolveRestaurantCoordsForWeather } from "@/lib/geo/resolveRestaurantCoordsForWeather";
+import { CalendarDays } from "lucide-react";
 import { CalendarRangeForm } from "./CalendarRangeForm";
 import { uiBtnSecondary, uiCard } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -61,6 +62,8 @@ export default async function CalendarInsightsPage({
   return (
     <PageContainer>
       <PageHeader
+        accentIcon={CalendarDays}
+        accentTone="bg-sky-50 text-sky-700"
         breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "Pilotage calendrier" }]}
         title="Calendrier contextuel"
         subtitle={restaurant.name}
@@ -117,7 +120,7 @@ export default async function CalendarInsightsPage({
         <CalendarRangeForm from={from} to={to} />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-stone-200/70 bg-white shadow-sm">
           <p className="border-b border-stone-100 px-4 py-2 text-xs text-stone-500 sm:hidden">
             Faites défiler horizontalement pour voir toutes les colonnes.
           </p>

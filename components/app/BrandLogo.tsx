@@ -1,3 +1,5 @@
+"use client";
+
 import { useId, type SVGProps } from "react";
 
 /** Logo ubion : dégradé cuivre + reflet diagonal (façon `.copper-sheen`). */

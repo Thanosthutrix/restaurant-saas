@@ -19,6 +19,11 @@ function isProtected(pathname: string) {
   return protectedPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
+function isConsumerAccountPath(pathname: string) {
+  if (pathname === "/compte/connexion" || pathname === "/compte/inscription") return false;
+  return pathname === "/compte" || pathname.startsWith("/compte/");
+}
+
 function hasSupabaseAuthCookie(request: NextRequest) {
   return request.cookies.getAll().some((cookie) => {
     const name = cookie.name;
@@ -75,8 +80,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname === "/" && authenticated) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  if (isConsumerAccountPath(pathname) && !authenticated) {
+    const loginUrl = new URL("/compte/connexion", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;

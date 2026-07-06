@@ -58,6 +58,11 @@ export default async function LoginPage({ searchParams }: Props) {
             S&apos;inscrire
           </Link>
         </p>
+        <p className="text-center text-sm text-stone-500">
+          <Link href="/" className="font-semibold text-orange-600 hover:text-orange-700">
+            Découvrir les restaurants →
+          </Link>
+        </p>
       </div>
     </div>
   );

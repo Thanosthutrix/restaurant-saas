@@ -64,6 +64,7 @@ export type CreateReservationInput = {
   source: ReservationSource;
   status: ReservationStatus;
   created_by_user_id: string | null;
+  consumer_user_id?: string | null;
 };
 
 export async function createReservation(

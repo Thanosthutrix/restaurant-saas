@@ -15,6 +15,9 @@ import {
 import { getTemplateSuggestions } from "../../actions";
 import { EditRestaurantForm } from "./EditRestaurantForm";
 import { ApplyTemplateBlock } from "./ApplyTemplateBlock";
+import { PublicListingSection } from "./PublicListingSection";
+import { getRestaurantPublicProfileFromDb } from "@/lib/public/publicDb";
+import { getPublicListingPreview } from "@/lib/public/publicListingPreview";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -29,6 +32,8 @@ export default async function EditRestaurantPage({ params }: Props) {
 
   const templates = getRestaurantTemplates();
   const { suggestions } = await getTemplateSuggestions(restaurant.id);
+  const publicProfile = await getRestaurantPublicProfileFromDb(restaurant.id);
+  const publicPreview = await getPublicListingPreview(restaurant);
 
   const [hourMaps, staffTargetsWeekly, peakBandsWeekly, overrides, bandPresets] = await Promise.all([
     getRestaurantPlanningHourMaps(restaurant.id),
@@ -65,6 +70,18 @@ export default async function EditRestaurantPage({ params }: Props) {
           {restaurant.name}
         </p>
         <EditRestaurantForm restaurant={restaurant} templates={templates} />
+        {publicProfile ? (
+          <PublicListingSection
+            restaurantId={restaurant.id}
+            initial={publicProfile}
+            preview={publicPreview}
+          />
+        ) : (
+          <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Le portail public nécessite la migration B2C. Exécutez{" "}
+            <code className="text-xs">npm run db:apply</code> puis rechargez cette page.
+          </p>
+        )}
         <div className="mt-6">
           <ApplyTemplateBlock
             restaurantId={restaurant.id}

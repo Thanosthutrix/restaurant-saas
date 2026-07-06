@@ -6,7 +6,8 @@ export type CustomerSource =
   | "social"
   | "event"
   | "import"
-  | "other";
+  | "other"
+  | "app";
 
 export type TimelineEventType = "note" | "call" | "email" | "visit" | "consent_change" | "tag_change" | "system";
 

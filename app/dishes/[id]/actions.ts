@@ -427,6 +427,47 @@ export async function markDishRecipeAsDraft(params: {
   return { ok: true };
 }
 
+export async function updateDishPublicListing(params: {
+  restaurantId: string;
+  dishId: string;
+  isPublic: boolean;
+  menuCategory: "entrée" | "plat" | "dessert";
+  description: string;
+}): Promise<ActionResult> {
+  const { restaurantId, dishId, isPublic, menuCategory, description } = params;
+
+  const { data: dish, error: dishError } = await getDish(dishId);
+  if (dishError || !dish) return { ok: false, error: "Plat introuvable." };
+  if (dish.restaurant_id !== restaurantId) {
+    return { ok: false, error: "Ce plat n'appartient pas à ce restaurant." };
+  }
+
+  const { error } = await supabaseServer
+    .from("dishes")
+    .update({
+      is_public: isPublic,
+      menu_category: menuCategory,
+      description: description.trim() || null,
+    })
+    .eq("id", dishId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) {
+    if (error.message.includes("is_public")) {
+      return {
+        ok: false,
+        error: "Migration B2C requise (npm run db:apply).",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/dishes");
+  revalidatePath(`/dishes/${dishId}`, "page");
+  revalidatePath(`/restaurant/${restaurantId}`);
+  return { ok: true };
+}
+
 /** Supprime un plat. Échoue si le plat est utilisé dans des ventes (service_sales ou sales). */
 export async function deleteDish(params: {
   restaurantId: string;

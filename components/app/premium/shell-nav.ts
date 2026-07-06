@@ -194,5 +194,11 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
 
 export function isBareShellPath(pathname: string | null): boolean {
   if (!pathname) return true;
-  return pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/signup");
+  return (
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/restaurant/") ||
+    pathname.startsWith("/compte")
+  );
 }

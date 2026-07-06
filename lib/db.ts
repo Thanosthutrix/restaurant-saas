@@ -41,6 +41,19 @@ export type Dish = {
   selling_vat_rate_pct?: number | null;
   /** € HT dérivé : TTC / (1 + TVA/100), pour marge vs coût matière HT. */
   selling_price_ht?: number | null;
+  /** URL publique du modèle .glb (RA). */
+  model_3d_url?: string | null;
+  model_3d_source_image_url?: string | null;
+  tripo_task_id?: string | null;
+  model_3d_status?: string | null;
+  model_3d_error?: string | null;
+  model_3d_generated_at?: string | null;
+  /** Visible sur la carte publique B2C. */
+  is_public?: boolean | null;
+  /** Catégorie affichée sur le portail (entrée / plat / dessert). */
+  menu_category?: string | null;
+  /** Description courte pour la carte publique. */
+  description?: string | null;
 };
 
 /** Forme attendue du jsonb analysis_result_json (écriture et lecture). */
@@ -339,7 +352,7 @@ export async function getDish(dishId: string): Promise<{ data: Dish | null; erro
   const { data, error } = await supabaseServer
     .from("dishes")
     .select(
-      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, category_id, selling_price_ht, selling_price_ttc, selling_vat_rate_pct"
+      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, category_id, selling_price_ht, selling_price_ttc, selling_vat_rate_pct, model_3d_url, model_3d_source_image_url, tripo_task_id, model_3d_status, model_3d_error, model_3d_generated_at, is_public, menu_category, description"
     )
     .eq("id", dishId)
     .single();

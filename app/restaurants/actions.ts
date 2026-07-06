@@ -26,6 +26,7 @@ import {
 } from "@/lib/staff/planningPeakBands";
 import { parseStaffTargetsWeeklyJson, parseTimeBandsArray } from "@/lib/staff/planningResolve";
 import { buildTemplateSuggestionsFromRows, type TemplateSuggestions } from "@/lib/templates/templateSuggestions";
+import { uploadRestaurantPublicPhoto } from "@/lib/public/restaurantPublicStorage";
 
 export type { TemplateSuggestions } from "@/lib/templates/templateSuggestions";
 
@@ -243,6 +244,104 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
   revalidatePath("/", "layout");
   revalidatePath("/dashboard");
   return { error: null, restaurantId, menuSuggestions, recipeSuggestions };
+}
+
+export type UpdateRestaurantPublicProfilePayload = {
+  is_public_listed: boolean;
+  description: string;
+};
+
+/**
+ * Fiche publique B2C : visibilité annuaire + description marketing.
+ * Adresse, horaires, type d'activité et score hygiène sont synchronisés depuis l'ERP.
+ */
+export async function updateRestaurantPublicProfile(
+  restaurantId: string,
+  payload: UpdateRestaurantPublicProfilePayload
+): Promise<{ error: string | null }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) {
+    return { error: "Accès refusé à ce restaurant." };
+  }
+
+  const { error } = await supabaseServer
+    .from("restaurants")
+    .update({
+      is_public_listed: payload.is_public_listed,
+      description: payload.description.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", restaurantId)
+    .eq("owner_id", user.id);
+
+  if (error) {
+    if (error.message.includes("is_public_listed")) {
+      return {
+        error:
+          "La migration B2C n'est pas appliquée. Exécutez : npm run db:apply (migration 20260705130000_public_b2c_portal.sql).",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/");
+  revalidatePath(`/restaurant/${restaurantId}`);
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  return { error: null };
+}
+
+export async function uploadRestaurantPublicPhotoAction(
+  restaurantId: string,
+  formData: FormData
+): Promise<{ error: string | null; url?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Non connecté." };
+
+  const list = await getAccessibleRestaurantsForUser(user.id);
+  if (!list.some((r) => r.id === restaurantId)) {
+    return { error: "Accès refusé à ce restaurant." };
+  }
+
+  const kindRaw = String(formData.get("kind") ?? "");
+  const kind = kindRaw === "cover" ? "cover" : kindRaw === "thumb" ? "thumb" : null;
+  if (!kind) return { error: "Type de photo invalide." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Fichier image manquant." };
+  }
+
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const contentType = file.type || "image/jpeg";
+    const { publicUrl } = await uploadRestaurantPublicPhoto({
+      restaurantId,
+      kind,
+      bytes,
+      contentType,
+    });
+
+    const column = kind === "cover" ? "cover_url" : "image_url";
+    const { error } = await supabaseServer
+      .from("restaurants")
+      .update({ [column]: publicUrl, updated_at: new Date().toISOString() })
+      .eq("id", restaurantId)
+      .eq("owner_id", user.id);
+
+    if (error) return { error: error.message };
+
+    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath(`/restaurant/${restaurantId}`);
+    revalidatePath(`/restaurants/${restaurantId}/edit`);
+    return { error: null, url: publicUrl };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Échec de l'upload." };
+  }
 }
 
 export type UpdateRestaurantPayload = {

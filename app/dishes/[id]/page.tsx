@@ -20,6 +20,8 @@ import { RecipeSuggestionBlock } from "./RecipeSuggestionBlock";
 import { ValidateRecipeButton } from "./ValidateRecipeButton";
 import { DeleteDishButton } from "./DeleteDishButton";
 import { DishCategoryBlock } from "./DishCategoryBlock";
+import { DishArSection } from "./DishArSection";
+import { DishPublicListingBlock } from "./DishPublicListingBlock";
 import { uiBackLink, uiCard, uiLead, uiMuted } from "@/components/ui/premium";
 
 type Props = { params: Promise<{ id: string }> };
@@ -92,6 +94,18 @@ export default async function DishDetailPage({ params }: Props) {
       </div>
 
       {canWrite && (
+        <DishArSection
+          restaurantId={restaurant.id}
+          dishId={dish.id}
+          dishName={dish.name}
+          model3dUrl={dish.model_3d_url ?? null}
+          model3dStatus={dish.model_3d_status ?? null}
+          model3dError={dish.model_3d_error ?? null}
+          sourceImageUrl={dish.model_3d_source_image_url ?? null}
+        />
+      )}
+
+      {canWrite && (
         <DishCategoryBlock
           restaurantId={restaurant.id}
           dishId={dish.id}
@@ -114,6 +128,20 @@ export default async function DishDetailPage({ params }: Props) {
           }
           costIsComplete={costRes ? costRes.costIsComplete && !costRes.errorMessage : true}
           foodCostError={costRes?.errorMessage ?? null}
+        />
+      )}
+
+      {canWrite && (
+        <DishPublicListingBlock
+          dishId={dish.id}
+          restaurantId={restaurant.id}
+          initialIsPublic={Boolean(dish.is_public)}
+          initialMenuCategory={
+            dish.menu_category === "entrée" || dish.menu_category === "plat" || dish.menu_category === "dessert"
+              ? dish.menu_category
+              : null
+          }
+          initialDescription={dish.description ?? ""}
         />
       )}
 

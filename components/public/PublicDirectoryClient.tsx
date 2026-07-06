@@ -1,14 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   RestaurantPreviewModal,
   type RestaurantPreviewTab,
 } from "@/components/public/RestaurantPreviewModal";
 import { RestaurantCard } from "@/components/public/RestaurantCard";
-import { RestaurantSearchBar } from "@/components/public/RestaurantSearchBar";
-import type { Restaurant } from "@/lib/public/types";
+import { PublicDirectoryHero } from "@/components/public/PublicDirectoryHero";
+import type { GeocodedPlace, Restaurant } from "@/lib/public/types";
+import {
+  haversineKm,
+  PARTNER_SEARCH_RADIUS_KM,
+} from "@/lib/public/geoDistance";
+import { hasMapCoordinates } from "@/lib/public/mapLinks";
+import { geocodePlaceClient } from "@/lib/public/geocodePlaceClient";
 
 const PublicRestaurantsMap = dynamic(
   () =>
@@ -18,7 +24,11 @@ const PublicRestaurantsMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="aspect-square animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
+      <div
+        className="w-full animate-pulse bg-slate-100"
+        style={{ height: "min(50vh, 480px)", minHeight: 280 }}
+        aria-hidden
+      />
     ),
   }
 );
@@ -28,22 +38,62 @@ type Props = {
 };
 
 export function PublicDirectoryClient({ restaurants }: Props) {
-  const [query, setQuery] = useState("");
+  const [locationQuery, setLocationQuery] = useState("");
+  const [restaurantQuery, setRestaurantQuery] = useState("");
+  const [searchTarget, setSearchTarget] = useState<GeocodedPlace | null>(null);
+  const [geocodingLocation, setGeocodingLocation] = useState(false);
+
   const [preview, setPreview] = useState<{
     id: string;
     tab: RestaurantPreviewTab;
   } | null>(null);
 
+  useEffect(() => {
+    const q = locationQuery.trim();
+    if (!q) {
+      setSearchTarget(null);
+      setGeocodingLocation(false);
+      return;
+    }
+
+    setGeocodingLocation(true);
+    const timer = window.setTimeout(() => {
+      void geocodePlaceClient(q).then((place) => {
+        setSearchTarget(place);
+        setGeocodingLocation(false);
+      });
+    }, 450);
+
+    return () => window.clearTimeout(timer);
+  }, [locationQuery]);
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return restaurants;
-    return restaurants.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.cuisine_type.toLowerCase().includes(q) ||
-        r.address.toLowerCase().includes(q)
-    );
-  }, [query, restaurants]);
+    let list = restaurants;
+
+    const rq = restaurantQuery.trim().toLowerCase();
+    if (rq) {
+      list = list.filter(
+        (r) =>
+          r.name.toLowerCase().includes(rq) ||
+          r.cuisine_type.toLowerCase().includes(rq) ||
+          r.address.toLowerCase().includes(rq)
+      );
+    }
+
+    if (searchTarget) {
+      list = list.filter((r) => {
+        if (!hasMapCoordinates(r.latitude, r.longitude)) return true;
+        return (
+          haversineKm(searchTarget, {
+            lat: r.latitude!,
+            lng: r.longitude!,
+          }) <= PARTNER_SEARCH_RADIUS_KM
+        );
+      });
+    }
+
+    return list;
+  }, [restaurantQuery, restaurants, searchTarget]);
 
   const openPreview = (id: string, tab: RestaurantPreviewTab = "photos") => {
     setPreview({ id, tab });
@@ -51,69 +101,49 @@ export function PublicDirectoryClient({ restaurants }: Props) {
 
   return (
     <>
-      <section className="border-b border-slate-200 bg-gradient-to-b from-orange-50/80 to-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <div className="max-w-2xl">
-            <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-              Trouvez votre prochaine table
-            </h1>
-            <p className="mt-3 text-base text-slate-600 sm:text-lg">
-              Carte en direct, avis certifiés par ticket de caisse et score d&apos;hygiène officiel.
-            </p>
-          </div>
-          <div className="mt-8 max-w-xl">
-            <RestaurantSearchBar
-              value={query}
-              onChange={setQuery}
-              resultCount={filtered.length}
-            />
-          </div>
-        </div>
+      <PublicDirectoryHero
+        locationQuery={locationQuery}
+        onLocationQueryChange={setLocationQuery}
+        restaurantQuery={restaurantQuery}
+        onRestaurantQueryChange={setRestaurantQuery}
+        resultCount={filtered.length}
+        locationHint={searchTarget?.label ?? null}
+        geocodingLocation={geocodingLocation}
+      />
+
+      <section
+        aria-label="Carte des restaurants partenaires ubion"
+        className="w-full border-b border-slate-200"
+      >
+        <PublicRestaurantsMap
+          restaurants={filtered}
+          searchTarget={searchTarget}
+          onOpenRestaurant={(id) => openPreview(id, "photos")}
+        />
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-          <div>
-            <h2 className="mb-5 text-lg font-bold text-slate-900">
-              Restaurants à proximité
-            </h2>
-            {filtered.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
-                Aucun restaurant ne correspond à votre recherche.
-              </p>
-            ) : (
-              <div className="grid gap-5 sm:grid-cols-2">
-                {filtered.map((restaurant) => (
-                  <RestaurantCard
-                    key={restaurant.id}
-                    restaurant={restaurant}
-                    onOpen={openPreview}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <aside className="hidden lg:block">
-            <div className="sticky top-24 space-y-3">
-              <PublicRestaurantsMap
-                restaurants={filtered}
-                onSelect={(id) => openPreview(id, "localisation")}
+        <h2 className="mb-5 text-lg font-bold text-slate-900">
+          Partenaires ubion
+          {searchTarget ? ` près de ${searchTarget.label.split(",")[0]}` : ""}
+        </h2>
+        {filtered.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
+            {searchTarget
+              ? "Aucun partenaire ubion trouvé dans cette zone. Essayez une ville voisine ou élargissez votre recherche."
+              : "Aucun restaurant ne correspond à votre recherche."}
+          </p>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((restaurant) => (
+              <RestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                onOpen={openPreview}
               />
-              <p className="text-center text-xs text-slate-500">
-                Cliquez sur un marqueur pour voir la fiche et réserver.
-              </p>
-            </div>
-          </aside>
-        </div>
-
-        <div className="mt-10 lg:hidden">
-          <h2 className="mb-4 text-lg font-bold text-slate-900">Carte</h2>
-          <PublicRestaurantsMap
-            restaurants={filtered}
-            onSelect={(id) => openPreview(id, "localisation")}
-          />
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {preview ? (

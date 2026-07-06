@@ -12,7 +12,7 @@ import type { ConsumerProfile } from "@/lib/public/consumer/types";
 type TabKey = "carte" | "reservation" | "infos" | "avis";
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "carte", label: "Carte" },
+  { key: "carte", label: "Menu" },
   { key: "reservation", label: "Réservation" },
   { key: "infos", label: "Infos" },
   { key: "avis", label: "Avis" },

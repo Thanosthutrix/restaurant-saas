@@ -1,9 +1,15 @@
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getHygieneScoreForRestaurant } from "@/lib/hygiene/hygieneDb";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
-import { formatOpeningHoursForPublic } from "@/lib/public/formatOpeningHours";
+import {
+  buildOpeningHoursSchedule,
+  formatOpeningHoursForPublic,
+} from "@/lib/public/formatOpeningHours";
 import { mapLiveHygieneToPublicView } from "@/lib/public/liveHygieneLabel";
+import { formatBudgetRange } from "@/lib/public/budgetRange";
+import { resolveRestaurantMarkerKind } from "@/lib/public/restaurantMapMarker";
 import type { MenuCategory, MenuItem, Restaurant, Review } from "@/lib/public/types";
+import { normalizeMenuCategory } from "@/lib/public/menuCategories";
 
 const PUBLIC_RESTAURANT_SELECT =
   "id, name, description, address_text, activity_type, template_slug, image_url, cover_url, is_public_listed, planning_opening_hours, closed_days_of_week, latitude, longitude";
@@ -73,10 +79,12 @@ function resolveCuisineType(row: PublicRestaurantRow): string {
 
 async function mapRestaurantRow(
   row: PublicRestaurantRow,
-  stats: { average_rating: number; review_count: number }
+  stats: { average_rating: number; review_count: number },
+  avgPublicDishPrice: number | null
 ): Promise<Restaurant> {
   const closedDays = Array.isArray(row.closed_days_of_week) ? row.closed_days_of_week : [];
   const openingHours = formatOpeningHoursForPublic(row.planning_opening_hours, closedDays);
+  const openingSchedule = buildOpeningHoursSchedule(row.planning_opening_hours, closedDays);
 
   const hygieneRaw = await getHygieneScoreForRestaurant(row.id, 7);
   const hygiene = mapLiveHygieneToPublicView(
@@ -93,6 +101,12 @@ async function mapRestaurantRow(
     description: row.description?.trim() || "",
     address,
     cuisine_type: resolveCuisineType(row),
+    template_slug: row.template_slug,
+    activity_type: row.activity_type,
+    marker_kind: resolveRestaurantMarkerKind({
+      template_slug: row.template_slug,
+      activity_type: row.activity_type,
+    }),
     hygiene_score: hygiene.label,
     hygiene_score_live: hygiene.numericScore,
     hygiene_has_live_data: hygiene.hasData,
@@ -101,16 +115,14 @@ async function mapRestaurantRow(
     cover_url: row.cover_url?.trim() || row.image_url?.trim() || DEFAULT_IMAGE,
     average_rating: stats.average_rating,
     review_count: stats.review_count,
+    budget_label: formatBudgetRange(avgPublicDishPrice),
     opening_hours: openingHours,
+    opening_hours_schedule: openingSchedule,
     latitude: row.latitude != null ? Number(row.latitude) : null,
     longitude: row.longitude != null ? Number(row.longitude) : null,
   };
 }
 
-function normalizeMenuCategory(raw: string | null): MenuCategory {
-  if (raw === "entrée" || raw === "plat" || raw === "dessert") return raw;
-  return "plat";
-}
 
 function mapDishRow(row: PublicDishRow): MenuItem {
   return {
@@ -181,6 +193,45 @@ async function fetchReviewStats(restaurantIds: string[]): Promise<
   return stats;
 }
 
+async function fetchAvgPublicDishPrices(
+  restaurantIds: string[]
+): Promise<Map<string, number | null>> {
+  const result = new Map<string, number | null>();
+  if (restaurantIds.length === 0) return result;
+
+  const { data, error } = await supabaseServer
+    .from("dishes")
+    .select("restaurant_id, selling_price_ttc")
+    .in("restaurant_id", restaurantIds)
+    .eq("is_public", true);
+
+  if (error || !data) {
+    for (const id of restaurantIds) result.set(id, null);
+    return result;
+  }
+
+  const buckets = new Map<string, number[]>();
+  for (const row of data as { restaurant_id: string; selling_price_ttc: number | null }[]) {
+    const price = row.selling_price_ttc != null ? Number(row.selling_price_ttc) : 0;
+    if (price <= 0) continue;
+    const list = buckets.get(row.restaurant_id) ?? [];
+    list.push(price);
+    buckets.set(row.restaurant_id, list);
+  }
+
+  for (const id of restaurantIds) {
+    const prices = buckets.get(id) ?? [];
+    if (prices.length === 0) {
+      result.set(id, null);
+      continue;
+    }
+    const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+    result.set(id, Math.round(avg * 100) / 100);
+  }
+
+  return result;
+}
+
 export async function listListedRestaurantsFromDb(): Promise<Restaurant[]> {
   const { data, error } = await supabaseServer
     .from("restaurants")
@@ -194,10 +245,18 @@ export async function listListedRestaurantsFromDb(): Promise<Restaurant[]> {
   }
 
   const rows = (data ?? []) as PublicRestaurantRow[];
-  const stats = await fetchReviewStats(rows.map((r) => r.id));
+  const ids = rows.map((r) => r.id);
+  const [stats, avgPrices] = await Promise.all([
+    fetchReviewStats(ids),
+    fetchAvgPublicDishPrices(ids),
+  ]);
   return Promise.all(
     rows.map((row) =>
-      mapRestaurantRow(row, stats.get(row.id) ?? { average_rating: 0, review_count: 0 })
+      mapRestaurantRow(
+        row,
+        stats.get(row.id) ?? { average_rating: 0, review_count: 0 },
+        avgPrices.get(row.id) ?? null
+      )
     )
   );
 }
@@ -217,8 +276,15 @@ export async function getListedRestaurantFromDb(id: string): Promise<Restaurant 
   if (!data) return null;
 
   const row = data as PublicRestaurantRow;
-  const stats = await fetchReviewStats([row.id]);
-  return mapRestaurantRow(row, stats.get(row.id) ?? { average_rating: 0, review_count: 0 });
+  const [stats, avgPrices] = await Promise.all([
+    fetchReviewStats([row.id]),
+    fetchAvgPublicDishPrices([row.id]),
+  ]);
+  return mapRestaurantRow(
+    row,
+    stats.get(row.id) ?? { average_rating: 0, review_count: 0 },
+    avgPrices.get(row.id) ?? null
+  );
 }
 
 export async function listPublicMenuItemsFromDb(restaurantId: string): Promise<MenuItem[]> {

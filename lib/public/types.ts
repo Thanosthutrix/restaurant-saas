@@ -5,7 +5,12 @@ export type HygieneScore =
   | "À améliorer"
   | "Non communiqué";
 
-export type MenuCategory = "entrée" | "plat" | "dessert";
+import type { OpeningHoursDay } from "@/lib/public/formatOpeningHours";
+import type { RestaurantMarkerKind } from "@/lib/public/restaurantMapMarker";
+
+export type { MenuCategory } from "@/lib/public/menuCategories";
+
+import type { MenuCategory } from "@/lib/public/menuCategories";
 
 export type ReservationStatus =
   | "pending"
@@ -19,7 +24,12 @@ export type Restaurant = {
   name: string;
   description: string;
   address: string;
+  /** Type d'établissement (libellé affiché). */
   cuisine_type: string;
+  /** Slug template ERP — utilisé pour le pictogramme carte. */
+  template_slug?: string | null;
+  activity_type?: string | null;
+  marker_kind?: RestaurantMarkerKind;
   hygiene_score: HygieneScore;
   image_url: string;
   /** Note moyenne calculée à partir des avis certifiés et libres (1–5). */
@@ -36,8 +46,18 @@ export type Restaurant = {
   email?: string;
   cover_url?: string;
   opening_hours?: string;
+  /** Horaires structurés par jour (planning ERP). */
+  opening_hours_schedule?: OpeningHoursDay[];
+  /** Fourchette de budget (carte publique). */
+  budget_label?: string;
   latitude?: number | null;
   longitude?: number | null;
+};
+
+export type GeocodedPlace = {
+  lat: number;
+  lng: number;
+  label: string;
 };
 
 /** Plat de carte publique (géré depuis l'ERP via is_public). */

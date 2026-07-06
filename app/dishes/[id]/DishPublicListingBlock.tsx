@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateDishPublicListing } from "./actions";
-import type { MenuCategory } from "@/lib/public/types";
+import { MENU_CATEGORIES, type MenuCategory } from "@/lib/public/menuCategories";
 import { uiCard, uiLabel, uiSelect, uiBtnPrimarySm } from "@/components/ui/premium";
 
 type Props = {
@@ -13,11 +13,7 @@ type Props = {
   initialDescription: string;
 };
 
-const CATEGORIES: { value: MenuCategory; label: string }[] = [
-  { value: "entrée", label: "Entrée" },
-  { value: "plat", label: "Plat" },
-  { value: "dessert", label: "Dessert" },
-];
+const CATEGORIES = MENU_CATEGORIES.map((c) => ({ value: c.value, label: c.label }));
 
 export function DishPublicListingBlock({
   dishId,

@@ -57,3 +57,78 @@ export function formatOpeningHoursForPublic(
 export function getOpeningHoursMap(planningOpeningHours: unknown): OpeningHoursMap {
   return parseOpeningHoursJson(planningOpeningHours);
 }
+
+const PLANNING_DAY_FULL_LABELS_FR: Record<PlanningDayKey, string> = {
+  mon: "Lundi",
+  tue: "Mardi",
+  wed: "Mercredi",
+  thu: "Jeudi",
+  fri: "Vendredi",
+  sat: "Samedi",
+  sun: "Dimanche",
+};
+
+const JS_DAY_TO_KEY: Record<number, PlanningDayKey> = {
+  0: "sun",
+  1: "mon",
+  2: "tue",
+  3: "wed",
+  4: "thu",
+  5: "fri",
+  6: "sat",
+};
+
+export type OpeningHoursDay = {
+  key: PlanningDayKey;
+  label: string;
+  fullLabel: string;
+  bands: { start: string; end: string }[];
+  isClosed: boolean;
+};
+
+export function buildOpeningHoursSchedule(
+  planningOpeningHours: unknown,
+  closedDaysOfWeek: number[] = []
+): OpeningHoursDay[] {
+  const opening = parseOpeningHoursJson(planningOpeningHours);
+  const closedKeys = new Set(
+    closedDaysOfWeek
+      .map((d) => CLOSED_DAY_TO_KEY[d])
+      .filter((k): k is PlanningDayKey => k != null)
+  );
+
+  return PLANNING_DAY_KEYS.map((key) => {
+    const bands = opening[key] ?? [];
+    const isClosed = closedKeys.has(key) || bands.length === 0;
+    return {
+      key,
+      label: PLANNING_DAY_LABELS_FR[key],
+      fullLabel: PLANNING_DAY_FULL_LABELS_FR[key],
+      bands,
+      isClosed,
+    };
+  });
+}
+
+export function formatOpeningHoursBandLabel(band: { start: string; end: string }): string {
+  return `${formatTimeFr(band.start)}–${formatTimeFr(band.end)}`;
+}
+
+export function getTodayPlanningDayKey(date = new Date()): PlanningDayKey {
+  return JS_DAY_TO_KEY[date.getDay()];
+}
+
+export function isOpenAt(schedule: OpeningHoursDay[], date = new Date()): boolean {
+  const key = getTodayPlanningDayKey(date);
+  const day = schedule.find((d) => d.key === key);
+  if (!day || day.isClosed || day.bands.length === 0) return false;
+
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  return day.bands.some((band) => {
+    const [sh, sm] = band.start.split(":").map(Number);
+    const [eh, em] = band.end.split(":").map(Number);
+    const start = sh * 60 + sm;
+    const end = eh * 60 + em;
+    return minutes >= start && minutes < end;
+  });
+}

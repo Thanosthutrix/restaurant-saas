@@ -14,33 +14,43 @@ type Props = {
 export function ReviewsTab({ restaurant, reviews }: Props) {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Note globale
-          </p>
-          <div className="mt-2 flex flex-wrap items-end gap-3">
-            <span className="text-4xl font-black text-slate-900">
-              {restaurant.average_rating.toFixed(1)}
-              <span className="text-lg font-semibold text-slate-400">/5</span>
-            </span>
-            <StarRating rating={restaurant.average_rating} size="lg" />
-          </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {restaurant.review_count} avis
-          </p>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Note globale
+        </p>
+        <div className="mt-2 flex flex-wrap items-end gap-3">
+          <span className="text-4xl font-black text-slate-900">
+            {restaurant.average_rating.toFixed(1)}
+            <span className="text-lg font-semibold text-slate-400">/5</span>
+          </span>
+          <StarRating rating={restaurant.average_rating} size="lg" />
         </div>
-        <HygieneBadge
-          score={restaurant.hygiene_score}
-          liveScore={restaurant.hygiene_score_live}
-          hasLiveData={restaurant.hygiene_has_live_data}
-          size="lg"
-        />
+        <p className="mt-1 text-sm text-slate-500">
+          {restaurant.review_count} avis
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 sm:p-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800/70">
+          Score hygiène
+        </p>
+        <div className="mt-3">
+          <HygieneBadge
+            score={restaurant.hygiene_score}
+            liveScore={restaurant.hygiene_score_live}
+            hasLiveData={restaurant.hygiene_has_live_data}
+            size="lg"
+          />
+        </div>
         {restaurant.hygiene_has_live_data && restaurant.hygiene_score_detail ? (
-          <p className="max-w-md text-xs leading-relaxed text-slate-500">
-            {restaurant.hygiene_score_detail} · Calcul live ERP (7 j.)
+          <p className="mt-3 text-xs leading-relaxed text-emerald-900/70">
+            {restaurant.hygiene_score_detail} · Calcul live ERP (7 derniers jours)
           </p>
-        ) : null}
+        ) : (
+          <p className="mt-3 text-xs leading-relaxed text-emerald-900/60">
+            Score basé sur le suivi hygiène et les contrôles sanitaires.
+          </p>
+        )}
       </div>
 
       <div className="space-y-4">

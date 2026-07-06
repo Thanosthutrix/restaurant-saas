@@ -33,9 +33,9 @@ export function ConsumerAccountNav() {
     return (
       <Link
         href="/compte"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-2.5 py-1.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 sm:px-3 sm:py-2"
       >
-        <UserRound className="h-4 w-4" aria-hidden />
+        <UserRound className="h-4 w-4 shrink-0" aria-hidden />
         <span className="hidden sm:inline">Mon compte</span>
       </Link>
     );
@@ -44,9 +44,10 @@ export function ConsumerAccountNav() {
   return (
     <Link
       href="/compte/connexion"
-      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+      className="rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:px-3 sm:py-2"
     >
-      Connexion
+      <span className="hidden sm:inline">Connexion</span>
+      <UserRound className="h-4 w-4 sm:hidden" aria-hidden />
     </Link>
   );
 }

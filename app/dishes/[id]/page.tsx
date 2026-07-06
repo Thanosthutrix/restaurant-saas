@@ -13,6 +13,7 @@ import {
   listRestaurantCategories,
 } from "@/lib/catalog/restaurantCategories";
 import { normalizeVatRatePct } from "@/lib/tax/frenchSellingVat";
+import { isMenuCategory } from "@/lib/public/menuCategories";
 import { RecipeFoodCostSection } from "@/components/margins/RecipeFoodCostSection";
 import { DishSellingPriceBlock } from "./DishSellingPriceBlock";
 import { DishComponentsBlock } from "./DishComponentsBlock";
@@ -136,11 +137,7 @@ export default async function DishDetailPage({ params }: Props) {
           dishId={dish.id}
           restaurantId={restaurant.id}
           initialIsPublic={Boolean(dish.is_public)}
-          initialMenuCategory={
-            dish.menu_category === "entrée" || dish.menu_category === "plat" || dish.menu_category === "dessert"
-              ? dish.menu_category
-              : null
-          }
+          initialMenuCategory={isMenuCategory(dish.menu_category) ? dish.menu_category : null}
           initialDescription={dish.description ?? ""}
         />
       )}

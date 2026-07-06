@@ -50,7 +50,7 @@ export type Dish = {
   model_3d_generated_at?: string | null;
   /** Visible sur la carte publique B2C. */
   is_public?: boolean | null;
-  /** Catégorie affichée sur le portail (entrée / plat / dessert). */
+  /** Catégorie affichée sur le portail (entrée, plat, dessert, à partager, vin, boisson). */
   menu_category?: string | null;
   /** Description courte pour la carte publique. */
   description?: string | null;

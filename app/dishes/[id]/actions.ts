@@ -13,6 +13,8 @@ import {
   roundSellingMoney,
   sellingPriceHtFromTtc,
 } from "@/lib/tax/frenchSellingVat";
+import type { MenuCategory } from "@/lib/public/menuCategories";
+import { isMenuCategory } from "@/lib/public/menuCategories";
 
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -431,10 +433,14 @@ export async function updateDishPublicListing(params: {
   restaurantId: string;
   dishId: string;
   isPublic: boolean;
-  menuCategory: "entrée" | "plat" | "dessert";
+  menuCategory: MenuCategory;
   description: string;
 }): Promise<ActionResult> {
   const { restaurantId, dishId, isPublic, menuCategory, description } = params;
+
+  if (!isMenuCategory(menuCategory)) {
+    return { ok: false, error: "Catégorie carte invalide." };
+  }
 
   const { data: dish, error: dishError } = await getDish(dishId);
   if (dishError || !dish) return { ok: false, error: "Plat introuvable." };

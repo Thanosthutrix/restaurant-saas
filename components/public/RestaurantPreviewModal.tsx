@@ -5,13 +5,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Clock,
   UtensilsCrossed,
   X,
 } from "lucide-react";
 import { BookingForm } from "@/components/public/BookingForm";
-import { HygieneBadge } from "@/components/public/HygieneBadge";
 import { MenuTab } from "@/components/public/MenuTab";
+import { OpeningHoursPanel } from "@/components/public/OpeningHoursPanel";
 import { RestaurantLocationPanel } from "@/components/public/RestaurantLocationPanel";
 import { ReviewsTab } from "@/components/public/ReviewsTab";
 import { StarRating } from "@/components/public/StarRating";
@@ -29,7 +28,7 @@ const TABS: { key: RestaurantPreviewTab; label: string }[] = [
   { key: "photos", label: "Photos" },
   { key: "horaires", label: "Horaires" },
   { key: "localisation", label: "Localisation" },
-  { key: "carte", label: "Carte" },
+  { key: "carte", label: "Menu" },
   { key: "avis", label: "Avis" },
   { key: "reservation", label: "Réserver" },
 ];
@@ -116,25 +115,6 @@ function PhotoGallery({ photos, name }: { photos: string[]; name: string }) {
   );
 }
 
-function HoursPanel({ restaurant }: { restaurant: Restaurant }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="flex items-start gap-3">
-        <Clock className="mt-0.5 h-5 w-5 shrink-0 text-orange-500" aria-hidden />
-        <div>
-          <h3 className="font-bold text-slate-900">Horaires d&apos;ouverture</h3>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            {restaurant.opening_hours ?? "Horaires non renseignés"}
-          </p>
-          <p className="mt-3 text-xs text-slate-500">
-            Synchronisés en direct depuis le planning du restaurant.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", onClose }: Props) {
   const [activeTab, setActiveTab] = useState<RestaurantPreviewTab>(initialTab);
   const [data, setData] = useState<LoadedData | null>(null);
@@ -206,17 +186,11 @@ export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", on
                     {restaurant.cuisine_type}
                   </p>
                   <h2 className="text-xl font-black text-slate-900">{restaurant.name}</h2>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {restaurant.review_count > 0 ? (
+                  {restaurant.review_count > 0 ? (
+                    <div className="mt-2">
                       <StarRating rating={restaurant.average_rating} size="sm" showValue />
-                    ) : null}
-                    <HygieneBadge
-                      score={restaurant.hygiene_score}
-                      liveScore={restaurant.hygiene_score_live}
-                      hasLiveData={restaurant.hygiene_has_live_data}
-                      size="sm"
-                    />
-                  </div>
+                    </div>
+                  ) : null}
                 </>
               ) : null}
             </div>
@@ -275,7 +249,7 @@ export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", on
                   ) : null}
                 </div>
               ) : null}
-              {activeTab === "horaires" ? <HoursPanel restaurant={restaurant} /> : null}
+              {activeTab === "horaires" ? <OpeningHoursPanel restaurant={restaurant} /> : null}
               {activeTab === "localisation" ? (
                 <RestaurantLocationPanel restaurant={restaurant} showReserveLink={false} />
               ) : null}

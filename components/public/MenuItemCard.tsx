@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { getMenuCategoryEmoji } from "@/lib/public/menuCategories";
 import type { MenuItem } from "@/lib/public/types";
 
 type Props = {
@@ -6,6 +7,8 @@ type Props = {
 };
 
 export function MenuItemCard({ item }: Props) {
+  const placeholder = getMenuCategoryEmoji(item.category);
+
   return (
     <article className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md">
       <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-28 sm:w-28">
@@ -18,7 +21,7 @@ export function MenuItemCard({ item }: Props) {
             sizes="112px"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-2xl">🍽️</div>
+          <div className="flex h-full items-center justify-center text-2xl">{placeholder}</div>
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">

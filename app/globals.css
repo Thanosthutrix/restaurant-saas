@@ -97,18 +97,18 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .page-transition-enter {
-    animation: page-transition-enter 0.16s ease-out;
+    animation: page-transition-enter 0.14s ease-out;
   }
 }
 
+/* Fondu d'opacité seul (pas de translateY) : évite le « saut » vertical du contenu à
+   chaque navigation, qui donnait l'impression d'une page intermédiaire fantôme. */
 @keyframes page-transition-enter {
   from {
     opacity: 0;
-    transform: translateY(5px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

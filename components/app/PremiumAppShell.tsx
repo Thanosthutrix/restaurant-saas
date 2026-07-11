@@ -84,8 +84,14 @@ function NavLinks({
               <Link
                 key={item.href}
                 href={item.href}
+                /* Prefetch COMPLET dès que le lien est visible (pas seulement au survol) :
+                   toutes les pages du menu sont préchargées d'avance → bascule instantanée
+                   au clic (style app native). Coût : un rendu serveur par entrée de menu
+                   au chargement, re-préchargé quand staleTimes expire. */
+                prefetch={true}
                 onClick={onNavigate}
                 onMouseEnter={() => onPrefetch?.(item.href)}
+                onTouchStart={() => onPrefetch?.(item.href)}
                 onFocus={() => onPrefetch?.(item.href)}
                 className={`${sidebarLinkBase} ${active ? sidebarActive : sidebarIdle}`}
               >

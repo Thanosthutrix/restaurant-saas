@@ -22,7 +22,11 @@ export default async function EditReservationPage({ params, searchParams }: Prop
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const { data: row, error } = await getReservation(id, restaurant.id);
+  // Réservation et liste clients récents sont indépendantes : on les charge en parallèle.
+  const [{ data: row, error }, recentCustomerPool] = await Promise.all([
+    getReservation(id, restaurant.id),
+    listRecentCustomersForLookup(restaurant.id, 80),
+  ]);
   if (error) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
@@ -33,7 +37,6 @@ export default async function EditReservationPage({ params, searchParams }: Prop
   if (!row) notFound();
 
   const returnYmd = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : parisYmd();
-  const recentCustomerPool = await listRecentCustomersForLookup(restaurant.id, 80);
 
   return (
     <div className="mx-auto max-w-xl space-y-6 px-4 py-6">

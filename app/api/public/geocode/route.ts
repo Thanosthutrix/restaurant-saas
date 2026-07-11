@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import type { GeocodedPlace } from "@/lib/public/types";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function GET(request: Request) {
+  // Route publique (portail consommateur) : pas d'auth possible, mais on limite
+  // par IP pour éviter qu'un tiers ne fasse cramer le quota Google Geocoding.
+  const limited = rateLimit(`geocode:${getClientIp(request)}`, 30, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { place: null, error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfterSec) } }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
   if (!q) {
     return NextResponse.json({ place: null as GeocodedPlace | null });
+  }
+  if (q.length > 200) {
+    return NextResponse.json({ place: null, error: "query_too_long" }, { status: 400 });
   }
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();

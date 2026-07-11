@@ -23,12 +23,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function RestaurantDetailPage({ params }: Props) {
   const { id } = await params;
-  const data = await getPublicRestaurantWithDetails(id);
+  // Détails restaurant (public) et profil consommateur sont indépendants → en parallèle.
+  const [data, consumerProfile] = await Promise.all([
+    getPublicRestaurantWithDetails(id),
+    getCurrentConsumerProfile(),
+  ]);
 
   if (!data) notFound();
 
-  const { menu_items, reviews, ...restaurant } = data;
-  const consumerProfile = await getCurrentConsumerProfile();
+  const { menu_items, set_menus, reviews, ...restaurant } = data;
 
   return (
     <>
@@ -37,6 +40,7 @@ export default async function RestaurantDetailPage({ params }: Props) {
         <RestaurantDetailClient
           restaurant={restaurant}
           menuItems={menu_items}
+          setMenus={set_menus}
           reviews={reviews}
           consumerProfile={consumerProfile}
         />

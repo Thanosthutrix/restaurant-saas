@@ -7,11 +7,12 @@ import {
   savePublicHolidayPlanningDayAction,
   saveSchoolVacationPeriodPlanningAction,
 } from "@/app/restaurants/actions";
-import { findPresetForCalendarRow } from "@/lib/staff/planningBandPresets";
+import { findPresetForCalendarRow, findPresetForVacationPeriod, getPresetBandsForDay, isWeeklyBandPreset } from "@/lib/staff/planningBandPresets";
 import type { PlanningBandPreset } from "@/lib/staff/planningBandPresets";
 import type { PlanningDayOverrideRow } from "@/lib/staff/planningResolve";
 import { parseTimeBandsArray } from "@/lib/staff/planningResolve";
 import type { SchoolVacationPeriod } from "@/lib/franceCalendars/schoolVacations";
+import { planningDayKeyFromYmd } from "@/lib/staff/weekUtils";
 import { uiInput, uiLabel } from "@/components/ui/premium";
 
 type PublicHoliday = { date: string; name: string };
@@ -56,6 +57,16 @@ function etpFromSchedule(schedule: "inherit" | string, presets: PlanningBandPres
   return Math.round(Number(p.etp) * 100) / 100;
 }
 
+function presetSchedulePayload(preset: PlanningBandPreset | null | undefined) {
+  if (!preset) {
+    return { openingBandsOverride: null as null, openingWeeklyBandsOverride: null as null };
+  }
+  if (isWeeklyBandPreset(preset) && preset.weeklyBands) {
+    return { openingBandsOverride: null, openingWeeklyBandsOverride: preset.weeklyBands };
+  }
+  return { openingBandsOverride: preset.bands, openingWeeklyBandsOverride: null };
+}
+
 /** Plages + ETP : modèle, id preset, ou personnalisé. */
 function ferieOpenPlageValue(
   h: PublicHoliday,
@@ -68,7 +79,8 @@ function ferieOpenPlageValue(
   const bands = parseTimeBandsArray(cal.opening_bands_override);
   if (!bands?.length) return "inherit";
   const staff = cal.staff_target_override ?? null;
-  const m = findPresetForCalendarRow(presets, bands, staff);
+  const dayKey = planningDayKeyFromYmd(h.date) ?? undefined;
+  const m = findPresetForCalendarRow(presets, bands, staff, dayKey);
   return m?.id ?? "__custom__";
 }
 
@@ -77,6 +89,14 @@ function vacationOpenPlageValue(
   overrideByDay: Map<string, PlanningDayOverrideRow>,
   presets: PlanningBandPreset[]
 ): "inherit" | string {
+  const vacDays = period.days.filter((d) => overrideByDay.get(d)?.calendar_source === "school_vacation");
+  if (vacDays.length === 0) return "inherit";
+  const allClosed = vacDays.every((d) => overrideByDay.get(d)?.is_closed);
+  if (allClosed) return "inherit";
+
+  const matched = findPresetForVacationPeriod(presets, period.days, overrideByDay);
+  if (matched) return matched.id;
+
   const openDay = period.days.find((d) => {
     const r = overrideByDay.get(d);
     return r?.calendar_source === "school_vacation" && !r.is_closed;
@@ -86,8 +106,13 @@ function vacationOpenPlageValue(
   const bands = parseTimeBandsArray(r.opening_bands_override);
   if (!bands?.length) return "inherit";
   const staff = r.staff_target_override ?? null;
-  const m = findPresetForCalendarRow(presets, bands, staff);
+  const dayKey = planningDayKeyFromYmd(openDay) ?? undefined;
+  const m = findPresetForCalendarRow(presets, bands, staff, dayKey);
   return m?.id ?? "__custom__";
+}
+
+function presetOptionLabel(p: PlanningBandPreset): string {
+  return isWeeklyBandPreset(p) ? `${p.label} (lun–dim)` : p.label;
 }
 
 export function FranceCalendarGuidedPanel({
@@ -120,8 +145,14 @@ export function FranceCalendarGuidedPanel({
     if (schedule === "__custom__") return;
     start(async () => {
       const preset = schedule === "inherit" ? null : bandPresets.find((p) => p.id === schedule);
-      const bands = schedule === "inherit" ? null : preset?.bands;
-      if (schedule !== "inherit" && !bands) {
+      const dayKey = planningDayKeyFromYmd(h.date);
+      const bands =
+        schedule === "inherit"
+          ? null
+          : preset && isWeeklyBandPreset(preset) && dayKey
+            ? getPresetBandsForDay(preset, dayKey)
+            : preset?.bands ?? null;
+      if (schedule !== "inherit" && bands == null) {
         setError("Modèle de plages introuvable. Enregistrez d’abord vos modèles ci-dessus.");
         return;
       }
@@ -172,8 +203,14 @@ export function FranceCalendarGuidedPanel({
       const sched = ferieOpenPlageValue(h, overrideByDay, bandPresets);
       const effective = sched === "__custom__" ? "inherit" : sched;
       const preset = effective === "inherit" ? null : bandPresets.find((p) => p.id === effective);
-      const bands = effective === "inherit" ? null : preset?.bands;
-      if (effective !== "inherit" && !bands) {
+      const dayKey = planningDayKeyFromYmd(h.date);
+      const bands =
+        effective === "inherit"
+          ? null
+          : preset && isWeeklyBandPreset(preset) && dayKey
+            ? getPresetBandsForDay(preset, dayKey)
+            : preset?.bands ?? null;
+      if (effective !== "inherit" && bands == null) {
         setError("Modèle de plages introuvable.");
         return;
       }
@@ -215,17 +252,18 @@ export function FranceCalendarGuidedPanel({
       }
       if (schedule === "__custom__") return;
       const vacPreset = schedule === "inherit" ? null : bandPresets.find((x) => x.id === schedule);
-      const bands = schedule === "inherit" ? null : vacPreset?.bands;
-      if (schedule !== "inherit" && !bands) {
+      if (schedule !== "inherit" && !vacPreset) {
         setError("Modèle de plages introuvable. Enregistrez d’abord vos modèles ci-dessus.");
         return;
       }
+      const { openingBandsOverride, openingWeeklyBandsOverride } = presetSchedulePayload(vacPreset);
       const staffEtp = etpFromSchedule(schedule, bandPresets);
       const r = await saveSchoolVacationPeriodPlanningAction(restaurantId, {
         days: p.days,
         openDuringVacation: true,
         periodName: p.name,
-        openingBandsOverride: bands ?? null,
+        openingBandsOverride,
+        openingWeeklyBandsOverride,
         staffTargetOverride: staffEtp,
       });
       if (!r.ok) {
@@ -245,8 +283,8 @@ export function FranceCalendarGuidedPanel({
         <h3 className="text-sm font-semibold text-stone-900">Calendrier France (fériés et vacances scolaires)</h3>
         <p className="mt-1 text-xs text-stone-600">
           Définissez d’abord des <strong className="font-medium text-stone-800">modèles de plages</strong> au-dessus si
-          besoin (ex. été chargé). Ici, pour chaque jour férié ou période de vacances, choisissez fermeture, reprise du
-          modèle hebdomadaire, ou ouverture avec le modèle hebdo ou un de vos modèles nommés.
+          besoin (ex. été chargé, modèle hebdomadaire vacances). Ici, pour chaque jour férié ou période de vacances,
+          choisissez fermeture, reprise du modèle hebdomadaire, ou ouverture avec un modèle nommé.
         </p>
       </div>
 
@@ -350,7 +388,7 @@ export function FranceCalendarGuidedPanel({
                             <option value="inherit">Horaires du jour type (semaine)</option>
                             {bandPresets.map((pr) => (
                               <option key={pr.id} value={pr.id}>
-                                {pr.label}
+                                {presetOptionLabel(pr)}
                               </option>
                             ))}
                             {plageVal === "__custom__" ? (
@@ -374,7 +412,8 @@ export function FranceCalendarGuidedPanel({
         <h4 className="text-xs font-semibold uppercase tracking-wide text-stone-600">Vacances scolaires</h4>
         <p className="text-xs text-stone-500">
           Ouvert : par défaut horaires du modèle hebdomadaire chaque jour. Vous pouvez appliquer un{" "}
-          <strong className="font-medium">modèle de plages</strong> (ex. été renforcé) à toute la période.
+          <strong className="font-medium">modèle de plages</strong> identique chaque jour, ou un modèle{" "}
+          <strong className="font-medium">hebdomadaire (lun–dim)</strong> sur toute la période.
         </p>
         <div className="overflow-x-auto rounded-lg border border-stone-100 bg-white">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -480,7 +519,7 @@ function VacationPeriodRow({
             <option value="inherit">Horaires du jour type</option>
             {bandPresets.map((pr) => (
               <option key={pr.id} value={pr.id}>
-                {pr.label}
+                {presetOptionLabel(pr)}
               </option>
             ))}
             {plageVal === "__custom__" ? (

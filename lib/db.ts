@@ -338,7 +338,7 @@ export async function getDishes(restaurantId: string): Promise<{ data: Dish[] | 
   const { data, error } = await supabaseServer
     .from("dishes")
     .select(
-      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, category_id, selling_price_ht, selling_price_ttc, selling_vat_rate_pct"
+      "id, restaurant_id, name, name_normalized, production_mode, recipe_status, category_id, selling_price_ht, selling_price_ttc, selling_vat_rate_pct, menu_category"
     )
     .eq("restaurant_id", restaurantId)
     .order("name");

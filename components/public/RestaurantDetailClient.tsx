@@ -6,7 +6,7 @@ import { BookingForm } from "@/components/public/BookingForm";
 import { InfoTab } from "@/components/public/InfoTab";
 import { MenuTab } from "@/components/public/MenuTab";
 import { ReviewsTab } from "@/components/public/ReviewsTab";
-import type { MenuItem, Restaurant, Review } from "@/lib/public/types";
+import type { MenuItem, PublicSetMenu, Restaurant, Review } from "@/lib/public/types";
 import type { ConsumerProfile } from "@/lib/public/consumer/types";
 
 type TabKey = "carte" | "reservation" | "infos" | "avis";
@@ -21,6 +21,7 @@ const TABS: { key: TabKey; label: string }[] = [
 type Props = {
   restaurant: Restaurant;
   menuItems: MenuItem[];
+  setMenus: PublicSetMenu[];
   reviews: Review[];
   consumerProfile?: ConsumerProfile | null;
 };
@@ -28,6 +29,7 @@ type Props = {
 export function RestaurantDetailClient({
   restaurant,
   menuItems,
+  setMenus,
   reviews,
   consumerProfile,
 }: Props) {
@@ -80,7 +82,7 @@ export function RestaurantDetailClient({
       </div>
 
       <div className="mt-6" role="tabpanel">
-        {activeTab === "carte" ? <MenuTab items={menuItems} /> : null}
+        {activeTab === "carte" ? <MenuTab items={menuItems} setMenus={setMenus} /> : null}
         {activeTab === "reservation" ? (
           <BookingForm
             restaurantId={restaurant.id}

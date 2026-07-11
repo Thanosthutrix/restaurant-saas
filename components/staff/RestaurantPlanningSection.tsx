@@ -49,7 +49,8 @@ export function RestaurantPlanningSection({
       <section className={uiCard}>
         <h2 className="text-base font-semibold text-stone-900">Modèles de plages exceptionnelles</h2>
         <p className="mt-1 text-xs text-stone-500">
-          Plages + ETP optionnel : réutilisables dans le calendrier (fériés, vacances, ex. été chargé).
+          Plages + ETP optionnel : réutilisables dans le calendrier (fériés, vacances). Créez un modèle hebdomadaire
+          (lun–dim) pour les vacances scolaires.
         </p>
         <div className="mt-4">
           <PlanningBandPresetsEditor restaurantId={restaurantId} initial={bandPresets} />

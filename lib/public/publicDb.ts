@@ -8,8 +8,10 @@ import {
 import { mapLiveHygieneToPublicView } from "@/lib/public/liveHygieneLabel";
 import { formatBudgetRange } from "@/lib/public/budgetRange";
 import { resolveRestaurantMarkerKind } from "@/lib/public/restaurantMapMarker";
-import type { MenuCategory, MenuItem, Restaurant, Review } from "@/lib/public/types";
-import { normalizeMenuCategory } from "@/lib/public/menuCategories";
+import { isMenuFormulaType, resolveSetMenuDessertTiming } from "@/lib/public/menuFormulas";
+import type { MenuCategory, MenuItem, PublicSetMenu, PublicSetMenuDish, Restaurant, Review } from "@/lib/public/types";
+import { isMenuCategory, normalizeMenuCategory } from "@/lib/public/menuCategories";
+import { isValidSetMenuStepCategory } from "@/lib/public/setMenuDishes";
 
 const PUBLIC_RESTAURANT_SELECT =
   "id, name, description, address_text, activity_type, template_slug, image_url, cover_url, is_public_listed, planning_opening_hours, closed_days_of_week, latitude, longitude";
@@ -303,6 +305,119 @@ export async function listPublicMenuItemsFromDb(restaurantId: string): Promise<M
   }
 
   return ((data ?? []) as PublicDishRow[]).map(mapDishRow);
+}
+
+type PublicSetMenuRow = {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  description: string | null;
+  price_ttc: number;
+  formula_type: string;
+  dessert_timing: string | null;
+  is_public: boolean;
+  sort_order: number;
+};
+
+type PublicSetMenuDishRow = {
+  menu_id: string;
+  dish_id: string;
+  step_category: string;
+  sort_order: number;
+  dishes: { id: string; name: string } | { id: string; name: string }[] | null;
+};
+
+function mapSetMenuRow(row: PublicSetMenuRow, dishes: PublicSetMenuDish[] = []): PublicSetMenu | null {
+  if (!isMenuFormulaType(row.formula_type)) return null;
+  return {
+    id: row.id,
+    restaurant_id: row.restaurant_id,
+    name: row.name.trim(),
+    description: row.description?.trim() || "",
+    price: Number(row.price_ttc),
+    formula_type: row.formula_type,
+    dessert_timing: resolveSetMenuDessertTiming(row.formula_type, row.dessert_timing),
+    is_public: row.is_public,
+    sort_order: row.sort_order,
+    dishes,
+  };
+}
+
+async function fetchSetMenuDishesByMenuIds(menuIds: string[]): Promise<Map<string, PublicSetMenuDish[]>> {
+  const map = new Map<string, PublicSetMenuDish[]>();
+  if (menuIds.length === 0) return map;
+
+  const { data, error } = await supabaseServer
+    .from("restaurant_public_menu_dishes")
+    .select("menu_id, dish_id, step_category, sort_order, dishes(id, name)")
+    .in("menu_id", menuIds)
+    .order("sort_order")
+    .order("dish_id");
+
+  if (error) {
+    if (!error.message.includes("restaurant_public_menu_dishes")) {
+      console.error("[publicDb] fetchSetMenuDishesByMenuIds:", error.message);
+    }
+    return map;
+  }
+
+  for (const row of (data ?? []) as PublicSetMenuDishRow[]) {
+    if (!isValidSetMenuStepCategory(row.step_category)) continue;
+    const dishRaw = row.dishes;
+    const dish = Array.isArray(dishRaw) ? dishRaw[0] : dishRaw;
+    if (!dish?.id || !dish.name) continue;
+    const list = map.get(row.menu_id) ?? [];
+    list.push({
+      id: dish.id,
+      name: dish.name.trim(),
+      step_category: row.step_category as MenuCategory,
+    });
+    map.set(row.menu_id, list);
+  }
+
+  return map;
+}
+
+async function attachDishesToSetMenus(rows: PublicSetMenuRow[]): Promise<PublicSetMenu[]> {
+  const dishMap = await fetchSetMenuDishesByMenuIds(rows.map((r) => r.id));
+  return rows
+    .map((row) => mapSetMenuRow(row, dishMap.get(row.id) ?? []))
+    .filter((m): m is PublicSetMenu => m != null);
+}
+
+export async function listPublicSetMenusFromDb(restaurantId: string): Promise<PublicSetMenu[]> {
+  const { data, error } = await supabaseServer
+    .from("restaurant_public_menus")
+    .select("id, restaurant_id, name, description, price_ttc, formula_type, dessert_timing, is_public, sort_order")
+    .eq("restaurant_id", restaurantId)
+    .eq("is_public", true)
+    .order("sort_order")
+    .order("name");
+
+  if (error) {
+    console.error("[publicDb] listPublicSetMenusFromDb:", error.message);
+    return [];
+  }
+
+  return attachDishesToSetMenus((data ?? []) as PublicSetMenuRow[]);
+}
+
+export async function listAllSetMenusForRestaurantFromDb(
+  restaurantId: string
+): Promise<PublicSetMenu[]> {
+  const { data, error } = await supabaseServer
+    .from("restaurant_public_menus")
+    .select("id, restaurant_id, name, description, price_ttc, formula_type, dessert_timing, is_public, sort_order")
+    .eq("restaurant_id", restaurantId)
+    .order("sort_order")
+    .order("name");
+
+  if (error) {
+    console.error("[publicDb] listAllSetMenusForRestaurantFromDb:", error.message);
+    return [];
+  }
+
+  return attachDishesToSetMenus((data ?? []) as PublicSetMenuRow[]);
 }
 
 export async function listPublicReviewsFromDb(restaurantId: string): Promise<Review[]> {

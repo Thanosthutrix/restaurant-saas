@@ -25,6 +25,9 @@ import {
   serializePeakBandsWeeklyJson,
 } from "@/lib/staff/planningPeakBands";
 import { parseStaffTargetsWeeklyJson, parseTimeBandsArray } from "@/lib/staff/planningResolve";
+import { parseOpeningHoursJson, type OpeningHoursMap } from "@/lib/staff/planningHoursTypes";
+import { planningDayKeyFromYmd } from "@/lib/staff/weekUtils";
+import { trySyncRestaurantHoursToGoogle } from "@/lib/google/syncHours";
 import { buildTemplateSuggestionsFromRows, type TemplateSuggestions } from "@/lib/templates/templateSuggestions";
 import { uploadRestaurantPublicPhoto } from "@/lib/public/restaurantPublicStorage";
 
@@ -650,6 +653,7 @@ export async function upsertPlanningDayOverrideAction(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/equipe");
   revalidatePath(`/restaurants/${restaurantId}/edit`);
+  await trySyncRestaurantHoursToGoogle(restaurantId);
   return { ok: true };
 }
 
@@ -674,8 +678,18 @@ export async function savePublicHolidayPlanningDayAction(
       opening = null;
     } else {
       const bands = parseTimeBandsArray(payload.openingBandsOverride);
-      if (bands == null || bands.length === 0) {
+      if (bands == null) {
         return { ok: false, error: "Plages horaires invalides pour ce jour férié." };
+      }
+      if (bands.length === 0) {
+        return upsertPlanningDayOverrideAction(restaurantId, {
+          day: payload.day,
+          isClosed: true,
+          openingBandsOverride: null,
+          staffTargetOverride: null,
+          label,
+          calendarSource: "public_holiday",
+        });
       }
       opening = bands;
     }
@@ -699,7 +713,7 @@ export async function savePublicHolidayPlanningDayAction(
 
 /**
  * Vacances scolaires : ouvert = soit reprise du modèle hebdo (suppression des lignes vacances),
- * soit plages explicites identiques chaque jour ; fermé = fermeture chaque jour.
+ * soit plages explicites (identiques chaque jour ou modèle hebdomadaire lun–dim) ; fermé = fermeture chaque jour.
  */
 export async function saveSchoolVacationPeriodPlanningAction(
   restaurantId: string,
@@ -709,6 +723,8 @@ export async function saveSchoolVacationPeriodPlanningAction(
     periodName: string;
     /** Si ouvert : absent ou null = modèle hebdo ; sinon même plage tous les jours. */
     openingBandsOverride?: unknown | null;
+    /** Si ouvert : modèle lun–dim (prioritaire sur openingBandsOverride). */
+    openingWeeklyBandsOverride?: OpeningHoursMap | null;
     /** Si ouvert avec plages : null = ETP du modèle hebdo chaque jour ; sinon même ETP tous les jours. */
     staffTargetOverride?: number | null;
   }
@@ -725,8 +741,11 @@ export async function saveSchoolVacationPeriodPlanningAction(
   const name = payload.periodName.trim() || "Vacances scolaires";
 
   if (payload.openDuringVacation) {
+    const weeklyOpen = parseOpeningHoursJson(payload.openingWeeklyBandsOverride);
+    const hasWeeklySchedule = Object.keys(weeklyOpen).length > 0;
+
     let bandsForUpsert: ReturnType<typeof parseTimeBandsArray> = null;
-    if (payload.openingBandsOverride != null) {
+    if (!hasWeeklySchedule && payload.openingBandsOverride != null) {
       const bands = parseTimeBandsArray(payload.openingBandsOverride);
       if (bands == null || bands.length === 0) {
         return { ok: false, error: "Plages horaires invalides pour les vacances." };
@@ -734,7 +753,7 @@ export async function saveSchoolVacationPeriodPlanningAction(
       bandsForUpsert = bands;
     }
 
-    if (bandsForUpsert == null) {
+    if (bandsForUpsert == null && !hasWeeklySchedule) {
       const chunkSize = 80;
       for (let i = 0; i < days.length; i += chunkSize) {
         const chunk = days.slice(i, i + chunkSize);
@@ -759,15 +778,31 @@ export async function saveSchoolVacationPeriodPlanningAction(
       const chunkSize = 80;
       for (let i = 0; i < days.length; i += chunkSize) {
         const chunk = days.slice(i, i + chunkSize);
-        const rows = chunk.map((day) => ({
-          restaurant_id: restaurantId,
-          day,
-          is_closed: false,
-          opening_bands_override: bandsForUpsert,
-          staff_target_override: staffForUpsert,
-          label,
-          calendar_source: "school_vacation" as const,
-        }));
+        const rows = chunk.map((day) => {
+          if (hasWeeklySchedule) {
+            const dayKey = planningDayKeyFromYmd(day);
+            const dayBands = dayKey ? weeklyOpen[dayKey] ?? [] : [];
+            const closed = dayBands.length === 0;
+            return {
+              restaurant_id: restaurantId,
+              day,
+              is_closed: closed,
+              opening_bands_override: closed ? null : dayBands,
+              staff_target_override: closed ? null : staffForUpsert,
+              label,
+              calendar_source: "school_vacation" as const,
+            };
+          }
+          return {
+            restaurant_id: restaurantId,
+            day,
+            is_closed: false,
+            opening_bands_override: bandsForUpsert,
+            staff_target_override: staffForUpsert,
+            label,
+            calendar_source: "school_vacation" as const,
+          };
+        });
         const { error } = await supabaseServer
           .from("restaurant_planning_day_overrides")
           .upsert(rows, { onConflict: "restaurant_id,day" });
@@ -797,6 +832,7 @@ export async function saveSchoolVacationPeriodPlanningAction(
 
   revalidatePath("/equipe");
   revalidatePath(`/restaurants/${restaurantId}/edit`);
+  await trySyncRestaurantHoursToGoogle(restaurantId);
   return { ok: true };
 }
 
@@ -824,5 +860,17 @@ export async function deletePlanningDayOverrideAction(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/equipe");
   revalidatePath(`/restaurants/${restaurantId}/edit`);
+  await trySyncRestaurantHoursToGoogle(restaurantId);
+  return { ok: true };
+}
+
+async function assertRestaurantAccess(
+  userId: string,
+  restaurantId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const list = await getAccessibleRestaurantsForUser(userId);
+  if (!list.some((r) => r.id === restaurantId)) {
+    return { ok: false, error: "Accès refusé à ce restaurant." };
+  }
   return { ok: true };
 }

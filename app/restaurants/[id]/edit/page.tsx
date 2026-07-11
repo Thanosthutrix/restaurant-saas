@@ -16,26 +16,41 @@ import { getTemplateSuggestions } from "../../actions";
 import { EditRestaurantForm } from "./EditRestaurantForm";
 import { ApplyTemplateBlock } from "./ApplyTemplateBlock";
 import { PublicListingSection } from "./PublicListingSection";
+import { GoogleBusinessSection } from "./GoogleBusinessSection";
 import { getRestaurantPublicProfileFromDb } from "@/lib/public/publicDb";
+import { getRestaurantGoogleState } from "@/lib/google/googleDb";
 import { getPublicListingPreview } from "@/lib/public/publicListingPreview";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ google?: string }> };
 
-export default async function EditRestaurantPage({ params }: Props) {
+export default async function EditRestaurantPage({ params, searchParams }: Props) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { id } = await params;
+  const { google: googleFlash } = await searchParams;
   const list = await getAccessibleRestaurantsForUser(user.id);
   const restaurant = list.find((r) => r.id === id);
   if (!restaurant) notFound();
 
   const templates = getRestaurantTemplates();
-  const { suggestions } = await getTemplateSuggestions(restaurant.id);
-  const publicProfile = await getRestaurantPublicProfileFromDb(restaurant.id);
-  const publicPreview = await getPublicListingPreview(restaurant);
-
-  const [hourMaps, staffTargetsWeekly, peakBandsWeekly, overrides, bandPresets] = await Promise.all([
+  // Ces lectures sont toutes indépendantes (elles ne dépendent que de `restaurant`) :
+  // un seul Promise.all évite d'empiler ~9 allers-retours DB en série.
+  const [
+    { suggestions },
+    publicProfile,
+    publicPreview,
+    googleState,
+    hourMaps,
+    staffTargetsWeekly,
+    peakBandsWeekly,
+    overrides,
+    bandPresets,
+  ] = await Promise.all([
+    getTemplateSuggestions(restaurant.id),
+    getRestaurantPublicProfileFromDb(restaurant.id),
+    getPublicListingPreview(restaurant),
+    getRestaurantGoogleState(restaurant.id),
     getRestaurantPlanningHourMaps(restaurant.id),
     getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
     getRestaurantPlanningPeakBandsWeekly(restaurant.id),
@@ -71,11 +86,20 @@ export default async function EditRestaurantPage({ params }: Props) {
         </p>
         <EditRestaurantForm restaurant={restaurant} templates={templates} />
         {publicProfile ? (
-          <PublicListingSection
-            restaurantId={restaurant.id}
-            initial={publicProfile}
-            preview={publicPreview}
-          />
+          <>
+            <PublicListingSection
+              restaurantId={restaurant.id}
+              initial={publicProfile}
+              preview={publicPreview}
+            />
+            <GoogleBusinessSection
+              restaurantId={restaurant.id}
+              initialState={googleState}
+              googleFlash={
+                googleFlash === "connected" || googleFlash === "error" ? googleFlash : null
+              }
+            />
+          </>
         ) : (
           <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             Le portail public nécessite la migration B2C. Exécutez{" "}

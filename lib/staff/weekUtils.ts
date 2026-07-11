@@ -1,3 +1,5 @@
+import { PLANNING_DAY_KEYS, type PlanningDayKey } from "@/lib/staff/planningHoursTypes";
+
 /** Lundi 00:00:00 (heure locale) de la semaine contenant `date`. */
 export function mondayOfWeekContaining(date: Date): Date {
   const d = new Date(date);
@@ -41,6 +43,15 @@ export function toPlanningYmdFromUnknown(raw: unknown): string | null {
     return toISODateString(raw);
   }
   return null;
+}
+
+/** Jour type (lun–dim) pour une date AAAA-MM-JJ. */
+export function planningDayKeyFromYmd(ymd: string): PlanningDayKey | null {
+  const dt = parseISODateLocal(ymd);
+  if (!dt) return null;
+  const day = dt.getDay();
+  const idx = day === 0 ? 6 : day - 1;
+  return PLANNING_DAY_KEYS[idx] ?? null;
 }
 
 /** Parse AAAA-MM-JJ ; retourne null si invalide. */

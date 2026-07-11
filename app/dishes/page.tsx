@@ -16,10 +16,13 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { getNavAccessLevel } from "@/lib/auth/requireNavAccess";
 import { CreateDishForm } from "./CreateDishForm";
 import { DishesNestedCategoryTiles } from "./DishesNestedCategoryTiles";
+import { PublicSetMenusSection, type SetMenuDishOption } from "./PublicSetMenusSection";
 import { uiBtnSecondary, uiError } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
+import { listAllSetMenusForRestaurantFromDb } from "@/lib/public/publicDb";
+import { normalizeMenuCategory } from "@/lib/public/menuCategories";
 
 type Props = { searchParams: Promise<{ name?: string; returnTo?: string }> };
 
@@ -30,12 +33,13 @@ export default async function DishesPage({ searchParams }: Props) {
   const returnTo = typeof params.returnTo === "string" ? params.returnTo : "";
   if (!restaurant) redirect("/onboarding");
 
-  const [accessLevel, [{ data: dishes, error }, catRes]] = await Promise.all([
+  const [accessLevel, [{ data: dishes, error }, catRes], publicSetMenus] = await Promise.all([
     getNavAccessLevel("dishes"),
     Promise.all([
       cachedGetDishes(restaurant.id),
       listRestaurantCategories(restaurant.id),
     ]),
+    listAllSetMenusForRestaurantFromDb(restaurant.id),
   ]);
   const canWrite = accessLevel === "full";
 
@@ -79,6 +83,12 @@ export default async function DishesPage({ searchParams }: Props) {
     })
   );
 
+  const setMenuDishOptions: SetMenuDishOption[] = list.map((d) => ({
+    id: d.id,
+    name: d.name,
+    menu_category: normalizeMenuCategory(d.menu_category),
+  }));
+
   return (
     <PageContainer width="narrow">
       <PageHeader
@@ -104,6 +114,14 @@ export default async function DishesPage({ searchParams }: Props) {
       />
 
       {canWrite && <CreateDishForm initialName={initialDishName} returnTo={returnTo} />}
+
+      {canWrite ? (
+        <PublicSetMenusSection
+          restaurantId={restaurant.id}
+          initialMenus={publicSetMenus}
+          dishOptions={setMenuDishOptions}
+        />
+      ) : null}
 
       {!dishes?.length ? (
         <EmptyState

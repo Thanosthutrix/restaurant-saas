@@ -12,8 +12,8 @@ export async function GET(_request: Request, { params }: Props) {
     return NextResponse.json({ error: "Restaurant introuvable." }, { status: 404 });
   }
 
-  const { menu_items, reviews, ...restaurant } = data;
+  const { menu_items, reviews, set_menus, ...restaurant } = data;
   const photos = buildRestaurantPhotoGallery(restaurant, menu_items);
 
-  return NextResponse.json({ restaurant, menu_items, reviews, photos });
+  return NextResponse.json({ restaurant, menu_items, set_menus, reviews, photos });
 }

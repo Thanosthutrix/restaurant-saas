@@ -26,6 +26,7 @@ import {
   listStaffMembers,
   listWorkShiftsInRange,
 } from "@/lib/staff/staffDb";
+import { trySyncRestaurantHoursToGoogle } from "@/lib/google/syncHours";
 import {
   CONTRACT_TYPES,
   isContractType,
@@ -254,6 +255,7 @@ export async function updateRestaurantOpeningHoursAction(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/equipe");
   revalidatePath(`/restaurants/${restaurantId}/edit`);
+  await trySyncRestaurantHoursToGoogle(restaurantId);
   return { ok: true };
 }
 

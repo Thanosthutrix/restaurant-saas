@@ -1,8 +1,10 @@
+import { cache } from "react";
 import {
   getListedRestaurantFromDb,
   listListedRestaurantsFromDb,
   listPublicMenuItemsFromDb,
   listPublicReviewsFromDb,
+  listPublicSetMenusFromDb,
 } from "@/lib/public/publicDb";
 import type { MenuItem, Restaurant, RestaurantWithDetails, Review } from "@/lib/public/types";
 
@@ -37,16 +39,22 @@ export async function getPublicReviews(restaurantId: string): Promise<Review[]> 
   return listPublicReviewsFromDb(restaurantId);
 }
 
-export async function getPublicRestaurantWithDetails(
+/**
+ * Mémoïsé avec React `cache()` : cette fonction est appelée deux fois par requête sur
+ * /restaurant/[id] (generateMetadata + le composant page). Le cache déduplique ces
+ * appels au sein d'un même rendu → évite de refaire ~4 requêtes DB inutilement.
+ */
+export const getPublicRestaurantWithDetails = cache(async function getPublicRestaurantWithDetails(
   id: string
 ): Promise<RestaurantWithDetails | null> {
   const restaurant = await getPublicRestaurant(id);
   if (!restaurant) return null;
 
-  const [menu_items, reviews] = await Promise.all([
+  const [menu_items, set_menus, reviews] = await Promise.all([
     getPublicMenuItems(id),
+    listPublicSetMenusFromDb(id),
     getPublicReviews(id),
   ]);
 
-  return { ...restaurant, menu_items, reviews };
-}
+  return { ...restaurant, menu_items, set_menus, reviews };
+});

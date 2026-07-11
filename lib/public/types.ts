@@ -9,8 +9,10 @@ import type { OpeningHoursDay } from "@/lib/public/formatOpeningHours";
 import type { RestaurantMarkerKind } from "@/lib/public/restaurantMapMarker";
 
 export type { MenuCategory } from "@/lib/public/menuCategories";
+export type { MenuFormulaType, SetMenuDessertTiming } from "@/lib/public/menuFormulas";
 
 import type { MenuCategory } from "@/lib/public/menuCategories";
+import type { MenuFormulaType, SetMenuDessertTiming } from "@/lib/public/menuFormulas";
 
 export type ReservationStatus =
   | "pending"
@@ -97,7 +99,30 @@ export type Review = {
   author_name?: string;
 };
 
+/** Formule menu publique (entrée+plat+dessert, etc.). */
+export type PublicSetMenuDish = {
+  id: string;
+  name: string;
+  step_category: MenuCategory;
+};
+
+export type PublicSetMenu = {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  description: string;
+  price: number;
+  formula_type: MenuFormulaType;
+  /** Pertinent si la formule inclut un dessert. */
+  dessert_timing: SetMenuDessertTiming;
+  is_public: boolean;
+  sort_order: number;
+  /** Plats proposés par étape de la formule. */
+  dishes: PublicSetMenuDish[];
+};
+
 export type RestaurantWithDetails = Restaurant & {
   menu_items: MenuItem[];
+  set_menus: PublicSetMenu[];
   reviews: Review[];
 };

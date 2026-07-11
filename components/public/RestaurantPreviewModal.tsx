@@ -14,7 +14,7 @@ import { OpeningHoursPanel } from "@/components/public/OpeningHoursPanel";
 import { RestaurantLocationPanel } from "@/components/public/RestaurantLocationPanel";
 import { ReviewsTab } from "@/components/public/ReviewsTab";
 import { StarRating } from "@/components/public/StarRating";
-import type { MenuItem, Restaurant, Review } from "@/lib/public/types";
+import type { MenuItem, PublicSetMenu, Restaurant, Review } from "@/lib/public/types";
 
 export type RestaurantPreviewTab =
   | "photos"
@@ -42,6 +42,7 @@ type Props = {
 type LoadedData = {
   restaurant: Restaurant;
   menu_items: MenuItem[];
+  set_menus: PublicSetMenu[];
   reviews: Review[];
   photos: string[];
 };
@@ -132,7 +133,10 @@ export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", on
         return;
       }
       const payload = (await res.json()) as LoadedData;
-      setData(payload);
+      setData({
+        ...payload,
+        set_menus: payload.set_menus ?? [],
+      });
     } catch {
       setError("Erreur réseau. Réessayez.");
     } finally {
@@ -253,7 +257,9 @@ export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", on
               {activeTab === "localisation" ? (
                 <RestaurantLocationPanel restaurant={restaurant} showReserveLink={false} />
               ) : null}
-              {activeTab === "carte" ? <MenuTab items={data.menu_items} /> : null}
+              {activeTab === "carte" ? (
+                <MenuTab items={data.menu_items} setMenus={data.set_menus} />
+              ) : null}
               {activeTab === "avis" ? (
                 <ReviewsTab restaurant={restaurant} reviews={data.reviews} />
               ) : null}

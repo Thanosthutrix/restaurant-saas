@@ -3,24 +3,23 @@
 import { useMemo, useState } from "react";
 import { UtensilsCrossed } from "lucide-react";
 import { MenuItemCard } from "@/components/public/MenuItemCard";
+import { SetMenuCard } from "@/components/public/SetMenuCard";
 import {
   MENU_CATEGORIES,
   type MenuCategory,
 } from "@/lib/public/menuCategories";
-import type { MenuItem } from "@/lib/public/types";
+import type { MenuItem, PublicSetMenu } from "@/lib/public/types";
 
 type Props = {
   items: MenuItem[];
+  setMenus?: PublicSetMenu[];
 };
+
+type MenuView = MenuCategory | "all" | "formules";
 
 function sortByName(items: MenuItem[]): MenuItem[] {
   return [...items].sort((a, b) => a.name.localeCompare(b.name, "fr"));
 }
-
-const FILTERS: { key: MenuCategory | "all"; label: string }[] = [
-  { key: "all", label: "Tout" },
-  ...MENU_CATEGORIES.map((c) => ({ key: c.value, label: c.sectionLabel })),
-];
 
 function MenuSection({ title, emoji, items }: { title: string; emoji: string; items: MenuItem[] }) {
   if (items.length === 0) return null;
@@ -43,22 +42,42 @@ function MenuSection({ title, emoji, items }: { title: string; emoji: string; it
   );
 }
 
-export function MenuTab({ items }: Props) {
-  const [category, setCategory] = useState<MenuCategory | "all">("all");
+export function MenuTab({ items, setMenus = [] }: Props) {
+  const [view, setView] = useState<MenuView>("all");
 
-  const filtered = useMemo(
+  const filters = useMemo(() => {
+    const list: { key: MenuView; label: string; count: number }[] = [];
+    if (setMenus.length > 0) {
+      list.push({ key: "formules", label: "Formules", count: setMenus.length });
+    }
+    list.push({ key: "all", label: "Tout", count: items.length + setMenus.length });
+    for (const meta of MENU_CATEGORIES) {
+      const count = items.filter((i) => i.category === meta.value).length;
+      if (count > 0) {
+        list.push({ key: meta.value, label: meta.sectionLabel, count });
+      }
+    }
+    return list;
+  }, [items, setMenus.length]);
+
+  const filteredItems = useMemo(
     () =>
-      sortByName(category === "all" ? items : items.filter((i) => i.category === category)),
-    [category, items]
+      sortByName(
+        view === "all" || view === "formules" ? items : items.filter((i) => i.category === view)
+      ),
+    [items, view]
   );
 
   const sections = useMemo(() => {
-    if (category !== "all") return null;
+    if (view !== "all") return null;
     return MENU_CATEGORIES.map((meta) => ({
       meta,
       items: sortByName(items.filter((i) => i.category === meta.value)),
     })).filter((s) => s.items.length > 0);
-  }, [category, items]);
+  }, [items, view]);
+
+  const totalCount = items.length + setMenus.length;
+  const isEmpty = totalCount === 0;
 
   return (
     <div className="space-y-6">
@@ -70,50 +89,74 @@ export function MenuTab({ items }: Props) {
           <div>
             <h2 className="text-lg font-bold text-slate-900">La carte</h2>
             <p className="text-sm text-slate-500">
-              {items.length === 0
+              {isEmpty
                 ? "Aucun article publié pour le moment."
-                : `${items.length} article${items.length > 1 ? "s" : ""} · Plats, vins, boissons et plus`}
+                : `${totalCount} article${totalCount > 1 ? "s" : ""} · Formules et carte au choix`}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => {
-          const active = category === f.key;
-          const count =
-            f.key === "all" ? items.length : items.filter((i) => i.category === f.key).length;
-          if (f.key !== "all" && count === 0) return null;
-
-          return (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setCategory(f.key)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                active
-                  ? "bg-slate-900 text-white shadow-md"
-                  : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              {f.label}
-              {count > 0 ? (
+      {filters.length > 1 ? (
+        <div className="flex flex-wrap gap-2">
+          {filters.map((f) => {
+            const active = view === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setView(f.key)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  active
+                    ? "bg-slate-900 text-white shadow-md"
+                    : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                {f.label}
                 <span className={`ml-1.5 ${active ? "text-white/70" : "text-slate-400"}`}>
-                  {count}
+                  {f.count}
                 </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
-      {filtered.length === 0 ? (
+      {view === "formules" ? (
+        setMenus.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
+            Aucune formule publiée pour le moment.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {setMenus.map((menu) => (
+              <SetMenuCard key={menu.id} menu={menu} />
+            ))}
+          </div>
+        )
+      ) : isEmpty ? (
         <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
           Aucun article dans cette catégorie pour le moment.
         </p>
-      ) : category === "all" && sections ? (
+      ) : view === "all" ? (
         <div className="space-y-8">
-          {sections.map(({ meta, items: sectionItems }) => (
+          {setMenus.length > 0 ? (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 border-b border-orange-100 pb-2">
+                <span className="text-lg" aria-hidden>
+                  📋
+                </span>
+                <h3 className="text-base font-bold text-slate-900">Formules</h3>
+                <span className="text-xs font-medium text-slate-400">{setMenus.length}</span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {setMenus.map((menu) => (
+                  <SetMenuCard key={menu.id} menu={menu} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+          {sections?.map(({ meta, items: sectionItems }) => (
             <MenuSection
               key={meta.value}
               title={meta.sectionLabel}
@@ -122,9 +165,13 @@ export function MenuTab({ items }: Props) {
             />
           ))}
         </div>
+      ) : filteredItems.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
+          Aucun article dans cette catégorie pour le moment.
+        </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {filtered.map((item) => (
+          {filteredItems.map((item) => (
             <MenuItemCard key={item.id} item={item} />
           ))}
         </div>

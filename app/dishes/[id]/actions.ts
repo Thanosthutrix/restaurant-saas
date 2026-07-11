@@ -15,8 +15,24 @@ import {
 } from "@/lib/tax/frenchSellingVat";
 import type { MenuCategory } from "@/lib/public/menuCategories";
 import { isMenuCategory } from "@/lib/public/menuCategories";
+import { getCurrentUser } from "@/lib/auth";
+import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
+
+/**
+ * Vérifie que l'utilisateur connecté a le droit de modifier les plats de ce restaurant
+ * (propriétaire ou personnel autorisé). Les vérifications `dish.restaurant_id === restaurantId`
+ * plus bas ne font que garantir la cohérence des ID fournis : sans ce garde-fou, un `restaurantId`
+ * du client permettrait d'altérer les recettes de n'importe quel établissement (IDOR).
+ */
+async function gateDishes(
+  restaurantId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  return assertRestaurantAction(user.id, restaurantId, "dishes.mutate");
+}
 
 async function syncDishRecipeStatus(dishId: string, restaurantId: string): Promise<void> {
   const [{ data: dish }, { data: comps }] = await Promise.all([getDish(dishId), getDishComponents(dishId)]);
@@ -43,6 +59,8 @@ export async function addDishComponent(params: {
   qty: number;
 }): Promise<ActionResult> {
   const { restaurantId, dishId, inventoryItemId, qty } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
   if (qty <= 0) return { ok: false, error: "La quantité doit être strictement positive." };
 
   const [dishRes, itemRes] = await Promise.all([
@@ -93,6 +111,8 @@ export async function updateDishSellingPrice(params: {
   sellingVatRatePct: number;
 }): Promise<ActionResult> {
   const { dishId, restaurantId, sellingPriceTtc, sellingVatRatePct } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   if (sellingPriceTtc !== null) {
     const n = Number(sellingPriceTtc);
@@ -137,6 +157,8 @@ export async function updateDishCategory(params: {
   categoryId: string | null;
 }): Promise<ActionResult> {
   const { dishId, restaurantId, categoryId } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
   const check = await assertCategoryAssignable(categoryId, restaurantId, "dish");
   if (!check.ok) return { ok: false, error: check.error };
 
@@ -166,6 +188,8 @@ export async function updateDishComponent(params: {
   qty: number;
 }): Promise<ActionResult> {
   const { id, restaurantId, dishId, qty } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
   if (qty <= 0) return { ok: false, error: "La quantité doit être strictement positive." };
 
   const { data: row, error: fetchError } = await supabaseServer
@@ -214,6 +238,8 @@ export async function deleteDishComponent(params: {
   dishId: string;
 }): Promise<ActionResult> {
   const { id, restaurantId, dishId } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   const { data: row, error: fetchError } = await supabaseServer
     .from("dish_components")
@@ -268,6 +294,8 @@ export async function updateDishProductionMode(params: {
   productionMode: "prepared" | "resale";
 }): Promise<ActionResult> {
   const { dishId, restaurantId, productionMode } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   const { data: dish, error: gErr } = await getDish(dishId);
   if (gErr || !dish) return { ok: false, error: gErr?.message ?? "Plat introuvable." };
@@ -310,6 +338,8 @@ export async function applySuggestedRecipeToDish(params: {
   dishId: string;
 }): Promise<ActionResult> {
   const { restaurantId, dishId } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   const { data: dish, error: dishError } = await getDish(dishId);
   if (dishError || !dish) return { ok: false, error: "Plat introuvable." };
@@ -384,6 +414,8 @@ export async function validateDishRecipe(params: {
   dishId: string;
 }): Promise<ActionResult> {
   const { restaurantId, dishId } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   const { data: dish, error: dishError } = await getDish(dishId);
   if (dishError || !dish) return { ok: false, error: "Plat introuvable." };
@@ -411,6 +443,8 @@ export async function markDishRecipeAsDraft(params: {
   dishId: string;
 }): Promise<ActionResult> {
   const { restaurantId, dishId } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   const { data: dish, error: dishError } = await getDish(dishId);
   if (dishError || !dish) return { ok: false, error: "Plat introuvable." };
@@ -437,6 +471,8 @@ export async function updateDishPublicListing(params: {
   description: string;
 }): Promise<ActionResult> {
   const { restaurantId, dishId, isPublic, menuCategory, description } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   if (!isMenuCategory(menuCategory)) {
     return { ok: false, error: "Catégorie carte invalide." };
@@ -480,6 +516,8 @@ export async function deleteDish(params: {
   dishId: string;
 }): Promise<ActionResult> {
   const { restaurantId, dishId } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
 
   const { data: dish, error: dishError } = await getDish(dishId);
   if (dishError || !dish) return { ok: false, error: "Plat introuvable." };

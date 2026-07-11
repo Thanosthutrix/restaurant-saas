@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getRestaurantForPage } from "@/lib/auth";
-import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
+import { assertRestaurantAction, assertRestaurantMembership } from "@/lib/auth/restaurantActionAccess";
 import { getCurrentUser } from "@/lib/auth";
 import { createCustomer } from "@/lib/customers/customersDb";
 import { createService, deleteService, getService } from "@/lib/db";
@@ -37,6 +37,19 @@ import {
   type DiningOrderViewData,
 } from "@/lib/dining/diningOrderViewData";
 import { fetchOrderTicketSnapshot, type OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
+/**
+ * Garde-fou IDOR : l'utilisateur doit être propriétaire ou membre du personnel actif
+ * de ce restaurant. Sans cela, un `restaurantId` fourni par le client permettrait
+ * d'agir sur la caisse / les commandes de n'importe quel établissement.
+ */
+async function memberGate(
+  restaurantId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  return assertRestaurantMembership(user.id, restaurantId);
+}
+
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
 function revalidateDiningOrderFull(orderId: string) {
@@ -101,6 +114,8 @@ export async function addDishToDiningOrder(params: {
   qty?: number;
 }): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, orderId, dishId } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
   const qty = params.qty != null && Number.isFinite(params.qty) && params.qty > 0 ? params.qty : 1;
 
   const orderRes = await getDiningOrder(orderId, restaurantId);
@@ -149,6 +164,8 @@ export async function setDiningOrderLineQty(params: {
   qty: number;
 }): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, lineId, qty } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
   if (!Number.isFinite(qty) || qty <= 0) return { ok: false, error: "Quantité invalide." };
 
   const { data: row, error: fErr } = await supabaseServer
@@ -211,6 +228,8 @@ export async function removeDiningOrderLine(params: {
   lineId: string;
 }): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, lineId } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
 
   const { data: row, error: fErr } = await supabaseServer
     .from("dining_order_lines")
@@ -245,6 +264,8 @@ export async function setDiningOrderLineDiscount(params: {
   discountValue: number | null;
 }): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, lineId, kind } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
   let discountValue = params.discountValue;
 
   const lineRes = await getDiningOrderLineById(lineId, restaurantId);
@@ -318,6 +339,8 @@ export async function applyGlobalDiningOrderDiscount(params: {
   discountValue: number | null;
 }): Promise<ActionResult<OrderTicketSnapshot>> {
   const { restaurantId, orderId, kind } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
   let discountValue = params.discountValue;
 
   const ord = await getDiningOrder(orderId, restaurantId);
@@ -435,6 +458,8 @@ export async function recordDiningOrderPartialPayment(params: {
   amountTtc: number;
 }): Promise<ActionResult<{ amountPaidTtc: number; amountDueTtc: number }>> {
   const { restaurantId, orderId, paymentMethod, amountTtc } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
 
   if (!Number.isFinite(amountTtc) || amountTtc <= 0) {
     return { ok: false, error: "Indiquez un montant positif." };
@@ -492,6 +517,8 @@ export async function setDiningOrderLinePrepared(params: {
   isPrepared: boolean;
 }): Promise<ActionResult<{ orderReadyEmail: "sent" | "already_sent" | "none" }>> {
   const { restaurantId, lineId, isPrepared } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
 
   const { data: row, error: fErr } = await supabaseServer
     .from("dining_order_lines")
@@ -565,6 +592,8 @@ export async function cancelOpenDiningOrder(params: {
   orderId: string;
 }): Promise<ActionResult<{ diningTableId: string | null }>> {
   const { restaurantId, orderId } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
 
   const orderRes = await getDiningOrder(orderId, restaurantId);
   if (orderRes.error) return { ok: false, error: orderRes.error.message };
@@ -597,6 +626,8 @@ export async function reopenSettledDiningOrder(params: {
   orderId: string;
 }): Promise<ActionResult> {
   const { restaurantId, orderId } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
 
   const orderRes = await getDiningOrder(orderId, restaurantId);
   if (orderRes.error) return { ok: false, error: orderRes.error.message };
@@ -684,6 +715,8 @@ export async function settleDiningOrder(params: {
   paymentMethod: PaymentMethod;
 }): Promise<ActionResult<{ serviceId: string; totalTtc: number; diningTableId: string | null }>> {
   const { restaurantId, orderId, serviceType, paymentMethod } = params;
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
 
   const orderRes = await getDiningOrder(orderId, restaurantId);
   if (orderRes.error) return { ok: false, error: orderRes.error.message };

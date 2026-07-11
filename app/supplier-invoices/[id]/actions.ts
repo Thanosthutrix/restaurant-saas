@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getRestaurantForPage } from "@/lib/auth";
+import { getRestaurantForPage, getCurrentUser } from "@/lib/auth";
+import { assertRestaurantMembership } from "@/lib/auth/restaurantActionAccess";
 import {
   linkDeliveryNotesToSupplierInvoice,
   replaceSupplierInvoiceExtractedLines,
@@ -42,6 +43,11 @@ export async function unlinkReceptionFromInvoiceAction(
   deliveryNoteId: string,
   restaurantId: string
 ): Promise<{ error: string | null }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Non connecté." };
+  const mAuthz = await assertRestaurantMembership(user.id, restaurantId);
+  if (!mAuthz.ok) return { error: mAuthz.error };
+
   const { data: invoice, error: invErr } = await supabaseServer
     .from("supplier_invoices")
     .select("id, restaurant_id")
@@ -176,6 +182,11 @@ export async function updateSupplierInvoiceExtractedLinesAction(
   restaurantId: string,
   lines: SupplierInvoiceAnalysisLine[]
 ): Promise<{ success: true } | { success: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "Non connecté." };
+  const mAuthz = await assertRestaurantMembership(user.id, restaurantId);
+  if (!mAuthz.ok) return { success: false, error: mAuthz.error };
+
   const { data: invoice, error: invErr } = await supabaseServer
     .from("supplier_invoices")
     .select("id, restaurant_id, analysis_result_json")

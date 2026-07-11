@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getRestaurantForPage, getCurrentUser } from "@/lib/auth";
+import { assertRestaurantMembership } from "@/lib/auth/restaurantActionAccess";
 import { getDeliveryNoteFileUrl } from "@/lib/db";
 import { DELIVERY_NOTES_BUCKET, TRACEABILITY_ELEMENT_TYPES } from "@/lib/constants";
 import { resolveReceptionLineUnitCosts } from "@/lib/stock/receptionUnitCost";
@@ -35,12 +36,24 @@ async function assertExtractedLineAllowedForDeliveryNote(
   }
 }
 
+/**
+ * Garde-fou IDOR : l'utilisateur doit être propriétaire ou membre du personnel actif
+ * de ce restaurant. Lève une erreur sinon (ces actions retournent `void`).
+ */
+async function assertMemberOrThrow(restaurantId: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Non connecté.");
+  const authz = await assertRestaurantMembership(user.id, restaurantId);
+  if (!authz.ok) throw new Error(authz.error);
+}
+
 export async function attachBlToDeliveryNoteAction(
   deliveryNoteId: string,
   restaurantId: string,
   filePath: string,
   fileName: string
 ): Promise<void> {
+  await assertMemberOrThrow(restaurantId);
   const { data: note } = await supabaseServer
     .from("delivery_notes")
     .select("id, restaurant_id, status")
@@ -394,6 +407,7 @@ export async function recordTraceabilityPhotoAction(
   lineId: string,
   storagePath: string
 ): Promise<void> {
+  await assertMemberOrThrow(restaurantId);
   const elementType = await resolveTraceabilityElementTypeForLine(lineId);
   const { data: line, error: lineErr } = await supabaseServer
     .from("delivery_note_lines")
@@ -434,6 +448,7 @@ export async function toggleDeliveryNoteLineVerifiedAction(
   lineId: string,
   verified: boolean
 ): Promise<void> {
+  await assertMemberOrThrow(restaurantId);
   const { data: note, error: noteErr } = await supabaseServer
     .from("delivery_notes")
     .select("id, restaurant_id, status")
@@ -462,6 +477,7 @@ export async function deleteTraceabilityPhotoAction(
   deliveryNoteId: string,
   photoId: string
 ): Promise<void> {
+  await assertMemberOrThrow(restaurantId);
   const { data: row, error: fetchErr } = await supabaseServer
     .from("reception_traceability_photos")
     .select("id, restaurant_id, delivery_note_id, storage_path")

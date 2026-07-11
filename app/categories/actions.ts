@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { getCategoryById, type CategoryAppliesTo } from "@/lib/catalog/restaurantCategories";
+import { getCurrentUser } from "@/lib/auth";
+import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 
 export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -12,6 +14,19 @@ function isAppliesTo(x: string): x is CategoryAppliesTo {
   return APPLIES.includes(x as CategoryAppliesTo);
 }
 
+/**
+ * Vérifie que l'utilisateur connecté a le droit d'agir sur ce restaurant (propriétaire
+ * ou personnel autorisé). Sans ce garde-fou, un `restaurantId` fourni par le client
+ * permettrait de créer/renommer/supprimer les rubriques de n'importe quel établissement (IDOR).
+ */
+async function gateCategories(
+  restaurantId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  return assertRestaurantAction(user.id, restaurantId, "dishes.mutate");
+}
+
 export async function createRestaurantCategory(params: {
   restaurantId: string;
   parentId: string | null;
@@ -19,6 +34,8 @@ export async function createRestaurantCategory(params: {
   appliesTo: CategoryAppliesTo;
 }): Promise<ActionResult<{ id: string }>> {
   const { restaurantId, parentId, name, appliesTo } = params;
+  const authz = await gateCategories(restaurantId);
+  if (!authz.ok) return authz;
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "Nom requis." };
   if (!isAppliesTo(appliesTo)) return { ok: false, error: "Portée invalide." };
@@ -52,6 +69,8 @@ export async function renameRestaurantCategory(params: {
   name: string;
 }): Promise<ActionResult> {
   const { restaurantId, categoryId, name } = params;
+  const authz = await gateCategories(restaurantId);
+  if (!authz.ok) return authz;
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "Nom requis." };
 
@@ -72,6 +91,8 @@ export async function updateRestaurantCategoryAppliesTo(params: {
   appliesTo: CategoryAppliesTo;
 }): Promise<ActionResult> {
   const { restaurantId, categoryId, appliesTo } = params;
+  const authz = await gateCategories(restaurantId);
+  if (!authz.ok) return authz;
   if (!isAppliesTo(appliesTo)) return { ok: false, error: "Portée invalide." };
 
   const { error } = await supabaseServer
@@ -90,6 +111,8 @@ export async function deleteRestaurantCategory(params: {
   categoryId: string;
 }): Promise<ActionResult> {
   const { restaurantId, categoryId } = params;
+  const authz = await gateCategories(restaurantId);
+  if (!authz.ok) return authz;
 
   const { error } = await supabaseServer
     .from("restaurant_categories")

@@ -46,6 +46,37 @@ const CAPABILITY_NAV_KEY: Record<RestaurantActionCapability, ShellNavKey> = {
   "reservations.mutate": "reservations",
 };
 
+/**
+ * Garde-fou minimal : l'utilisateur doit être propriétaire du restaurant OU un membre
+ * du personnel actif rattaché à ce restaurant. Ne vérifie pas de capacité précise —
+ * à utiliser pour fermer une faille IDOR sans changer le modèle de rôles (le personnel
+ * légitime, déjà membre, n'est pas impacté).
+ */
+export async function assertRestaurantMembership(
+  userId: string,
+  restaurantId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: rest, error: restErr } = await supabaseServer
+    .from("restaurants")
+    .select("owner_id")
+    .eq("id", restaurantId)
+    .maybeSingle();
+
+  if (restErr || !rest) return { ok: false, error: "Restaurant introuvable." };
+  if ((rest as { owner_id: string }).owner_id === userId) return { ok: true };
+
+  const { data: sm, error: smErr } = await supabaseServer
+    .from("staff_members")
+    .select("id")
+    .eq("restaurant_id", restaurantId)
+    .eq("user_id", userId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (smErr || !sm) return { ok: false, error: "Accès refusé." };
+  return { ok: true };
+}
+
 export async function assertRestaurantAction(
   userId: string,
   restaurantId: string,

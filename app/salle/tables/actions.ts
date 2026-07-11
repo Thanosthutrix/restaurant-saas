@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { getCurrentUser } from "@/lib/auth";
+import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 
 export type TableActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -9,10 +11,26 @@ function normalizeLabel(label: string): string {
   return label.trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Vérifie que l'utilisateur connecté a le droit d'agir sur ce restaurant (propriétaire
+ * ou personnel autorisé). Sans ce garde-fou, un `restaurantId` fourni par le client
+ * permettrait d'altérer les tables de n'importe quel établissement (IDOR).
+ */
+async function gateTables(
+  restaurantId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  return assertRestaurantAction(user.id, restaurantId, "reservations.mutate");
+}
+
 export async function addDiningTable(params: {
   restaurantId: string;
   label: string;
 }): Promise<TableActionResult<{ id: string }>> {
+  const authz = await gateTables(params.restaurantId);
+  if (!authz.ok) return authz;
+
   const label = normalizeLabel(params.label);
   if (!label) return { ok: false, error: "Indiquez un libellé pour la table." };
   if (label.length > 80) return { ok: false, error: "Libellé trop long (max. 80 caractères)." };
@@ -58,6 +76,9 @@ export async function updateDiningTableLabel(params: {
   tableId: string;
   label: string;
 }): Promise<TableActionResult> {
+  const authz = await gateTables(params.restaurantId);
+  if (!authz.ok) return authz;
+
   const label = normalizeLabel(params.label);
   if (!label) return { ok: false, error: "Indiquez un libellé pour la table." };
   if (label.length > 80) return { ok: false, error: "Libellé trop long (max. 80 caractères)." };
@@ -85,6 +106,9 @@ export async function setDiningTableActive(params: {
   tableId: string;
   isActive: boolean;
 }): Promise<TableActionResult> {
+  const authz = await gateTables(params.restaurantId);
+  if (!authz.ok) return authz;
+
   const { error } = await supabaseServer
     .from("dining_tables")
     .update({ is_active: params.isActive })

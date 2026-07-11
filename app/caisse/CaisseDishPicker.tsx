@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dish } from "@/lib/db";
 import type { CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
 import type { CustomerLookupRow } from "@/lib/customers/customersDb";
@@ -15,46 +15,30 @@ import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 
 function DishTapButton({
   dish,
-  restaurantId,
-  onOrderChange,
+  onAddDish,
 }: {
   dish: Dish;
-  restaurantId: string;
-  onOrderChange: (orderId: string, ticket: OrderTicketSnapshot) => void;
+  onAddDish: (dishId: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
   const [addedCount, setAddedCount] = useState(0);
   const [flash, setFlash] = useState(false);
 
   const tap = () => {
     setError(null);
-    let existing: string | null = null;
-    try {
-      existing = sessionStorage.getItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-    startTransition(async () => {
-      const res = await addDishToQuickCounterOrReuse({
-        restaurantId,
-        dishId: dish.id,
-        existingOrderId: existing,
-      });
-      if (!res.ok || !res.data) {
-        setError(res.ok === false ? res.error : "Erreur inattendue.");
-        return;
+
+    // Retour visuel OPTIMISTE immédiat + AUCUN `disabled` : on peut enchaîner les taps
+    // en rafale (style natif). La création de ticket est sérialisée côté parent
+    // (`addDish`), donc un seul ticket est créé quel que soit le rythme des taps.
+    setAddedCount((n) => n + 1);
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 600);
+
+    void onAddDish(dish.id).then((res) => {
+      if (!res.ok) {
+        setAddedCount((n) => Math.max(0, n - 1)); // rollback du badge optimiste
+        setError(res.error ?? "Erreur inattendue.");
       }
-      const oid = res.data.orderId;
-      try {
-        sessionStorage.setItem(CAISSE_QUICK_COUNTER_STORAGE_KEY, oid);
-      } catch {
-        /* ignore */
-      }
-      setAddedCount((n) => n + 1);
-      setFlash(true);
-      window.setTimeout(() => setFlash(false), 600);
-      onOrderChange(oid, res.data.ticket);
     });
   };
 
@@ -62,7 +46,6 @@ function DishTapButton({
     <div className="space-y-1">
       <DishCatalogTileButton
         dish={dish}
-        disabled={pending}
         onClick={tap}
         badge={
           addedCount > 0 ? (
@@ -147,10 +130,76 @@ export function CaisseDishPicker({
     return () => window.clearTimeout(t);
   }, [settledFlash]);
 
-  const onOrderChange = useCallback((orderId: string, ticket: OrderTicketSnapshot) => {
+  // Ref synchrone de l'ID de commande + verrou de création. Garantit qu'UN SEUL ticket
+  // est créé même si l'utilisateur tape plusieurs plats en rafale avant la 1ère réponse
+  // serveur (sinon chaque tap « sans commande » créerait un ticket distinct = bug caisse).
+  const orderIdRef = useRef<string | null>(activeOrderId);
+  useEffect(() => {
+    orderIdRef.current = activeOrderId;
+  }, [activeOrderId]);
+  const createInFlightRef = useRef<Promise<string | null> | null>(null);
+
+  const applyOrderResult = useCallback((orderId: string, ticket: OrderTicketSnapshot) => {
+    orderIdRef.current = orderId;
+    try {
+      sessionStorage.setItem(CAISSE_QUICK_COUNTER_STORAGE_KEY, orderId);
+    } catch {
+      /* ignore */
+    }
     setActiveOrderId(orderId);
     setTicketPatch(ticket);
   }, []);
+
+  const addDish = useCallback(
+    async (dishId: string): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        let orderId = orderIdRef.current;
+
+        // Une création est déjà en cours : on attend son ID au lieu d'en lancer une 2e.
+        if (!orderId && createInFlightRef.current) {
+          orderId = await createInFlightRef.current;
+        }
+
+        // Aucune commande : on en crée UNE seule (verrou). Cette action ajoute déjà ce plat.
+        if (!orderId) {
+          const createPromise = (async (): Promise<string | null> => {
+            const res = await addDishToQuickCounterOrReuse({
+              restaurantId,
+              dishId,
+              existingOrderId: null,
+            });
+            if (!res.ok || !res.data) {
+              throw new Error(res.ok === false ? res.error : "Erreur inattendue.");
+            }
+            applyOrderResult(res.data.orderId, res.data.ticket);
+            return res.data.orderId;
+          })();
+          createInFlightRef.current = createPromise;
+          try {
+            await createPromise;
+          } finally {
+            if (createInFlightRef.current === createPromise) createInFlightRef.current = null;
+          }
+          return { ok: true };
+        }
+
+        // Une commande existe déjà : on la réutilise (aucun nouveau ticket créé).
+        const res = await addDishToQuickCounterOrReuse({
+          restaurantId,
+          dishId,
+          existingOrderId: orderId,
+        });
+        if (!res.ok || !res.data) {
+          return { ok: false, error: res.ok === false ? res.error : "Erreur inattendue." };
+        }
+        applyOrderResult(res.data.orderId, res.data.ticket);
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "Erreur inattendue." };
+      }
+    },
+    [restaurantId, applyOrderResult]
+  );
 
   if (totalPlats === 0) {
     return (
@@ -211,9 +260,7 @@ export function CaisseDishPicker({
         roots={roots}
         directByCategoryId={directByCategoryId}
         uncategorized={uncategorized}
-        renderDish={(dish) => (
-          <DishTapButton dish={dish} restaurantId={restaurantId} onOrderChange={onOrderChange} />
-        )}
+        renderDish={(dish) => <DishTapButton dish={dish} onAddDish={addDish} />}
         renderModalFooter={
           activeOrderId && ticketSummary
             ? (close) => (

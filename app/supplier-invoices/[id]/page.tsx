@@ -125,6 +125,7 @@ export default async function SupplierInvoicePage({ params }: Props) {
               invoice_date: invoice.invoice_date,
               amount_ht: invoice.amount_ht,
               amount_ttc: invoice.amount_ttc,
+              expense_category: invoice.expense_category ?? null,
             }}
             restaurantId={restaurant.id}
           />

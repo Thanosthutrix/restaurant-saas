@@ -119,6 +119,7 @@ export async function createSupplierInvoiceAction(params: {
   invoiceDate?: string | null;
   filePath: string;
   fileName: string;
+  expenseCategory?: string | null;
 }): Promise<CreateSupplierInvoiceResult> {
   const { data, error } = await createSupplierInvoice({
     restaurantId: params.restaurantId,
@@ -127,6 +128,7 @@ export async function createSupplierInvoiceAction(params: {
     invoiceDate: params.invoiceDate ?? null,
     filePath: params.filePath,
     fileName: params.fileName,
+    expenseCategory: params.expenseCategory ?? null,
   });
   if (error || !data) return { ok: false, error: error?.message ?? "Erreur à la création de la facture." };
 
@@ -143,5 +145,7 @@ export async function createSupplierInvoiceAction(params: {
   revalidatePath("/suppliers/[id]", "page");
   revalidatePath("/supplier-invoices");
   revalidatePath("/supplier-invoices/[id]", "page");
+  revalidatePath("/pilotage/rh/administratif");
+  revalidatePath("/pilotage/bilan");
   return { ok: true, invoiceId: data.id };
 }

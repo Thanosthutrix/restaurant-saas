@@ -19,6 +19,7 @@ import {
   listDiningOrderPayments,
   type LineWithDish,
   lineGrossTtc,
+  lineTtc,
   orderTotalTtc,
   setDiningOrderCustomerId,
   setDiningOrderGuestLabel,
@@ -28,6 +29,7 @@ import type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { lineNetAfterDiscount, parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
 import type { DiningPaymentMethod } from "@/lib/dining/diningPaymentMethods";
 import { mergeSalesByDish } from "@/lib/dining/mergeSalesByDish";
+import { normalizeVatRatePct } from "@/lib/tax/frenchSellingVat";
 import { toNumber } from "@/lib/utils/safeNumeric";
 import { computeSalesConsumption } from "@/lib/recipes/computeSalesConsumption";
 import { revertConsumptionFromStock } from "@/lib/recipes/applyConsumptionToStock";
@@ -730,8 +732,23 @@ export async function settleDiningOrder(params: {
   const lines = linesRes.data;
   if (lines.length === 0) return { ok: false, error: "Ajoutez au moins un plat avant d’encaisser." };
 
-  const sales = mergeSalesByDish(lines.map((l) => ({ dish_id: l.dish_id, qty: l.qty })));
-  if (sales.length === 0) return { ok: false, error: "Aucune ligne valide." };
+  const merged = mergeSalesByDish(lines.map((l) => ({ dish_id: l.dish_id, qty: l.qty })));
+  if (merged.length === 0) return { ok: false, error: "Aucune ligne valide." };
+
+  // CA HT réel par plat (remises incluses) — alimente service_sales.line_total_ht
+  // pour les marges réalisées et le bilan « Ma poche » (sinon repli prix carte).
+  const netHtByDish = new Map<string, number>();
+  for (const l of lines) {
+    const netTtc = lineTtc(l);
+    if (netTtc <= 0) continue;
+    const vat = normalizeVatRatePct(dishFromJoin(l)?.selling_vat_rate_pct, 10);
+    const ht = netTtc / (1 + vat / 100);
+    netHtByDish.set(l.dish_id, (netHtByDish.get(l.dish_id) ?? 0) + ht);
+  }
+  const sales = merged.map((s) => ({
+    ...s,
+    line_total_ht: netHtByDish.get(s.dish_id) ?? null,
+  }));
 
   let grossSum = 0;
   for (const l of lines) grossSum += lineGrossTtc(l);

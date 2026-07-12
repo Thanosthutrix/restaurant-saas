@@ -43,7 +43,8 @@ async function pdfDataUrlFromUrl(fileUrl: string): Promise<string> {
 }
 
 const INVOICE_PROMPT = `
-Tu es un assistant qui lit une facture fournisseur (restauration / alimentaire).
+Tu es un assistant qui lit une facture reçue par un restaurant (achats alimentaires,
+mais aussi énergie, assurance, maintenance, abonnements, taxes…).
 Retourne UNIQUEMENT un JSON valide, sans texte avant ou après, au format exact :
 
 {
@@ -51,6 +52,7 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ou après, au format exact 
   "invoice_date": string | null,
   "amount_ht": number | null,
   "amount_ttc": number | null,
+  "expense_category": "matieres" | "rh" | "locaux" | "entretien" | "prestataires" | "marketing_banque" | "impots_taxes" | "financier",
   "vendor": {
     "legal_name": string | null,
     "address": string | null,
@@ -70,6 +72,17 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ou après, au format exact 
   ],
   "raw_text": string | null
 }
+
+expense_category — poste comptable de la dépense, choisis LE plus adapté :
+- "matieres" : denrées alimentaires, boissons, emballages, consommables de table, produits d'entretien/hygiène (HACCP).
+- "rh" : mutuelle, prévoyance, médecine du travail, formation, intérim, recrutement, vêtements pro.
+- "locaux" : loyer, charges locatives, électricité, gaz, eau, assurances.
+- "entretien" : hotte/extraction, bac à graisse, maintenance matériel, vaisselle/casse, blanchisserie.
+- "prestataires" : expert-comptable, juridique, abonnements logiciels (caisse, stocks, réservation), fournitures bureau.
+- "marketing_banque" : commissions livraison (Uber Eats, Deliveroo), communication/pub, frais CB/TPE, titres-restaurant, frais bancaires.
+- "impots_taxes" : CFE, taxe foncière, SACEM/SPRE, taxes locales (terrasse, enseigne).
+- "financier" : intérêts d'emprunt, leasing, crédit-bail.
+En cas de doute sur une facture alimentaire, choisis "matieres".
 
 Règles :
 - invoice_date au format YYYY-MM-DD si tu la déduis, sinon null.

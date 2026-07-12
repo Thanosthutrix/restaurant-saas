@@ -13,6 +13,7 @@ import {
   SUPPLIER_INVOICES_BUCKET,
 } from "@/lib/db";
 import { sendSupplierInvoiceClaimEmail } from "@/lib/messaging/supplierInvoiceClaimEmails";
+import { isExpenseCategory } from "@/lib/pocket/expenseCategories";
 import { runSupplierInvoiceAnalysis } from "@/lib/run-supplier-invoice-analysis";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { resolveReceptionLineUnitCosts } from "@/lib/stock/receptionUnitCost";
@@ -129,6 +130,7 @@ export async function updateSupplierInvoiceMetadataAction(
   const invoiceDate = formData.get("invoice_date");
   const amountHt = formData.get("amount_ht");
   const amountTtc = formData.get("amount_ttc");
+  const expenseCategory = formData.get("expense_category");
 
   const invoice_number =
     typeof invoiceNumber === "string" ? (invoiceNumber.trim() || null) : null;
@@ -152,6 +154,9 @@ export async function updateSupplierInvoiceMetadataAction(
     invoice_date,
     amount_ht,
     amount_ttc,
+    ...(typeof expenseCategory === "string" && isExpenseCategory(expenseCategory)
+      ? { expense_category: expenseCategory }
+      : {}),
   });
   if (error) return { success: false, error: error.message };
   revalidatePath(`/supplier-invoices/${invoiceId}`);

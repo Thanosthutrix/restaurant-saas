@@ -12,7 +12,8 @@ import { serviceConsumptionReferenceLabel } from "@/lib/stock/fifo";
 export async function recordServiceSalesAndApplyStock(params: {
   serviceId: string;
   restaurantId: string;
-  sales: { dish_id: string; qty: number }[];
+  /** `line_total_ht` optionnel = CA HT réel encaissé pour ce plat (remises incluses). */
+  sales: { dish_id: string; qty: number; line_total_ht?: number | null }[];
 }): Promise<{ error: Error | null }> {
   const { serviceId, restaurantId, sales } = params;
 

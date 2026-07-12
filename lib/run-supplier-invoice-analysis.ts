@@ -10,9 +10,10 @@ import {
   SUPPLIER_INVOICE_ANALYSIS_VERSION,
 } from "@/lib/supplier-invoice-openai";
 import { SUPPLIER_INVOICES_BUCKET } from "@/lib/constants";
+import { guessExpenseCategory, isExpenseCategory } from "@/lib/pocket/expenseCategories";
 
 const INVOICE_ANALYSIS_SELECT =
-  "id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, analysis_result_json, analysis_status, analysis_error, analysis_version";
+  "id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, analysis_result_json, analysis_status, analysis_error, analysis_version, expense_category";
 
 function filePublicUrl(filePath: string | null, fileUrl: string | null): string | null {
   if (fileUrl) return fileUrl;
@@ -50,6 +51,16 @@ export async function applySupplierInvoiceAnalysisResult(
 
   const now = new Date().toISOString();
 
+  // Poste comptable (bilan « Ma poche ») : classement IA, sinon heuristique mots-clés
+  // sur le nom du fournisseur. On n'écrase jamais un classement déjà présent
+  // (corrigé à la main par le restaurateur).
+  const aiCategory = (analysisJson as { expense_category?: unknown }).expense_category;
+  const vendorName = ((analysisJson as { vendor?: { legal_name?: unknown } }).vendor?.legal_name ?? "") as string;
+  const expenseCategory = isExpenseCategory(String(aiCategory ?? ""))
+    ? (aiCategory as string)
+    : guessExpenseCategory(vendorName);
+  const existingCategory = (inv as { expense_category?: string | null }).expense_category ?? null;
+
   await supabaseServer
     .from("supplier_invoices")
     .update({
@@ -57,6 +68,7 @@ export async function applySupplierInvoiceAnalysisResult(
       analysis_status: "done",
       analysis_error: null,
       analysis_version: SUPPLIER_INVOICE_ANALYSIS_VERSION,
+      ...(existingCategory ? {} : { expense_category: expenseCategory }),
       updated_at: now,
     })
     .eq("id", invoiceId)

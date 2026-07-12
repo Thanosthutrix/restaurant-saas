@@ -98,9 +98,6 @@ export default async function EquipePage({ searchParams }: Props) {
         <Link href="/equipe/mon-planning" className="font-medium text-copper-800 underline">
           Mon planning (collaborateur)
         </Link>
-        <Link href="/equipe/contrats" className="font-medium text-copper-800 underline">
-          Contrats HCR
-        </Link>
       </p>
 
       <EquipePlanningClient

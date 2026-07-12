@@ -93,6 +93,10 @@
     border-color: #67e8f9;
     background-color: rgba(236, 254, 255, 0.6);
   }
+  .tile-rose:hover {
+    border-color: #fda4af;
+    background-color: rgba(255, 241, 242, 0.65);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

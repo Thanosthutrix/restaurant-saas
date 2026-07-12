@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, CalendarDays, ClipboardList, Percent } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, Percent, Users, Wallet } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { ALL_SHELL_NAV_KEYS, canAccessPage, type ShellNavKey } from "@/lib/auth/appRoles";
@@ -15,7 +15,19 @@ const tiles: {
   navKey: ShellNavKey;
   tone: string;
   tile: string;
+  /** Finances de l'établissement : visible uniquement par le propriétaire. */
+  ownerOnly?: boolean;
 }[] = [
+  {
+    title: "Ma poche",
+    description: "Ce qu'il vous reste sur la période : CA − matière − salaires − charges.",
+    href: "/pilotage/bilan",
+    icon: Wallet,
+    navKey: "margins",
+    tone: "bg-copper-50 text-copper-700",
+    tile: "tile-copper",
+    ownerOnly: true,
+  },
   {
     title: "Analyse des ventes",
     description: "Ce qui se vend, quand, et comment le mix produit évolue.",
@@ -52,6 +64,16 @@ const tiles: {
     tone: "bg-violet-50 text-violet-700",
     tile: "tile-violet",
   },
+  {
+    title: "RH",
+    description: "Contrats de travail HCR, clauses et documents employeur.",
+    href: "/pilotage/rh",
+    icon: Users,
+    navKey: "equipe_manage",
+    tone: "bg-rose-50 text-rose-700",
+    tile: "tile-rose",
+    ownerOnly: true,
+  },
 ];
 
 export default async function PilotagePage() {
@@ -63,7 +85,9 @@ export default async function PilotagePage() {
   const accessContext = await getShellAccessContext(user.id);
   const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
   const isOwner = accessContext?.isOwner ?? false;
-  const visibleTiles = tiles.filter((t) => isOwner || canAccessPage(t.navKey, allowed));
+  const visibleTiles = tiles.filter((t) =>
+    t.ownerOnly ? isOwner : isOwner || canAccessPage(t.navKey, allowed)
+  );
 
   return (
     <PageContainer>

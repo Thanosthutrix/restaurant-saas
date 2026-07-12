@@ -264,6 +264,8 @@ export type SupplierInvoice = {
   amount_ht: number | null;
   amount_ttc: number | null;
   status: "draft" | "linked" | "reviewed";
+  /** Poste comptable de la dépense (bilan « Ma poche ») — classé par l'IA, corrigeable. */
+  expense_category?: string | null;
   created_at?: string;
   updated_at?: string;
   analysis_result_json?: unknown | null;
@@ -385,11 +387,11 @@ export async function createService(
   return { data: data as Service, error: null };
 }
 
-/** Crée les ventes d'un service. */
+/** Crée les ventes d'un service. `line_total_ht` optionnel = CA HT réel encaissé (remises incluses). */
 export async function createServiceSales(
   serviceId: string,
   restaurantId: string,
-  sales: { dish_id: string; qty: number }[]
+  sales: { dish_id: string; qty: number; line_total_ht?: number | null }[]
 ): Promise<{ error: Error | null }> {
   const rows = sales
     .filter((s) => s.qty > 0)
@@ -398,6 +400,9 @@ export async function createServiceSales(
       dish_id: s.dish_id,
       qty: s.qty,
       restaurant_id: restaurantId,
+      ...(s.line_total_ht != null && Number.isFinite(s.line_total_ht) && s.line_total_ht > 0
+        ? { line_total_ht: Math.round(s.line_total_ht * 100) / 100 }
+        : {}),
     }));
 
   if (rows.length === 0) return { error: null };
@@ -1834,6 +1839,7 @@ export async function createSupplierInvoice(params: {
   invoiceDate?: string | null;
   filePath: string;
   fileName: string;
+  expenseCategory?: string | null;
 }): Promise<{ data: SupplierInvoice | null; error: Error | null }> {
   const fileUrl = getSupplierInvoiceFileUrl(params.filePath);
   const now = new Date().toISOString();
@@ -1848,9 +1854,10 @@ export async function createSupplierInvoice(params: {
       file_name: params.fileName,
       file_url: fileUrl,
       status: "draft",
+      expense_category: params.expenseCategory ?? null,
       updated_at: now,
     })
-    .select("id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, status, created_at, updated_at")
+    .select("id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, status, expense_category, created_at, updated_at")
     .single();
   if (error) return { data: null, error: new Error(error.message) };
   return { data: data as SupplierInvoice, error: null };
@@ -1902,6 +1909,7 @@ export async function updateSupplierInvoice(
     invoice_date?: string | null;
     amount_ht?: number | null;
     amount_ttc?: number | null;
+    expense_category?: string | null;
   }
 ): Promise<{ data: SupplierInvoice | null; error: Error | null }> {
   const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -1909,13 +1917,14 @@ export async function updateSupplierInvoice(
   if (params.invoice_date !== undefined) payload.invoice_date = params.invoice_date;
   if (params.amount_ht !== undefined) payload.amount_ht = params.amount_ht;
   if (params.amount_ttc !== undefined) payload.amount_ttc = params.amount_ttc;
+  if (params.expense_category !== undefined) payload.expense_category = params.expense_category;
 
   const { data, error } = await supabaseServer
     .from("supplier_invoices")
     .update(payload)
     .eq("id", invoiceId)
     .eq("restaurant_id", restaurantId)
-    .select("id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, status, created_at, updated_at")
+    .select("id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, status, expense_category, created_at, updated_at")
     .single();
   if (error) return { data: null, error: new Error(error.message) };
   return { data: data as SupplierInvoice, error: null };
@@ -1967,7 +1976,7 @@ export type SupplierInvoiceWithDeliveryNotes = SupplierInvoice & {
 };
 
 const SUPPLIER_INVOICE_DETAIL_SELECT =
-  "id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, status, created_at, updated_at, analysis_result_json, analysis_status, analysis_error, analysis_version";
+  "id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, status, expense_category, created_at, updated_at, analysis_result_json, analysis_status, analysis_error, analysis_version";
 
 function mapDbExtractedLineToAnalysisLine(row: {
   label: string;

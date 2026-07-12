@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateSupplierInvoiceMetadataAction } from "./actions";
 import type { SupplierInvoice } from "@/lib/db";
+import { EXPENSE_CATEGORIES, isExpenseCategory } from "@/lib/pocket/expenseCategories";
 
 type Props = {
   invoice: Pick<
     SupplierInvoice,
-    "id" | "invoice_number" | "invoice_date" | "amount_ht" | "amount_ttc"
+    "id" | "invoice_number" | "invoice_date" | "amount_ht" | "amount_ttc" | "expense_category"
   >;
   restaurantId: string;
 };
@@ -106,6 +107,23 @@ export function InvoiceMetadataForm({ invoice, restaurantId }: Props) {
             placeholder="0.00"
             className="w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900"
           />
+        </div>
+        <div>
+          <label htmlFor="expense_category" className="mb-1 block text-sm font-medium text-stone-700">
+            Poste comptable — bilan « Ma poche » (classé par l&apos;IA, corrigeable)
+          </label>
+          <select
+            id="expense_category"
+            name="expense_category"
+            defaultValue={isExpenseCategory(invoice.expense_category) ? invoice.expense_category : "matieres"}
+            className="w-full rounded border border-stone-300 bg-white px-3 py-2 text-stone-900"
+          >
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   HCR_CDD_REASONS,
   HCR_JOB_PRESETS,
@@ -26,6 +27,8 @@ import type {
 } from "@/lib/hcr-contracts/types";
 import type { Restaurant } from "@/lib/auth";
 import type { StaffMember } from "@/lib/staff/types";
+import type { EmployerProfile } from "@/lib/rh/employerProfile";
+import { employerProfileToHcrIdentity } from "@/lib/rh/employerProfile";
 import {
   uiBtnPrimary,
   uiBtnSecondary,
@@ -37,10 +40,14 @@ import {
   uiWarn,
 } from "@/components/ui/premium";
 import { HcrClauseSidebar } from "./HcrClauseSidebar";
+import { saveHcrContractAction } from "@/app/pilotage/rh/contrats/actions";
 
 type Props = {
   restaurant: Restaurant;
   staff: StaffMember[];
+  initialDraft?: HcrContractDraft;
+  contractId?: string;
+  employerProfile?: EmployerProfile | null;
 };
 
 const LEVELS: HcrLevel[] = ["1", "2", "3", "4", "5"];
@@ -73,29 +80,36 @@ function inferCityFromAddress(address: string | null): string {
   return parts.at(-1) ?? "";
 }
 
-function initialDraft(restaurant: Restaurant, staff: StaffMember[]): HcrContractDraft {
+function buildInitialDraft(
+  restaurant: Restaurant,
+  staff: StaffMember[],
+  employerProfile?: EmployerProfile | null
+): HcrContractDraft {
   const firstStaff = staff[0];
   const split = splitDisplayName(firstStaff?.display_name ?? "");
   const preset = HCR_JOB_PRESETS[0];
   const hourly = minimumHourlyWageFor(preset.defaultLevel, preset.defaultEchelon) ?? 11.88;
   const weeklyHours = firstStaff?.target_weekly_hours ?? 35;
   const signatureCity = inferCityFromAddress(restaurant.address_text);
+  const employer = employerProfile
+    ? employerProfileToHcrIdentity(employerProfile)
+    : {
+        restaurantId: restaurant.id,
+        companyName: restaurant.name,
+        legalName: restaurant.name,
+        legalForm: "",
+        siret: "",
+        urssafOffice: "",
+        address: restaurant.address_text ?? "",
+        representativeName: "",
+        representativeRole: "Gérant",
+        collectiveAgreementIdcc: DEFAULT_CONVENTION_IDCC,
+        retirementFund: "",
+        healthProvider: "",
+      };
   return {
     contractKind: firstStaff?.contract_type === "cdd" ? "cdd" : "cdi",
-    employer: {
-      restaurantId: restaurant.id,
-      companyName: restaurant.name,
-      legalName: restaurant.name,
-      legalForm: "",
-      siret: "",
-      urssafOffice: "",
-      address: restaurant.address_text ?? "",
-      representativeName: "",
-      representativeRole: "Gérant",
-      collectiveAgreementIdcc: DEFAULT_CONVENTION_IDCC,
-      retirementFund: "",
-      healthProvider: "",
-    },
+    employer,
     employee: {
       staffMemberId: firstStaff?.id,
       firstName: split.firstName,
@@ -208,8 +222,21 @@ p{font-size:12px;margin:0 0 10px}
 </style></head><body>${documentHtml}<script>window.print()</script></body></html>`;
 }
 
-export function HcrContractWizard({ restaurant, staff }: Props) {
-  const [draft, setDraft] = useState<HcrContractDraft>(() => initialDraft(restaurant, staff));
+export function HcrContractWizard({
+  restaurant,
+  staff,
+  initialDraft,
+  contractId: initialContractId,
+  employerProfile,
+}: Props) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [contractId, setContractId] = useState(initialContractId);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<HcrContractDraft>(
+    () => initialDraft ?? buildInitialDraft(restaurant, staff, employerProfile)
+  );
   const document = useMemo(() => buildContractDocument(draft), [draft]);
   const trialLimit = useMemo(() => calculateTrialPeriodLimit(draft), [draft]);
   const selectedIdcc = draft.employer.collectiveAgreementIdcc;
@@ -406,6 +433,36 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
     if (!win) return;
     win.document.write(printableHtml(document.html, document.title));
     win.document.close();
+  }
+
+  function saveContract(status: "draft" | "exported") {
+    setSaveError(null);
+    setSaveMessage(null);
+    startTransition(async () => {
+      const res = await saveHcrContractAction({
+        restaurantId: restaurant.id,
+        draft,
+        contractId,
+        status,
+      });
+      if (!res.ok) {
+        setSaveError(res.error);
+        return;
+      }
+      const id = res.data!.id;
+      setContractId(id);
+      setSaveMessage(status === "exported" ? "Contrat enregistré et marqué comme exporté." : "Brouillon enregistré.");
+      if (!initialContractId) {
+        router.replace(`/pilotage/rh/contrats/${id}`);
+      } else {
+        router.refresh();
+      }
+    });
+  }
+
+  function exportPdfAndSave() {
+    exportPdf();
+    saveContract("exported");
   }
 
   const showTerm = draft.contractKind === "cdd" || draft.contractKind === "saisonnier";
@@ -773,10 +830,31 @@ export function HcrContractWizard({ restaurant, staff }: Props) {
         <section className={uiCard}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-stone-900">Aperçu du contrat</h2>
-            <button type="button" className={uiBtnPrimary} disabled={blockingIssues.length > 0} onClick={exportPdf}>
-              Export PDF / Imprimer
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className={uiBtnSecondary}
+                disabled={blockingIssues.length > 0 || pending}
+                onClick={() => saveContract("draft")}
+              >
+                {pending ? "Enregistrement…" : "Enregistrer le brouillon"}
+              </button>
+              <button
+                type="button"
+                className={uiBtnPrimary}
+                disabled={blockingIssues.length > 0 || pending}
+                onClick={exportPdfAndSave}
+              >
+                Export PDF / Imprimer
+              </button>
+            </div>
           </div>
+          {saveError ? <p className={`mt-3 ${uiError}`}>{saveError}</p> : null}
+          {saveMessage ? (
+            <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              {saveMessage}
+            </p>
+          ) : null}
           <div className="prose prose-slate mt-4 max-w-none rounded-xl border border-stone-100 bg-white p-4 text-sm" dangerouslySetInnerHTML={{ __html: document.html }} />
         </section>
       </div>

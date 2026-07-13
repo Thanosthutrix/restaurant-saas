@@ -43,12 +43,19 @@ export async function saveEmployerProfileAction(params: {
     return { ok: false, error: "SIRET invalide (14 chiffres attendus)." };
   }
 
+  const ape = params.profile.apeCode?.trim().toUpperCase() ?? "";
+  if (ape && !/^\d{4}[A-Z]$/.test(ape)) {
+    return { ok: false, error: "Code APE invalide (format 5610A)." };
+  }
+
   try {
     await updateEmployerProfile(params.restaurantId, {
       ...params.profile,
       siret,
+      apeCode: ape,
     });
     revalidateAdministratif();
+    revalidatePath("/pilotage/rh/paie");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Enregistrement impossible." };

@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabaseServer";
+import { getPublicSocialData } from "@/lib/meta/metaDb";
 import { getHygieneScoreForRestaurant } from "@/lib/hygiene/hygieneDb";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
 import {
@@ -14,7 +15,7 @@ import { isMenuCategory, normalizeMenuCategory } from "@/lib/public/menuCategori
 import { isValidSetMenuStepCategory } from "@/lib/public/setMenuDishes";
 
 const PUBLIC_RESTAURANT_SELECT =
-  "id, name, description, address_text, activity_type, template_slug, image_url, cover_url, is_public_listed, planning_opening_hours, closed_days_of_week, latitude, longitude";
+  "id, name, description, address_text, activity_type, template_slug, image_url, cover_url, is_public_listed, planning_opening_hours, closed_days_of_week, latitude, longitude, phone, email, instagram_url, facebook_url, instagram_username";
 
 const DEFAULT_IMAGE =
   "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80";
@@ -33,6 +34,11 @@ type PublicRestaurantRow = {
   closed_days_of_week: number[] | null;
   latitude: number | null;
   longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  instagram_username: string | null;
 };
 
 type PublicDishRow = {
@@ -122,6 +128,13 @@ async function mapRestaurantRow(
     opening_hours_schedule: openingSchedule,
     latitude: row.latitude != null ? Number(row.latitude) : null,
     longitude: row.longitude != null ? Number(row.longitude) : null,
+    phone: row.phone?.trim() || undefined,
+    email: row.email?.trim() || undefined,
+    social_links: {
+      instagram_url: row.instagram_url?.trim() || null,
+      facebook_url: row.facebook_url?.trim() || null,
+      instagram_username: row.instagram_username?.trim() || null,
+    },
   };
 }
 
@@ -441,6 +454,22 @@ export type RestaurantPublicProfile = {
   image_url: string;
   cover_url: string;
 };
+
+export async function getListedRestaurantSocialFromDb(id: string): Promise<{
+  stories: import("./types").SocialStory[];
+}> {
+  const { data, error } = await supabaseServer
+    .from("restaurants")
+    .select("id")
+    .eq("id", id)
+    .eq("is_public_listed", true)
+    .maybeSingle();
+
+  if (error || !data) return { stories: [] };
+
+  const social = await getPublicSocialData(id);
+  return { stories: social.stories };
+}
 
 export async function getRestaurantPublicProfileFromDb(
   restaurantId: string

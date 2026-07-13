@@ -1,10 +1,19 @@
 import { getConventionConfig, type ConventionRegistryEntry } from "./conventionRegistry";
+import { HCR_CDD_REASONS } from "./hcrLegislation";
 import { validateContractDraft } from "./validateContractDraft";
 import type {
   HcrContractDraft as WizardContractDraft,
+  HcrContractKind,
   HcrGeneratedDocument,
   HcrValidationIssue,
 } from "./types";
+
+const CONTRACT_KIND_LABELS: Record<HcrContractKind, string> = {
+  cdi: "CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE (CDI)",
+  cdd: "CONTRAT DE TRAVAIL À DURÉE DÉTERMINÉE (CDD)",
+  saisonnier: "CONTRAT DE TRAVAIL SAISONNIER",
+  extra: "CONTRAT DE TRAVAIL EXTRA",
+};
 
 export interface ContractArticle {
   id: string;
@@ -40,6 +49,8 @@ export interface HcrContractDraft {
   customPreavisText?: string;
   villeSignature: string;
   dateSignature: string;
+  representativeName: string;
+  employeeFullName: string;
   montantPanier?: number;
   housingAddress?: string;
   housingValue?: number;
@@ -416,13 +427,99 @@ export function getArticlesList(
   ];
 }
 
+function buildTermSummary(draft: WizardContractDraft): string {
+  const term = draft.termDetails;
+  if (!term) return "";
+
+  const lines: string[] = [];
+
+  if (draft.contractKind === "cdd" || draft.contractKind === "saisonnier") {
+    lines.push(
+      draft.contractKind === "saisonnier"
+        ? "**Nature :** contrat saisonnier"
+        : "**Nature :** contrat à durée déterminée (CDD)"
+    );
+    if (term.reason) {
+      const reasonLabel = HCR_CDD_REASONS[term.reason]?.label;
+      if (reasonLabel) lines.push(`**Motif :** ${reasonLabel}`);
+    }
+    if (term.replacedEmployeeName?.trim()) {
+      const replaced = term.replacedEmployeePosition?.trim()
+        ? `${term.replacedEmployeeName} (${term.replacedEmployeePosition})`
+        : term.replacedEmployeeName;
+      lines.push(`**Salarié remplacé :** ${replaced}`);
+    }
+    if (term.hasUncertainTerm) {
+      lines.push("**Durée :** terme imprécis");
+    } else if (term.endDate) {
+      lines.push(`**Date de fin de contrat :** ${formatDateToFrench(term.endDate)}`);
+    }
+    if (term.minimumDuration?.trim()) {
+      lines.push(`**Durée minimale :** ${term.minimumDuration}`);
+    }
+  }
+
+  if (draft.contractKind === "extra") {
+    if (term.extraMission?.trim()) lines.push(`**Mission :** ${term.extraMission}`);
+    if (term.extraDates?.trim()) lines.push(`**Date(s) :** ${term.extraDates}`);
+    if (term.banquetDate?.trim()) lines.push(`**Date du banquet :** ${term.banquetDate}`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "";
+}
+
+/** Identification des parties — lien employeur / salarié en tête de contrat. */
+export function buildContractPreamble(draft: WizardContractDraft, convention: ConventionRegistryEntry): string {
+  const employer = draft.employer;
+  const employee = draft.employee;
+  const legalFormPart = employer.legalForm.trim() ? `, ${employer.legalForm.trim()}` : "";
+
+  const employerBlock = [
+    "**L'EMPLOYEUR :**",
+    `${employer.legalName || employer.companyName}${legalFormPart}, immatriculée au Registre du Commerce et des Sociétés sous le numéro SIRET **${employer.siret}**, dont l'établissement est situé **${employer.address}**, URSSAF de rattachement : **${employer.urssafOffice}**, représentée par **${employer.representativeName}**, en sa qualité de **${employer.representativeRole || "Gérant"}**, dûment habilité(e) aux fins des présentes,`,
+    "Ci-après dénommée **« l'Employeur »**,",
+  ].join("\n");
+
+  const birthPart = employee.birthDate
+    ? `, né(e) le **${formatDateToFrench(employee.birthDate)}**${employee.birthPlace?.trim() ? ` à **${employee.birthPlace.trim()}**` : ""}`
+    : "";
+
+  const employeeBlock = [
+    "**LE SALARIÉ :**",
+    `**${employee.firstName} ${employee.lastName}**, demeurant **${employee.address}**, de nationalité **${employee.nationality}**${birthPart}, immatriculé(e) à la Sécurité sociale sous le n° **${employee.socialSecurityNumber}**,`,
+    "Ci-après dénommé(e) **« le Salarié »**,",
+  ].join("\n");
+
+  const effectDate = draft.termDetails?.startDate || draft.signatureDate;
+  const effectLine = effectDate
+    ? `Le présent contrat prendra effet le **${formatDateToFrench(effectDate)}**.`
+    : "";
+
+  const termSummary = buildTermSummary(draft);
+
+  return [
+    `## ${CONTRACT_KIND_LABELS[draft.contractKind]}`,
+    `### ${convention.headerLabel}`,
+    `#### **ENTRE LES SOUSSIGNÉS**`,
+    "D'une part,",
+    employerBlock,
+    "Et d'autre part,",
+    employeeBlock,
+    termSummary || null,
+    effectLine || null,
+    `Les parties déclarent vouloir contracter dans le cadre du Code du travail et de la **${convention.fullLabel}** (IDCC **${convention.idcc}**).`,
+    "**IL A ÉTÉ CONVENU CE QUI SUIT :**",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function renderContractArticles(
   draft: HcrContractDraft,
   options: ContractOptions,
   convention: ConventionRegistryEntry
 ): string {
   const rawArticles = getArticlesList(draft, options, convention);
-  const header = `### ${convention.headerLabel}\n\n`;
   const articlesContent = rawArticles
     .filter((article) => article.isActive)
     .map((article, index) => {
@@ -432,9 +529,9 @@ export function renderContractArticles(
     })
     .join("\n\n");
 
-  const footer = `\n\n***\n\nFait en deux exemplaires originaux, à **${draft.villeSignature}**, le **${formatDateToFrench(draft.dateSignature)}**.\n\n*(La mention manuscrite 'Lu et approuvé' est obligatoire avant la signature)*\n\n**Pour l'Employeur (Le Gérant)** | **Le Salarié**\n[Signature et cachet] | [Signature]`;
+  const footer = `\n\n***\n\nFait en deux exemplaires originaux, à **${draft.villeSignature}**, le **${formatDateToFrench(draft.dateSignature)}**.\n\n*(La mention manuscrite 'Lu et approuvé' est obligatoire avant la signature)*\n\n**Pour l'Employeur** — ${draft.representativeName || "Le Gérant"} | **Le Salarié** — ${draft.employeeFullName}\n[Signature et cachet] | [Signature]`;
 
-  return `${header}${articlesContent}${footer}`;
+  return `${articlesContent}${footer}`;
 }
 
 function markdownInlineToHtml(value: string): string {
@@ -534,6 +631,8 @@ function adaptWizardDraft(draft: WizardContractDraft, convention: ConventionRegi
     montantPanier: draft.clauses.mealBasketAmount,
     villeSignature: draft.signatureCity,
     dateSignature: draft.signatureDate,
+    representativeName: draft.employer.representativeName,
+    employeeFullName: `${draft.employee.firstName} ${draft.employee.lastName}`.trim(),
     isPolyvalenceActive: draft.clauses.isPolyvalenceActive,
     mobilityZoneType: draft.clauses.mobilityZoneType,
     mobilityRadius: draft.clauses.mobilityRadius,
@@ -587,7 +686,11 @@ function adaptWizardOptions(draft: WizardContractDraft): ContractOptions {
 export function buildContractDocument(draft: WizardContractDraft): HcrGeneratedDocument {
   const validationIssues: HcrValidationIssue[] = validateContractDraft(draft);
   const convention = getConventionConfig(draft.employer.collectiveAgreementIdcc);
-  const markdown = renderContractArticles(adaptWizardDraft(draft, convention), adaptWizardOptions(draft), convention);
+  const adapted = adaptWizardDraft(draft, convention);
+  const options = adaptWizardOptions(draft);
+  const preamble = buildContractPreamble(draft, convention);
+  const articles = renderContractArticles(adapted, options, convention);
+  const markdown = `${preamble}\n\n${articles}`;
 
   return {
     title: `${draft.contractKind.toUpperCase()} - ${draft.employee.firstName} ${draft.employee.lastName}`.trim(),

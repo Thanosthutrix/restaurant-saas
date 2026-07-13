@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { RestaurantDetailClient } from "@/components/public/RestaurantDetailClient";
 import { RestaurantHero } from "@/components/public/RestaurantHero";
+import { SocialStoriesStrip } from "@/components/public/SocialStoriesStrip";
 import { getPublicRestaurantWithDetails } from "@/lib/public/data";
 import { getCurrentConsumerProfile } from "@/lib/public/consumer/consumerDb";
 
@@ -31,11 +32,12 @@ export default async function RestaurantDetailPage({ params }: Props) {
 
   if (!data) notFound();
 
-  const { menu_items, set_menus, reviews, ...restaurant } = data;
+  const { menu_items, set_menus, reviews, social_stories, ...restaurant } = data;
 
   return (
     <>
       <RestaurantHero restaurant={restaurant} />
+      <SocialStoriesStrip restaurant={restaurant} stories={social_stories ?? []} />
       <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-8">Chargement…</div>}>
         <RestaurantDetailClient
           restaurant={restaurant}

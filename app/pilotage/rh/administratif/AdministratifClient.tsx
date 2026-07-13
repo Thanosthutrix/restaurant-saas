@@ -74,6 +74,7 @@ export function AdministratifClient({
     retirementFund: profile.retirementFund,
     healthProvider: profile.healthProvider,
     medecineTravailOrganisme: profile.medecineTravailOrganisme,
+    apeCode: profile.apeCode,
   });
 
   const sectorDataById = useMemo(
@@ -170,6 +171,15 @@ export function AdministratifClient({
                   value={form.siret}
                   onChange={(e) => patch({ siret: e.target.value })}
                   placeholder="14 chiffres"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className={uiLabel}>Code APE / NAF</span>
+                <input
+                  className={`${uiInput} w-full`}
+                  value={form.apeCode}
+                  onChange={(e) => patch({ apeCode: e.target.value.toUpperCase() })}
+                  placeholder="5610A"
                 />
               </label>
               <label className="space-y-1 sm:col-span-2">

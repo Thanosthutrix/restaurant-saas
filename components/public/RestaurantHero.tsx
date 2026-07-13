@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Mail, MapPin, Phone } from "lucide-react";
 import { HygieneBadge } from "@/components/public/HygieneBadge";
+import { SocialLinks } from "@/components/public/SocialLinks";
 import { StarRating } from "@/components/public/StarRating";
 import type { Restaurant } from "@/lib/public/types";
 
@@ -68,6 +69,7 @@ export function RestaurantHero({ restaurant }: Props) {
                   </a>
                 ) : null}
               </div>
+              <SocialLinks restaurant={restaurant} className="mt-3" />
             </div>
 
             <div className="flex flex-col items-start gap-3 sm:items-end">

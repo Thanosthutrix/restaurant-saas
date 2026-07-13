@@ -1,5 +1,6 @@
 import { Clock, Mail, Phone } from "lucide-react";
 import { RestaurantLocationPanel } from "@/components/public/RestaurantLocationPanel";
+import { SocialLinks } from "@/components/public/SocialLinks";
 import type { Restaurant } from "@/lib/public/types";
 
 type Props = {
@@ -35,6 +36,7 @@ export function InfoTab({ restaurant }: Props) {
               </li>
             ) : null}
           </ul>
+          <SocialLinks restaurant={restaurant} className="mt-4" />
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">

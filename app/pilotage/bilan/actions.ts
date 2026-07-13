@@ -46,6 +46,32 @@ export async function setStaffHourlyRateAction(params: {
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/pilotage/bilan");
+  revalidatePath("/pilotage/rh/paie");
+  return { ok: true };
+}
+
+export async function setStaffPasRateAction(params: {
+  restaurantId: string;
+  staffMemberId: string;
+  withholdingTaxRatePct: number | null;
+}): Promise<PocketActionResult> {
+  const authz = await gateOwner(params.restaurantId);
+  if (!authz.ok) return authz;
+
+  const rate = params.withholdingTaxRatePct;
+  if (rate != null && (!Number.isFinite(rate) || rate < 0 || rate > 100)) {
+    return { ok: false, error: "Taux PAS invalide (0 à 100 %)." };
+  }
+
+  const { error } = await supabaseServer
+    .from("staff_members")
+    .update({ withholding_tax_rate_pct: rate })
+    .eq("id", params.staffMemberId)
+    .eq("restaurant_id", params.restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/pilotage/bilan");
+  revalidatePath("/pilotage/rh/paie");
   return { ok: true };
 }
 
@@ -153,6 +179,7 @@ export async function savePocketSettingsAction(params: {
   restaurantId: string;
   payrollEmployerPct: number;
   pocketTaxPct: number | null;
+  payrollAtmpRatePct?: number | null;
 }): Promise<PocketActionResult> {
   const authz = await gateOwner(params.restaurantId);
   if (!authz.ok) return authz;
@@ -165,12 +192,21 @@ export async function savePocketSettingsAction(params: {
   if (tax != null && (!Number.isFinite(tax) || tax < 0 || tax > 100)) {
     return { ok: false, error: "Estimation impôts : pourcentage entre 0 et 100 (ou vide)." };
   }
+  const atmp = params.payrollAtmpRatePct;
+  if (atmp != null && (!Number.isFinite(atmp) || atmp < 0 || atmp > 20)) {
+    return { ok: false, error: "Taux AT/MP : entre 0 et 20 %." };
+  }
 
   const { error } = await supabaseServer
     .from("restaurants")
-    .update({ payroll_employer_pct: employer, pocket_tax_pct: tax })
+    .update({
+      payroll_employer_pct: employer,
+      pocket_tax_pct: tax,
+      ...(atmp !== undefined ? { payroll_atmp_rate: atmp } : {}),
+    })
     .eq("id", params.restaurantId);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/pilotage/bilan");
+  revalidatePath("/pilotage/rh/paie");
   return { ok: true };
 }

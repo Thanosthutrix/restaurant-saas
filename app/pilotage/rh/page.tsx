@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Building2, FileText, Users } from "lucide-react";
+import { Building2, Banknote, FileText, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -30,6 +30,14 @@ const tiles: {
     tone: "bg-rose-50 text-rose-700",
     tile: "tile-rose",
   },
+  {
+    title: "Fiches de paie",
+    description: "Importer les heures du planning, valider et préparer les bulletins liés au bilan.",
+    href: "/pilotage/rh/paie",
+    icon: Banknote,
+    tone: "bg-emerald-50 text-emerald-700",
+    tile: "tile-emerald",
+  },
 ];
 
 export default async function RhPage() {
@@ -48,7 +56,7 @@ export default async function RhPage() {
         breadcrumbs={[{ label: "Pilotage", href: "/pilotage" }, { label: "RH" }]}
         eyebrow="Espace gestion"
         title="RH"
-        subtitle="Ressources humaines : administratif employeur, contrats de travail et documents HCR."
+        subtitle="Ressources humaines : administratif employeur, contrats de travail, fiches de paie et documents HCR."
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">

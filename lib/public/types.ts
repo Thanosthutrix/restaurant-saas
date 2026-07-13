@@ -54,6 +54,25 @@ export type Restaurant = {
   budget_label?: string;
   latitude?: number | null;
   longitude?: number | null;
+  /** Liens réseaux sociaux (ERP → portail public). */
+  social_links?: {
+    instagram_url: string | null;
+    facebook_url: string | null;
+    instagram_username: string | null;
+  };
+  /** Stories Instagram actives (cache Meta, 24 h). */
+  social_stories?: SocialStory[];
+};
+
+export type SocialStoryMediaType = "IMAGE" | "VIDEO";
+
+export type SocialStory = {
+  id: string;
+  mediaType: SocialStoryMediaType;
+  mediaUrl: string;
+  thumbnailUrl: string;
+  permalink: string | null;
+  timestamp: string;
 };
 
 export type GeocodedPlace = {

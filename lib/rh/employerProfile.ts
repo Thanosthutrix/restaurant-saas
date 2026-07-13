@@ -16,14 +16,19 @@ export type EmployerProfile = {
   retirementFund: string;
   healthProvider: string;
   medecineTravailOrganisme: string;
+  apeCode: string;
 };
 
-export type EmployerProfileInput = Omit<EmployerProfile, "restaurantId" | "companyName" | "address"> & {
+export type EmployerProfileInput = Omit<
+  EmployerProfile,
+  "restaurantId" | "companyName" | "address" | "apeCode"
+> & {
   address?: string;
+  apeCode?: string;
 };
 
 const PROFILE_COLUMNS =
-  "id, name, address_text, legal_name, legal_form, siret, urssaf_office, representative_name, representative_role, collective_agreement_idcc, retirement_fund, health_provider, medecine_travail_organisme";
+  "id, name, address_text, legal_name, legal_form, siret, urssaf_office, representative_name, representative_role, collective_agreement_idcc, retirement_fund, health_provider, medecine_travail_organisme, ape_code";
 
 function mapProfile(row: Record<string, unknown>): EmployerProfile {
   return {
@@ -40,6 +45,7 @@ function mapProfile(row: Record<string, unknown>): EmployerProfile {
     retirementFund: String(row.retirement_fund ?? ""),
     healthProvider: String(row.health_provider ?? ""),
     medecineTravailOrganisme: String(row.medecine_travail_organisme ?? ""),
+    apeCode: String(row.ape_code ?? ""),
   };
 }
 
@@ -90,6 +96,7 @@ export async function updateEmployerProfile(
       retirement_fund: input.retirementFund.trim() || null,
       health_provider: input.healthProvider.trim() || null,
       medecine_travail_organisme: input.medecineTravailOrganisme.trim() || null,
+      ape_code: input.apeCode?.trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", restaurantId)

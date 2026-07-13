@@ -17,18 +17,20 @@ import { EditRestaurantForm } from "./EditRestaurantForm";
 import { ApplyTemplateBlock } from "./ApplyTemplateBlock";
 import { PublicListingSection } from "./PublicListingSection";
 import { GoogleBusinessSection } from "./GoogleBusinessSection";
+import { SocialAccountsSection } from "./SocialAccountsSection";
 import { getRestaurantPublicProfileFromDb } from "@/lib/public/publicDb";
 import { getRestaurantGoogleState } from "@/lib/google/googleDb";
+import { getRestaurantSocialState } from "@/lib/meta/metaDb";
 import { getPublicListingPreview } from "@/lib/public/publicListingPreview";
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ google?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ google?: string; meta?: string }> };
 
 export default async function EditRestaurantPage({ params, searchParams }: Props) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { id } = await params;
-  const { google: googleFlash } = await searchParams;
+  const { google: googleFlash, meta: metaFlash } = await searchParams;
   const list = await getAccessibleRestaurantsForUser(user.id);
   const restaurant = list.find((r) => r.id === id);
   if (!restaurant) notFound();
@@ -41,6 +43,7 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
     publicProfile,
     publicPreview,
     googleState,
+    socialState,
     hourMaps,
     staffTargetsWeekly,
     peakBandsWeekly,
@@ -51,6 +54,7 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
     getRestaurantPublicProfileFromDb(restaurant.id),
     getPublicListingPreview(restaurant),
     getRestaurantGoogleState(restaurant.id),
+    getRestaurantSocialState(restaurant.id),
     getRestaurantPlanningHourMaps(restaurant.id),
     getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
     getRestaurantPlanningPeakBandsWeekly(restaurant.id),
@@ -97,6 +101,13 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
               initialState={googleState}
               googleFlash={
                 googleFlash === "connected" || googleFlash === "error" ? googleFlash : null
+              }
+            />
+            <SocialAccountsSection
+              restaurantId={restaurant.id}
+              initialState={socialState}
+              metaFlash={
+                metaFlash === "connected" || metaFlash === "error" ? metaFlash : null
               }
             />
           </>

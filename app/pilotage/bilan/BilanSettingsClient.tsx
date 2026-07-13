@@ -9,11 +9,17 @@ import {
   saveFixedChargeAction,
   savePocketSettingsAction,
   setStaffHourlyRateAction,
+  setStaffPasRateAction,
 } from "./actions";
 import type { PocketFixedChargeRow } from "@/lib/pocket/pocketReport";
 import { EXPENSE_CATEGORIES, getExpenseCategoryLabel } from "@/lib/pocket/expenseCategories";
 
-type StaffRow = { id: string; displayName: string; hourlyGrossRate: number | null };
+type StaffRow = {
+  id: string;
+  displayName: string;
+  hourlyGrossRate: number | null;
+  withholdingTaxRatePct: number | null;
+};
 
 const PERIODICITIES = [
   { value: "monthly", label: "/mois", long: "Mensuel" },
@@ -34,12 +40,14 @@ export function BilanSettingsClient({
   charges,
   payrollEmployerPct,
   pocketTaxPct,
+  payrollAtmpRatePct,
 }: {
   restaurantId: string;
   staff: StaffRow[];
   charges: PocketFixedChargeRow[];
   payrollEmployerPct: number;
   pocketTaxPct: number | null;
+  payrollAtmpRatePct: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -49,6 +57,14 @@ export function BilanSettingsClient({
   const [rates, setRates] = useState<Record<string, string>>(() =>
     Object.fromEntries(staff.map((s) => [s.id, s.hourlyGrossRate != null ? String(s.hourlyGrossRate) : ""]))
   );
+  const [pasRates, setPasRates] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      staff.map((s) => [
+        s.id,
+        s.withholdingTaxRatePct != null ? String(s.withholdingTaxRatePct) : "",
+      ])
+    )
+  );
 
   const [chargeLabel, setChargeLabel] = useState("");
   const [chargeAmount, setChargeAmount] = useState("");
@@ -57,6 +73,7 @@ export function BilanSettingsClient({
 
   const [employerPct, setEmployerPct] = useState(String(payrollEmployerPct));
   const [taxPct, setTaxPct] = useState(pocketTaxPct != null ? String(pocketTaxPct) : "");
+  const [atmpPct, setAtmpPct] = useState(String(payrollAtmpRatePct));
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -104,15 +121,37 @@ export function BilanSettingsClient({
     });
   }
 
+  function savePasRate(staffId: string) {
+    const raw = pasRates[staffId] ?? "";
+    const rate = raw.trim() === "" ? null : parseAmount(raw);
+    if (raw.trim() !== "" && rate == null) {
+      setError("Taux PAS invalide.");
+      return;
+    }
+    run(() =>
+      setStaffPasRateAction({ restaurantId, staffMemberId: staffId, withholdingTaxRatePct: rate })
+    );
+  }
+
   function saveSettings() {
     const employer = parseAmount(employerPct);
     const tax = taxPct.trim() === "" ? null : parseAmount(taxPct);
+    const atmp = parseAmount(atmpPct);
     if (employer == null) {
       setError("Charges patronales : pourcentage requis.");
       return;
     }
+    if (atmp == null) {
+      setError("Taux AT/MP requis.");
+      return;
+    }
     run(() =>
-      savePocketSettingsAction({ restaurantId, payrollEmployerPct: employer, pocketTaxPct: tax })
+      savePocketSettingsAction({
+        restaurantId,
+        payrollEmployerPct: employer,
+        pocketTaxPct: tax,
+        payrollAtmpRatePct: atmp,
+      })
     );
   }
 
@@ -130,31 +169,51 @@ export function BilanSettingsClient({
         {/* Salaires */}
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-            Salaires bruts horaires
+            Salaires & PAS
           </h3>
           <p className="mt-1 text-xs text-stone-500">
-            Brut horaire par employé — basé sur les heures planifiées dans le planning.
+            Brut horaire et taux de prélèvement à la source (bulletins de paie).
           </p>
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-3">
             {staff.length === 0 ? (
               <p className="text-sm text-stone-500">Aucun employé actif.</p>
             ) : (
               staff.map((s) => (
-                <div key={s.id} className="flex items-center justify-between gap-2">
-                  <p className="min-w-0 truncate text-sm text-stone-700">{s.displayName}</p>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <input
-                      value={rates[s.id] ?? ""}
-                      onChange={(e) => setRates((r) => ({ ...r, [s.id]: e.target.value }))}
-                      placeholder="12,50"
-                      inputMode="decimal"
-                      className={inputCls}
-                      aria-label={`Brut horaire de ${s.displayName}`}
-                    />
-                    <span className="text-xs text-stone-400">€/h</span>
-                    <button type="button" disabled={pending} onClick={() => saveRate(s.id)} className={btnCls}>
-                      OK
-                    </button>
+                <div key={s.id} className="space-y-1.5 rounded-xl border border-stone-100 px-2.5 py-2">
+                  <p className="truncate text-sm font-medium text-stone-800">{s.displayName}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-stone-500">Brut</span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <input
+                        value={rates[s.id] ?? ""}
+                        onChange={(e) => setRates((r) => ({ ...r, [s.id]: e.target.value }))}
+                        placeholder="12,02"
+                        inputMode="decimal"
+                        className={inputCls}
+                        aria-label={`Brut horaire de ${s.displayName}`}
+                      />
+                      <span className="text-xs text-stone-400">€/h</span>
+                      <button type="button" disabled={pending} onClick={() => saveRate(s.id)} className={btnCls}>
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-stone-500">PAS</span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <input
+                        value={pasRates[s.id] ?? ""}
+                        onChange={(e) => setPasRates((r) => ({ ...r, [s.id]: e.target.value }))}
+                        placeholder="0"
+                        inputMode="decimal"
+                        className={inputCls}
+                        aria-label={`Taux PAS de ${s.displayName}`}
+                      />
+                      <span className="text-xs text-stone-400">%</span>
+                      <button type="button" disabled={pending} onClick={() => savePasRate(s.id)} className={btnCls}>
+                        OK
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -255,8 +314,26 @@ export function BilanSettingsClient({
 
         {/* Pourcentages */}
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">Estimations</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">Paie & estimations</h3>
           <div className="mt-3 space-y-3">
+            <div>
+              <label className="text-sm text-stone-700" htmlFor="atmpPct">
+                Taux AT/MP (% du brut)
+              </label>
+              <div className="mt-1 flex items-center gap-1.5">
+                <input
+                  id="atmpPct"
+                  value={atmpPct}
+                  onChange={(e) => setAtmpPct(e.target.value)}
+                  inputMode="decimal"
+                  className={inputCls}
+                />
+                <span className="text-xs text-stone-400">%</span>
+              </div>
+              <p className="mt-1 text-xs text-stone-500">
+                Taux transmis par votre caisse (restauration ~2,30 % par défaut).
+              </p>
+            </div>
             <div>
               <label className="text-sm text-stone-700" htmlFor="employerPct">
                 Charges patronales (% du brut)

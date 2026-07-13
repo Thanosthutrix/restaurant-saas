@@ -1,6 +1,7 @@
 import { cache } from "react";
 import {
   getListedRestaurantFromDb,
+  getListedRestaurantSocialFromDb,
   listListedRestaurantsFromDb,
   listPublicMenuItemsFromDb,
   listPublicReviewsFromDb,
@@ -50,11 +51,18 @@ export const getPublicRestaurantWithDetails = cache(async function getPublicRest
   const restaurant = await getPublicRestaurant(id);
   if (!restaurant) return null;
 
-  const [menu_items, set_menus, reviews] = await Promise.all([
+  const [menu_items, set_menus, reviews, social] = await Promise.all([
     getPublicMenuItems(id),
     listPublicSetMenusFromDb(id),
     getPublicReviews(id),
+    getListedRestaurantSocialFromDb(id),
   ]);
 
-  return { ...restaurant, menu_items, set_menus, reviews };
+  return {
+    ...restaurant,
+    menu_items,
+    set_menus,
+    reviews,
+    social_stories: social.stories,
+  };
 });

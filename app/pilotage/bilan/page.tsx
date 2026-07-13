@@ -113,15 +113,20 @@ export default async function BilanPochePage({
   const mode: PocketMode = sp.m === "perf" ? "perf" : "cash";
   const pq = periodQuery(sp, preset);
 
-  const [report, charges, staffRes] = await Promise.all([
+  const [report, charges, staffRes, restaurantRes] = await Promise.all([
     buildPocketReport(restaurant.id, from, to, mode),
     listFixedCharges(restaurant.id),
     supabaseServer
       .from("staff_members")
-      .select("id, display_name, hourly_gross_rate, active")
+      .select("id, display_name, hourly_gross_rate, withholding_tax_rate_pct, active")
       .eq("restaurant_id", restaurant.id)
       .eq("active", true)
       .order("display_name"),
+    supabaseServer
+      .from("restaurants")
+      .select("payroll_atmp_rate")
+      .eq("id", restaurant.id)
+      .maybeSingle(),
   ]);
 
   const staff = (((staffRes.data as Record<string, unknown>[]) ?? []) as Record<string, unknown>[]).map(
@@ -129,8 +134,15 @@ export default async function BilanPochePage({
       id: String(s.id),
       displayName: String(s.display_name ?? "Employé"),
       hourlyGrossRate: s.hourly_gross_rate != null ? Number(s.hourly_gross_rate) : null,
+      withholdingTaxRatePct:
+        s.withholding_tax_rate_pct != null ? Number(s.withholding_tax_rate_pct) : null,
     })
   );
+
+  const payrollAtmpRatePct =
+    (restaurantRes.data as { payroll_atmp_rate?: unknown } | null)?.payroll_atmp_rate != null
+      ? Number((restaurantRes.data as { payroll_atmp_rate: unknown }).payroll_atmp_rate)
+      : 2.3;
 
   const pocketPositive = report.pocket >= 0;
   const base = Math.max(report.revenueHt, 1);
@@ -571,6 +583,7 @@ export default async function BilanPochePage({
         charges={charges}
         payrollEmployerPct={report.payrollEmployerPct}
         pocketTaxPct={report.pocketTaxPct}
+        payrollAtmpRatePct={payrollAtmpRatePct}
       />
     </PageContainer>
   );

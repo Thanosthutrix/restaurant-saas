@@ -486,10 +486,14 @@ export function HcrContractWizard({
         ))}
 
         <section className={uiCard}>
-          <h2 className="text-base font-semibold text-stone-900">1. Informations de base</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <h2 className="text-base font-semibold text-stone-900">1. Lien employeur — salarié</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            Ces informations alimentent l&apos;en-tête du contrat (« Entre les soussignés ») et les clauses suivantes.
+          </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 sm:col-span-2">
-              <span className={uiLabel}>Convention Collective Applicable</span>
+              <span className={uiLabel}>Convention collective applicable</span>
               <select
                 className={`${uiSelect} w-full`}
                 value={selectedConvention.idcc}
@@ -504,7 +508,7 @@ export function HcrContractWizard({
             </label>
             {selectedConvention.idcc === "1501" ? (
               <label className="space-y-1 sm:col-span-2">
-                <span className={uiLabel}>Montant du Panier Repas</span>
+                <span className={uiLabel}>Montant du panier repas</span>
                 <input
                   className={`${uiInput} w-full`}
                   type="number"
@@ -539,20 +543,32 @@ export function HcrContractWizard({
                 <option value="extra">Extra</option>
               </select>
             </label>
-            <input className={uiInput} placeholder="Raison sociale" value={draft.employer.legalName} onChange={(e) => patch({ employer: { ...draft.employer, legalName: e.target.value } })} />
-            <input className={uiInput} placeholder="Forme juridique (SAS, SARL...)" value={draft.employer.legalForm} onChange={(e) => patch({ employer: { ...draft.employer, legalForm: e.target.value } })} />
-            <input className={uiInput} placeholder="SIRET" value={draft.employer.siret} onChange={(e) => patch({ employer: { ...draft.employer, siret: e.target.value } })} />
-            <input className={uiInput} placeholder="URSSAF de rattachement" value={draft.employer.urssafOffice} onChange={(e) => patch({ employer: { ...draft.employer, urssafOffice: e.target.value } })} />
-            <input className={uiInput} placeholder="Adresse de l'entreprise" value={draft.employer.address} onChange={(e) => patch({ employer: { ...draft.employer, address: e.target.value } })} />
-            <input className={uiInput} placeholder="Représentant légal (nom complet)" value={draft.employer.representativeName} onChange={(e) => patch({ employer: { ...draft.employer, representativeName: e.target.value } })} />
-            <input className={uiInput} placeholder="Qualité du représentant (Gérant, Président...)" value={draft.employer.representativeRole} onChange={(e) => patch({ employer: { ...draft.employer, representativeRole: e.target.value } })} />
-            <input className={uiInput} placeholder="Caisse de retraite" value={draft.employer.retirementFund} onChange={(e) => patch({ employer: { ...draft.employer, retirementFund: e.target.value } })} />
-            <input className={uiInput} placeholder="Organisme de prévoyance / mutuelle" value={draft.employer.healthProvider} onChange={(e) => patch({ employer: { ...draft.employer, healthProvider: e.target.value } })} />
-            <input className={uiInput} placeholder="Prénom salarié" value={draft.employee.firstName} onChange={(e) => patch({ employee: { ...draft.employee, firstName: e.target.value } })} />
-            <input className={uiInput} placeholder="Nom salarié" value={draft.employee.lastName} onChange={(e) => patch({ employee: { ...draft.employee, lastName: e.target.value } })} />
-            <input className={uiInput} placeholder="Adresse salarié" value={draft.employee.address} onChange={(e) => patch({ employee: { ...draft.employee, address: e.target.value } })} />
-            <input className={uiInput} placeholder="N° sécurité sociale" value={draft.employee.socialSecurityNumber} onChange={(e) => patch({ employee: { ...draft.employee, socialSecurityNumber: e.target.value } })} />
-            <input className={uiInput} placeholder="Nationalité" value={draft.employee.nationality} onChange={(e) => patch({ employee: { ...draft.employee, nationality: e.target.value } })} />
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <div className="space-y-3 rounded-2xl border border-stone-200/70 bg-stone-50/50 p-4">
+              <h3 className="text-sm font-semibold text-stone-900">L&apos;employeur</h3>
+              <input className={`${uiInput} w-full`} placeholder="Raison sociale" value={draft.employer.legalName} onChange={(e) => patch({ employer: { ...draft.employer, legalName: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Forme juridique (SARL, SAS…)" value={draft.employer.legalForm} onChange={(e) => patch({ employer: { ...draft.employer, legalForm: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="SIRET" value={draft.employer.siret} onChange={(e) => patch({ employer: { ...draft.employer, siret: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="URSSAF de rattachement" value={draft.employer.urssafOffice} onChange={(e) => patch({ employer: { ...draft.employer, urssafOffice: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Adresse de l'établissement" value={draft.employer.address} onChange={(e) => patch({ employer: { ...draft.employer, address: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Représentant légal" value={draft.employer.representativeName} onChange={(e) => patch({ employer: { ...draft.employer, representativeName: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Qualité (Gérant, Président…)" value={draft.employer.representativeRole} onChange={(e) => patch({ employer: { ...draft.employer, representativeRole: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Caisse de retraite" value={draft.employer.retirementFund} onChange={(e) => patch({ employer: { ...draft.employer, retirementFund: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Mutuelle / prévoyance" value={draft.employer.healthProvider} onChange={(e) => patch({ employer: { ...draft.employer, healthProvider: e.target.value } })} />
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-stone-200/70 bg-stone-50/50 p-4">
+              <h3 className="text-sm font-semibold text-stone-900">Le salarié</h3>
+              <input className={`${uiInput} w-full`} placeholder="Prénom" value={draft.employee.firstName} onChange={(e) => patch({ employee: { ...draft.employee, firstName: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Nom" value={draft.employee.lastName} onChange={(e) => patch({ employee: { ...draft.employee, lastName: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Adresse" value={draft.employee.address} onChange={(e) => patch({ employee: { ...draft.employee, address: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="N° sécurité sociale" value={draft.employee.socialSecurityNumber} onChange={(e) => patch({ employee: { ...draft.employee, socialSecurityNumber: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Nationalité" value={draft.employee.nationality} onChange={(e) => patch({ employee: { ...draft.employee, nationality: e.target.value } })} />
+              <input className={`${uiInput} w-full`} type="date" placeholder="Date de naissance" value={draft.employee.birthDate ?? ""} onChange={(e) => patch({ employee: { ...draft.employee, birthDate: e.target.value } })} />
+              <input className={`${uiInput} w-full`} placeholder="Lieu de naissance" value={draft.employee.birthPlace ?? ""} onChange={(e) => patch({ employee: { ...draft.employee, birthPlace: e.target.value } })} />
+            </div>
           </div>
         </section>
 

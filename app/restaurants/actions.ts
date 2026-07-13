@@ -251,6 +251,7 @@ export async function createRestaurantFormData(formData: FormData): Promise<Crea
 
 export type UpdateRestaurantPublicProfilePayload = {
   is_public_listed: boolean;
+  show_public_hygiene_score: boolean;
   description: string;
 };
 
@@ -274,6 +275,7 @@ export async function updateRestaurantPublicProfile(
     .from("restaurants")
     .update({
       is_public_listed: payload.is_public_listed,
+      show_public_hygiene_score: payload.show_public_hygiene_score,
       description: payload.description.trim() || null,
       updated_at: new Date().toISOString(),
     })
@@ -285,6 +287,12 @@ export async function updateRestaurantPublicProfile(
       return {
         error:
           "La migration B2C n'est pas appliquée. Exécutez : npm run db:apply (migration 20260705130000_public_b2c_portal.sql).",
+      };
+    }
+    if (error.message.includes("show_public_hygiene_score")) {
+      return {
+        error:
+          "La migration hygiène publique n'est pas appliquée. Exécutez : npm run db:apply (migration 20260713120000_restaurant_public_hygiene_toggle.sql).",
       };
     }
     return { error: error.message };

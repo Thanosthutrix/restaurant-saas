@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { applyTemplateSuggestions } from "../../actions";
 import type { TemplateSuggestions } from "../../actions";
+import { EstablishmentSection } from "@/components/restaurant/EstablishmentSection";
+import {
+  uiBtnPrimarySm,
+  uiError,
+  uiLead,
+  uiSuccess,
+} from "@/components/ui/premium";
 
 export function ApplyTemplateBlock({
   restaurantId,
@@ -37,31 +45,30 @@ export function ApplyTemplateBlock({
     if (result.added && result.added > 0) parts.push(`${result.added} composant(s) ajouté(s)`);
     if (result.addedDishes && result.addedDishes > 0) parts.push(`${result.addedDishes} plat(s) ajouté(s)`);
     const text =
-      parts.length > 0
-        ? parts.join(". ")
-        : "Aucun élément à ajouter (tous sont déjà présents).";
+      parts.length > 0 ? parts.join(". ") : "Aucun élément à ajouter (tous sont déjà présents).";
     setMessage({ type: "success", text });
     router.refresh();
   }
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4">
-      <h2 className="mb-2 text-sm font-medium text-stone-700">
-        Suggestions du template
-      </h2>
-      <p className="mb-3 text-xs text-stone-500">
-        Éléments du modèle qui ne sont pas encore dans votre restaurant. Le bouton ci-dessous les crée sans toucher aux existants.
-      </p>
-
+    <EstablishmentSection
+      icon={Sparkles}
+      iconTone="bg-amber-50 text-amber-800 ring-amber-100"
+      title="Suggestions du template"
+      subtitle="Composants et plats du modèle d'activité pas encore créés dans votre établissement."
+    >
       {missingComponents.length > 0 && (
-        <div className="mb-3">
-          <h3 className="mb-1 text-xs font-medium text-stone-500">
+        <div className="mb-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
             Composants manquants ({missingComponents.length})
           </h3>
-          <ul className="max-h-40 list-inside list-disc overflow-y-auto text-sm text-stone-700">
+          <ul className="mt-2 max-h-40 list-inside list-disc overflow-y-auto text-sm text-stone-700">
             {missingComponents.map((c) => (
               <li key={c.name}>
-                {c.name} <span className="text-stone-400">({c.unit}, {c.type})</span>
+                {c.name}{" "}
+                <span className="text-stone-400">
+                  ({c.unit}, {c.type})
+                </span>
               </li>
             ))}
           </ul>
@@ -69,14 +76,17 @@ export function ApplyTemplateBlock({
       )}
 
       {missingDishes.length > 0 && (
-        <div className="mb-3">
-          <h3 className="mb-1 text-xs font-medium text-stone-500">
+        <div className="mb-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-400">
             Plats manquants ({missingDishes.length})
           </h3>
-          <ul className="max-h-32 list-inside list-disc overflow-y-auto text-sm text-stone-700">
+          <ul className="mt-2 max-h-32 list-inside list-disc overflow-y-auto text-sm text-stone-700">
             {missingDishes.map((d) => (
               <li key={d.name}>
-                {d.name} <span className="text-stone-400">({d.production_mode === "resale" ? "revente" : "préparé"})</span>
+                {d.name}{" "}
+                <span className="text-stone-400">
+                  ({d.production_mode === "resale" ? "revente" : "préparé"})
+                </span>
               </li>
             ))}
           </ul>
@@ -84,25 +94,18 @@ export function ApplyTemplateBlock({
       )}
 
       {!hasSuggestions && (
-        <p className="mb-3 text-sm text-stone-500">
+        <p className={`mb-4 ${uiLead}`}>
           Tous les composants et plats suggérés par le template sont déjà présents.
         </p>
       )}
 
-      {message && (
-        <p className={`mb-3 text-sm ${message.type === "success" ? "text-green-600" : "text-red-600"}`}>
-          {message.text}
-        </p>
-      )}
+      {message ? (
+        <p className={`mb-4 ${message.type === "success" ? uiSuccess : uiError}`}>{message.text}</p>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={handleApply}
-        disabled={loading}
-        className="rounded border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
-      >
+      <button type="button" onClick={handleApply} disabled={loading} className={uiBtnPrimarySm}>
         {loading ? "Application…" : "Appliquer les suggestions du template"}
       </button>
-    </div>
+    </EstablishmentSection>
   );
 }

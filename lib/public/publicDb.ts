@@ -15,7 +15,7 @@ import { isMenuCategory, normalizeMenuCategory } from "@/lib/public/menuCategori
 import { isValidSetMenuStepCategory } from "@/lib/public/setMenuDishes";
 
 const PUBLIC_RESTAURANT_SELECT =
-  "id, name, description, address_text, activity_type, template_slug, image_url, cover_url, is_public_listed, planning_opening_hours, closed_days_of_week, latitude, longitude, phone, email, instagram_url, facebook_url, instagram_username";
+  "id, name, description, address_text, activity_type, template_slug, image_url, cover_url, is_public_listed, show_public_hygiene_score, planning_opening_hours, closed_days_of_week, latitude, longitude, phone, email, instagram_url, facebook_url, instagram_username";
 
 const DEFAULT_IMAGE =
   "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80";
@@ -30,6 +30,7 @@ type PublicRestaurantRow = {
   image_url: string | null;
   cover_url: string | null;
   is_public_listed: boolean;
+  show_public_hygiene_score: boolean;
   planning_opening_hours: unknown;
   closed_days_of_week: number[] | null;
   latitude: number | null;
@@ -94,12 +95,24 @@ async function mapRestaurantRow(
   const openingHours = formatOpeningHoursForPublic(row.planning_opening_hours, closedDays);
   const openingSchedule = buildOpeningHoursSchedule(row.planning_opening_hours, closedDays);
 
-  const hygieneRaw = await getHygieneScoreForRestaurant(row.id, 7);
-  const hygiene = mapLiveHygieneToPublicView(
-    hygieneRaw.score,
-    hygieneRaw.max > 0,
-    hygieneRaw.detail
-  );
+  const showHygiene = row.show_public_hygiene_score !== false;
+  let hygieneScore: Restaurant["hygiene_score"] = "Non communiqué";
+  let hygieneScoreLive: number | null = null;
+  let hygieneHasLiveData = false;
+  let hygieneScoreDetail: string | undefined;
+
+  if (showHygiene) {
+    const hygieneRaw = await getHygieneScoreForRestaurant(row.id, 7);
+    const hygiene = mapLiveHygieneToPublicView(
+      hygieneRaw.score,
+      hygieneRaw.max > 0,
+      hygieneRaw.detail
+    );
+    hygieneScore = hygiene.label;
+    hygieneScoreLive = hygiene.numericScore;
+    hygieneHasLiveData = hygiene.hasData;
+    hygieneScoreDetail = hygiene.detail;
+  }
 
   const address = row.address_text?.trim() || "Adresse non renseignée";
 
@@ -115,10 +128,11 @@ async function mapRestaurantRow(
       template_slug: row.template_slug,
       activity_type: row.activity_type,
     }),
-    hygiene_score: hygiene.label,
-    hygiene_score_live: hygiene.numericScore,
-    hygiene_has_live_data: hygiene.hasData,
-    hygiene_score_detail: hygiene.detail,
+    show_hygiene_score: showHygiene,
+    hygiene_score: hygieneScore,
+    hygiene_score_live: hygieneScoreLive,
+    hygiene_has_live_data: hygieneHasLiveData,
+    hygiene_score_detail: hygieneScoreDetail,
     image_url: row.image_url?.trim() || row.cover_url?.trim() || DEFAULT_IMAGE,
     cover_url: row.cover_url?.trim() || row.image_url?.trim() || DEFAULT_IMAGE,
     average_rating: stats.average_rating,
@@ -450,6 +464,7 @@ export async function listPublicReviewsFromDb(restaurantId: string): Promise<Rev
 
 export type RestaurantPublicProfile = {
   is_public_listed: boolean;
+  show_public_hygiene_score: boolean;
   description: string;
   image_url: string;
   cover_url: string;
@@ -476,7 +491,7 @@ export async function getRestaurantPublicProfileFromDb(
 ): Promise<RestaurantPublicProfile | null> {
   const { data, error } = await supabaseServer
     .from("restaurants")
-    .select("is_public_listed, description, image_url, cover_url")
+    .select("is_public_listed, show_public_hygiene_score, description, image_url, cover_url")
     .eq("id", restaurantId)
     .maybeSingle();
 
@@ -484,6 +499,7 @@ export async function getRestaurantPublicProfileFromDb(
 
   const row = data as {
     is_public_listed: boolean;
+    show_public_hygiene_score: boolean | null;
     description: string | null;
     image_url: string | null;
     cover_url: string | null;
@@ -491,6 +507,7 @@ export async function getRestaurantPublicProfileFromDb(
 
   return {
     is_public_listed: Boolean(row.is_public_listed),
+    show_public_hygiene_score: row.show_public_hygiene_score !== false,
     description: row.description?.trim() ?? "",
     image_url: row.image_url?.trim() ?? "",
     cover_url: row.cover_url?.trim() ?? "",

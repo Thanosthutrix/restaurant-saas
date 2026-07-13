@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, MapPin } from "lucide-react";
+import { ExternalLink, MapPin, Navigation } from "lucide-react";
+import { PublicInfoPanel } from "@/components/public/PublicInfoPanel";
 import type { Restaurant } from "@/lib/public/types";
 import {
   buildAppleMapsUrl,
@@ -48,63 +49,65 @@ export function RestaurantLocationPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <div className="flex items-start gap-3">
-          <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-orange-500" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-slate-900">Adresse</h3>
-            <p className="mt-2 text-sm text-slate-600">{restaurant.address}</p>
+      <PublicInfoPanel
+        icon={MapPin}
+        title="Localisation"
+        subtitle={hasCoords ? "Adresse géolocalisée" : "Adresse de l'établissement"}
+      >
+        <div className="space-y-4 px-5 py-5">
+          <p className="text-base font-medium leading-relaxed text-slate-800">{restaurant.address}</p>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {isApple ? (
-                <a
-                  href={appleUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Ouvrir dans Plans
-                  <ExternalLink className="h-4 w-4" aria-hidden />
-                </a>
-              ) : null}
+          <div className="flex flex-wrap gap-2">
+            {isApple ? (
               <a
-                href={googleUrl}
+                href={appleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                  isApple
-                    ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    : "bg-orange-600 text-white hover:bg-orange-700"
-                }`}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 active:scale-[0.98]"
               >
-                Ouvrir dans Google Maps
-                <ExternalLink className="h-4 w-4" aria-hidden />
+                <Navigation className="h-4 w-4" aria-hidden />
+                Ouvrir dans Plans
+                <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
               </a>
-              {!isApple ? (
-                <a
-                  href={appleUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Ouvrir dans Plans
-                  <ExternalLink className="h-4 w-4" aria-hidden />
-                </a>
-              ) : null}
-            </div>
-
-            {!hasCoords ? (
-              <p className="mt-3 text-xs text-slate-500">
-                Position approximative — le restaurateur peut affiner l&apos;adresse dans son ERP pour
-                une carte plus précise.
-              </p>
+            ) : null}
+            <a
+              href={googleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition active:scale-[0.98] ${
+                isApple
+                  ? "border border-slate-200 bg-white text-slate-700 hover:border-orange-200 hover:bg-orange-50/50"
+                  : "bg-orange-600 text-white hover:bg-orange-700"
+              }`}
+            >
+              <Navigation className="h-4 w-4" aria-hidden />
+              Google Maps
+              <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
+            </a>
+            {!isApple ? (
+              <a
+                href={appleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-orange-200 hover:bg-orange-50/50 active:scale-[0.98]"
+              >
+                Plans
+                <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
+              </a>
             ) : null}
           </div>
+
+          {!hasCoords ? (
+            <p className="rounded-xl border border-amber-100 bg-amber-50/80 px-3 py-2.5 text-xs leading-relaxed text-amber-900/80">
+              Position approximative — le restaurateur peut affiner l&apos;adresse dans son ERP pour
+              une carte plus précise.
+            </p>
+          ) : null}
         </div>
-      </div>
+      </PublicInfoPanel>
 
       {showEmbed ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm ring-1 ring-slate-100">
           <iframe
             title={`Carte — ${restaurant.name}`}
             src={embedUrl}
@@ -117,10 +120,10 @@ export function RestaurantLocationPanel({
       ) : null}
 
       {showReserveLink ? (
-        <p className="text-center text-xs text-slate-500">
+        <p className="text-center">
           <Link
             href={`/restaurant/${restaurant.id}?tab=reservation`}
-            className="font-semibold text-orange-600 hover:text-orange-700"
+            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200 transition hover:bg-emerald-100"
           >
             Réserver une table →
           </Link>

@@ -35,12 +35,14 @@ export function RestaurantCard({ restaurant, onOpen }: Props) {
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
         <div className="absolute left-3 top-3">
-          <HygieneBadge
-            score={restaurant.hygiene_score}
-            liveScore={restaurant.hygiene_score_live}
-            hasLiveData={restaurant.hygiene_has_live_data}
-            size="sm"
-          />
+          {restaurant.show_hygiene_score !== false ? (
+            <HygieneBadge
+              score={restaurant.hygiene_score}
+              liveScore={restaurant.hygiene_score_live}
+              hasLiveData={restaurant.hygiene_has_live_data}
+              size="sm"
+            />
+          ) : null}
         </div>
       </div>
 

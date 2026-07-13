@@ -30,28 +30,30 @@ export function ReviewsTab({ restaurant, reviews }: Props) {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 sm:p-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800/70">
-          Score hygiène
-        </p>
-        <div className="mt-3">
-          <HygieneBadge
-            score={restaurant.hygiene_score}
-            liveScore={restaurant.hygiene_score_live}
-            hasLiveData={restaurant.hygiene_has_live_data}
-            size="lg"
-          />
+      {restaurant.show_hygiene_score !== false ? (
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 sm:p-6">
+          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800/70">
+            Score hygiène
+          </p>
+          <div className="mt-3">
+            <HygieneBadge
+              score={restaurant.hygiene_score}
+              liveScore={restaurant.hygiene_score_live}
+              hasLiveData={restaurant.hygiene_has_live_data}
+              size="lg"
+            />
+          </div>
+          {restaurant.hygiene_has_live_data && restaurant.hygiene_score_detail ? (
+            <p className="mt-3 text-xs leading-relaxed text-emerald-900/70">
+              {restaurant.hygiene_score_detail} · Calcul live ERP (7 derniers jours)
+            </p>
+          ) : (
+            <p className="mt-3 text-xs leading-relaxed text-emerald-900/60">
+              Score basé sur le suivi hygiène et les contrôles sanitaires.
+            </p>
+          )}
         </div>
-        {restaurant.hygiene_has_live_data && restaurant.hygiene_score_detail ? (
-          <p className="mt-3 text-xs leading-relaxed text-emerald-900/70">
-            {restaurant.hygiene_score_detail} · Calcul live ERP (7 derniers jours)
-          </p>
-        ) : (
-          <p className="mt-3 text-xs leading-relaxed text-emerald-900/60">
-            Score basé sur le suivi hygiène et les contrôles sanitaires.
-          </p>
-        )}
-      </div>
+      ) : null}
 
       <div className="space-y-4">
         {reviews.length === 0 ? (

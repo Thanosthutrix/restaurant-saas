@@ -38,6 +38,8 @@ export type Restaurant = {
   average_rating: number;
   /** Nombre total d'avis affichés sur le portail. */
   review_count: number;
+  /** false = score masqué sur le portail client (préférence restaurateur). */
+  show_hygiene_score?: boolean;
   /** Score hygiène ERP live (0–100), calculé sur 7 jours. */
   hygiene_score_live?: number | null;
   /** true si le score live repose sur des tâches hygiène réelles. */

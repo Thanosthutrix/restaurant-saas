@@ -2,9 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Building2, Mail } from "lucide-react";
 import { updateRestaurant } from "../../actions";
 import type { Restaurant } from "@/lib/auth";
 import type { RestaurantTemplate } from "@/lib/templates/restaurantTemplates";
+import { EstablishmentSection } from "@/components/restaurant/EstablishmentSection";
+import {
+  uiBtnPrimaryBlock,
+  uiCardMuted,
+  uiError,
+  uiFormLabel,
+  uiInputBlock,
+  uiLead,
+  uiSelectBlock,
+} from "@/components/ui/premium";
 
 const SERVICE_TYPES = [
   { value: "lunch", label: "Déjeuner" },
@@ -61,123 +72,132 @@ export function EditRestaurantForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-stone-200 bg-white p-4">
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-stone-700">
-          Nom du restaurant *
-        </label>
-        <input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="Le Bistrot"
-          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
-        />
-      </div>
-      <div
-        id="messagerie-expediteur"
-        className="scroll-mt-6 rounded-md border border-stone-100 bg-stone-50/80 p-3"
-      >
-        <p className="mb-2 text-sm font-semibold text-stone-800">E-mails clients</p>
-        <label htmlFor="messagingSender" className="mb-1 block text-sm font-medium text-stone-700">
-          Nom d’expéditeur
-        </label>
-        <input
-          id="messagingSender"
-          type="text"
-          value={messagingSenderDisplayName}
-          onChange={(e) => setMessagingSenderDisplayName(e.target.value)}
-          placeholder={name.trim() || "Le Bistrot"}
-          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
-        />
-        <p className="mt-1 text-xs text-stone-500">
-          Libellé affiché dans la boîte du destinataire (ex. « {name.trim() || "Votre restaurant"} » &lt;adresse
-          d’envoi de la plateforme&gt;). Laisser vide pour utiliser le nom du restaurant ci-dessus.
-        </p>
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-stone-700">
-          Modèle / type d&apos;activité
-        </label>
-        <select
-          value={templateSlug}
-          onChange={(e) => setTemplateSlug(e.target.value)}
-          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
-        >
-          <option value="">Aucun modèle</option>
-          {templates.map((t) => (
-            <option key={t.slug} value={t.slug}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1 text-xs text-stone-500">
-          Utilisé pour les suggestions de plats et composants. Changer n&apos;écrase pas vos données.
-        </p>
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-stone-700">
-          Type de service
-        </label>
-        <select
-          value={serviceType}
-          onChange={(e) => setServiceType(e.target.value)}
-          className="w-full rounded border border-stone-300 px-3 py-2 text-stone-900"
-        >
-          {SERVICE_TYPES.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="rounded border border-stone-200 p-3">
-        <p className="mb-2 text-sm font-medium text-stone-800">
-          Calendrier et contexte (météo, vacances)
-        </p>
-        <p className="mb-3 text-xs text-stone-500">
-          Indiquez l&apos;adresse du restaurant (France). À l&apos;enregistrement, nous géocodons l&apos;adresse pour la
-          météo. En mode automatique, la zone de vacances scolaires est déduite du département ; vous pouvez
-          forcer A, B ou C si besoin.
-        </p>
-        <div className="mb-3">
-          <label htmlFor="address" className="mb-1 block text-xs text-stone-600">
-            Adresse
+    <EstablishmentSection
+      icon={Building2}
+      title="Identité de l'établissement"
+      subtitle="Nom, adresse, modèle d'activité et paramètres utilisés sur le portail public, la météo et le planning."
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {error ? <p className={uiError}>{error}</p> : null}
+
+        <div>
+          <label htmlFor="name" className={uiFormLabel}>
+            Nom du restaurant *
           </label>
-          <textarea
-            id="address"
-            rows={3}
-            value={addressText}
-            onChange={(e) => setAddressText(e.target.value)}
-            placeholder="12 rue de la Paix, 75002 Paris"
-            className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="Le Bistrot"
+            className={uiInputBlock}
           />
         </div>
-        <div>
-          <label htmlFor="zone" className="mb-1 block text-xs text-stone-600">
-            Zone vacances scolaires
+
+        <div id="messagerie-expediteur" className={`scroll-mt-6 ${uiCardMuted}`}>
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-800">
+            <Mail className="h-4 w-4 text-copper-600" aria-hidden />
+            E-mails clients
+          </p>
+          <label htmlFor="messagingSender" className={uiFormLabel}>
+            Nom d&apos;expéditeur
           </label>
-          <select
-            id="zone"
-            value={zoneChoice}
-            onChange={(e) => setZoneChoice(e.target.value as ZoneChoice)}
-            className="w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
-          >
-            <option value="auto">Automatique (selon l&apos;adresse)</option>
-            <option value="A">Zone A (manuel)</option>
-            <option value="B">Zone B (manuel)</option>
-            <option value="C">Zone C (manuel)</option>
-          </select>
+          <input
+            id="messagingSender"
+            type="text"
+            value={messagingSenderDisplayName}
+            onChange={(e) => setMessagingSenderDisplayName(e.target.value)}
+            placeholder={name.trim() || "Le Bistrot"}
+            className={uiInputBlock}
+          />
+          <p className={`mt-2 ${uiLead}`}>
+            Libellé affiché dans la boîte du destinataire. Laisser vide pour utiliser le nom du
+            restaurant.
+          </p>
         </div>
-      </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded bg-stone-900 py-2 font-medium text-white hover:bg-stone-800 disabled:opacity-50"
-      >
-        {loading ? "Enregistrement…" : "Enregistrer"}
-      </button>
-    </form>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="templateSlug" className={uiFormLabel}>
+              Modèle / type d&apos;activité
+            </label>
+            <select
+              id="templateSlug"
+              value={templateSlug}
+              onChange={(e) => setTemplateSlug(e.target.value)}
+              className={uiSelectBlock}
+            >
+              <option value="">Aucun modèle</option>
+              {templates.map((t) => (
+                <option key={t.slug} value={t.slug}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="serviceType" className={uiFormLabel}>
+              Type de service
+            </label>
+            <select
+              id="serviceType"
+              value={serviceType}
+              onChange={(e) => setServiceType(e.target.value)}
+              className={uiSelectBlock}
+            >
+              {SERVICE_TYPES.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className={uiCardMuted}>
+          <p className="mb-1 text-sm font-semibold text-stone-800">Calendrier et contexte</p>
+          <p className={`mb-4 ${uiLead}`}>
+            Adresse pour la géolocalisation, la météo et la zone de vacances scolaires (automatique
+            ou forcée A / B / C).
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="address" className={uiFormLabel}>
+                Adresse
+              </label>
+              <textarea
+                id="address"
+                rows={3}
+                value={addressText}
+                onChange={(e) => setAddressText(e.target.value)}
+                placeholder="12 rue de la Paix, 75002 Paris"
+                className={uiInputBlock}
+              />
+            </div>
+            <div>
+              <label htmlFor="zone" className={uiFormLabel}>
+                Zone vacances scolaires
+              </label>
+              <select
+                id="zone"
+                value={zoneChoice}
+                onChange={(e) => setZoneChoice(e.target.value as ZoneChoice)}
+                className={uiSelectBlock}
+              >
+                <option value="auto">Automatique (selon l&apos;adresse)</option>
+                <option value="A">Zone A (manuel)</option>
+                <option value="B">Zone B (manuel)</option>
+                <option value="C">Zone C (manuel)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" disabled={loading} className={uiBtnPrimaryBlock}>
+          {loading ? "Enregistrement…" : "Enregistrer l'établissement"}
+        </button>
+      </form>
+    </EstablishmentSection>
   );
 }

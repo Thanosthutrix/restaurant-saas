@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, getAccessibleRestaurantsForUser } from "@/lib/auth";
 import { isMetaOAuthConfigured } from "@/lib/meta/config";
-import type { MetaFacebookPage } from "@/lib/meta/graphApi";
 import {
   disconnectMetaConnection,
   getRestaurantSocialState,
@@ -171,5 +170,3 @@ export async function disconnectMetaAction(
     return { ok: false, error: e instanceof Error ? e.message : "Déconnexion impossible." };
   }
 }
-
-export type { MetaFacebookPage, RestaurantSocialState };

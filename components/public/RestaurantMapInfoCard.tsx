@@ -31,13 +31,15 @@ export function RestaurantMapInfoCard({ restaurant, onOpen }: Props) {
           {restaurant.name}
         </h3>
 
-        <HygieneBadge
-          score={restaurant.hygiene_score}
-          liveScore={restaurant.hygiene_score_live}
-          hasLiveData={restaurant.hygiene_has_live_data}
-          size="sm"
-          className="max-w-full whitespace-normal text-left normal-case tracking-normal"
-        />
+        {restaurant.show_hygiene_score !== false ? (
+          <HygieneBadge
+            score={restaurant.hygiene_score}
+            liveScore={restaurant.hygiene_score_live}
+            hasLiveData={restaurant.hygiene_has_live_data}
+            size="sm"
+            className="max-w-full whitespace-normal text-left normal-case tracking-normal"
+          />
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           {restaurant.review_count > 0 ? (

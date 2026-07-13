@@ -73,11 +73,13 @@ export function RestaurantHero({ restaurant }: Props) {
             </div>
 
             <div className="flex flex-col items-start gap-3 sm:items-end">
-              <HygieneBadge
-                score={restaurant.hygiene_score}
-                liveScore={restaurant.hygiene_score_live}
-                hasLiveData={restaurant.hygiene_has_live_data}
-              />
+              {restaurant.show_hygiene_score !== false ? (
+                <HygieneBadge
+                  score={restaurant.hygiene_score}
+                  liveScore={restaurant.hygiene_score_live}
+                  hasLiveData={restaurant.hygiene_has_live_data}
+                />
+              ) : null}
               <div className="flex items-center gap-2">
                 <StarRating rating={restaurant.average_rating} showValue />
                 <span className="text-sm text-slate-500">({restaurant.review_count} avis)</span>

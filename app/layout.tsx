@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { PremiumAppShell } from "@/components/app/PremiumAppShell";
 import { buildShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
+import { getSiteBaseUrl } from "@/lib/seo/siteUrl";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,12 +16,22 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteBaseUrl()),
   title: {
     default: "ubion",
     template: "%s · ubion",
   },
   description:
     "Gestion des services, plats, stock, fournisseurs, base clients et analyses pour les restaurants.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: "ubion",
+    locale: "fr_FR",
+  },
 };
 
 export default async function RootLayout({

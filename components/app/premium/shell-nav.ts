@@ -200,6 +200,7 @@ export function isBareShellPath(pathname: string | null): boolean {
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/restaurant/") ||
-    pathname.startsWith("/compte")
+    pathname.startsWith("/compte") ||
+    pathname.startsWith("/meta/oauth")
   );
 }

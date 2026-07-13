@@ -29,11 +29,13 @@ export function isStaleAuthSessionError(error: unknown): boolean {
 /** Vérifie que l'API Supabase Auth répond (utilisé côté serveur). */
 export async function isSupabaseAuthReachable(): Promise<boolean> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  if (!url) return false;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !anonKey) return false;
   try {
     const res = await fetch(`${url.replace(/\/$/, "")}/auth/v1/health`, {
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
+      headers: { apikey: anonKey },
     });
     return res.ok;
   } catch {

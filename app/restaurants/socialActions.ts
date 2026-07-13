@@ -10,12 +10,12 @@ import {
   linkMetaFacebookPage,
   syncInstagramStories,
   updateRestaurantSocialLinks,
-  upsertMetaUserConnection,
   type RestaurantMetaConnection,
   type RestaurantSocialState,
 } from "@/lib/meta/metaDb";
-import { buildMetaOAuthAuthorizeUrl, fetchMetaUserProfile } from "@/lib/meta/oauthClient";
-import { decodeMetaOAuthState, encodeMetaOAuthState } from "@/lib/meta/oauthState";
+import { buildMetaOAuthAuthorizeUrl } from "@/lib/meta/oauthClient";
+import { completeMetaOAuthFromToken } from "@/lib/meta/completeOAuth";
+import { encodeMetaOAuthState } from "@/lib/meta/oauthState";
 import { normalizeFacebookInput, normalizeInstagramInput } from "@/lib/meta/socialUrls";
 
 type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
@@ -106,29 +106,10 @@ export async function completeMetaOAuthAction(params: {
   state: string;
   accessToken: string;
 }): Promise<ActionResult<{ restaurantId: string }>> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "Non connecté." };
-
-  const decoded = params.state ? decodeMetaOAuthState(params.state) : null;
-  if (!decoded || decoded.userId !== user.id) {
-    return { ok: false, error: "Session OAuth invalide ou expirée." };
-  }
-
-  const access = await assertRestaurantAccess(user.id, decoded.restaurantId);
-  if (!access.ok) return access;
-
-  try {
-    const profile = await fetchMetaUserProfile(params.accessToken);
-    await upsertMetaUserConnection({
-      restaurantId: decoded.restaurantId,
-      metaAccountName: profile.name,
-      userAccessToken: params.accessToken,
-    });
-    revalidateSocialPaths(decoded.restaurantId);
-    return { ok: true, data: { restaurantId: decoded.restaurantId } };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Connexion Meta impossible." };
-  }
+  const result = await completeMetaOAuthFromToken(params);
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidateSocialPaths(result.restaurantId);
+  return { ok: true, data: { restaurantId: result.restaurantId } };
 }
 
 export async function linkMetaFacebookPageAction(

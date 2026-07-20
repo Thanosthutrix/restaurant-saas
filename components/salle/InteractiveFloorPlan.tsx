@@ -54,7 +54,7 @@ type ActiveSelection =
 
 export type FloorPlanMode = "plan-editor" | "salle" | "kitchen-temp";
 
-export type FloorPlanTableStatusState = "pending" | "recorded" | "draft";
+export type FloorPlanTableStatusState = "pending" | "recorded" | "draft" | "queued";
 
 type InteractiveFloorPlanProps = {
   mode?: FloorPlanMode;
@@ -1138,6 +1138,9 @@ export function InteractiveFloorPlan({
             if (!isKitchenTemp) return "";
             if (tempStatus?.state === "recorded") {
               return "border-emerald-500/90 bg-emerald-50/90 shadow-md ring-2 ring-emerald-300/60";
+            }
+            if (tempStatus?.state === "queued") {
+              return "border-sky-500/90 bg-sky-50/90 shadow-md ring-2 ring-sky-300/60";
             }
             if (tempStatus?.state === "draft") {
               return "border-sky-500/90 bg-sky-50/90 shadow-md ring-2 ring-sky-300/60";

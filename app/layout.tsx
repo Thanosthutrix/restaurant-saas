@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { PremiumAppShell } from "@/components/app/PremiumAppShell";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { buildShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { getSiteBaseUrl } from "@/lib/seo/siteUrl";
 import "./globals.css";
@@ -13,6 +14,7 @@ const geistSans = Geist({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#9c431c",
 };
 
 export const metadata: Metadata = {
@@ -26,6 +28,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/apple-icon", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ubion",
   },
   openGraph: {
     type: "website",
@@ -46,6 +53,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} font-sans antialiased`}
       >
+        <ServiceWorkerRegister />
         <PremiumAppShell headerBootstrap={headerBootstrap}>{children}</PremiumAppShell>
       </body>
     </html>

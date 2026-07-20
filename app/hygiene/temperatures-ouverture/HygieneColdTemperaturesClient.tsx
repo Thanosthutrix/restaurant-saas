@@ -28,7 +28,11 @@ import {
   type HygieneColdEventKind,
   type HygieneColdTemperatureReadingWithElement,
 } from "@/lib/hygiene/types";
-import { logColdTemperatureReadingAction } from "../actions";
+import { submitColdTemperatureReading } from "@/lib/offline/submitColdTemperatureReading";
+import {
+  queuedReadingsByElement,
+  useQueuedColdReadings,
+} from "@/lib/hooks/useQueuedColdReadings";
 import { uiBtnPrimary, uiInput, uiLabel } from "@/components/ui/premium";
 
 type ViewMode = "list" | "plan";
@@ -73,6 +77,10 @@ export function HygieneColdTemperaturesClient({
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
+  const [queuedCount, setQueuedCount] = useState(0);
+
+  const queuedReadings = useQueuedColdReadings(restaurantId, eventKind);
+  const queuedByElement = useMemo(() => queuedReadingsByElement(queuedReadings), [queuedReadings]);
 
   useEffect(() => {
     const local = loadKitchenFloorPlanDocument(restaurantId);
@@ -99,6 +107,7 @@ export function HygieneColdTemperaturesClient({
   function submitAll() {
     setFormError(null);
     setSavedCount(0);
+    setQueuedCount(0);
     if (filledIds.length === 0) {
       setFormError("Saisissez au moins une température.");
       return;
@@ -107,11 +116,12 @@ export function HygieneColdTemperaturesClient({
     start(async () => {
       const results = await Promise.all(
         entries.map(async (el) => {
-          const r = await logColdTemperatureReadingAction(restaurantId, el.id, {
+          const r = await submitColdTemperatureReading(restaurantId, el.id, {
             eventKind,
             temperatureCelsiusRaw: temps[el.id],
             initials,
             comment: (comments[el.id] ?? "").trim() || null,
+            elementName: el.name,
           });
           return { id: el.id, r };
         })
@@ -119,9 +129,12 @@ export function HygieneColdTemperaturesClient({
 
       const nextErrors: Record<string, string> = {};
       const succeeded: string[] = [];
+      let queued = 0;
       for (const { id, r } of results) {
-        if (r.ok) succeeded.push(id);
-        else nextErrors[id] = r.error;
+        if (r.ok) {
+          succeeded.push(id);
+          if ("queued" in r && r.queued) queued += 1;
+        } else nextErrors[id] = r.error;
       }
       setRowErrors(nextErrors);
       setTemps((m) => {
@@ -134,9 +147,12 @@ export function HygieneColdTemperaturesClient({
         for (const id of succeeded) delete next[id];
         return next;
       });
-      setSavedCount(succeeded.length);
+      setSavedCount(succeeded.length - queued);
+      setQueuedCount(queued);
       if (Object.keys(nextErrors).length > 0) {
         setFormError("Certaines lignes n'ont pas pu être enregistrées — vérifiez les valeurs en rouge.");
+      } else if (queued > 0) {
+        setFormError(null);
       }
       router.refresh();
     });
@@ -255,6 +271,7 @@ export function HygieneColdTemperaturesClient({
               const rowError = rowErrors[el.id];
               const hasTemp = (temps[el.id] ?? "").trim() !== "";
               const todayRecorded = todayRecordedByElement[el.id];
+              const queued = queuedByElement[el.id];
               return (
                 <li key={el.id} className={`px-4 py-3 ${rowError ? "bg-rose-50/40" : ""}`}>
                   <div className="flex items-center gap-3">
@@ -269,6 +286,10 @@ export function HygieneColdTemperaturesClient({
                         {todayRecorded != null ? (
                           <span className="ml-2 font-medium text-emerald-700">
                             · Relevé : {todayRecorded} °C
+                          </span>
+                        ) : queued ? (
+                          <span className="ml-2 font-medium text-sky-700">
+                            · {queued.temperatureCelsiusRaw} °C — en attente de sync
                           </span>
                         ) : null}
                       </p>
@@ -318,6 +339,12 @@ export function HygieneColdTemperaturesClient({
               <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700">
                 <Check className="h-4 w-4" aria-hidden />
                 {savedCount} relevé{savedCount > 1 ? "s" : ""} enregistré{savedCount > 1 ? "s" : ""}
+              </span>
+            ) : null}
+            {queuedCount > 0 ? (
+              <span className="text-sm font-medium text-sky-700">
+                {queuedCount} relevé{queuedCount > 1 ? "s" : ""} enregistré{queuedCount > 1 ? "s" : ""} localement — sync
+                au retour du réseau.
               </span>
             ) : null}
             {formError ? <span className="text-sm text-rose-700">{formError}</span> : null}

@@ -15,7 +15,8 @@ import {
   HYGIENE_COLD_EVENT_LABEL_FR,
   type HygieneColdEventKind,
 } from "@/lib/hygiene/types";
-import { logColdTemperatureReadingAction } from "@/app/hygiene/actions";
+import { submitColdTemperatureReading } from "@/lib/offline/submitColdTemperatureReading";
+import { useQueuedColdReadings, queuedReadingsByElement } from "@/lib/hooks/useQueuedColdReadings";
 import {
   parseStoredKitchenFloorPlanDocument,
   setActiveLevelId,
@@ -71,6 +72,10 @@ export function KitchenTemperaturePlanView({
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [draftTemps, setDraftTemps] = useState<Record<string, string>>({});
+  const [queuedNotice, setQueuedNotice] = useState(false);
+
+  const queuedReadings = useQueuedColdReadings(restaurantId, eventKind);
+  const queuedByElement = useMemo(() => queuedReadingsByElement(queuedReadings), [queuedReadings]);
 
   const allEquipment = useMemo(() => buildFloorEquipmentFromElements(coldElements), [coldElements]);
   const elementById = useMemo(() => new Map(coldElements.map((el) => [el.id, el])), [coldElements]);
@@ -107,9 +112,16 @@ export function KitchenTemperaturePlanView({
     const map: Record<string, { state: FloorPlanTableStatusState; temperature?: number }> = {};
     for (const table of layout.tables) {
       const recorded = todayRecordedByElement[table.id];
+      const queued = queuedByElement[table.id];
       const draft = draftTemps[table.id];
       if (recorded != null) {
         map[table.id] = { state: "recorded", temperature: recorded };
+      } else if (queued) {
+        const temp = Number.parseFloat(queued.temperatureCelsiusRaw.replace(",", "."));
+        map[table.id] = {
+          state: "queued",
+          temperature: Number.isFinite(temp) ? temp : undefined,
+        };
       } else if (draft?.trim()) {
         map[table.id] = { state: "draft" };
       } else {
@@ -117,7 +129,7 @@ export function KitchenTemperaturePlanView({
       }
     }
     return map;
-  }, [layout.tables, todayRecordedByElement, draftTemps]);
+  }, [layout.tables, todayRecordedByElement, queuedByElement, draftTemps]);
 
   const selectedElement = selectedId ? elementById.get(selectedId) : null;
 
@@ -142,12 +154,14 @@ export function KitchenTemperaturePlanView({
   function saveReading() {
     if (!selectedId || !selectedElement) return;
     setError(null);
+    setQueuedNotice(false);
     start(async () => {
-      const r = await logColdTemperatureReadingAction(restaurantId, selectedId, {
+      const r = await submitColdTemperatureReading(restaurantId, selectedId, {
         eventKind,
         temperatureCelsiusRaw: tempValue,
         initials,
         comment: comment.trim() || null,
+        elementName: selectedElement.name,
       });
       if (!r.ok) {
         setError(r.error);
@@ -159,8 +173,9 @@ export function KitchenTemperaturePlanView({
         return next;
       });
       setSelectedId(null);
+      if (r.queued) setQueuedNotice(true);
       onReadingSaved();
-      router.refresh();
+      if (!r.queued) router.refresh();
     });
   }
 
@@ -241,6 +256,10 @@ export function KitchenTemperaturePlanView({
           <span className="h-3 w-3 rounded border-2 border-emerald-500 bg-emerald-50" aria-hidden />
           Relevé enregistré
         </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded border-2 border-sky-500 bg-sky-50" aria-hidden />
+          En attente de sync
+        </span>
         <Link
           href="/hygiene/cuisine-plan"
           className="ml-auto font-semibold text-copper-700 underline hover:text-copper-600"
@@ -276,6 +295,12 @@ export function KitchenTemperaturePlanView({
           canvasLabel: "Plan cuisine — relevés température",
         }}
       />
+
+      {queuedNotice ? (
+        <p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+          Relevé enregistré localement — il sera synchronisé dès que la connexion sera disponible.
+        </p>
+      ) : null}
 
       {selectedElement ? (
         <div

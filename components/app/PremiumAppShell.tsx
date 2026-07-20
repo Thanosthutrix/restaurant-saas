@@ -10,6 +10,8 @@ import { HeaderRestaurantSelect } from "@/components/app/premium/HeaderRestauran
 import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidget";
 import { HeaderUserAvatar } from "@/components/app/HeaderUserAvatar";
 import { BrandLogo } from "@/components/app/BrandLogo";
+import { OfflineStatusBar } from "@/components/offline/OfflineStatusBar";
+import { OfflineSyncProvider } from "@/components/offline/OfflineSyncProvider";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { type ShellNavKey, canAccessPage } from "@/lib/auth/appRoles";
 import { prefetchRoutesWhenIdle } from "@/lib/ui/deferIdle";
@@ -200,6 +202,7 @@ export function PremiumAppShell({
   }
 
   return (
+    <OfflineSyncProvider>
     <div className="min-h-screen bg-[#E9EDF2] text-stone-900">
       {/* Mobile overlay */}
       {mobileNavOpen ? (
@@ -358,10 +361,13 @@ export function PremiumAppShell({
           </div>
         </header>
 
+        <OfflineStatusBar />
+
         <main className="mx-auto min-w-0 w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
           {children}
         </main>
       </div>
     </div>
+    </OfflineSyncProvider>
   );
 }

@@ -10,6 +10,7 @@ import { HeaderRestaurantSelect } from "@/components/app/premium/HeaderRestauran
 import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidget";
 import { HeaderUserAvatar } from "@/components/app/HeaderUserAvatar";
 import { BrandLogo } from "@/components/app/BrandLogo";
+import { OfflineNavigationGuard } from "@/components/offline/OfflineNavigationGuard";
 import { OfflineStatusBar } from "@/components/offline/OfflineStatusBar";
 import { OfflineSyncProvider } from "@/components/offline/OfflineSyncProvider";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
@@ -362,6 +363,7 @@ export function PremiumAppShell({
         </header>
 
         <OfflineStatusBar />
+        <OfflineNavigationGuard />
 
         <main className="mx-auto min-w-0 w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
           {children}

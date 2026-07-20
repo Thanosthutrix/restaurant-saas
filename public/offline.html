@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#9c431c" />
+    <title>Hors ligne · ubion</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #fafaf9;
+        color: #1c1917;
+      }
+      .card {
+        max-width: 24rem;
+        text-align: center;
+        border: 1px solid #e7e5e4;
+        border-radius: 1rem;
+        background: #fff;
+        padding: 2rem 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      }
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.25rem;
+      }
+      p {
+        margin: 0;
+        font-size: 0.9375rem;
+        line-height: 1.5;
+        color: #57534e;
+      }
+      button {
+        margin-top: 1.25rem;
+        border: 0;
+        border-radius: 0.75rem;
+        background: #9c431c;
+        color: #fff;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        padding: 0.75rem 1.25rem;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Vous êtes hors ligne</h1>
+      <p>
+        Cette page n'est pas disponible sans connexion. Revenez à un écran déjà ouvert ou réactivez le
+        réseau.
+      </p>
+      <button type="button" onclick="history.back()">Page précédente</button>
+    </div>
+  </body>
+</html>

@@ -11,10 +11,22 @@
     "start": "next start",
     "lint": "eslint",
     "db:apply": "npx tsx scripts/apply-sql-migration.ts",
-    "db:apply-peak-bands": "npx tsx scripts/apply-sql-migration.ts supabase/migrations/20260521130000_planning_peak_bands_weekly.sql"
+    "db:apply-peak-bands": "npx tsx scripts/apply-sql-migration.ts supabase/migrations/20260521130000_planning_peak_bands_weekly.sql",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "cap:run:ios": "npx cap run ios",
+    "cap:run:android": "npx cap run android"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1079.0",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@gltf-transform/core": "^4.4.1",
     "@gltf-transform/extensions": "^4.4.1",
     "@gltf-transform/functions": "^4.4.1",

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { PremiumAppShell } from "@/components/app/PremiumAppShell";
+import { NativeShellBootstrap } from "@/components/capacitor/NativeShellBootstrap";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { buildShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { getSiteBaseUrl } from "@/lib/seo/siteUrl";
@@ -54,6 +55,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} font-sans antialiased`}
       >
         <ServiceWorkerRegister />
+        <NativeShellBootstrap />
         <PremiumAppShell headerBootstrap={headerBootstrap}>{children}</PremiumAppShell>
       </body>
     </html>

@@ -139,3 +139,18 @@ body {
     background: rgba(250, 250, 250, 0.12);
   }
 }
+
+/* App Capacitor (WebView iOS/Android) — échelle mobile correcte + encoches. */
+html.capacitor-native {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html.capacitor-native body {
+  overflow-x: hidden;
+  min-height: 100dvh;
+}
+
+html.capacitor-native .app-content-offset > header {
+  padding-top: env(safe-area-inset-top);
+}

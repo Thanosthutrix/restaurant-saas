@@ -16,6 +16,8 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: "automatic",
     allowsLinkPreview: false,
+    /** Évite le rendu « desktop zoomé » dans la WebView iOS. */
+    preferredContentMode: "mobile",
   },
   android: {
     allowMixedContent: false,

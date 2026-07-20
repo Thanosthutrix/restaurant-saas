@@ -8,10 +8,26 @@ import { NativePushRegister } from "@/components/capacitor/NativePushRegister";
 export function NativeShellBootstrap() {
   useEffect(() => {
     if (!isNativeApp()) return;
+    applyNativeViewportFix();
     void configureNativeShell();
   }, []);
 
   return <NativePushRegister />;
+}
+
+function applyNativeViewportFix() {
+  document.documentElement.classList.add("capacitor-native");
+
+  let meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "viewport");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute(
+    "content",
+    "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+  );
 }
 
 async function configureNativeShell() {

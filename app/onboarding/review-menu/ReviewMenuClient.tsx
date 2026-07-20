@@ -21,7 +21,7 @@ import {
   uiBtnPrimaryBlock,
   uiBtnSecondary,
   uiMuted,
-  uiPageTitle,
+  uiWarn,
 } from "@/components/ui/premium";
 
 function parseStored(raw: string | null): MenuSuggestionItem[] | null {
@@ -182,18 +182,15 @@ export function ReviewMenuClient() {
   return (
     <div className="space-y-6">
       {emptyExtract ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p className={uiWarn}>
           Aucun plat détecté sur ces photos. Vous pouvez ouvrir le tableau de bord et importer une carte plus tard
           depuis Plats.
         </p>
       ) : null}
-      <div>
-        <h2 className={uiPageTitle}>Valider les plats détectés</h2>
-        <p className={`mt-2 ${uiMuted}`}>
-          Cochez les plats à créer ou mettre à jour, ajustez rubrique, prix TTC, TVA et type. Les recettes restent
-          gérées dans l’étape dédiée.
-        </p>
-      </div>
+      <p className={uiMuted}>
+        Cochez les plats à créer ou mettre à jour, ajustez rubrique, prix TTC, TVA et type. Les recettes restent gérées
+        dans l&apos;étape dédiée.
+      </p>
       <MenuSuggestionsEditor
         suggestions={suggestions}
         setSuggestions={setSuggestions}

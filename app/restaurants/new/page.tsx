@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { Building2 } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { getRestaurantTemplates } from "@/lib/templates/restaurantTemplates";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { CreateRestaurantForm } from "./CreateRestaurantForm";
 
 export default async function NewRestaurantPage() {
@@ -14,24 +15,18 @@ export default async function NewRestaurantPage() {
   const templates = getRestaurantTemplates();
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <div className="mb-6">
-          <Link
-            href="/dashboard"
-            className="text-sm text-stone-600 underline decoration-stone-400 underline-offset-2"
-          >
-            ← Tableau de bord
-          </Link>
-        </div>
-        <h1 className="mb-2 text-xl font-semibold text-stone-900">
-          Créer un restaurant
-        </h1>
-        <p className="mb-6 text-sm text-stone-500">
-          Ajoutez un autre restaurant à votre compte.
-        </p>
-        <CreateRestaurantForm templates={templates} />
-      </div>
-    </div>
+    <PageContainer width="narrow">
+      <PageHeader
+        accentIcon={Building2}
+        accentTone="bg-copper-50 text-copper-700"
+        breadcrumbs={[
+          { label: "Tableau de bord", href: "/dashboard" },
+          { label: "Nouveau restaurant" },
+        ]}
+        subtitle="Ajoutez un établissement à votre compte. Le modèle choisi préremplit composants stock et plats suggérés."
+        title="Créer un restaurant"
+      />
+      <CreateRestaurantForm templates={templates} />
+    </PageContainer>
   );
 }

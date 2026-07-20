@@ -52,7 +52,9 @@ type ActiveSelection =
   | { type: "fixture"; id: string }
   | null;
 
-export type FloorPlanMode = "plan-editor" | "salle";
+export type FloorPlanMode = "plan-editor" | "salle" | "kitchen-temp";
+
+export type FloorPlanTableStatusState = "pending" | "recorded" | "draft";
 
 type InteractiveFloorPlanProps = {
   mode?: FloorPlanMode;
@@ -70,6 +72,16 @@ type InteractiveFloorPlanProps = {
   /** Tables libres déjà configurées ce service — clic direct = modale. */
   activatedTableIds?: string[];
   onTableActivate?: (tableId: string) => void;
+  planCopy?: {
+    title: string;
+    description: React.ReactNode;
+    canvasLabel?: string;
+    placeItemLabel?: string;
+  };
+  hideCapacity?: boolean;
+  hideHeader?: boolean;
+  itemKind?: "table" | "equipment";
+  tableStatusMap?: Record<string, { state: FloorPlanTableStatusState; temperature?: number }>;
 };
 
 const DEFAULT_TABLE_WIDTH = 12;
@@ -528,11 +540,17 @@ export function InteractiveFloorPlan({
   onTableClick,
   activatedTableIds = [],
   onTableActivate,
+  planCopy,
+  hideCapacity = false,
+  hideHeader = false,
+  itemKind = "table",
+  tableStatusMap,
 }: InteractiveFloorPlanProps) {
   const isPlanEditor = mode === "plan-editor";
+  const isKitchenTemp = mode === "kitchen-temp";
   const fixturesEditable = isPlanEditor;
-  const tablesEditable = true;
-  const showLiveTableStatus = !isPlanEditor;
+  const tablesEditable = !isKitchenTemp;
+  const showLiveTableStatus = !isPlanEditor || isKitchenTemp;
   const activatedTableIdSet = new Set(activatedTableIds);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const tablesRef = useRef<FloorTable[]>(initialTables);
@@ -661,7 +679,7 @@ export function InteractiveFloorPlan({
     handle: ResizeHandle
   ) {
     if (type === "fixture" && !fixturesEditable) return;
-    if (type === "table" && !tablesEditable) return;
+    if (type === "table" && !tablesEditable && !isKitchenTemp) return;
 
     event.stopPropagation();
     event.preventDefault();
@@ -704,6 +722,7 @@ export function InteractiveFloorPlan({
   }
 
   function isTableServiceReady(table: FloorTable) {
+    if (isKitchenTemp) return true;
     return table.status === "occupied" || activatedTableIdSet.has(table.id);
   }
 
@@ -769,7 +788,7 @@ export function InteractiveFloorPlan({
 
     if (resizeTarget) {
       if (resizeTarget.type === "fixture" && !fixturesEditable) return;
-      if (resizeTarget.type === "table" && !tablesEditable) return;
+      if (resizeTarget.type === "table" && !tablesEditable && !isKitchenTemp) return;
 
       const minWidth =
         resizeTarget.type === "table" ? MIN_TABLE_WIDTH : MIN_FIXTURE_WIDTH;
@@ -824,7 +843,7 @@ export function InteractiveFloorPlan({
 
     if (!dragTarget) return;
     if (dragTarget.type === "fixture" && !fixturesEditable) return;
-    if (dragTarget.type === "table" && !tablesEditable) return;
+    if (dragTarget.type === "table" && !tablesEditable && !isKitchenTemp) return;
 
     const dragStart = dragStartRef.current;
     if (dragStart && Math.hypot(pointerX - dragStart.x, pointerY - dragStart.y) > 0.6) {
@@ -874,7 +893,7 @@ export function InteractiveFloorPlan({
     const clickedTable =
       dragTarget.type === "table" &&
       !dragMovedRef.current &&
-      showLiveTableStatus &&
+      (showLiveTableStatus || isKitchenTemp) &&
       onTableClick
         ? tablesRef.current.find((table) => table.id === dragTarget.id)
         : null;
@@ -899,34 +918,43 @@ export function InteractiveFloorPlan({
     }
   }
 
+  const headerTitle =
+    planCopy?.title ?? (isPlanEditor ? "Configurer le plan de salle" : isKitchenTemp ? "Plan cuisine" : "Plan de salle");
+  const placeItemLabel = planCopy?.placeItemLabel ?? "Placer sur le plan";
+  const canvasLabel = planCopy?.canvasLabel ?? "Plan de salle dynamique";
+  const itemNoun = itemKind === "equipment" ? "équipement" : "table";
+
   return (
     <div className="space-y-4">
+      {!hideHeader ? (
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">
-            {isPlanEditor ? "Configurer le plan de salle" : "Plan de salle"}
-          </h2>
+          <h2 className="text-base font-semibold text-slate-900">{headerTitle}</h2>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            {isPlanEditor ? (
-              <>
-                Dessinez la structure (murs, bar…) et placez les tables de référence. Ce plan de base
-                est restauré automatiquement en fin de service.
-              </>
-            ) : (
-              <>
-                Glissez pour déplacer une table. La première ouverture d’une table libre permet de la
-                positionner et d’ajuster les couverts, puis les clics suivants ouvrent la commande. En fin
-                de service, tout revient au plan de base configuré dans{" "}
-                <Link href="/salle/plan" className="font-semibold text-indigo-600 hover:text-indigo-700">
-                  Configurer le plan
-                </Link>
-                .
-              </>
+            {planCopy?.description ?? (
+              isPlanEditor ? (
+                <>
+                  Dessinez la structure (murs, bar…) et placez les tables de référence. Ce plan de base
+                  est restauré automatiquement en fin de service.
+                </>
+              ) : isKitchenTemp ? (
+                <>Touchez un équipement pour saisir sa température. Les couleurs indiquent l&apos;état du relevé du jour.</>
+              ) : (
+                <>
+                  Glissez pour déplacer une table. La première ouverture d'une table libre permet de la
+                  positionner et d'ajuster les couverts, puis les clics suivants ouvrent la commande. En fin
+                  de service, tout revient au plan de base configuré dans{" "}
+                  <Link href="/salle/plan" className="font-semibold text-indigo-600 hover:text-indigo-700">
+                    Configurer le plan
+                  </Link>
+                  .
+                </>
+              )
             )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {isPlanEditor && onTableCreate ? (
+          {isPlanEditor && onTableCreate && itemKind === "table" ? (
             <button
               type="button"
               onClick={handleAddTable}
@@ -947,8 +975,9 @@ export function InteractiveFloorPlan({
           ) : null}
         </div>
       </div>
+      ) : null}
 
-      {!isPlanEditor && hasServiceOverrides ? (
+      {!isPlanEditor && !isKitchenTemp && hasServiceOverrides ? (
         <p className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
           Disposition temporaire en cours. Cliquez sur <strong>Fin de service</strong> pour revenir au
           plan de base.
@@ -957,7 +986,7 @@ export function InteractiveFloorPlan({
 
       {isPlanEditor && availableTablesToPlace.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-slate-500">Placer sur le plan :</span>
+          <span className="text-sm font-medium text-slate-500">{placeItemLabel} :</span>
           {availableTablesToPlace.map((table) => (
             <button
               key={table.id}
@@ -986,7 +1015,7 @@ export function InteractiveFloorPlan({
         </div>
       ) : null}
 
-      {!isPlanEditor && fixtures.length === 0 ? (
+      {!isPlanEditor && !isKitchenTemp && fixtures.length === 0 ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Aucun plan configuré.{" "}
           <Link href="/salle/plan" className="font-semibold text-amber-950 underline hover:no-underline">
@@ -1010,7 +1039,7 @@ export function InteractiveFloorPlan({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         role="application"
-        aria-label="Plan de salle dynamique"
+        aria-label={canvasLabel}
       >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.16)_1px,transparent_1px)] bg-[size:8.333%_12.5%]" />
 
@@ -1097,13 +1126,24 @@ export function InteractiveFloorPlan({
           );
         })}
 
-        {tablesEditable
-          ? tables.map((table) => {
-          const isOccupied = showLiveTableStatus && table.status === "occupied";
+        {tables.map((table) => {
+          const isOccupied = showLiveTableStatus && !isKitchenTemp && table.status === "occupied";
           const isActive = activeSelection?.type === "table" && activeSelection.id === table.id;
           const isServiceReady = showLiveTableStatus && isTableServiceReady(table);
-          const isPendingSetup = showLiveTableStatus && !isServiceReady;
+          const isPendingSetup = showLiveTableStatus && !isKitchenTemp && !isServiceReady;
+          const tempStatus = tableStatusMap?.[table.id];
           const layout = getLayoutBounds(table);
+
+          function kitchenTempClasses(): string {
+            if (!isKitchenTemp) return "";
+            if (tempStatus?.state === "recorded") {
+              return "border-emerald-500/90 bg-emerald-50/90 shadow-md ring-2 ring-emerald-300/60";
+            }
+            if (tempStatus?.state === "draft") {
+              return "border-sky-500/90 bg-sky-50/90 shadow-md ring-2 ring-sky-300/60";
+            }
+            return "border-amber-400/80 bg-amber-50/80 shadow-sm ring-2 ring-amber-200/60 hover:border-amber-500";
+          }
 
           return (
             <div
@@ -1127,10 +1167,14 @@ export function InteractiveFloorPlan({
                     onClick={
                       isPlanEditor
                         ? () => setActiveSelection({ type: "table", id: table.id })
-                        : undefined
+                        : isKitchenTemp
+                          ? () => onTableClick?.(table)
+                          : undefined
                     }
                     className={`relative flex h-full w-full select-none flex-col items-center justify-center rounded-2xl border-2 p-2 text-center transition-all duration-200 active:scale-95 ${
-                      showLiveTableStatus
+                      isKitchenTemp
+                        ? kitchenTempClasses()
+                        : showLiveTableStatus
                         ? isOccupied
                           ? "border-copper-500/90 bg-copper-50/90 shadow-md ring-2 ring-copper-300/60"
                           : isPendingSetup && isActive
@@ -1138,13 +1182,17 @@ export function InteractiveFloorPlan({
                             : "border-stone-300/25 bg-white/20 shadow-none hover:border-stone-300/40"
                         : "border-slate-300 bg-white shadow-sm ring-4 ring-slate-100"
                     } ${isPlanEditor && isActive ? "shadow-lg ring-4 ring-slate-100" : isPlanEditor ? "hover:shadow-md" : ""}`}
-                    aria-label={`${table.label}, ${table.capacity} personnes, ${
-                      isOccupied ? "occupée" : "libre"
-                    }`}
+                    aria-label={
+                      isKitchenTemp
+                        ? `${table.label}, ${itemNoun}, ${tempStatus?.state === "recorded" ? "relevé enregistré" : "relevé en attente"}`
+                        : `${table.label}, ${table.capacity} personnes, ${isOccupied ? "occupée" : "libre"}`
+                    }
                   >
                   <span
                     className={`text-sm font-bold sm:text-base ${
-                      showLiveTableStatus
+                      isKitchenTemp
+                        ? "text-stone-900"
+                        : showLiveTableStatus
                         ? isOccupied || (isPendingSetup && isActive)
                           ? "text-copper-900"
                           : "text-stone-400/50"
@@ -1153,19 +1201,24 @@ export function InteractiveFloorPlan({
                   >
                     {table.label}
                   </span>
-                {isPlanEditor || (showLiveTableStatus && isPendingSetup && isActive) ? (
+                {!hideCapacity && (isPlanEditor || (showLiveTableStatus && isPendingSetup && isActive)) ? (
                 <span
                   className={`mt-0.5 text-[11px] font-medium sm:text-xs ${
-                    showLiveTableStatus ? "text-copper-700" : "text-slate-500"
+                    showLiveTableStatus && !isKitchenTemp ? "text-copper-700" : "text-slate-500"
                   }`}
                 >
                   {table.capacity} pers
                 </span>
                 ) : null}
+                {isKitchenTemp && tempStatus?.temperature != null ? (
+                  <span className="mt-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 sm:text-xs">
+                    {tempStatus.temperature} °C
+                  </span>
+                ) : null}
                   </button>
                 </div>
 
-                {isPlanEditor || (showLiveTableStatus && isPendingSetup && isActive) ? (
+                {tablesEditable && (isPlanEditor || (showLiveTableStatus && isPendingSetup && isActive)) ? (
                 <ElementResizeHandles
                   isActive={isActive}
                   variant={showLiveTableStatus ? "salle" : "plan"}
@@ -1176,7 +1229,7 @@ export function InteractiveFloorPlan({
                 ) : null}
               </div>
 
-              {isPlanEditor ? (
+              {isPlanEditor && tablesEditable ? (
               <div
                 className={`absolute left-1/2 top-full z-30 mt-2 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-slate-200 bg-white/95 p-1 shadow-lg transition ${
                   isActive ? "opacity-100" : "pointer-events-none opacity-0 group-hover:opacity-100"
@@ -1221,7 +1274,7 @@ export function InteractiveFloorPlan({
               </div>
               ) : null}
 
-              {showLiveTableStatus && isPendingSetup && isActive ? (
+              {showLiveTableStatus && !isKitchenTemp && isPendingSetup && isActive ? (
                 <div
                   className="absolute z-30 flex items-center gap-1 rounded-2xl border border-copper-200 bg-white/95 p-1 shadow-lg"
                   style={getFloatingToolbarPlacement(layout)}
@@ -1264,8 +1317,7 @@ export function InteractiveFloorPlan({
               ) : null}
             </div>
           );
-        })
-          : null}
+        })}
       </div>
     </div>
   );

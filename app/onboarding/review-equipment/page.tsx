@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { Wrench } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
-import { uiAuthCard, uiLead, uiPageTitle } from "@/components/ui/premium";
+import { OnboardingPageShell } from "@/components/onboarding/OnboardingPageShell";
+import { uiCard } from "@/components/ui/premium";
 import { ReviewEquipmentClient } from "./ReviewEquipmentClient";
 
 export default async function OnboardingReviewEquipmentPage() {
@@ -11,18 +13,17 @@ export default async function OnboardingReviewEquipmentPage() {
   if (!restaurant) redirect("/onboarding");
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-6xl space-y-6">
-        <div className="text-center">
-          <h1 className={uiPageTitle}>Inventaire matériel détecté</h1>
-          <p className={`mt-2 ${uiLead}`}>
-            Validez le matériel cuisine et salle de {restaurant.name} pour préparer le PND hygiène et le plan de salle.
-          </p>
-        </div>
-        <div className={uiAuthCard}>
-          <ReviewEquipmentClient />
-        </div>
+    <OnboardingPageShell
+      accentIcon={Wrench}
+      accentTone="bg-violet-50 text-violet-700"
+      eyebrow="Étape suivante"
+      subtitle={`Validez le matériel cuisine et salle de ${restaurant.name} pour préparer le PND hygiène et le plan de salle.`}
+      title="Inventaire matériel détecté"
+      width="wide"
+    >
+      <div className={uiCard}>
+        <ReviewEquipmentClient />
       </div>
-    </div>
+    </OnboardingPageShell>
   );
 }

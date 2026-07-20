@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getRestaurantForPage } from "@/lib/auth";
+import { getRestaurantFloorPlanDocument } from "@/lib/dining/floorPlanDb";
 import { listDiningTables, listOpenDiningOrdersWithCustomerNames } from "@/lib/dining/diningDb";
 import { diningOrderGuestDisplayName } from "@/lib/dining/ticketLabel";
 import { Armchair } from "lucide-react";
@@ -20,9 +21,10 @@ export default async function SallePage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [{ data: tables, error: tErr }, openOrdersRes] = await Promise.all([
+  const [{ data: tables, error: tErr }, openOrdersRes, { data: storedDocument }] = await Promise.all([
     listDiningTables(restaurant.id),
     listOpenDiningOrdersWithCustomerNames(restaurant.id),
+    getRestaurantFloorPlanDocument(restaurant.id),
   ]);
   const oErr = openOrdersRes.error;
 
@@ -110,6 +112,7 @@ export default async function SallePage() {
         <SalleOrderSessionLoader
           restaurantId={restaurant.id}
           initialTables={floorTables}
+          serverStoredDocument={storedDocument}
           tableSummaries={tables.length > 0 ? tableSummaries : undefined}
         />
       </Suspense>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   InteractiveFloorPlan,
   type FloorFixture,
@@ -12,45 +11,33 @@ import {
   addFloorPlanLevel,
   buildPlacedTableCountByLevel,
   getLevelById,
-  parseStoredFloorPlanDocument,
+  parseStoredKitchenFloorPlanDocument,
   removeFloorPlanLevel,
   renameFloorPlanLevel,
   setActiveLevelId,
   sortLevels,
-  type StoredFloorPlanDocument,
-} from "@/lib/salle/floorPlanDocument";
-import { withDefaultPlanPlacement } from "@/lib/salle/floorPlanLayout";
+  type StoredKitchenFloorPlanDocument,
+} from "@/lib/cuisine/kitchenFloorPlanDocument";
+import { withDefaultPlanPlacement } from "@/lib/cuisine/kitchenFloorPlanLayout";
 import {
   buildStoredLayoutFromEditor,
-  getAvailableTablesForLevel,
-  mergeTablesForPlanEditorLevel,
+  getAvailableEquipmentForLevel,
+  mergeEquipmentForPlanEditorLevel,
   patchLevelLayoutInDocument,
-  useFloorPlanDocumentPersistence,
-} from "@/lib/salle/useFloorPlanPersistence";
-import { addDiningTable } from "../tables/actions";
+  useKitchenFloorPlanDocumentPersistence,
+} from "@/lib/cuisine/useKitchenFloorPlanPersistence";
 
-type FloorPlanEditorClientProps = {
+type KitchenPlanEditorClientProps = {
   restaurantId: string;
-  initialTables: FloorTable[];
-  serverStoredDocument: StoredFloorPlanDocument | null;
+  initialEquipment: FloorTable[];
+  serverStoredDocument: StoredKitchenFloorPlanDocument | null;
 };
 
-function nextAvailableTableLabel(tables: FloorTable[]): string {
-  const existingLabels = new Set(tables.map((table) => table.label.trim().toLowerCase()));
-  let index = tables.length + 1;
-
-  while (existingLabels.has(`t.${index}`.toLowerCase())) {
-    index += 1;
-  }
-
-  return `T.${index}`;
-}
-
 function updateLevelInDocument(
-  doc: StoredFloorPlanDocument,
+  doc: StoredKitchenFloorPlanDocument,
   levelId: string,
   levelLayout: ReturnType<typeof buildStoredLayoutFromEditor>
-): StoredFloorPlanDocument {
+): StoredKitchenFloorPlanDocument {
   return {
     ...doc,
     levels: doc.levels.map((level) =>
@@ -59,19 +46,18 @@ function updateLevelInDocument(
   };
 }
 
-export function FloorPlanEditorClient({
+export function KitchenPlanEditorClient({
   restaurantId,
-  initialTables,
+  initialEquipment,
   serverStoredDocument,
-}: FloorPlanEditorClientProps) {
-  const router = useRouter();
+}: KitchenPlanEditorClientProps) {
   const [mounted, setMounted] = useState(false);
-  const { persistDocument, resolveDocument } = useFloorPlanDocumentPersistence(
+  const { persistDocument, resolveDocument } = useKitchenFloorPlanDocumentPersistence(
     restaurantId,
     serverStoredDocument
   );
-  const [document, setDocument] = useState<StoredFloorPlanDocument>(() =>
-    parseStoredFloorPlanDocument(serverStoredDocument)
+  const [document, setDocument] = useState<StoredKitchenFloorPlanDocument>(() =>
+    parseStoredKitchenFloorPlanDocument(serverStoredDocument)
   );
   const [layout, setLayout] = useState<{
     tables: FloorTable[];
@@ -86,21 +72,21 @@ export function FloorPlanEditorClient({
     setMounted(true);
     const resolved = resolveDocument();
     setDocument(resolved);
-    const merged = mergeTablesForPlanEditorLevel(initialTables, resolved, resolved.activeLevelId);
-    setLayout(merged);
-  }, [restaurantId, initialTables, serverStoredDocument]);
+    setLayout(mergeEquipmentForPlanEditorLevel(initialEquipment, resolved, resolved.activeLevelId));
+  }, [restaurantId, initialEquipment, serverStoredDocument]);
 
-  const availableTablesToPlace = useMemo(
-    () => getAvailableTablesForLevel(initialTables, document, activeLevelId, layout.tables),
-    [initialTables, document, activeLevelId, layout.tables]
+  const availableEquipmentToPlace = useMemo(
+    () =>
+      getAvailableEquipmentForLevel(initialEquipment, document, activeLevelId, layout.tables),
+    [initialEquipment, document, activeLevelId, layout.tables]
   );
 
-  const activeTableIds = useMemo(() => new Set(initialTables.map((table) => table.id)), [initialTables]);
+  const equipmentIds = useMemo(() => new Set(initialEquipment.map((item) => item.id)), [initialEquipment]);
 
-  const tableCountByLevel = useMemo(
+  const equipmentCountByLevel = useMemo(
     () =>
-      buildPlacedTableCountByLevel(document, activeTableIds, activeLevelId, layout.tables.length),
-    [document, activeTableIds, activeLevelId, layout.tables.length]
+      buildPlacedTableCountByLevel(document, equipmentIds, activeLevelId, layout.tables.length),
+    [document, equipmentIds, activeLevelId, layout.tables.length]
   );
 
   function switchLevel(levelId: string) {
@@ -114,7 +100,7 @@ export function FloorPlanEditorClient({
     nextDoc = setActiveLevelId(nextDoc, levelId);
     setDocument(nextDoc);
     persistDocument(nextDoc);
-    setLayout(mergeTablesForPlanEditorLevel(initialTables, nextDoc, levelId));
+    setLayout(mergeEquipmentForPlanEditorLevel(initialEquipment, nextDoc, levelId));
   }
 
   function commitLayout(tables: FloorTable[], fixtures: FloorFixture[]) {
@@ -140,7 +126,7 @@ export function FloorPlanEditorClient({
     nextDoc = addFloorPlanLevel(nextDoc, label);
     setDocument(nextDoc);
     persistDocument(nextDoc);
-    setLayout(mergeTablesForPlanEditorLevel(initialTables, nextDoc, nextDoc.activeLevelId));
+    setLayout(mergeEquipmentForPlanEditorLevel(initialEquipment, nextDoc, nextDoc.activeLevelId));
   }
 
   function handleRenameLevel(levelId: string, label: string) {
@@ -160,24 +146,7 @@ export function FloorPlanEditorClient({
     if (!removed) return;
     setDocument(removed);
     persistDocument(removed);
-    setLayout(mergeTablesForPlanEditorLevel(initialTables, removed, removed.activeLevelId));
-  }
-
-  async function createDiningTable(draftTable: FloorTable): Promise<FloorTable> {
-    const label = nextAvailableTableLabel([...layout.tables, ...initialTables]);
-    const result = await addDiningTable({ restaurantId, label });
-
-    if (!result.ok || !result.data?.id) {
-      throw new Error(result.ok ? "Impossible de créer la table." : result.error);
-    }
-
-    router.refresh();
-    return {
-      ...draftTable,
-      id: result.data.id,
-      label,
-      rotation: draftTable.rotation ?? 0,
-    };
+    setLayout(mergeEquipmentForPlanEditorLevel(initialEquipment, removed, removed.activeLevelId));
   }
 
   if (!mounted) {
@@ -193,7 +162,7 @@ export function FloorPlanEditorClient({
         editable
         levels={levels}
         countVariant="placed"
-        tableCountByLevel={tableCountByLevel}
+        tableCountByLevel={equipmentCountByLevel}
         onAdd={handleAddLevel}
         onRemove={handleRemoveLevel}
         onRename={handleRenameLevel}
@@ -202,27 +171,35 @@ export function FloorPlanEditorClient({
 
       <InteractiveFloorPlan
         mode="plan-editor"
+        itemKind="equipment"
+        hideCapacity
         initialTables={layout.tables}
         initialFixtures={layout.fixtures}
-        availableTablesToPlace={availableTablesToPlace}
-        onPlaceExistingTable={(table) => {
-          commitLayout([...layout.tables, withDefaultPlanPlacement(table)], layout.fixtures);
+        availableTablesToPlace={availableEquipmentToPlace}
+        onPlaceExistingTable={(item) => {
+          commitLayout([...layout.tables, withDefaultPlanPlacement(item)], layout.fixtures);
         }}
         onLayoutChange={({ tables, fixtures }) => {
           commitLayout(tables, fixtures);
         }}
-        onTableCreate={createDiningTable}
-        onTableDelete={(tableId, remainingTables) => {
-          const withRemoved = buildStoredLayoutFromEditor(remainingTables, layout.fixtures, {
+        onTableDelete={(itemId, remaining) => {
+          const withRemoved = buildStoredLayoutFromEditor(remaining, layout.fixtures, {
             ...(activeLevel?.layout ?? { baseTables: {}, fixtures: [], removedFromPlan: [] }),
             removedFromPlan: [
-              ...new Set([...(activeLevel?.layout.removedFromPlan ?? []), tableId]),
+              ...new Set([...(activeLevel?.layout.removedFromPlan ?? []), itemId]),
             ],
           });
           const nextDoc = updateLevelInDocument(document, activeLevelId, withRemoved);
           setDocument(nextDoc);
-          setLayout({ tables: remainingTables, fixtures: layout.fixtures });
+          setLayout({ tables: remaining, fixtures: layout.fixtures });
           persistDocument(nextDoc);
+        }}
+        planCopy={{
+          title: "Configurer le plan cuisine",
+          description:
+            "Placez vos chambres froides, frigos et congélateurs sur le plan. Ce dispositif sert aux relevés d'ouverture et de fermeture.",
+          canvasLabel: "Plan cuisine",
+          placeItemLabel: "Placer sur le plan",
         }}
       />
     </div>

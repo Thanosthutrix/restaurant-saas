@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileClock,
+  LayoutGrid,
   ListChecks,
   Snowflake,
   SprayCan,
@@ -79,6 +80,7 @@ export default async function HygieneHubPage() {
     { href: "/hygiene/registre", title: "Registre nettoyage", icon: ClipboardList, tone: "bg-sky-50 text-sky-700", hover: "tile-sky" },
     { href: "/hygiene/haccp", title: "Températures HACCP", icon: Thermometer, tone: "bg-emerald-50 text-emerald-700", hover: "tile-emerald" },
     { href: "/hygiene/temperatures-ouverture", title: "Froid : ouverture / fermeture", icon: Snowflake, tone: "bg-violet-50 text-violet-700", hover: "tile-violet" },
+    { href: "/hygiene/cuisine-plan", title: "Plan cuisine", icon: LayoutGrid, tone: "bg-indigo-50 text-indigo-700", hover: "tile-indigo" },
     { href: "/hygiene/registre-temperatures", title: "Registre froid", icon: FileClock, tone: "bg-copper-50 text-copper-700", hover: "tile-copper" },
   ];
 

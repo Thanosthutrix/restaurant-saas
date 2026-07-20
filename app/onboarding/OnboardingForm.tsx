@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Building2, ScanLine } from "lucide-react";
 import { submitOnboardingFormData } from "./actions";
 import { OptionalMenuPhotosPicker } from "@/components/restaurant/OptionalMenuPhotosPicker";
+import { EstablishmentSection } from "@/components/restaurant/EstablishmentSection";
 import {
   PENDING_ONBOARDING_MENU_KEY,
   PENDING_ONBOARDING_RECIPES_KEY,
@@ -13,9 +15,11 @@ import {
 import { RESTAURANT_PROFILE_OTHER, type RestaurantTemplate } from "@/lib/templates/restaurantTemplates";
 import {
   uiBtnPrimaryBlock,
+  uiCardMuted,
   uiError,
   uiFormLabel,
   uiInputBlock,
+  uiLead,
   uiMuted,
   uiSelectBlock,
 } from "@/components/ui/premium";
@@ -112,90 +116,118 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className={uiError}>{error}</p>}
-      <div>
-        <label htmlFor="name" className={uiFormLabel}>
-          Nom du restaurant *
-        </label>
-        <input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="Le Bistrot"
-          className={uiInputBlock}
-        />
-      </div>
-      <div>
-        <label htmlFor="address" className={uiFormLabel}>
-          Adresse de l&apos;établissement
-        </label>
-        <textarea
-          id="address"
-          value={addressText}
-          onChange={(e) => setAddressText(e.target.value)}
-          rows={2}
-          placeholder="12 rue de la République, 75001 Paris"
-          className={`${uiInputBlock} min-h-[4rem] resize-y`}
-        />
-        <p className={`mt-1 ${uiMuted}`}>
-          Utilisée pour la météo et le calendrier (zone vacances). Laissez vide pour renseigner plus tard dans Infos
-          établissement. Si vous la saisissez, elle doit être géocodable en France (numéro, rue, code postal, ville).
-        </p>
-      </div>
-      <div>
-        <label htmlFor="profile" className={uiFormLabel}>
-          Type d&apos;établissement et modèle de départ
-        </label>
-        <select
-          id="profile"
-          value={profile}
-          onChange={(e) => setProfile(e.target.value)}
-          className={uiSelectBlock}
-        >
-          {templates.map((t) => (
-            <option key={t.slug} value={t.slug}>
-              {t.name} — {t.components.length} composants, {t.suggestedDishes.length} plats suggérés
-            </option>
-          ))}
-          <option value={RESTAURANT_PROFILE_OTHER}>Autre — aucun modèle (vous remplirez vous-même)</option>
-        </select>
-        {selectedTemplate ? (
-          <p className={`mt-1 ${uiMuted}`}>{selectedTemplate.description}</p>
-        ) : (
-          <p className={`mt-1 ${uiMuted}`}>
-            Aucun composant ni plat prérempli. Vous pourrez tout ajouter depuis l&apos;application.
-          </p>
-        )}
-      </div>
-      <div>
-        <label className={uiFormLabel}>Type de service</label>
-        <select
-          value={serviceType}
-          onChange={(e) => setServiceType(e.target.value)}
-          className={uiSelectBlock}
-        >
-          {SERVICE_TYPES.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <EstablishmentSection
+        icon={Building2}
+        subtitle="Nom, adresse et modèle de départ pour votre espace professionnel."
+        title="Identité de l'établissement"
+      >
+        {error ? <p className={`mb-4 ${uiError}`}>{error}</p> : null}
 
-      <OptionalMenuPhotosPicker files={menuFiles} onChange={setMenuFiles} disabled={loading} />
+        <div className="space-y-5">
+          <div>
+            <label htmlFor="name" className={uiFormLabel}>
+              Nom du restaurant *
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              placeholder="Le Bistrot"
+              className={uiInputBlock}
+            />
+          </div>
 
-      <OptionalMenuPhotosPicker
-        files={recipeFiles}
-        onChange={setRecipeFiles}
-        disabled={loading}
-        title="Photo(s) de recettes (optionnel)"
-        description="Ajoutez des fiches recettes, cahiers de cuisine ou notes manuscrites (images ou PDF). L’IA proposera ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
-        galleryLabel="Fiches recettes depuis la galerie"
-        cameraLabel="Photographier une recette"
-      />
+          <div className={uiCardMuted}>
+            <p className="mb-1 text-sm font-semibold text-stone-800">Adresse et calendrier</p>
+            <p className={`mb-4 ${uiLead}`}>
+              Utilisée pour la météo et la zone de vacances scolaires. Laissez vide pour renseigner plus tard dans la
+              fiche établissement.
+            </p>
+            <label htmlFor="address" className={uiFormLabel}>
+              Adresse de l&apos;établissement
+            </label>
+            <textarea
+              id="address"
+              value={addressText}
+              onChange={(e) => setAddressText(e.target.value)}
+              rows={2}
+              placeholder="12 rue de la République, 75001 Paris"
+              className={`${uiInputBlock} min-h-[4rem] resize-y`}
+            />
+            <p className={`mt-2 ${uiMuted}`}>
+              Si renseignée, adresse géocodable en France (numéro, rue, code postal, ville).
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="profile" className={uiFormLabel}>
+                Type d&apos;établissement
+              </label>
+              <select
+                id="profile"
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                className={uiSelectBlock}
+              >
+                {templates.map((t) => (
+                  <option key={t.slug} value={t.slug}>
+                    {t.name} — {t.components.length} composants, {t.suggestedDishes.length} plats
+                  </option>
+                ))}
+                <option value={RESTAURANT_PROFILE_OTHER}>Autre — aucun modèle</option>
+              </select>
+              {selectedTemplate ? (
+                <p className={`mt-2 ${uiMuted}`}>{selectedTemplate.description}</p>
+              ) : (
+                <p className={`mt-2 ${uiMuted}`}>
+                  Aucun composant ni plat prérempli — vous les ajouterez dans l&apos;application.
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="serviceType" className={uiFormLabel}>
+                Type de service
+              </label>
+              <select
+                id="serviceType"
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                className={uiSelectBlock}
+              >
+                {SERVICE_TYPES.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </EstablishmentSection>
+
+      <EstablishmentSection
+        icon={ScanLine}
+        iconTone="bg-violet-50 text-violet-700 ring-violet-100"
+        subtitle="Importez votre carte ou vos fiches recettes : l'IA propose plats et ingrédients, rien n'est enregistré sans votre validation."
+        title="Import intelligent (optionnel)"
+      >
+        <div className="space-y-2">
+          <OptionalMenuPhotosPicker files={menuFiles} onChange={setMenuFiles} disabled={loading} />
+          <OptionalMenuPhotosPicker
+            cameraLabel="Photographier une recette"
+            description="Ajoutez des fiches recettes, cahiers de cuisine ou notes manuscrites (images ou PDF). L'IA proposera ingrédients et quantités par portion."
+            disabled={loading}
+            files={recipeFiles}
+            galleryLabel="Fiches recettes depuis la galerie"
+            onChange={setRecipeFiles}
+            title="Photo(s) de recettes (optionnel)"
+          />
+        </div>
+      </EstablishmentSection>
 
       <button type="submit" disabled={loading} className={uiBtnPrimaryBlock}>
         {loading
@@ -203,7 +235,7 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
             ? "Création et analyse…"
             : recipeFiles.length > 0
               ? "Création et analyse des recettes…"
-            : "Création…"
+              : "Création…"
           : menuFiles.length > 0 || recipeFiles.length > 0
             ? "Créer et analyser les documents"
             : "Créer mon restaurant"}

@@ -1,4 +1,11 @@
 import type { FloorFixture, FloorTable } from "@/components/salle/InteractiveFloorPlan";
+import {
+  createDefaultFloorPlanDocument,
+  parseStoredFloorPlanDocument,
+  type StoredFloorPlanDocument,
+} from "@/lib/salle/floorPlanDocument";
+
+export type { StoredFloorPlanDocument } from "@/lib/salle/floorPlanDocument";
 
 export type StoredTableLayout = {
   x: number;
@@ -17,11 +24,14 @@ export type StoredFloorPlanLayout = {
   removedFromPlan?: string[];
 };
 
+type ServiceLevelOverrides = {
+  tables: Record<string, StoredTableLayout>;
+  activatedTableIds?: string[];
+};
+
 type ServiceTableOverrides = {
   serviceDate: string;
-  tables: Record<string, StoredTableLayout>;
-  /** Tables libres déjà ouvertes / configurées pendant ce service. */
-  activatedTableIds?: string[];
+  levels: Record<string, ServiceLevelOverrides>;
 };
 
 const STORAGE_PREFIX = "ubion-floor-plan:";
@@ -64,22 +74,82 @@ function migrateStoredLayout(parsed: StoredFloorPlanLayout & { tables?: Record<s
   };
 }
 
-export function loadFloorPlanLayout(restaurantId: string): StoredFloorPlanLayout | null {
+/** Parse un layout brut (localStorage, JSONB Supabase, legacy). */
+export function parseStoredFloorPlanLayout(raw: unknown): StoredFloorPlanLayout {
+  if (!raw || typeof raw !== "object") {
+    return { baseTables: {}, fixtures: [], removedFromPlan: [] };
+  }
+  return migrateStoredLayout(raw as StoredFloorPlanLayout & { tables?: Record<string, StoredTableLayout> });
+}
+
+export function isStoredFloorPlanEmpty(layout: StoredFloorPlanLayout | null | undefined): boolean {
+  if (!layout) return true;
+  return (
+    Object.keys(layout.baseTables).length === 0 &&
+    layout.fixtures.length === 0 &&
+    (layout.removedFromPlan?.length ?? 0) === 0
+  );
+}
+
+/** Priorité serveur ; repli localStorage ; migration locale si le serveur est vide. */
+export function resolveStoredFloorPlanLayout(
+  serverLayout: StoredFloorPlanLayout | null | undefined,
+  localLayout: StoredFloorPlanLayout | null
+): { layout: StoredFloorPlanLayout | null; shouldMigrateLocalToServer: boolean } {
+  const serverEmpty = isStoredFloorPlanEmpty(serverLayout);
+  const localEmpty = isStoredFloorPlanEmpty(localLayout);
+
+  if (!serverEmpty && serverLayout) {
+    return { layout: serverLayout, shouldMigrateLocalToServer: false };
+  }
+  if (!localEmpty && localLayout) {
+    return { layout: localLayout, shouldMigrateLocalToServer: true };
+  }
+  return { layout: null, shouldMigrateLocalToServer: false };
+}
+
+export function loadFloorPlanDocument(restaurantId: string): StoredFloorPlanDocument | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(storageKey(restaurantId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredFloorPlanLayout & { tables?: Record<string, StoredTableLayout> };
-    if (!parsed || typeof parsed !== "object") return null;
-    return migrateStoredLayout(parsed);
+    return parseStoredFloorPlanDocument(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
-export function saveFloorPlanLayout(restaurantId: string, layout: StoredFloorPlanLayout) {
+export function saveFloorPlanDocument(restaurantId: string, document: StoredFloorPlanDocument) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(storageKey(restaurantId), JSON.stringify(layout));
+  window.localStorage.setItem(
+    storageKey(restaurantId),
+    JSON.stringify(parseStoredFloorPlanDocument(document))
+  );
+}
+
+/** @deprecated Utiliser loadFloorPlanDocument. Retourne le layout du niveau actif. */
+export function loadFloorPlanLayout(restaurantId: string): StoredFloorPlanLayout | null {
+  const doc = loadFloorPlanDocument(restaurantId);
+  if (!doc) return null;
+  const level = doc.levels.find((l) => l.id === doc.activeLevelId) ?? doc.levels[0];
+  return level?.layout ?? null;
+}
+
+/** @deprecated Utiliser saveFloorPlanDocument. */
+export function saveFloorPlanLayout(restaurantId: string, layout: StoredFloorPlanLayout) {
+  const existing = loadFloorPlanDocument(restaurantId) ?? createDefaultFloorPlanDocument();
+  const activeId = existing.activeLevelId;
+  saveFloorPlanDocument(restaurantId, {
+    ...existing,
+    levels: existing.levels.map((level) =>
+      level.id === activeId ? { ...level, layout: parseStoredFloorPlanLayout(layout) } : level
+    ),
+  });
+}
+
+/** Écriture atomique tables + fixtures + removedFromPlan (évite les races read-modify-write). */
+export function saveFullFloorPlanLayout(restaurantId: string, layout: StoredFloorPlanLayout) {
+  saveFloorPlanLayout(restaurantId, layout);
 }
 
 export function loadFloorPlanFixtures(restaurantId: string): FloorFixture[] {
@@ -122,13 +192,38 @@ export function removeTableFromBasePlan(
   });
 }
 
+function parseServiceOverrides(raw: unknown): ServiceTableOverrides | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  if (obj.serviceDate !== getServiceDateParis()) return null;
+
+  if (obj.levels && typeof obj.levels === "object") {
+    return { serviceDate: obj.serviceDate as string, levels: obj.levels as Record<string, ServiceLevelOverrides> };
+  }
+
+  // Legacy mono-niveau
+  const legacy = raw as { serviceDate: string; tables?: Record<string, StoredTableLayout>; activatedTableIds?: string[] };
+  if (legacy.tables) {
+    return {
+      serviceDate: legacy.serviceDate,
+      levels: {
+        main: {
+          tables: legacy.tables,
+          activatedTableIds: legacy.activatedTableIds,
+        },
+      },
+    };
+  }
+  return null;
+}
+
 export function loadServiceTableOverrides(restaurantId: string): ServiceTableOverrides | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(serviceOverrideKey(restaurantId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as ServiceTableOverrides;
-    if (!parsed || parsed.serviceDate !== getServiceDateParis()) {
+    const parsed = parseServiceOverrides(JSON.parse(raw));
+    if (!parsed) {
       window.sessionStorage.removeItem(serviceOverrideKey(restaurantId));
       return null;
     }
@@ -138,40 +233,71 @@ export function loadServiceTableOverrides(restaurantId: string): ServiceTableOve
   }
 }
 
-export function saveServiceTableOverrides(restaurantId: string, tables: FloorTable[]) {
+function writeServiceOverrides(restaurantId: string, payload: ServiceTableOverrides) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(serviceOverrideKey(restaurantId), JSON.stringify(payload));
+}
+
+function getLevelServiceOverrides(
+  store: ServiceTableOverrides | null,
+  levelId: string
+): ServiceLevelOverrides | null {
+  if (!store) return null;
+  return store.levels[levelId] ?? null;
+}
+
+export function saveServiceTableOverrides(
+  restaurantId: string,
+  levelId: string,
+  tables: FloorTable[]
+) {
   if (typeof window === "undefined") return;
   const existing = loadServiceTableOverrides(restaurantId);
+  const levelExisting = getLevelServiceOverrides(existing, levelId);
   const payload: ServiceTableOverrides = {
     serviceDate: getServiceDateParis(),
-    tables: tablesToStoredRecord(tables),
-    activatedTableIds: existing?.activatedTableIds ?? [],
+    levels: {
+      ...(existing?.levels ?? {}),
+      [levelId]: {
+        tables: tablesToStoredRecord(tables),
+        activatedTableIds: levelExisting?.activatedTableIds ?? [],
+      },
+    },
   };
-  window.sessionStorage.setItem(serviceOverrideKey(restaurantId), JSON.stringify(payload));
+  writeServiceOverrides(restaurantId, payload);
 }
 
 export function markServiceTableActivated(
   restaurantId: string,
+  levelId: string,
   tableId: string,
   tables: FloorTable[]
 ) {
   if (typeof window === "undefined") return;
   const existing = loadServiceTableOverrides(restaurantId);
-  const activatedTableIds = [...new Set([...(existing?.activatedTableIds ?? []), tableId])];
+  const levelExisting = getLevelServiceOverrides(existing, levelId);
+  const activatedTableIds = [...new Set([...(levelExisting?.activatedTableIds ?? []), tableId])];
   const payload: ServiceTableOverrides = {
     serviceDate: getServiceDateParis(),
-    tables: tablesToStoredRecord(tables),
-    activatedTableIds,
+    levels: {
+      ...(existing?.levels ?? {}),
+      [levelId]: {
+        tables: tablesToStoredRecord(tables),
+        activatedTableIds,
+      },
+    },
   };
-  window.sessionStorage.setItem(serviceOverrideKey(restaurantId), JSON.stringify(payload));
+  writeServiceOverrides(restaurantId, payload);
 }
 
-/** Tables déjà ouvertes ce service (ou occupées). */
+/** Tables déjà ouvertes ce service (ou occupées) pour un espace donné. */
 export function getServiceActivatedTableIds(
   serverTables: FloorTable[],
-  _stored: StoredFloorPlanLayout | null,
+  levelId: string,
   serviceOverrides: ServiceTableOverrides | null
 ): string[] {
-  const ids = new Set(serviceOverrides?.activatedTableIds ?? []);
+  const levelOverrides = getLevelServiceOverrides(serviceOverrides, levelId);
+  const ids = new Set(levelOverrides?.activatedTableIds ?? []);
 
   for (const table of serverTables) {
     if (table.status === "occupied") ids.add(table.id);
@@ -191,21 +317,30 @@ export function resetTableToBaseLayout(restaurantId: string, tableId: string) {
   const existing = loadServiceTableOverrides(restaurantId);
   if (!existing) return;
 
-  const tables = { ...existing.tables };
-  delete tables[tableId];
-  const activatedTableIds = (existing.activatedTableIds ?? []).filter((id) => id !== tableId);
+  const levels: Record<string, ServiceLevelOverrides> = {};
+  let changed = false;
 
-  if (Object.keys(tables).length === 0 && activatedTableIds.length === 0) {
+  for (const [levelId, levelData] of Object.entries(existing.levels)) {
+    const tables = { ...levelData.tables };
+    const hadTable = tableId in tables;
+    if (hadTable) delete tables[tableId];
+    const activatedTableIds = (levelData.activatedTableIds ?? []).filter((id) => id !== tableId);
+    if (hadTable || activatedTableIds.length !== (levelData.activatedTableIds ?? []).length) {
+      changed = true;
+    }
+    if (Object.keys(tables).length > 0 || activatedTableIds.length > 0) {
+      levels[levelId] = { tables, activatedTableIds };
+    }
+  }
+
+  if (!changed) return;
+
+  if (Object.keys(levels).length === 0) {
     clearServiceTableOverrides(restaurantId);
     return;
   }
 
-  const payload: ServiceTableOverrides = {
-    serviceDate: getServiceDateParis(),
-    tables,
-    activatedTableIds,
-  };
-  window.sessionStorage.setItem(serviceOverrideKey(restaurantId), JSON.stringify(payload));
+  writeServiceOverrides(restaurantId, { serviceDate: getServiceDateParis(), levels });
 }
 
 export function hasServiceTableOverrides(restaurantId: string): boolean {
@@ -255,35 +390,60 @@ function resolveTableLayout(
 
 export function mergeServerTablesForPlanEditor(
   serverTables: FloorTable[],
-  stored: StoredFloorPlanLayout | null
+  stored: StoredFloorPlanLayout | null,
+  tableIdsOnOtherLevels: Set<string> = new Set()
 ): FloorTable[] {
   const removed = new Set(stored?.removedFromPlan ?? []);
   const baseTables = stored?.baseTables ?? {};
+  const tableById = new Map(serverTables.map((table) => [table.id, table]));
 
-  return serverTables
-    .filter((table) => !removed.has(table.id))
-    .map((table, index) => resolveTableLayout(table, index, baseTables, {}));
+  const result: FloorTable[] = [];
+  let index = 0;
+  for (const [id, saved] of Object.entries(baseTables)) {
+    if (removed.has(id) || tableIdsOnOtherLevels.has(id)) continue;
+    const table = tableById.get(id);
+    if (!table) continue;
+    result.push(resolveTableLayout(table, index++, baseTables, {}));
+  }
+  return result;
 }
 
 export function mergeServerTablesForSalle(
   serverTables: FloorTable[],
   stored: StoredFloorPlanLayout | null,
-  serviceOverrides: ServiceTableOverrides | null
+  levelId: string,
+  serviceOverrides: ServiceTableOverrides | null,
+  tableIdsOnOtherLevels: Set<string> = new Set()
 ): { tables: FloorTable[]; fixtures: FloorFixture[]; hasServiceOverrides: boolean; activatedTableIds: string[] } {
   const fixtures = stored?.fixtures ?? [];
   const removed = new Set(stored?.removedFromPlan ?? []);
   const baseTables = stored?.baseTables ?? {};
-  const serviceTables = serviceOverrides?.tables ?? {};
+  const levelService = getLevelServiceOverrides(serviceOverrides, levelId);
+  const serviceTables = levelService?.tables ?? {};
+  const tableById = new Map(serverTables.map((table) => [table.id, table]));
 
-  const tables = serverTables
-    .filter((table) => !removed.has(table.id))
-    .map((table, index) => resolveTableLayout(table, index, baseTables, serviceTables));
+  const tables: FloorTable[] = [];
+  let index = 0;
+  for (const [id, saved] of Object.entries(baseTables)) {
+    if (removed.has(id) || tableIdsOnOtherLevels.has(id)) continue;
+    const table = tableById.get(id);
+    if (!table) continue;
+    tables.push(resolveTableLayout(table, index++, baseTables, serviceTables));
+  }
+
+  // Tables avec override service mais pas dans base (edge case)
+  for (const [id, saved] of Object.entries(serviceTables)) {
+    if (tables.some((t) => t.id === id) || tableIdsOnOtherLevels.has(id)) continue;
+    const table = tableById.get(id);
+    if (!table) continue;
+    tables.push(applyStoredLayoutToTable(table, saved));
+  }
 
   return {
     tables,
     fixtures,
     hasServiceOverrides: Object.keys(serviceTables).length > 0,
-    activatedTableIds: getServiceActivatedTableIds(serverTables, stored, serviceOverrides),
+    activatedTableIds: getServiceActivatedTableIds(serverTables, levelId, serviceOverrides),
   };
 }
 
@@ -292,7 +452,7 @@ export function mergeServerTablesWithLayout(
   serverTables: FloorTable[],
   stored: StoredFloorPlanLayout | null
 ): { tables: FloorTable[]; fixtures: FloorFixture[] } {
-  const { tables, fixtures } = mergeServerTablesForSalle(serverTables, stored, null);
+  const { tables, fixtures } = mergeServerTablesForSalle(serverTables, stored, "main", null);
   return { tables, fixtures };
 }
 

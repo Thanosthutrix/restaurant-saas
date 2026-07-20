@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Building2, ScanLine, UtensilsCrossed } from "lucide-react";
 import { createRestaurantFormData } from "../actions";
 import { createDishesFromMenuSuggestions } from "@/app/dishes/import-menu/actions";
 import {
@@ -10,20 +11,29 @@ import {
   type MenuSuggestionRow,
 } from "@/components/menu/MenuSuggestionsEditor";
 import { OptionalMenuPhotosPicker } from "@/components/restaurant/OptionalMenuPhotosPicker";
+import { EstablishmentSection } from "@/components/restaurant/EstablishmentSection";
 import {
   PENDING_ONBOARDING_RECIPES_KEY,
   type PendingOnboardingRecipesStored,
 } from "@/lib/onboardingPendingMenuStorage";
 import { RESTAURANT_PROFILE_OTHER, type RestaurantTemplate } from "@/lib/templates/restaurantTemplates";
+import {
+  uiBtnPrimaryBlock,
+  uiBtnSecondary,
+  uiCardMuted,
+  uiError,
+  uiFormLabel,
+  uiInputBlock,
+  uiLead,
+  uiMuted,
+  uiSelectBlock,
+} from "@/components/ui/premium";
 
 const SERVICE_TYPES = [
   { value: "lunch", label: "Déjeuner" },
   { value: "dinner", label: "Dîner" },
   { value: "both", label: "Déjeuner et dîner" },
 ];
-
-const inputClass =
-  "w-full rounded border border-stone-300 px-3 py-2 text-stone-900 focus:border-copper-600 focus:outline-none focus:ring-1 focus:ring-copper-600";
 
 type Phase = "form" | "review";
 
@@ -160,144 +170,160 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
 
   if (phase === "review") {
     return (
-      <div className="space-y-6 rounded-lg border border-stone-200 bg-white p-4">
-        <div>
-          <h2 className="text-lg font-semibold text-stone-900">Valider les plats détectés</h2>
-          <p className="mt-1 text-xs text-stone-500">
-            Ajustez rubrique, prix TTC, TVA et type puis enregistrez, ou passez cette étape.
-          </p>
-        </div>
+      <EstablishmentSection
+        icon={UtensilsCrossed}
+        iconTone="bg-emerald-50 text-emerald-700 ring-emerald-100"
+        subtitle="Ajustez rubrique, prix TTC, TVA et type puis enregistrez, ou passez cette étape."
+        title="Valider les plats détectés"
+      >
         <MenuSuggestionsEditor
-          suggestions={suggestions}
-          setSuggestions={setSuggestions}
-          onCreate={handleCreateDishesAndFinish}
-          createPending={createPending}
-          createResult={createResult}
-          error={error}
           allowProceedWithNone
           createButtonLabel={
             suggestions.some((s) => s.selected && s.suggested_mode !== "ignore" && s.raw_label.trim())
-              ? `Créer les plats et ouvrir le tableau de bord`
-              : `Ouvrir le tableau de bord`
+              ? "Créer les plats et ouvrir le tableau de bord"
+              : "Ouvrir le tableau de bord"
           }
+          createPending={createPending}
+          createResult={createResult}
+          error={error}
+          onCreate={handleCreateDishesAndFinish}
+          setSuggestions={setSuggestions}
+          suggestions={suggestions}
         />
         {suggestions.length === 0 ? (
-          <button
-            type="button"
-            onClick={() => void goDashboard()}
-            className="w-full rounded bg-stone-900 py-2 font-medium text-white hover:bg-stone-800"
-          >
+          <button type="button" onClick={() => void goDashboard()} className={`mt-4 ${uiBtnPrimaryBlock}`}>
             Ouvrir le tableau de bord
           </button>
         ) : (
           <button
             type="button"
             onClick={() => void goDashboard()}
-            className="w-full rounded border border-stone-200 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+            className={`mt-4 w-full ${uiBtnSecondary} py-2.5`}
           >
             Passer sans créer de plats
           </button>
         )}
-      </div>
+      </EstablishmentSection>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-stone-200 bg-white p-4">
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-stone-700">
-          Nom du restaurant *
-        </label>
-        <input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="Le Bistrot"
-          className={inputClass}
-        />
-      </div>
-      <div>
-        <label htmlFor="address" className="mb-1 block text-sm font-medium text-stone-700">
-          Adresse de l&apos;établissement
-        </label>
-        <textarea
-          id="address"
-          value={addressText}
-          onChange={(e) => setAddressText(e.target.value)}
-          rows={2}
-          placeholder="12 rue de la République, 75001 Paris"
-          className={`${inputClass} min-h-[4rem] resize-y`}
-        />
-        <p className="mt-1 text-xs text-stone-500">
-          Optionnel : météo et calendrier. Si renseignée, adresse géocodable en France (Base Adresse Nationale).
-        </p>
-      </div>
-      <div>
-        <label htmlFor="profile" className="mb-1 block text-sm font-medium text-stone-700">
-          Type d&apos;établissement et modèle de départ
-        </label>
-        <select
-          id="profile"
-          value={profile}
-          onChange={(e) => setProfile(e.target.value)}
-          className={inputClass}
-        >
-          {templates.map((t) => (
-            <option key={t.slug} value={t.slug}>
-              {t.name} — {t.components.length} composants, {t.suggestedDishes.length} plats suggérés
-            </option>
-          ))}
-          <option value={RESTAURANT_PROFILE_OTHER}>Autre — aucun modèle</option>
-        </select>
-        {selectedTemplate ? (
-          <p className="mt-1 text-xs text-stone-500">{selectedTemplate.description}</p>
-        ) : (
-          <p className="mt-1 text-xs text-stone-500">
-            Aucun composant ni plat prérempli — vous les ajouterez dans l&apos;application.
-          </p>
-        )}
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-stone-700">Type de service</label>
-        <select
-          value={serviceType}
-          onChange={(e) => setServiceType(e.target.value)}
-          className={inputClass}
-        >
-          {SERVICE_TYPES.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <OptionalMenuPhotosPicker files={menuFiles} onChange={setMenuFiles} disabled={loading} />
-
-      <OptionalMenuPhotosPicker
-        files={recipeFiles}
-        onChange={setRecipeFiles}
-        disabled={loading}
-        title="Photo(s) de recettes (optionnel)"
-          description="Ajoutez plusieurs fiches recettes ou notes cuisine (images ou PDF). L’IA proposera les ingrédients et quantités par portion, puis vous validerez avant création des recettes brouillon."
-        galleryLabel="Fiches recettes depuis la galerie"
-        cameraLabel="Photographier une recette"
-      />
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded bg-stone-900 py-2 font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <EstablishmentSection
+        icon={Building2}
+        subtitle="Informations de base pour le nouvel établissement."
+        title="Identité de l'établissement"
       >
+        {error ? <p className={`mb-4 ${uiError}`}>{error}</p> : null}
+
+        <div className="space-y-5">
+          <div>
+            <label htmlFor="name" className={uiFormLabel}>
+              Nom du restaurant *
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              placeholder="Le Bistrot"
+              className={uiInputBlock}
+            />
+          </div>
+
+          <div className={uiCardMuted}>
+            <p className="mb-1 text-sm font-semibold text-stone-800">Adresse et calendrier</p>
+            <p className={`mb-4 ${uiLead}`}>
+              Optionnel : météo et calendrier scolaire. Si renseignée, adresse géocodable en France.
+            </p>
+            <label htmlFor="address" className={uiFormLabel}>
+              Adresse de l&apos;établissement
+            </label>
+            <textarea
+              id="address"
+              value={addressText}
+              onChange={(e) => setAddressText(e.target.value)}
+              rows={2}
+              placeholder="12 rue de la République, 75001 Paris"
+              className={`${uiInputBlock} min-h-[4rem] resize-y`}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="profile" className={uiFormLabel}>
+                Type d&apos;établissement
+              </label>
+              <select
+                id="profile"
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                className={uiSelectBlock}
+              >
+                {templates.map((t) => (
+                  <option key={t.slug} value={t.slug}>
+                    {t.name} — {t.components.length} composants, {t.suggestedDishes.length} plats
+                  </option>
+                ))}
+                <option value={RESTAURANT_PROFILE_OTHER}>Autre — aucun modèle</option>
+              </select>
+              {selectedTemplate ? (
+                <p className={`mt-2 ${uiMuted}`}>{selectedTemplate.description}</p>
+              ) : (
+                <p className={`mt-2 ${uiMuted}`}>
+                  Aucun composant ni plat prérempli — vous les ajouterez dans l&apos;application.
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="serviceType" className={uiFormLabel}>
+                Type de service
+              </label>
+              <select
+                id="serviceType"
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                className={uiSelectBlock}
+              >
+                {SERVICE_TYPES.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </EstablishmentSection>
+
+      <EstablishmentSection
+        icon={ScanLine}
+        iconTone="bg-violet-50 text-violet-700 ring-violet-100"
+        subtitle="Importez carte ou recettes pour préremplir votre espace avec l'IA."
+        title="Import intelligent (optionnel)"
+      >
+        <div className="space-y-2">
+          <OptionalMenuPhotosPicker files={menuFiles} onChange={setMenuFiles} disabled={loading} />
+          <OptionalMenuPhotosPicker
+            cameraLabel="Photographier une recette"
+            description="Ajoutez plusieurs fiches recettes ou notes cuisine (images ou PDF). L'IA proposera les ingrédients et quantités par portion."
+            disabled={loading}
+            files={recipeFiles}
+            galleryLabel="Fiches recettes depuis la galerie"
+            onChange={setRecipeFiles}
+            title="Photo(s) de recettes (optionnel)"
+          />
+        </div>
+      </EstablishmentSection>
+
+      <button type="submit" disabled={loading} className={uiBtnPrimaryBlock}>
         {loading
           ? menuFiles.length > 0
             ? "Création et analyse…"
             : recipeFiles.length > 0
               ? "Création et analyse des recettes…"
-            : "Création…"
+              : "Création…"
           : menuFiles.length > 0 || recipeFiles.length > 0
             ? "Créer et analyser les documents"
             : "Créer le restaurant"}

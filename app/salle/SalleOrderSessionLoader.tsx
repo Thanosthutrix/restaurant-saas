@@ -1,6 +1,7 @@
 import { listRecentCustomersForLookup } from "@/lib/customers/customersDb";
 import { cachedLoadDiningOrderCatalogData } from "@/lib/cache";
 import type { FloorTable } from "@/components/salle/InteractiveFloorPlan";
+import type { StoredFloorPlanDocument } from "@/lib/salle/floorPlanDocument";
 import { SalleFloorPlanClient } from "./SalleFloorPlanClient";
 
 type TableTileSummary = {
@@ -12,12 +13,14 @@ type TableTileSummary = {
 type Props = {
   restaurantId: string;
   initialTables: FloorTable[];
+  serverStoredDocument: StoredFloorPlanDocument | null;
   tableSummaries?: TableTileSummary[];
 };
 
 export async function SalleOrderSessionLoader({
   restaurantId,
   initialTables,
+  serverStoredDocument,
   tableSummaries,
 }: Props) {
   const [catalogRes, customerSearchPool] = await Promise.all([
@@ -37,6 +40,7 @@ export async function SalleOrderSessionLoader({
     <SalleFloorPlanClient
       restaurantId={restaurantId}
       initialTables={initialTables}
+      serverStoredDocument={serverStoredDocument}
       orderSession={{
         ...catalogRes.data,
         customerSearchPool,

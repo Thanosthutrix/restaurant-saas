@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
+import { getRestaurantFloorPlanDocument } from "@/lib/dining/floorPlanDb";
 import { listDiningTables } from "@/lib/dining/diningDb";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { type FloorTable } from "@/components/salle/InteractiveFloorPlan";
@@ -10,7 +11,10 @@ export default async function SallePlanPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const { data: tables, error } = await listDiningTables(restaurant.id);
+  const [{ data: tables, error }, { data: storedDocument }] = await Promise.all([
+    listDiningTables(restaurant.id),
+    getRestaurantFloorPlanDocument(restaurant.id),
+  ]);
   if (error) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
@@ -46,7 +50,7 @@ export default async function SallePlanPage() {
           { label: "Plan de salle" },
         ]}
         title="Plan de salle"
-        subtitle="Structure fixe et placement de référence des tables. En salle, les déplacements temporaires reviennent ici en fin de service."
+        subtitle="Structure fixe et placement de référence. Créez plusieurs espaces (RDC, terrasse, étages) via les onglets. Les déplacements temporaires en salle reviennent ici en fin de service."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -65,7 +69,11 @@ export default async function SallePlanPage() {
         }
       />
 
-      <FloorPlanEditorClient restaurantId={restaurant.id} initialTables={floorTables} />
+      <FloorPlanEditorClient
+        restaurantId={restaurant.id}
+        initialTables={floorTables}
+        serverStoredDocument={storedDocument}
+      />
     </PageContainer>
   );
 }

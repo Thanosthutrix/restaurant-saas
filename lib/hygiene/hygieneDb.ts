@@ -192,6 +192,60 @@ async function enrichColdReadingsWithElements(
   });
 }
 
+function parisDayUtcBounds(day = new Date()): { startIso: string; endIso: string } {
+  const ymd = new Intl.DateTimeFormat("fr-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(day);
+  const noonUtc = new Date(`${ymd}T12:00:00.000Z`);
+  const parisParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(noonUtc);
+  const hour = Number(parisParts.find((p) => p.type === "hour")?.value ?? "12");
+  const minute = Number(parisParts.find((p) => p.type === "minute")?.value ?? "0");
+  const second = Number(parisParts.find((p) => p.type === "second")?.value ?? "0");
+  const offsetMs = ((hour - 12) * 60 * 60 + minute * 60 + second) * 1000;
+  const start = new Date(Date.parse(`${ymd}T00:00:00.000Z`) - offsetMs);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
+/** Relevés froids du jour (Paris) pour un moment donné, indexés par element_id. */
+export async function listTodayColdReadingsForEvent(
+  restaurantId: string,
+  eventKind: HygieneColdEventKind
+): Promise<Map<string, HygieneColdTemperatureReading>> {
+  const { startIso, endIso } = parisDayUtcBounds();
+  const { data, error } = await supabaseServer
+    .from("hygiene_cold_temperature_readings")
+    .select(
+      "id, restaurant_id, element_id, event_kind, temperature_celsius, recorded_at, recorded_by_user_id, recorded_by_display, recorded_by_initials, comment"
+    )
+    .eq("restaurant_id", restaurantId)
+    .eq("event_kind", eventKind)
+    .gte("recorded_at", startIso)
+    .lt("recorded_at", endIso)
+    .order("recorded_at", { ascending: false });
+
+  if (error || !data) return new Map();
+
+  const map = new Map<string, HygieneColdTemperatureReading>();
+  for (const row of data) {
+    const reading = mapColdReading(row as Record<string, unknown>);
+    if (!map.has(reading.element_id)) {
+      map.set(reading.element_id, reading);
+    }
+  }
+  return map;
+}
+
 /** Registre des relevés froids (plus récent en premier). */
 export async function listColdTemperatureRegister(
   restaurantId: string,

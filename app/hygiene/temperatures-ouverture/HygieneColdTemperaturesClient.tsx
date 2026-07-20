@@ -1,9 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
-import { ArrowRight, Check, Refrigerator, Snowflake, Sunrise, Sunset, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  ArrowRight,
+  Check,
+  LayoutGrid,
+  List,
+  Refrigerator,
+  Snowflake,
+  Sunrise,
+  Sunset,
+  type LucideIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
+import { KitchenTemperaturePlanView } from "@/components/cuisine/KitchenTemperaturePlanView";
+import {
+  isStoredKitchenFloorPlanDocumentEmpty,
+  loadKitchenFloorPlanDocument,
+  resolveStoredKitchenFloorPlanDocument,
+} from "@/lib/cuisine/kitchenFloorPlanLayout";
+import type { StoredKitchenFloorPlanDocument } from "@/lib/cuisine/kitchenFloorPlanDocument";
 import type { HygieneElement } from "@/lib/hygiene/types";
 import {
   HYGIENE_CATEGORY_LABEL_FR,
@@ -14,10 +31,15 @@ import {
 import { logColdTemperatureReadingAction } from "../actions";
 import { uiBtnPrimary, uiInput, uiLabel } from "@/components/ui/premium";
 
+type ViewMode = "list" | "plan";
+
 type Props = {
   restaurantId: string;
   coldElements: HygieneElement[];
   recentReadings: HygieneColdTemperatureReadingWithElement[];
+  kitchenPlanDocument: StoredKitchenFloorPlanDocument | null;
+  todayOpeningByElement: Record<string, number>;
+  todayClosingByElement: Record<string, number>;
 };
 
 function coldMeta(category: string): { Icon: LucideIcon; tone: string } {
@@ -33,9 +55,17 @@ function fmtDateTime(iso: string): string {
   )}`;
 }
 
-export function HygieneColdTemperaturesClient({ restaurantId, coldElements, recentReadings }: Props) {
+export function HygieneColdTemperaturesClient({
+  restaurantId,
+  coldElements,
+  recentReadings,
+  kitchenPlanDocument,
+  todayOpeningByElement,
+  todayClosingByElement,
+}: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [eventKind, setEventKind] = useState<HygieneColdEventKind>("opening");
   const [initials, setInitials] = useState("");
   const [temps, setTemps] = useState<Record<string, string>>({});
@@ -43,6 +73,17 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
+
+  useEffect(() => {
+    const local = loadKitchenFloorPlanDocument(restaurantId);
+    const { document } = resolveStoredKitchenFloorPlanDocument(kitchenPlanDocument, local);
+    if (!isStoredKitchenFloorPlanDocumentEmpty(document)) {
+      setViewMode("plan");
+    }
+  }, [restaurantId, kitchenPlanDocument]);
+
+  const todayRecordedByElement =
+    eventKind === "opening" ? todayOpeningByElement : todayClosingByElement;
 
   const filledIds = useMemo(
     () => coldElements.filter((el) => (temps[el.id] ?? "").trim() !== "").map((el) => el.id),
@@ -83,7 +124,6 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
         else nextErrors[id] = r.error;
       }
       setRowErrors(nextErrors);
-      // On vide les lignes réussies, on garde les lignes en erreur pour correction.
       setTemps((m) => {
         const next = { ...m };
         for (const id of succeeded) delete next[id];
@@ -96,7 +136,7 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
       });
       setSavedCount(succeeded.length);
       if (Object.keys(nextErrors).length > 0) {
-        setFormError("Certaines lignes n’ont pas pu être enregistrées — vérifiez les valeurs en rouge.");
+        setFormError("Certaines lignes n'ont pas pu être enregistrées — vérifiez les valeurs en rouge.");
       }
       router.refresh();
     });
@@ -104,6 +144,43 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
 
   return (
     <div className="space-y-6">
+      {coldElements.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex rounded-xl border border-stone-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                viewMode === "list"
+                  ? "bg-copper-700 text-white"
+                  : "text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              <List className="h-4 w-4" aria-hidden />
+              Vue liste
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("plan")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                viewMode === "plan"
+                  ? "bg-copper-700 text-white"
+                  : "text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" aria-hidden />
+              Vue plan
+            </button>
+          </div>
+          <Link
+            href="/hygiene/cuisine-plan"
+            className="text-sm font-semibold text-copper-700 transition hover:text-copper-600"
+          >
+            Configurer le plan cuisine →
+          </Link>
+        </div>
+      ) : null}
+
       {coldElements.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50/60 px-6 py-10 text-center">
           <p className="text-base font-semibold text-stone-800">Aucun équipement froid actif</p>
@@ -115,9 +192,20 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
             en choisissant la catégorie correspondante.
           </p>
         </div>
+      ) : viewMode === "plan" ? (
+        <KitchenTemperaturePlanView
+          restaurantId={restaurantId}
+          coldElements={coldElements}
+          serverStoredDocument={kitchenPlanDocument}
+          todayRecordedByElement={todayRecordedByElement}
+          eventKind={eventKind}
+          onEventKindChange={setEventKind}
+          initials={initials}
+          onInitialsChange={setInitials}
+          onReadingSaved={() => router.refresh()}
+        />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-stone-200/70 bg-white shadow-sm">
-          {/* Réglages communs à tous les relevés */}
           <div className="flex flex-col gap-3 border-b border-stone-100 bg-stone-50/50 px-4 py-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <span className={uiLabel}>Moment du relevé</span>
@@ -160,13 +248,13 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
             </div>
           </div>
 
-          {/* Une ligne par équipement */}
           <ul className="divide-y divide-stone-100">
             {coldElements.map((el) => {
               const meta = coldMeta(el.category);
               const Icon = meta.Icon;
               const rowError = rowErrors[el.id];
               const hasTemp = (temps[el.id] ?? "").trim() !== "";
+              const todayRecorded = todayRecordedByElement[el.id];
               return (
                 <li key={el.id} className={`px-4 py-3 ${rowError ? "bg-rose-50/40" : ""}`}>
                   <div className="flex items-center gap-3">
@@ -178,6 +266,11 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
                       <p className="truncate text-xs text-stone-400">
                         {el.area_label ||
                           HYGIENE_CATEGORY_LABEL_FR[el.category as keyof typeof HYGIENE_CATEGORY_LABEL_FR]}
+                        {todayRecorded != null ? (
+                          <span className="ml-2 font-medium text-emerald-700">
+                            · Relevé : {todayRecorded} °C
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -209,7 +302,6 @@ export function HygieneColdTemperaturesClient({ restaurantId, coldElements, rece
             })}
           </ul>
 
-          {/* Barre d'action */}
           <div className="flex flex-wrap items-center gap-3 border-t border-stone-100 bg-white px-4 py-3">
             <button
               type="button"

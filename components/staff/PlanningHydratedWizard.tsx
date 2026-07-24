@@ -30,6 +30,7 @@ import type { WizardData } from "@/lib/staff/wizard/wizardDataTypes";
 import { PLANNING_DAY_KEYS, PLANNING_DAY_LABELS_FR, type PlanningDayKey, type TimeBand } from "@/lib/staff/planningHoursTypes";
 import { getEstablishmentTypeLabelFr } from "@/lib/staff/wizard/establishmentTypeLabel";
 import { uiBtnOutlineSm, uiBtnPrimary, uiInput, uiLabel } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 type Props = {
   open: boolean;
@@ -142,8 +143,8 @@ export function PlanningHydratedWizard({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4">
-      <div className="my-8 w-full max-w-3xl rounded-xl bg-white shadow-xl">
+    <ModalOverlay ariaLabel="Ébauche de planning" onClose={onClose}>
+      <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
         {/* En-tête + stepper */}
         <div className="flex items-start justify-between border-b border-stone-200 px-5 py-4">
           <div>
@@ -246,7 +247,7 @@ export function PlanningHydratedWizard({
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/dining/diningPaymentMethods";
 import { PAYMENT_SHORT, fmtEur } from "@/components/dining/DiningOrderTicketUi";
 import { uiBtnOutlineSm, uiBtnPrimary, uiError, uiLabel, uiLead } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 
@@ -77,15 +78,6 @@ export function DiningOrderTotalModal({
     setPartialPayStr("");
     setError(null);
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   const guests = Math.max(2, Math.floor(parseNum(guestsStr) ?? 2));
   const perGuest = guests > 0 ? round2(amountDueTtc / guests) : 0;
@@ -187,17 +179,8 @@ export function DiningOrderTotalModal({
   );
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Total et encaissement"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[min(90vh,640px)] w-full max-w-md overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalOverlay zIndex={60} ariaLabel="Total et encaissement" onClose={onClose}>
+      <div className="max-h-[min(90vh,640px)] w-full max-w-md overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-xl">
         <div className="p-5">
           <h2 className="text-lg font-semibold text-stone-900">Total &amp; partage</h2>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
@@ -465,6 +448,6 @@ export function DiningOrderTotalModal({
           {error ? <p className={`mt-3 ${uiError}`}>{error}</p> : null}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

@@ -13,6 +13,7 @@ import type { DiningTableRow } from "@/lib/dining/diningDb";
 import type { RestaurantReservationRow, ReservationStatus } from "@/lib/reservations/types";
 import { uiBtnPrimary, uiError, uiInput, uiSuccess } from "@/components/ui/premium";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 const STATUS: { v: ReservationStatus; label: string }[] = [
   { v: "pending", label: "En attente" },
@@ -393,17 +394,8 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
       ) : null}
 
       {showNew ? (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Nouvelle réservation"
-          onClick={() => setShowNew(false)}
-        >
-          <div
-            className="my-6 w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ModalOverlay ariaLabel="Nouvelle réservation" onClose={() => setShowNew(false)}>
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl">
             <div className="sticky top-0 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
                 <CalendarCheck className="h-5 w-5 text-copper-700" aria-hidden />
@@ -428,7 +420,7 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
               />
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </div>
   );

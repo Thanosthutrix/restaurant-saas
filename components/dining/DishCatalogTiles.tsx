@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import type { Dish } from "@/lib/db";
 import { countInSubtree, type CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
 import { CategoryTileShell } from "@/components/catalog/CategoryTileShell";
 import { CategoryPictogram } from "@/components/catalog/CategoryPictogram";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 export function fmtDishPriceTtc(dish: Dish): string {
   const raw = dish.selling_price_ttc;
@@ -166,20 +167,6 @@ export function DishCatalogTiles({
   const [openId, setOpenId] = useState<string | null>(null);
   const openCard = cards.find((c) => c.id === openId) ?? null;
 
-  useEffect(() => {
-    if (!openCard) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenId(null);
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [openCard]);
-
   if (totalPlats === 0) return null;
 
   return (
@@ -212,17 +199,11 @@ export function DishCatalogTiles({
       </div>
 
       {openCard ? (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Rubrique ${openCard.name}`}
-          onClick={() => setOpenId(null)}
+        <ModalOverlay
+          ariaLabel={`Rubrique ${openCard.name}`}
+          onClose={() => setOpenId(null)}
         >
-          <div
-            className="my-6 w-full max-w-2xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl">
             <div className="sticky top-0 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
                 <CategoryPictogram title={openCard.name} depth={1} />
@@ -260,7 +241,7 @@ export function DishCatalogTiles({
               </div>
             ) : null}
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </div>
   );

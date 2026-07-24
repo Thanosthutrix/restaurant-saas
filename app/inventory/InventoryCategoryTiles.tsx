@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import type { InventoryItemWithCalculatedStock } from "@/lib/db";
 import { countInSubtree, type CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
 import { CategoryTileShell } from "@/components/catalog/CategoryTileShell";
 import { CategoryPictogram } from "@/components/catalog/CategoryPictogram";
 import { InventoryItemRow } from "./InventoryItemList";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 type Item = InventoryItemWithCalculatedStock;
 
@@ -90,20 +91,6 @@ export function InventoryCategoryTiles({
   const [openId, setOpenId] = useState<string | null>(null);
   const openCard = cards.find((c) => c.id === openId) ?? null;
 
-  useEffect(() => {
-    if (!openCard) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenId(null);
-    };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [openCard]);
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -136,17 +123,8 @@ export function InventoryCategoryTiles({
       </div>
 
       {openCard ? (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Rubrique ${openCard.name}`}
-          onClick={() => setOpenId(null)}
-        >
-          <div
-            className="my-6 w-full max-w-2xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ModalOverlay ariaLabel={`Rubrique ${openCard.name}`} onClose={() => setOpenId(null)}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl">
             <div className="sticky top-0 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
                 <CategoryPictogram title={openCard.name} depth={1} />
@@ -174,7 +152,7 @@ export function InventoryCategoryTiles({
               )}
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </div>
   );

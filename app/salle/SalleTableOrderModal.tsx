@@ -7,6 +7,7 @@ import { loadTableOrderModalData } from "@/app/salle/actions";
 import type { FloorTable } from "@/components/salle/InteractiveFloorPlan";
 import { DiningOrderModal } from "@/components/dining/DiningOrderModal";
 import { uiError } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 import type { DiningOrderSessionBundle, DiningOrderViewData } from "@/lib/dining/diningOrderViewData";
 
 type Props = {
@@ -51,8 +52,8 @@ export function SalleTableOrderModal({
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4">
-        <div className="max-w-md rounded-2xl bg-white p-4 shadow-xl">
+      <ModalOverlay ariaLabel="Erreur commande table" onClose={onClose}>
+        <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
           <p className={uiError}>{error}</p>
           <button
             type="button"
@@ -62,7 +63,7 @@ export function SalleTableOrderModal({
             Fermer
           </button>
         </div>
-      </div>
+      </ModalOverlay>
     );
   }
 

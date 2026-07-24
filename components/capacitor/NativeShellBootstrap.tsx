@@ -17,6 +17,9 @@ export function NativeShellBootstrap() {
 
 function applyNativeViewportFix() {
   document.documentElement.classList.add("capacitor-native");
+  document.documentElement.style.backgroundColor = "#E9EDF2";
+  document.body.style.backgroundColor = "#E9EDF2";
+  document.body.style.overscrollBehavior = "none";
 
   let meta = document.querySelector('meta[name="viewport"]');
   if (!meta) {

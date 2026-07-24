@@ -20,8 +20,8 @@ type Action = {
 
 const actions: Action[] = [
   {
-    title: "Préparer un service",
-    description: "Créer ou reprendre un service, puis saisir les ventes pour garder le stock et les marges à jour.",
+    title: "Enregistrer un service",
+    description: "Saisir les ventes d’un service pour garder le stock et les marges à jour.",
     href: "/service/new",
     icon: ClipboardList,
     tone: "bg-copper-50 text-copper-700",
@@ -120,7 +120,7 @@ export default async function CuisinePage() {
       <PageHeader
         eyebrow="Espace métier"
         title="Cuisine"
-        subtitle="Tout ce qui sert au chef est regroupé ici, dans l’ordre logique : préparer le service, gérer les fiches, surveiller le stock, puis contrôler les marges et l’hygiène."
+        subtitle="Tout ce qui sert au chef est regroupé ici, dans l’ordre logique : enregistrer le service, gérer les fiches, surveiller le stock, puis contrôler les marges et l’hygiène."
       />
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Actions cuisine">

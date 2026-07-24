@@ -80,6 +80,8 @@ type InteractiveFloorPlanProps = {
   };
   hideCapacity?: boolean;
   hideHeader?: boolean;
+  /** Masque les bandeaux d'aide (plan non configuré, etc.) — ex. page Salle en service. */
+  hidePlanHints?: boolean;
   itemKind?: "table" | "equipment";
   tableStatusMap?: Record<string, { state: FloorPlanTableStatusState; temperature?: number }>;
 };
@@ -543,6 +545,7 @@ export function InteractiveFloorPlan({
   planCopy,
   hideCapacity = false,
   hideHeader = false,
+  hidePlanHints = false,
   itemKind = "table",
   tableStatusMap,
 }: InteractiveFloorPlanProps) {
@@ -923,9 +926,10 @@ export function InteractiveFloorPlan({
   const placeItemLabel = planCopy?.placeItemLabel ?? "Placer sur le plan";
   const canvasLabel = planCopy?.canvasLabel ?? "Plan de salle dynamique";
   const itemNoun = itemKind === "equipment" ? "équipement" : "table";
+  const compactChrome = hideHeader && hidePlanHints;
 
   return (
-    <div className="space-y-4">
+    <div className={compactChrome ? "space-y-0" : "space-y-4"}>
       {!hideHeader ? (
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -964,20 +968,23 @@ export function InteractiveFloorPlan({
               {isCreatingTable ? "Création…" : "＋ Nouvelle Table"}
             </button>
           ) : null}
-          {!isPlanEditor && onResetServiceLayout ? (
-            <button
-              type="button"
-              onClick={onResetServiceLayout}
-              className="min-h-11 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-100 active:scale-[0.98]"
-            >
-              Fin de service
-            </button>
-          ) : null}
         </div>
       </div>
       ) : null}
 
-      {!isPlanEditor && !isKitchenTemp && hasServiceOverrides ? (
+      {!hideHeader && !isPlanEditor && onResetServiceLayout ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onResetServiceLayout}
+            className="min-h-11 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-100 active:scale-[0.98]"
+          >
+            Fin de service
+          </button>
+        </div>
+      ) : null}
+
+      {!hidePlanHints && !isPlanEditor && !isKitchenTemp && hasServiceOverrides ? (
         <p className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
           Disposition temporaire en cours. Cliquez sur <strong>Fin de service</strong> pour revenir au
           plan de base.
@@ -1015,7 +1022,7 @@ export function InteractiveFloorPlan({
         </div>
       ) : null}
 
-      {!isPlanEditor && !isKitchenTemp && fixtures.length === 0 ? (
+      {!hidePlanHints && !isPlanEditor && !isKitchenTemp && fixtures.length === 0 ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Aucun plan configuré.{" "}
           <Link href="/salle/plan" className="font-semibold text-amber-950 underline hover:no-underline">

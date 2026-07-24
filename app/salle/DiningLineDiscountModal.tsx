@@ -5,6 +5,7 @@ import { setDiningOrderLineDiscount } from "@/app/salle/actions";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { uiBtnOutlineSm, uiBtnPrimary, uiError, uiLabel, uiLead } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 
@@ -47,15 +48,6 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
     setError(null);
   }, [line]);
 
-  useEffect(() => {
-    if (!line) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [line, onClose]);
-
   if (!line) return null;
 
   const apply = () => {
@@ -95,17 +87,8 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Remise"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalOverlay zIndex={60} ariaLabel="Remise" onClose={onClose}>
+      <div className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white shadow-xl">
         <div className="p-5">
           <h2 className="text-lg font-semibold text-stone-900">Remise</h2>
           <p className={`mt-1 text-sm ${uiLead}`}>{line.dishName}</p>
@@ -193,6 +176,6 @@ export function DiningLineDiscountModal({ restaurantId, line, onClose, onApplied
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

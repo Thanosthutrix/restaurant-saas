@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 /**
  * Shell de modale premium : fond flouté, en-tête collant (icône + titre),
@@ -28,32 +29,12 @@ export function Modal({
   footer?: ReactNode;
   size?: "md" | "lg" | "xl";
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose} ariaLabel={title}>
       <div
-        className={`my-6 w-full ${
+        className={`w-full ${
           size === "xl" ? "max-w-4xl" : size === "lg" ? "max-w-2xl" : "max-w-lg"
         } overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl`}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
           {Icon ? (
@@ -81,6 +62,6 @@ export function Modal({
           </div>
         ) : null}
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

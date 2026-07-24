@@ -20,6 +20,7 @@ import { buildStaffInitialsByMemberId, staffInitialsBase } from "@/lib/staff/sta
 import { STAFF_COLORS, resolveStaffColorIndex } from "@/lib/staff/staffColors";
 import { addDays, parseISODateLocal } from "@/lib/staff/weekUtils";
 import { uiBtnOutlineSm, uiBtnPrimarySm, uiCard, uiInput, uiLabel } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 const SNAP_MIN = 15;
 /** Même hauteur que la grille « vue semaine ». */
@@ -807,7 +808,12 @@ export function ManualWeekPlanner({
       </div>
       )}
       {sheet ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/35 p-4">
+        <ModalOverlay
+          zIndex={70}
+          ariaLabel={sheet.mode === "create" ? "Nouveau créneau" : "Modifier le créneau"}
+          backdropClassName="bg-black/35"
+          onClose={() => setSheet(null)}
+        >
           <div className={`${uiCard} w-full max-w-md shadow-xl`}>
             <h3 className="text-sm font-semibold text-stone-900">
               {sheet.mode === "create" ? "Nouveau créneau" : "Modifier le créneau"}
@@ -869,7 +875,7 @@ export function ManualWeekPlanner({
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
 
       {shiftActionsMenu && shiftForActionsMenu ? (

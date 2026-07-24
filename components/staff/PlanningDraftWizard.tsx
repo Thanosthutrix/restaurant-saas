@@ -29,6 +29,7 @@ import {
   uiInput,
   uiLabel,
 } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 const STEPS = [
   { id: "context", title: "Contexte", subtitle: "Semaine et paramètres existants" },
@@ -262,18 +263,16 @@ export function PlanningDraftWizard({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
-      <button
-        type="button"
-        className="absolute inset-0 bg-stone-900/40"
-        aria-label="Fermer"
-        onClick={() => !pending && onClose()}
-      />
+    <ModalOverlay
+      zIndex={100}
+      ariaLabel="Ébauche de planning"
+      onClose={() => {
+        if (!pending) onClose();
+      }}
+    >
       <div
-        role="dialog"
-        aria-modal="true"
         aria-labelledby="planning-draft-wizard-title"
-        className="relative flex max-h-[min(92vh,820px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-stone-200 bg-white shadow-2xl sm:rounded-2xl"
+        className="relative flex max-h-[min(92vh,820px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl"
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-4 py-4 sm:px-6">
           <div>
@@ -960,6 +959,6 @@ export function PlanningDraftWizard({
           </div>
         </footer>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

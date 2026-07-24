@@ -233,15 +233,15 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
       <PageHeader
         accentIcon={SECTION_ACCENT.service.icon}
         accentTone={SECTION_ACCENT.service.tone}
-        breadcrumbs={[{ label: "Cuisine", href: "/cuisine" }, { label: "Nouveau service" }]}
-        title="Nouveau service"
+        breadcrumbs={[{ label: "Cuisine", href: "/cuisine" }, { label: "Enregistrer un service" }]}
+        title="Enregistrer un service"
         subtitle="Saisissez les ventes du service — par photo de relevé (lecture automatique) ou à la main."
       />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Date + type de service */}
-        <div className={`${uiCard} space-y-4`}>
-          <div className="flex flex-col gap-1">
+        <div className={`${uiCard} min-w-0 space-y-4`}>
+          <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
             <label htmlFor="date" className={uiLabel}>
               Date
             </label>
@@ -250,7 +250,7 @@ export function NewServiceForm({ restaurantId, dishes }: Props) {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={`${uiInput} h-11 w-full sm:w-56`}
+              className={`${uiInput} box-border block h-11 w-0 min-w-full max-w-full`}
               required
             />
           </div>

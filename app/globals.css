@@ -144,13 +144,25 @@ body {
 html.capacitor-native {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  color-scheme: light;
+  background-color: #e9edf2;
+  overscroll-behavior: none;
+  --cap-safe-top: env(safe-area-inset-top, 0px);
+  --cap-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 html.capacitor-native body {
   overflow-x: hidden;
   min-height: 100dvh;
+  background-color: #e9edf2;
+  overscroll-behavior-y: none;
 }
 
-html.capacitor-native .app-content-offset > header {
-  padding-top: env(safe-area-inset-top);
+@media (prefers-color-scheme: dark) {
+  html.capacitor-native {
+    --background: #e9edf2;
+    --foreground: #1f2124;
+    --app-card: #ffffff;
+    --app-ring: rgba(31, 33, 36, 0.08);
+  }
 }

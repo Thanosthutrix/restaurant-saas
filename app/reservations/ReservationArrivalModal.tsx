@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { seatReservationAndOpenTicketAction } from "./actions";
 import { uiError, uiInput } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 import type { RestaurantReservationRow } from "@/lib/reservations/types";
 import type { DiningTableRow } from "@/lib/dining/diningDb";
 
@@ -93,12 +94,12 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="arrival-title"
-      onClick={(e) => e.target === e.currentTarget && !pending && onClose()}
+    <ModalOverlay
+      ariaLabel="Arrivée et ticket"
+      backdropClassName="bg-black/40"
+      onClose={() => {
+        if (!pending) onClose();
+      }}
     >
       <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-5 shadow-xl">
         <h2 id="arrival-title" className="text-lg font-bold text-stone-900">
@@ -215,6 +216,6 @@ export function ReservationArrivalModal({ restaurantId, ymd, reservation, tables
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

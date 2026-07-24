@@ -15,6 +15,8 @@ export type StoredFloorPlanDocument = {
   /** Dernier onglet actif (éditeur + salle). */
   activeLevelId: string;
   levels: FloorPlanLevel[];
+  /** Afficher le plan visuel sur /salle (défaut : oui). */
+  sallePlanVisible?: boolean;
 };
 
 export function createEmptyLevelLayout(): StoredFloorPlanLayout {
@@ -81,7 +83,10 @@ export function parseStoredFloorPlanDocument(raw: unknown): StoredFloorPlanDocum
         ? obj.activeLevelId
         : sorted[0].id;
 
-    return { version: 2, activeLevelId, levels: sorted };
+    const sallePlanVisible =
+      typeof obj.sallePlanVisible === "boolean" ? obj.sallePlanVisible : true;
+
+    return { version: 2, activeLevelId, levels: sorted, sallePlanVisible };
   }
 
   const legacyLayout = parseStoredFloorPlanLayout(raw);
@@ -109,6 +114,17 @@ export function resolveStoredFloorPlanDocument(
     return { document: localDocument, shouldMigrateLocalToServer: true };
   }
   return { document: null, shouldMigrateLocalToServer: false };
+}
+
+export function setSallePlanVisible(
+  document: StoredFloorPlanDocument,
+  visible: boolean
+): StoredFloorPlanDocument {
+  return { ...document, sallePlanVisible: visible };
+}
+
+export function isSallePlanVisible(document: StoredFloorPlanDocument | null | undefined): boolean {
+  return document?.sallePlanVisible !== false;
 }
 
 export function updateLevelLayout(

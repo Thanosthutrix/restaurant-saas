@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Armchair } from "lucide-react";
@@ -14,6 +15,7 @@ import {
   parseStoredFloorPlanDocument,
   setActiveLevelId,
   sortLevels,
+  isSallePlanVisible,
   type StoredFloorPlanDocument,
 } from "@/lib/salle/floorPlanDocument";
 import {
@@ -29,6 +31,11 @@ import {
 } from "@/lib/salle/useFloorPlanPersistence";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { SalleTableOrderModal } from "./SalleTableOrderModal";
+
+const salleActionBtnBase =
+  "inline-flex min-h-8 w-full items-center justify-center rounded-lg border px-1 py-1.5 text-center text-[11px] font-semibold leading-tight shadow-sm transition active:scale-[0.98] sm:min-h-9 sm:px-2 sm:text-xs lg:px-3";
+const salleOutlineBtn = `${salleActionBtnBase} border-stone-200 bg-white text-stone-700 hover:bg-stone-50`;
+const salleServiceBtn = `${salleActionBtnBase} border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100`;
 
 type TableTileSummary = {
   id: string;
@@ -137,6 +144,9 @@ export function SalleFloorPlanClient({
     [tableSummaries, visibleTableIds]
   );
 
+  const showVisualPlan = isSallePlanVisible(document);
+  const summariesToShow = showVisualPlan ? visibleSummaries : tableSummaries;
+
   const debouncedRefresh = useDebouncedCallback(() => {
     router.refresh();
     reloadLayout(document, activeLevelId);
@@ -149,8 +159,34 @@ export function SalleFloorPlanClient({
   }
 
   return (
-    <div className="space-y-6">
-      {levels.length > 0 ? (
+    <div className="space-y-2">
+      <div
+        className={`grid w-full gap-1.5 sm:flex sm:flex-nowrap sm:justify-end sm:gap-2 lg:w-auto ${
+          showVisualPlan ? "grid-cols-3" : "grid-cols-2"
+        }`}
+      >
+        <Link href="/salle/plan" className={salleOutlineBtn} aria-label="Configurer le plan">
+          <span className="truncate lg:hidden">Plan</span>
+          <span className="hidden truncate lg:inline">Configurer le plan</span>
+        </Link>
+        <Link href="/salle/tables" className={salleOutlineBtn} aria-label="Gérer les tables">
+          <span className="truncate lg:hidden">Tables</span>
+          <span className="hidden truncate lg:inline">Gérer les tables</span>
+        </Link>
+        {showVisualPlan ? (
+          <button
+            type="button"
+            onClick={handleEndOfService}
+            className={salleServiceBtn}
+            aria-label="Fin de service"
+          >
+            <span className="truncate lg:hidden">Fin svc.</span>
+            <span className="hidden truncate lg:inline">Fin de service</span>
+          </button>
+        ) : null}
+      </div>
+
+      {showVisualPlan && levels.length > 0 ? (
         <FloorPlanLevelTabs
           activeLevelId={activeLevelId}
           countVariant="open"
@@ -160,17 +196,19 @@ export function SalleFloorPlanClient({
         />
       ) : null}
 
-      <InteractiveFloorPlan
-        mode="salle"
-        initialTables={layout.tables}
-        initialFixtures={layout.fixtures}
-        hasServiceOverrides={layout.hasServiceOverrides}
-        onResetServiceLayout={handleEndOfService}
-        onLayoutChange={({ tables }) => handleServiceLayoutChange(tables)}
-        onTableClick={setSelectedTable}
-        activatedTableIds={layout.activatedTableIds}
-        onTableActivate={handleTableActivate}
-      />
+      {showVisualPlan ? (
+        <InteractiveFloorPlan
+          mode="salle"
+          hideHeader
+          hidePlanHints
+          initialTables={layout.tables}
+          initialFixtures={layout.fixtures}
+          onLayoutChange={({ tables }) => handleServiceLayoutChange(tables)}
+          onTableClick={setSelectedTable}
+          activatedTableIds={layout.activatedTableIds}
+          onTableActivate={handleTableActivate}
+        />
+      ) : null}
 
       {selectedTable ? (
         <SalleTableOrderModal
@@ -186,18 +224,30 @@ export function SalleFloorPlanClient({
         />
       ) : null}
 
-      {visibleSummaries.length > 0 ? (
+      {summariesToShow.length > 0 ? (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {visibleSummaries.map((summary) => {
-            const occupied = layout.tables.find((t) => t.id === summary.id)?.status === "occupied";
+          {summariesToShow.map((summary) => {
+            const tableOnPlan = layout.tables.find((t) => t.id === summary.id);
+            const tableForModal =
+              tableOnPlan ??
+              initialTables.find((t) => t.id === summary.id) ??
+              ({
+                id: summary.id,
+                label: summary.label,
+                capacity: 4,
+                x: 0,
+                y: 0,
+                width: 12,
+                height: 12,
+                rotation: 0,
+                status: "free",
+              } satisfies FloorTable);
+            const occupied = tableForModal.status === "occupied";
             return (
               <li key={summary.id}>
                 <button
                   type="button"
-                  onClick={() => {
-                    const table = layout.tables.find((item) => item.id === summary.id);
-                    if (table) setSelectedTable(table);
-                  }}
+                  onClick={() => setSelectedTable(tableForModal)}
                   className={`group flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition hover:-translate-y-0.5 hover:shadow-md ${
                     occupied
                       ? "border-copper-300 bg-copper-50/60 ring-1 ring-copper-200"

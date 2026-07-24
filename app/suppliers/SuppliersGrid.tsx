@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Truck, X } from "lucide-react";
 import type { Supplier } from "@/lib/db";
 import { EditSupplierForm } from "./[id]/EditSupplierForm";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 const ORDER_METHOD_LABELS: Record<string, string> = {
   EMAIL: "Email",
@@ -25,20 +26,6 @@ function cardSubtitle(s: Supplier): string {
 export function SuppliersGrid({ suppliers }: { suppliers: Supplier[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const open = suppliers.find((s) => s.id === openId) ?? null;
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenId(null);
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   return (
     <div>
@@ -70,17 +57,8 @@ export function SuppliersGrid({ suppliers }: { suppliers: Supplier[] }) {
       </div>
 
       {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Fournisseur ${open.name}`}
-          onClick={() => setOpenId(null)}
-        >
-          <div
-            className="my-6 w-full max-w-lg overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ModalOverlay ariaLabel={`Fournisseur ${open.name}`} onClose={() => setOpenId(null)}>
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl">
             <div className="flex items-center gap-3 border-b border-stone-100 bg-stone-50/60 px-4 py-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
                 <Truck className="h-5 w-5 text-copper-700" aria-hidden />
@@ -113,7 +91,7 @@ export function SuppliersGrid({ suppliers }: { suppliers: Supplier[] }) {
               </Link>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </div>
   );

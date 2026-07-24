@@ -6,8 +6,11 @@ import { BrandLogo } from "@/components/app/BrandLogo";
 import { ConsumerAccountNav } from "@/components/public/consumer/ConsumerAccountNav";
 import { PublicProToggle } from "@/components/public/PublicProToggle";
 
-const HEADER_HEIGHT_PX = 64;
+const HEADER_BAR_PX = 64;
 const SCROLL_DELTA = 8;
+
+/** Hauteur totale : barre + encoche / barre de statut iOS (0 sur desktop). */
+const headerTotalHeight = `calc(${HEADER_BAR_PX}px + env(safe-area-inset-top, 0px))`;
 
 export function PublicHeader() {
   const [revealed, setRevealed] = useState(true);
@@ -50,7 +53,8 @@ export function PublicHeader() {
     <>
       {/* Zone sensible en haut : survol pour faire réapparaître le header. */}
       <div
-        className="fixed inset-x-0 top-0 z-[60] h-3"
+        className="fixed inset-x-0 top-0 z-[60]"
+        style={{ height: `calc(12px + env(safe-area-inset-top, 0px))` }}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         aria-hidden
@@ -62,7 +66,10 @@ export function PublicHeader() {
         className={`fixed inset-x-0 top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md transition-transform duration-300 ease-out ${
           isOpen ? "translate-y-0" : "-translate-y-full"
         }`}
-        style={{ height: HEADER_HEIGHT_PX }}
+        style={{
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          height: headerTotalHeight,
+        }}
       >
         <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="group flex shrink-0 items-center" aria-label="ubion — accueil">
@@ -76,7 +83,7 @@ export function PublicHeader() {
         </div>
       </header>
 
-      <div aria-hidden className="shrink-0" style={{ height: HEADER_HEIGHT_PX }} />
+      <div aria-hidden className="shrink-0" style={{ height: headerTotalHeight }} />
     </>
   );
 }

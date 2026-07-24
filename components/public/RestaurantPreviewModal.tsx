@@ -14,6 +14,7 @@ import { OpeningHoursPanel } from "@/components/public/OpeningHoursPanel";
 import { RestaurantLocationPanel } from "@/components/public/RestaurantLocationPanel";
 import { ReviewsTab } from "@/components/public/ReviewsTab";
 import { StarRating } from "@/components/public/StarRating";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 import type { MenuItem, PublicSetMenu, Restaurant, Review } from "@/lib/public/types";
 
 export type RestaurantPreviewTab =
@@ -152,33 +153,16 @@ export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", on
     setActiveTab(initialTab);
   }, [initialTab, restaurantId]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
   const restaurant = data?.restaurant;
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={restaurant?.name ?? "Restaurant"}
-      onClick={onClose}
+    <ModalOverlay
+      zIndex={100}
+      ariaLabel={restaurant?.name ?? "Restaurant"}
+      backdropClassName="bg-slate-900/50 backdrop-blur-sm"
+      onClose={onClose}
     >
-      <div
-        className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-3xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex max-h-[min(90vh,720px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="shrink-0 border-b border-slate-100 px-4 py-4 sm:px-6">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
@@ -282,6 +266,6 @@ export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", on
           </div>
         ) : null}
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

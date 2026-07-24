@@ -304,7 +304,7 @@ export function PremiumAppShell({
       </aside>
 
       <div className="app-content-offset min-w-0">
-        <header className="sticky top-0 z-[45] border-b border-slate-300/50 bg-[#E9EDF2]/95 supports-[backdrop-filter]:bg-[#E9EDF2]/80 supports-[backdrop-filter]:backdrop-blur-sm">
+        <header className="sticky top-0 z-[45] border-b border-slate-300/50 bg-[#E9EDF2]/95 pt-[env(safe-area-inset-top,0px)] supports-[backdrop-filter]:bg-[#E9EDF2]/80 supports-[backdrop-filter]:backdrop-blur-sm">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
               <button

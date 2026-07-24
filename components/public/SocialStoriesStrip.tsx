@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import type { Restaurant, SocialStory } from "@/lib/public/types";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 type Props = {
   restaurant: Restaurant;
@@ -73,25 +74,21 @@ export function SocialStoriesStrip({ restaurant, stories }: Props) {
       </section>
 
       {activeStory ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Story Instagram"
-          onClick={() => setActiveStory(null)}
+        <ModalOverlay
+          ariaLabel="Story Instagram"
+          backdropClassName="bg-black/80"
+          onClose={() => setActiveStory(null)}
         >
-          <button
-            type="button"
-            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
-            onClick={() => setActiveStory(null)}
-            aria-label="Fermer"
-          >
-            <X className="h-6 w-6" aria-hidden />
-          </button>
-          <div
-            className="relative max-h-[85vh] max-w-lg overflow-hidden rounded-2xl bg-black shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="relative w-full max-w-lg">
+            <button
+              type="button"
+              className="absolute -top-12 right-0 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+              onClick={() => setActiveStory(null)}
+              aria-label="Fermer"
+            >
+              <X className="h-6 w-6" aria-hidden />
+            </button>
+            <div className="relative max-h-[85vh] overflow-hidden rounded-2xl bg-black shadow-2xl">
             {activeStory.mediaType === "VIDEO" ? (
               <video
                 src={activeStory.mediaUrl}
@@ -118,8 +115,9 @@ export function SocialStoriesStrip({ restaurant, stories }: Props) {
                 Ouvrir sur Instagram
               </a>
             ) : null}
+            </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </>
   );

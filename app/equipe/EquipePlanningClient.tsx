@@ -47,6 +47,7 @@ import {
   uiLabel,
   uiSuccess,
 } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 import { STAFF_COLORS, STAFF_COLOR_HEX, STAFF_COLOR_LABELS, resolveStaffColorIndex } from "@/lib/staff/staffColors";
 
 function toAbsoluteInviteUrl(joinUrlFromServer: string): string {
@@ -853,14 +854,16 @@ export function EquipePlanningClient({
         const idx = (staffColorIndex.get(m.id) ?? 0) % STAFF_COLORS.length;
         const colorClass = STAFF_COLORS[idx];
         return (
-          <div className="fixed inset-0 z-[60] flex items-end justify-center p-4 sm:items-center">
-            <button
-              type="button"
-              className="absolute inset-0 bg-black/40"
-              aria-label="Fermer"
-              onClick={() => setExpandedStaffId(null)}
-            />
-            <div className={`relative z-10 ${uiCard} w-full max-w-lg shadow-xl overflow-y-auto max-h-[90vh]`}>
+          <ModalOverlay
+            zIndex={60}
+            ariaLabel={`Collaborateur ${m.display_name}`}
+            backdropClassName="bg-black/40"
+            onClose={() => {
+              setExpandedStaffId(null);
+              setInviteLink(null);
+            }}
+          >
+            <div className={`${uiCard} max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl`}>
               {/* En-tête */}
               <div className="flex items-center gap-3">
                 <span className={`h-4 w-4 flex-none rounded-full ${colorClass}`} />
@@ -969,7 +972,7 @@ export function EquipePlanningClient({
                 </button>
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         );
       })()}
     </div>

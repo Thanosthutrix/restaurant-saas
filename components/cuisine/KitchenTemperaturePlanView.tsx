@@ -31,6 +31,7 @@ import {
 } from "@/lib/cuisine/useKitchenFloorPlanPersistence";
 import { isStoredKitchenFloorPlanDocumentEmpty } from "@/lib/cuisine/kitchenFloorPlanLayout";
 import { uiBtnPrimary, uiInput, uiLabel } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 type Props = {
   restaurantId: string;
@@ -303,17 +304,11 @@ export function KitchenTemperaturePlanView({
       ) : null}
 
       {selectedElement ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-stone-900/40 p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="kitchen-temp-dialog-title"
-          onClick={() => setSelectedId(null)}
+        <ModalOverlay
+          ariaLabel="Relevé de température"
+          onClose={() => setSelectedId(null)}
         >
-          <div
-            className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 {(() => {
@@ -411,7 +406,7 @@ export function KitchenTemperaturePlanView({
             </div>
             <p className="mt-2 text-xs text-stone-400">Plage acceptée : -40 °C à +25 °C.</p>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </div>
   );

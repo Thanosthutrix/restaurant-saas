@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check, X } from "lucide-react";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 export type SettledTicket = {
   orderId: string;
@@ -18,20 +19,6 @@ const eur = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", c
 export function CaisseSettledTickets({ tickets }: { tickets: SettledTicket[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const open = tickets.find((t) => t.orderId === openId) ?? null;
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenId(null);
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   return (
     <div>
@@ -64,17 +51,8 @@ export function CaisseSettledTickets({ tickets }: { tickets: SettledTicket[] }) 
       </ul>
 
       {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Ticket ${open.label}`}
-          onClick={() => setOpenId(null)}
-        >
-          <div
-            className="my-6 w-full max-w-sm overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ModalOverlay ariaLabel={`Ticket ${open.label}`} onClose={() => setOpenId(null)}>
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl">
             <div className="flex items-center gap-3 border-b border-stone-100 bg-stone-50/60 px-4 py-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                 <Check className="h-5 w-5" aria-hidden />
@@ -123,7 +101,7 @@ export function CaisseSettledTickets({ tickets }: { tickets: SettledTicket[] }) 
               </div>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </div>
   );

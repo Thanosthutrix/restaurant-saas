@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getRestaurantForPage } from "@/lib/auth";
@@ -82,40 +81,26 @@ export default async function SallePage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Salle" }]}
-        title="Salle"
-        subtitle={
-          tables.length
-            ? `${tables.length} table${tables.length > 1 ? "s" : ""} · ${openCount} ouverte${openCount > 1 ? "s" : ""}`
-            : "Tables actives et commandes en cours."
-        }
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/salle/plan"
-              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
-            >
-              Configurer le plan
-            </Link>
-            <Link
-              href="/salle/tables"
-              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
-            >
-              Gérer les tables
-            </Link>
-          </div>
-        }
-      />
-
-      <Suspense fallback={<SallePlanFallback />}>
-        <SalleOrderSessionLoader
-          restaurantId={restaurant.id}
-          initialTables={floorTables}
-          serverStoredDocument={storedDocument}
-          tableSummaries={tables.length > 0 ? tableSummaries : undefined}
+      <div className="space-y-4">
+        <PageHeader
+          breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Salle" }]}
+          title="Salle"
+          subtitle={
+            tables.length
+              ? `${tables.length} table${tables.length > 1 ? "s" : ""} · ${openCount} ouverte${openCount > 1 ? "s" : ""}`
+              : "Tables actives et commandes en cours."
+          }
         />
-      </Suspense>
+
+        <Suspense fallback={<SallePlanFallback />}>
+          <SalleOrderSessionLoader
+            restaurantId={restaurant.id}
+            initialTables={floorTables}
+            serverStoredDocument={storedDocument}
+            tableSummaries={tables.length > 0 ? tableSummaries : undefined}
+          />
+        </Suspense>
+      </div>
 
       {!tables.length ? (
         <EmptyState

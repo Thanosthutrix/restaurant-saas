@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
 import { uiBtnPrimarySm, uiBtnOutlineSm } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 export type CustomerMemoForTicket = {
   id: string;
@@ -21,32 +21,14 @@ type Props = {
  * Mémo + allergies affichés au clic sur le nom du client sur une commande.
  */
 export function CustomerTicketMemoDialog({ open, onClose, customer }: Props) {
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
   if (!open) return null;
 
   const memo = customer.service_memo?.trim();
   const allergens = customer.allergens_note?.trim();
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-stone-900/40 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="customer-memo-title"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[min(85vh,560px)] w-full max-w-md overflow-y-auto rounded-2xl border border-stone-200 bg-white p-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalOverlay zIndex={100} ariaLabel={customer.display_name} onClose={onClose}>
+      <div className="max-h-[min(85vh,560px)] w-full max-w-md overflow-y-auto rounded-2xl border border-stone-200 bg-white p-4 shadow-xl">
         <h2 id="customer-memo-title" className="text-base font-semibold text-stone-900">
           {customer.display_name}
         </h2>
@@ -71,6 +53,6 @@ export function CustomerTicketMemoDialog({ open, onClose, customer }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

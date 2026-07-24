@@ -22,6 +22,7 @@ import {
   uiLabel,
   uiSelect,
 } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 function riskBadgeClass(r: string): string {
   if (r === "critical") return "bg-rose-100 text-rose-900 ring-1 ring-rose-200";
@@ -176,7 +177,16 @@ export function HygieneTasksClient({
       </section>
 
       {modalTask && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
+        <ModalOverlay
+          ariaLabel="Valider la tâche"
+          backdropClassName="bg-black/40"
+          onClose={() => {
+            setModalTask(null);
+            setInitials("");
+            setCleaningType("cleaning");
+            if (photoInputRef.current) photoInputRef.current.value = "";
+          }}
+        >
           <div className={`${uiCard} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-xl`}>
             <h3 className="text-sm font-semibold text-stone-900">Valider la tâche</h3>
             <p className="mt-1 text-sm text-stone-600">{modalTask.element_name}</p>
@@ -289,7 +299,7 @@ export function HygieneTasksClient({
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

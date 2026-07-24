@@ -7,6 +7,7 @@ import type { PreparationCandidateDish, PreparationCandidatePrep, PreparationRec
 import { closePreparationAction, recordPreparation2hAction, startPreparationAction } from "./actions";
 import { uiBtnPrimary, uiBtnSecondary, uiInput, uiLabel, uiSelect } from "@/components/ui/premium";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 const UNITS_NEW = ["kg", "g", "l", "ml", "unit", "sceau"] as const;
 
@@ -360,20 +361,14 @@ export function PreparationsClient({ restaurantId, inventoryPreps, dishes, activ
       )}
 
       {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Nouvelle préparation"
-          onClick={() => {
+        <ModalOverlay
+          ariaLabel="Nouvelle préparation"
+          onClose={() => {
             setShowModal(false);
             setError(null);
           }}
         >
-          <div
-            className="my-6 w-full max-w-md overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl">
             <div className="sticky top-0 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
                 <Boxes className="h-5 w-5" aria-hidden />
@@ -584,7 +579,7 @@ export function PreparationsClient({ restaurantId, inventoryPreps, dishes, activ
               </div>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

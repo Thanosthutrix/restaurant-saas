@@ -409,27 +409,71 @@ export function DiningOrderClient({
     );
   }
 
+  const isTableOrder = diningTableId != null;
+
+  const customerField =
+    status === "open" ? (
+      <DiningOrderCustomerLinkPanel
+        restaurantId={restaurantId}
+        orderId={orderId}
+        linked={linkedCustomer}
+        recentCustomerPool={customerSearchPool}
+        isTableOrder={isTableOrder}
+        guestLabel={guestLabel}
+        onUpdated={syncFromServer}
+        variant={isTableOrder ? "compact" : "default"}
+      />
+    ) : null;
+
   const header = (
     <div className="border-b border-stone-100 px-2 py-1.5">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-stone-900" title={placeDescription}>
-          {placeDescription}
-        </p>
-        <button
-          type="button"
-          className="flex h-10 shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 active:scale-95 disabled:opacity-50"
-          disabled={pending}
-          title={saveReturnTitle}
-          onClick={handleSaveAndReturn}
-        >
-          Enregistrer
-        </button>
+      <div
+        className={
+          isTableOrder
+            ? "space-y-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.35fr)] sm:items-center sm:gap-2 sm:space-y-0"
+            : "flex flex-wrap items-center gap-x-2 gap-y-1"
+        }
+      >
+        {isTableOrder ? (
+          <div className="flex min-w-0 items-center gap-2 sm:contents">
+            <p className="min-w-0 flex-1 truncate text-xs font-semibold text-stone-900 sm:flex-none" title={placeDescription}>
+              {placeDescription}
+            </p>
+            <button
+              type="button"
+              className="flex h-9 shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 active:scale-95 disabled:opacity-50 sm:justify-self-end"
+              disabled={pending}
+              title={saveReturnTitle}
+              onClick={handleSaveAndReturn}
+            >
+              Enregistrer
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="min-w-0 flex-1 truncate text-xs font-semibold text-stone-900" title={placeDescription}>
+              {placeDescription}
+            </p>
+            <button
+              type="button"
+              className="flex h-10 shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 active:scale-95 disabled:opacity-50"
+              disabled={pending}
+              title={saveReturnTitle}
+              onClick={handleSaveAndReturn}
+            >
+              Enregistrer
+            </button>
+          </>
+        )}
+        {isTableOrder ? <div className="min-w-0">{customerField}</div> : null}
       </div>
-      <p className={`mt-0.5 text-[10px] ${uiLead}`}>
-        Touchez une ligne pour une remise (%, montant ou offert). Touchez le total pour remise globale,
-        diviser l&apos;addition ou paiement partiel. « Prêt » = plat terminé côté cuisine
-        (e-mail client si toutes les lignes sont prêtes et fiche avec e-mail).
-      </p>
+      {!embeddedInModal && !isTableOrder ? (
+        <p className={`mt-0.5 text-[10px] ${uiLead}`}>
+          Touchez une ligne pour une remise (%, montant ou offert). Touchez le total pour remise globale,
+          diviser l&apos;addition ou paiement partiel. « Prêt » = plat terminé côté cuisine
+          (e-mail client si toutes les lignes sont prêtes et fiche avec e-mail).
+        </p>
+      ) : null}
     </div>
   );
 
@@ -473,17 +517,9 @@ export function DiningOrderClient({
     <div className="space-y-3">
       {success ? <p className={uiSuccess}>{success}</p> : null}
 
-      {status === "open" ? (
+      {status === "open" && !isTableOrder ? (
         <div className="space-y-2">
-          <DiningOrderCustomerLinkPanel
-            restaurantId={restaurantId}
-            orderId={orderId}
-            linked={linkedCustomer}
-            recentCustomerPool={customerSearchPool}
-            isTableOrder={diningTableId != null}
-            guestLabel={guestLabel}
-            onUpdated={syncFromServer}
-          />
+          {customerField}
           {localLines.length > 0 && linkedCustomerEmail ? (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/80 px-3 py-2">
               <p className="min-w-0 flex-1 text-[11px] text-stone-600">
@@ -499,6 +535,22 @@ export function DiningOrderClient({
               </button>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {status === "open" && isTableOrder && localLines.length > 0 && linkedCustomerEmail ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-stone-50/80 px-3 py-2">
+          <p className="min-w-0 flex-1 text-[11px] text-stone-600">
+            Envoyer l’e-mail « commande prête » :
+          </p>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={sendReadyEmailManual}
+            className="flex h-9 shrink-0 items-center rounded-lg border border-copper-200 bg-white px-3 text-sm font-semibold text-copper-800 shadow-sm transition hover:bg-copper-50 disabled:opacity-50"
+          >
+            Notifier (e-mail)
+          </button>
         </div>
       ) : null}
 

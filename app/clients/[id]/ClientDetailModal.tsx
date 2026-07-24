@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -26,31 +26,9 @@ export function ClientDetailModal({
 }) {
   const router = useRouter();
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") router.back();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [router]);
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-900/40 p-4 backdrop-blur-sm sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Fiche de ${name}`}
-      onClick={() => router.back()}
-    >
-      <div
-        className="my-6 w-full max-w-4xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalOverlay ariaLabel={`Fiche de ${name}`} onClose={() => router.back()}>
+      <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-stone-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 text-sm font-bold text-copper-800 ring-1 ring-copper-100/90">
             {initials(name)}
@@ -70,6 +48,6 @@ export function ClientDetailModal({
         </div>
         <div className="max-h-[80vh] overflow-y-auto bg-stone-50/40 px-4 py-4 sm:px-5">{children}</div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

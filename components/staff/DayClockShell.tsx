@@ -10,6 +10,7 @@ import type { TemperaturePoint } from "@/lib/haccpTemperature/types";
 import { TEMPERATURE_POINT_TYPE_LABEL_FR } from "@/lib/haccpTemperature/types";
 import { classifyTemperatureStatus, parseTemperatureInput } from "@/lib/haccpTemperature/rules";
 import { uiBtnTouch, uiInput, uiLabel } from "@/components/ui/premium";
+import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 type Props = {
   restaurantId: string;
@@ -155,9 +156,8 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
 
       {/* Modale relevés de température HACCP — obligatoires avant de pointer */}
       {showTempModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white shadow-2xl">
+        <ModalOverlay ariaLabel="Relevés de température — ouverture">
+          <div className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white shadow-2xl">
             <div className="shrink-0 border-b border-stone-100 px-5 py-4">
               <h2 className="text-base font-semibold text-stone-900">
                 Relevés de température — ouverture
@@ -278,9 +278,8 @@ export function DayClockShell({ restaurantId, myShifts, temperaturePoints = [], 
                 </p>
               )}
             </div>
-            </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

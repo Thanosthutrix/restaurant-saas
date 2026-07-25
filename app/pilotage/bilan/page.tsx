@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Wallet } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
@@ -8,6 +7,7 @@ import { getExpenseCategoryLabel } from "@/lib/pocket/expenseCategories";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { uiCard } from "@/components/ui/premium";
 import { BilanSettingsClient } from "./BilanSettingsClient";
+import { BilanPeriodSelector } from "./BilanPeriodSelector";
 import { InvoiceCategorySelect } from "./InvoiceCategorySelect";
 
 export const metadata = { title: "Ma poche — bilan en temps réel" };
@@ -50,6 +50,10 @@ function resolvePeriod(sp: SearchParams): { from: string; to: string; preset: st
     }
     case "year":
       return { from: today.slice(0, 4) + "-01-01", to: today, preset: "year" };
+    case "lastyear": {
+      const y = Number(today.slice(0, 4)) - 1;
+      return { from: `${y}-01-01`, to: `${y}-12-31`, preset: "lastyear" };
+    }
     default:
       return { from: today.slice(0, 8) + "01", to: today, preset: "month" };
   }
@@ -61,14 +65,6 @@ function periodQuery(sp: SearchParams, preset: string): string {
   }
   return `p=${preset === "custom" ? "month" : preset}`;
 }
-
-const PRESETS = [
-  { key: "today", label: "Aujourd'hui" },
-  { key: "7d", label: "7 derniers jours" },
-  { key: "month", label: "Mois en cours" },
-  { key: "lastmonth", label: "Mois dernier" },
-  { key: "year", label: "Année en cours" },
-] as const;
 
 function Bar({ amount, base, cls }: { amount: number; base: number; cls: string }) {
   const pct = base > 0 ? Math.min(100, Math.max(2, Math.round((Math.abs(amount) / base) * 100))) : 2;
@@ -171,65 +167,14 @@ export default async function BilanPochePage({
         subtitle={`${restaurant.name} — ce qu'il vous reste, en temps réel`}
       />
 
-      {/* Période + mode */}
-      <div className="flex flex-wrap items-center gap-2">
-        {PRESETS.map((p) => (
-          <Link
-            key={p.key}
-            href={`/pilotage/bilan?p=${p.key}&m=${mode}`}
-            className={`rounded-xl border px-3 py-1.5 text-sm font-medium transition ${
-              preset === p.key
-                ? "border-copper-300 bg-copper-50 text-copper-800"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
-            }`}
-          >
-            {p.label}
-          </Link>
-        ))}
-        <form method="GET" action="/pilotage/bilan" className="flex items-center gap-1.5">
-          <input type="hidden" name="m" value={mode} />
-          <input
-            type="date"
-            name="from"
-            defaultValue={from}
-            className="rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-sm text-stone-700"
-          />
-          <span className="text-xs text-stone-400">→</span>
-          <input
-            type="date"
-            name="to"
-            defaultValue={to}
-            className="rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-sm text-stone-700"
-          />
-          <button
-            type="submit"
-            className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300"
-          >
-            OK
-          </button>
-        </form>
-
-        <span className="ml-auto inline-flex overflow-hidden rounded-xl border border-stone-200">
-          <Link
-            href={`/pilotage/bilan?${pq}&m=cash`}
-            title="Ce qui est réellement sorti du compte : factures d'achats de la période."
-            className={`px-3 py-1.5 text-sm font-medium transition ${
-              mode === "cash" ? "bg-stone-800 text-white" : "bg-white text-stone-600 hover:bg-stone-50"
-            }`}
-          >
-            Trésorerie
-          </Link>
-          <Link
-            href={`/pilotage/bilan?${pq}&m=perf`}
-            title="Coût matière économique : consommation FIFO réelle des ventes de la période."
-            className={`px-3 py-1.5 text-sm font-medium transition ${
-              mode === "perf" ? "bg-stone-800 text-white" : "bg-white text-stone-600 hover:bg-stone-50"
-            }`}
-          >
-            Performance
-          </Link>
-        </span>
-      </div>
+      <BilanPeriodSelector
+        key={`${preset}-${from}-${to}-${mode}`}
+        preset={preset}
+        from={from}
+        to={to}
+        mode={mode}
+        periodQuery={pq}
+      />
 
       {/* Le chiffre */}
       <div

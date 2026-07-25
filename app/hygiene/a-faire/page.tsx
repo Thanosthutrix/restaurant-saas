@@ -6,7 +6,8 @@ import {
 } from "@/lib/hygiene/hygieneDb";
 import { cachedEnsureHygieneTasks } from "@/lib/cache";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
-import { HygieneTasksClient } from "./HygieneTasksClient";
+import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
+import { HygieneTasksPanel } from "@/components/hygiene/HygieneTasksPanel";
 
 export default async function HygieneTasksPage() {
   const restaurant = await getRestaurantForPage();
@@ -19,14 +20,20 @@ export default async function HygieneTasksPage() {
   ]);
 
   return (
-    <PageContainer width="narrow">
+    <PageContainer>
       <PageHeader
-        breadcrumbs={[{ label: "Hygiène", href: "/hygiene" }, { label: "À faire maintenant" }]}
+        accentIcon={SECTION_ACCENT.hygiene.icon}
+        accentTone={SECTION_ACCENT.hygiene.tone}
+        breadcrumbs={[
+          { label: "Cuisine", href: "/cuisine" },
+          { label: "Nettoyage", href: "/hygiene" },
+          { label: "À faire maintenant" },
+        ]}
         title="À faire maintenant"
-        subtitle="Tâches dont l’échéance est passée ou aujourd’hui. Les tâches critiques exigent une photo à la validation."
+        subtitle="Tâches en tuiles — touchez une tuile pour voir le protocole et valider. Les tâches critiques exigent une photo."
       />
 
-      <HygieneTasksClient restaurantId={restaurant.id} due={due} upcoming={upcoming} />
+      <HygieneTasksPanel restaurantId={restaurant.id} due={due} upcoming={upcoming} />
     </PageContainer>
   );
 }

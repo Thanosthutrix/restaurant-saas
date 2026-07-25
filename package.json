@@ -18,6 +18,7 @@
     "cap:sync:device": "CAPACITOR_SERVER_URL=$(node scripts/cap-device-url.mjs) npx cap sync",
     "cap:sync:prod": "CAPACITOR_SERVER_URL=https://www.ubion.fr npx cap sync",
     "cap:dev:ios": "node scripts/cap-check-dev.mjs && npm run cap:sync:local && npm run cap:open:ios",
+    "cap:dev:ios:device": "node scripts/cap-check-dev.mjs && npm run cap:sync:device && npm run cap:open:ios",
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "cap:run:ios": "npx cap run ios",

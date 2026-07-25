@@ -2,31 +2,27 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  CheckCircle2,
   ClipboardList,
   FileClock,
   LayoutGrid,
   ListChecks,
   Snowflake,
   SprayCan,
-  Sparkles,
   Thermometer,
 } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
   countHygieneTasksDue,
   getHygieneScoreForRestaurant,
-  listHygieneElements,
-  listHygieneRegister,
   listHygieneTasksDue,
   listHygieneTasksUpcoming,
 } from "@/lib/hygiene/hygieneDb";
-import { HYGIENE_RISK_LEVELS, type HygieneRiskLevel } from "@/lib/hygiene/types";
 import { cachedEnsureHygieneTasks } from "@/lib/cache";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
-import { RiskPill, ScoreGauge, StatTile, fmtWhen, scoreBand } from "./hygieneUi";
+import { ScoreGauge, scoreBand } from "./hygieneUi";
 import { HygieneDueTasksClient } from "./HygieneDueTasksClient";
+import { HygieneTaskTileGrid } from "@/components/hygiene/HygieneTaskTileGrid";
 
 type Shortcut = {
   href: string;
@@ -37,42 +33,20 @@ type Shortcut = {
   badge?: number;
 };
 
-const RISK_DOT: Record<HygieneRiskLevel, string> = {
-  critical: "bg-rose-500",
-  important: "bg-amber-500",
-  standard: "bg-stone-300",
-};
-
-/** Instant courant (isolé dans un helper : requête serveur dynamique, pas de rendu figé). */
-function currentMs(): number {
-  return Date.now();
-}
-
 export default async function HygieneHubPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
   await cachedEnsureHygieneTasks(restaurant.id);
-  const [score, dueTasks, dueCount, upcoming, elements, register] = await Promise.all([
+  const [score, dueTasks, dueCount, upcoming] = await Promise.all([
     getHygieneScoreForRestaurant(restaurant.id, 7),
     listHygieneTasksDue(restaurant.id, 200),
     countHygieneTasksDue(restaurant.id),
     listHygieneTasksUpcoming(restaurant.id, 8),
-    listHygieneElements(restaurant.id),
-    listHygieneRegister(restaurant.id, 200),
   ]);
 
-  const nowMs = currentMs();
   const hasScoreData = score.max > 0;
   const band = scoreBand(score.score, hasScoreData);
-
-  const weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000;
-  const completed7d = register.filter(
-    (t) => t.completed_at && new Date(t.completed_at).getTime() >= weekAgo
-  ).length;
-
-  const riskCounts: Record<HygieneRiskLevel, number> = { critical: 0, important: 0, standard: 0 };
-  for (const t of dueTasks) riskCounts[t.risk_level] = (riskCounts[t.risk_level] ?? 0) + 1;
 
   const shortcuts: Shortcut[] = [
     { href: "/hygiene/a-faire", title: "À faire maintenant", icon: ListChecks, tone: "bg-amber-50 text-amber-700", hover: "tile-amber", badge: dueCount },
@@ -94,55 +68,14 @@ export default async function HygieneHubPage() {
         subtitle="Votre plan de nettoyage en un coup d’œil : score des 7 derniers jours, tâches à traiter et échéances à venir."
       />
 
-      {/* ═══ Héros : score + chiffres clés ═══ */}
-      <section className="grid gap-4 lg:grid-cols-[300px_1fr]">
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-stone-200/70 bg-white p-5 shadow-sm">
+      {/* ═══ Score hygiène ═══ */}
+      <section className="flex justify-center sm:justify-start">
+        <div className="flex w-full max-w-xs flex-col items-center justify-center gap-3 rounded-2xl border border-stone-200/70 bg-white p-5 shadow-sm">
           <ScoreGauge score={score.score} hasData={hasScoreData} />
           <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ${band.chip}`}>
             {band.label}
           </span>
           <p className="text-center text-xs leading-relaxed text-stone-400">Score hygiène · 7 derniers jours</p>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatTile
-              label="À faire maintenant"
-              value={dueCount}
-              icon={ListChecks}
-              tone={dueCount > 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-50 text-emerald-700"}
-              emphasis={dueCount > 0}
-            />
-            <StatTile label="Éléments au plan" value={elements.length} icon={SprayCan} tone="bg-cyan-50 text-cyan-700" />
-            <StatTile label="Réalisées (7 j)" value={completed7d} icon={CheckCircle2} tone="bg-emerald-50 text-emerald-700" />
-          </div>
-
-          {dueCount > 0 ? (
-            <div className="rounded-2xl border border-stone-200/70 bg-white p-4 shadow-sm">
-              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Répartition des tâches à faire
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {HYGIENE_RISK_LEVELS.map((level) => (
-                  <div key={level} className="rounded-xl border border-stone-200/70 bg-stone-50/50 px-3 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`h-2.5 w-2.5 rounded-full ${RISK_DOT[level]}`} />
-                      <RiskPill level={level} />
-                    </div>
-                    <p className="mt-1 text-xl font-semibold tabular-nums text-stone-900">{riskCounts[level]}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900">
-              <Sparkles className="h-6 w-6 shrink-0 text-emerald-600" aria-hidden />
-              <div>
-                <p className="text-sm font-semibold">Tout est à jour</p>
-                <p className="text-xs text-emerald-700">Aucune tâche de nettoyage en retard. Beau travail !</p>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
@@ -184,26 +117,7 @@ export default async function HygieneHubPage() {
       {upcoming.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-stone-900">Prochaines échéances</h2>
-          <ul className="space-y-2">
-            {upcoming.slice(0, 6).map((t) => {
-              const when = fmtWhen(t.due_at, nowMs);
-              return (
-                <li
-                  key={t.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-stone-200/70 bg-white px-4 py-3 shadow-sm"
-                >
-                  <RiskPill level={t.risk_level} />
-                  <span className="min-w-0 flex-1">
-                    <span className="truncate font-medium text-stone-900">{t.element_name}</span>
-                    {t.area_label ? <span className="ml-1.5 text-xs text-stone-400">· {t.area_label}</span> : null}
-                  </span>
-                  <span className="text-xs text-stone-500">
-                    {when.abs} <span className="text-stone-400">· {when.hint}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <HygieneTaskTileGrid tasks={upcoming.slice(0, 6)} />
         </section>
       ) : null}
     </PageContainer>

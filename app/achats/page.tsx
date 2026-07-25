@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Boxes, ClipboardCheck, FileText, PackageCheck, Sparkles, Truck } from "lucide-react";
+import { Boxes, ClipboardCheck, FileText, PackageCheck, Sparkles, Truck } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
   getInventoryStockDashboardSummary,
   getRecentDeliveryNotesForRestaurant,
   getSupplierInvoicesForRestaurant,
 } from "@/lib/db";
-import { cachedGetSuppliers } from "@/lib/cache";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 
@@ -16,31 +15,16 @@ export default async function AchatsPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [summaryRes, suppliersRes, notesRes, invoicesRes] = await Promise.all([
+  const [summaryRes, notesRes, invoicesRes] = await Promise.all([
     getInventoryStockDashboardSummary(restaurant.id),
-    cachedGetSuppliers(restaurant.id, true),
     getRecentDeliveryNotesForRestaurant(restaurant.id, 200),
     getSupplierInvoicesForRestaurant(restaurant.id, { includeFileFields: false }),
   ]);
 
   const belowMin = summaryRes.data?.belowMinStockCount ?? 0;
   const inventoryCount = summaryRes.data?.inventoryCount ?? 0;
-  const suppliersCount = suppliersRes.data?.length ?? 0;
   const blToPoint = (notesRes.data ?? []).filter((n) => n.status === "draft").length;
   const invoicesToProcess = (invoicesRes.data ?? []).filter((i) => i.status !== "reviewed").length;
-
-  const stats: { label: string; value: number; icon: LucideIcon; tone: string; emphasis?: boolean }[] = [
-    {
-      label: "Stock sous le mini",
-      value: belowMin,
-      icon: AlertTriangle,
-      tone: belowMin > 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-50 text-emerald-700",
-      emphasis: belowMin > 0,
-    },
-    { label: "BL à pointer", value: blToPoint, icon: PackageCheck, tone: blToPoint > 0 ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600" },
-    { label: "Factures à traiter", value: invoicesToProcess, icon: FileText, tone: invoicesToProcess > 0 ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-600" },
-    { label: "Fournisseurs actifs", value: suppliersCount, icon: Truck, tone: "bg-sky-50 text-sky-700" },
-  ];
 
   const shortcuts: { label: string; href: string; icon: LucideIcon; tone: string; tile: string; badge?: number }[] = [
     { label: "Stock", href: "/inventory", icon: Boxes, tone: "bg-emerald-50 text-emerald-700", tile: "tile-emerald", badge: belowMin },
@@ -60,31 +44,6 @@ export default async function AchatsPage() {
         title="Achats & stock"
         subtitle="Tout le parcours achat au même endroit : besoin, commande, réception, facture — et un coup d’œil sur ce qui réclame votre attention."
       />
-
-      {/* Chiffres clés */}
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Synthèse achats">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <div
-              key={s.label}
-              className={`flex items-center gap-3 rounded-2xl border p-3 shadow-sm sm:p-4 ${
-                s.emphasis ? "border-rose-200 bg-rose-50/60" : "border-stone-200/70 bg-white"
-              }`}
-            >
-              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.tone}`}>
-                <Icon className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="text-2xl font-semibold tabular-nums leading-none tracking-tight text-stone-900">
-                  {s.value}
-                </p>
-                <p className="mt-1 text-xs font-medium text-stone-500">{s.label}</p>
-              </div>
-            </div>
-          );
-        })}
-      </section>
 
       {/* Accès rapides */}
       <section aria-label="Accès rapides">

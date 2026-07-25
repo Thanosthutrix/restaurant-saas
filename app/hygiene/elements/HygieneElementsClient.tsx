@@ -2,24 +2,13 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import {
-  Boxes,
   Camera,
   CheckCircle2,
-  Cog,
-  DoorOpen,
-  Droplets,
-  Fan,
-  Flame,
   Pencil,
   Plus,
   Power,
-  Snowflake,
-  Sparkles,
   Thermometer,
   Trash2,
-  Truck,
-  Utensils,
-  type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { HygieneElement, HygieneRecurrencePreset } from "@/lib/hygiene/types";
@@ -43,6 +32,7 @@ import {
   logHygieneElementDoneAction,
 } from "../actions";
 import { applyHygieneProtocolPreset, getHygieneProtocolPreset } from "@/lib/hygiene/protocolPresets";
+import { hygieneCategoryMeta } from "@/lib/hygiene/hygieneCategoryMeta";
 import { HygieneProtocolPanel } from "@/components/hygiene/HygieneProtocolPanel";
 import { Modal } from "@/components/ui/Modal";
 import { RiskPill } from "../hygieneUi";
@@ -72,21 +62,6 @@ const TEMP_RECURRENCE_LABEL_FR: Record<"daily" | "per_service", string> = {
 };
 
 const DAYS_OF_WEEK_FR = ["Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."];
-
-/** Icône + teinte par famille de catégorie (identité visuelle des tuiles). */
-function categoryMeta(cat: string): { Icon: LucideIcon; tone: string; tile: string } {
-  if (COLD_CATEGORIES.has(cat)) return { Icon: Snowflake, tone: "bg-sky-50 text-sky-700", tile: "tile-sky" };
-  if (cat === "four" || cat === "piano_plaque") return { Icon: Flame, tone: "bg-amber-50 text-amber-700", tile: "tile-amber" };
-  if (cat === "hotte") return { Icon: Fan, tone: "bg-amber-50 text-amber-700", tile: "tile-amber" };
-  if (cat === "trancheuse" || cat === "machine") return { Icon: Cog, tone: "bg-violet-50 text-violet-700", tile: "tile-violet" };
-  if (cat === "poubelle" || cat === "zone_dechets") return { Icon: Trash2, tone: "bg-stone-100 text-stone-700", tile: "tile-copper" };
-  if (cat === "vehicule") return { Icon: Truck, tone: "bg-stone-100 text-stone-700", tile: "tile-copper" };
-  if (cat === "plonge" || cat === "sanitaire") return { Icon: Droplets, tone: "bg-cyan-50 text-cyan-700", tile: "tile-cyan" };
-  if (cat === "ustensile" || cat === "bac_gastronorme") return { Icon: Utensils, tone: "bg-emerald-50 text-emerald-700", tile: "tile-emerald" };
-  if (cat === "etagere" || cat === "reserve") return { Icon: Boxes, tone: "bg-emerald-50 text-emerald-700", tile: "tile-emerald" };
-  if (cat === "poignee_contact") return { Icon: DoorOpen, tone: "bg-cyan-50 text-cyan-700", tile: "tile-cyan" };
-  return { Icon: Sparkles, tone: "bg-cyan-50 text-cyan-700", tile: "tile-cyan" };
-}
 
 const emptyForm = {
   id: null as string | null,
@@ -366,7 +341,7 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {filtered.map((el) => {
-            const meta = categoryMeta(el.category);
+            const meta = hygieneCategoryMeta(el.category);
             const Icon = meta.Icon;
             return (
               <li key={el.id}>
@@ -416,8 +391,8 @@ export function HygieneElementsClient({ restaurantId, elements, presets, initial
         <Modal
           title={detailEl.name}
           subtitle={`${HYGIENE_CATEGORY_LABEL_FR[detailEl.category as keyof typeof HYGIENE_CATEGORY_LABEL_FR] ?? detailEl.category}${detailEl.area_label ? ` · ${detailEl.area_label}` : ""}`}
-          icon={categoryMeta(detailEl.category).Icon}
-          tone={categoryMeta(detailEl.category).tone}
+          icon={hygieneCategoryMeta(detailEl.category).Icon}
+          tone={hygieneCategoryMeta(detailEl.category).tone}
           onClose={() => setDetailEl(null)}
           footer={
             <>

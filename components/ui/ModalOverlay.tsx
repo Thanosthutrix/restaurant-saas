@@ -13,6 +13,9 @@ export type ModalOverlayProps = {
 
 const DEFAULT_BACKDROP = "bg-stone-900/40 backdrop-blur-sm";
 
+/** Largeur max du conteneur dialog — les panneaux enfants gardent leur propre max-w-* */
+const PANEL_SLOT_CLASS = "w-full max-w-[min(calc(100vw-2rem),56rem)] sm:w-fit sm:max-w-[min(calc(100vw-2rem),56rem)]";
+
 /**
  * Overlay plein écran via portail — toujours centré dans le viewport,
  * indépendamment du scroll de la page sous-jacente.
@@ -51,18 +54,14 @@ export function ModalOverlay({
 
   return createPortal(
     <div
-      className="fixed inset-0 overflow-y-auto overscroll-contain"
+      className={`fixed inset-0 overflow-y-auto overscroll-contain ${backdropClassName}`}
       style={{ zIndex }}
       role="presentation"
+      onClick={onClose}
     >
-      <div
-        className={`fixed inset-0 ${backdropClassName}`}
-        aria-hidden
-        onClick={onClose}
-      />
-      <div className="relative flex min-h-[100dvh] min-h-full w-full items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:p-6">
+      <div className="relative flex min-h-[100dvh] min-h-full w-full items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:p-6 pointer-events-none">
         <div
-          className="relative mx-auto flex w-full flex-col items-center justify-center"
+          className={`relative mx-auto flex flex-col items-center justify-center pointer-events-auto ${PANEL_SLOT_CLASS}`}
           role="dialog"
           aria-modal="true"
           aria-label={ariaLabel}

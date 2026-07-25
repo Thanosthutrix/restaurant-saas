@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { MobileShellBootstrap } from "@/components/app/MobileShellBootstrap";
 import { PremiumAppShell } from "@/components/app/PremiumAppShell";
 import { NativeShellBootstrap } from "@/components/capacitor/NativeShellBootstrap";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
@@ -52,11 +53,13 @@ export default async function RootLayout({
   const headerBootstrap = await buildShellHeaderBootstrap();
 
   return (
-    <html lang="fr" className="scroll-smooth">
+    <html lang="fr" className="scroll-smooth" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} font-sans antialiased`}
+        suppressHydrationWarning
       >
         <ServiceWorkerRegister />
+        <MobileShellBootstrap />
         <NativeShellBootstrap />
         <PremiumAppShell headerBootstrap={headerBootstrap}>{children}</PremiumAppShell>
       </body>

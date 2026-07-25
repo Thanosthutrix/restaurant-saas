@@ -5,6 +5,7 @@
   --foreground: #1f2124;
   --app-card: #ffffff;
   --app-ring: rgba(31, 33, 36, 0.08);
+  --app-bottom-tabbar-height: calc(3.75rem + max(0.35rem, env(safe-area-inset-bottom, 0px)));
 }
 
 @theme inline {
@@ -63,6 +64,72 @@
   .app-content-offset {
     padding-left: 14rem;
   }
+}
+
+/* Bandeau bas : réserve de hauteur dans le flux de TOUTES les pages (mobile / app). */
+.app-bottom-tabbar-spacer {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+  pointer-events: none;
+  height: var(--app-bottom-tabbar-height, calc(3.75rem + max(0.35rem, env(safe-area-inset-bottom, 0px))));
+  min-height: var(--app-bottom-tabbar-height, calc(3.75rem + max(0.35rem, env(safe-area-inset-bottom, 0px))));
+}
+
+@media (min-width: 1024px) {
+  html:not(.capacitor-native) .app-bottom-tabbar-spacer {
+    display: none;
+    height: 0;
+    min-height: 0;
+  }
+
+  html:not(.capacitor-native) {
+    --app-bottom-tabbar-height: 0px;
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --app-bottom-tabbar-height: calc(3.75rem + max(0.35rem, env(safe-area-inset-bottom, 0px)));
+  }
+
+  /* Mobile web : même ressenti que l'app (encoches, pas de rebond latéral). */
+  html.mobile-shell {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overscroll-behavior: none;
+    --cap-safe-top: env(safe-area-inset-top, 0px);
+    --cap-safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html.mobile-shell body {
+    overflow-x: hidden;
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+}
+
+html.capacitor-native {
+  --app-bottom-tabbar-height: calc(3.75rem + max(0.35rem, env(safe-area-inset-bottom, 0px)));
+}
+
+html.capacitor-native .app-bottom-tabbar-spacer {
+  display: block;
+}
+
+/* App native : barre du bas visible même en large (pas de branche isNativeApp() au rendu). */
+@media (min-width: 1024px) {
+  html.capacitor-native .app-bottom-tabbar {
+    display: block;
+  }
+
+  html.capacitor-native .more-nav-sheet-overlay {
+    display: block;
+  }
+}
+
+html.has-bottom-tabbar {
+  scroll-padding-bottom: var(--app-bottom-tabbar-height);
 }
 
 /* Illumination de tuile par section (identité couleur) — classes dédiées pour

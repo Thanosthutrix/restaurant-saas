@@ -24,7 +24,8 @@ if (!ok) {
   console.error("Dans un autre terminal, depuis restaurant-saas/restaurant-saas :");
   console.error("  npm run dev:lan");
   console.error("");
-  console.error("Puis relancez : npm run cap:dev:ios");
+  console.error("Simulateur : npm run cap:dev:ios");
+  console.error("iPhone branché  : npm run cap:dev:ios:device");
   console.error("");
   process.exit(1);
 }

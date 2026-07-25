@@ -95,73 +95,77 @@ export function EditInventoryItemBlock({
           {error}
         </p>
       )}
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <label className="flex min-w-0 flex-col gap-1">
           <span className={uiLabel}>Nom</span>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={uiInput} />
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`${uiInput} w-full min-w-0`} />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className={uiLabel}>Unité</span>
-          <select
-            value={unit}
-            onChange={(e) => setUnit(e.target.value as AllowedUnit)}
-            className={`min-w-[7rem] ${uiSelect}`}
-          >
-            {ALLOWED_UNITS.map((u) => (
-              <option key={u} value={u}>
-                {STOCK_UNIT_LABEL_FR[u]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={uiLabel}>Type</span>
-          <select
-            value={itemType}
-            onChange={(e) => setItemType(e.target.value as "ingredient" | "prep" | "resale")}
-            className={uiSelect}
-          >
-            {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={uiLabel}>Stock (mouvements)</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={currentStockQty}
-            onChange={(e) => setCurrentStockQty(e.target.value)}
-            className={`w-24 ${uiInput}`}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={uiLabel}>Seuil min (opt.)</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={minStockQty}
-            onChange={(e) => setMinStockQty(e.target.value)}
-            placeholder="—"
-            className={`w-24 ${uiInput}`}
-          />
-        </label>
-        <label className="flex min-w-[10rem] flex-col gap-1">
-          <span className={uiLabel}>Prix achat réf. € HT / {unit}</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={referencePurchasePrice}
-            onChange={(e) => setReferencePurchasePrice(e.target.value)}
-            placeholder="ex. 2,50"
-            title="Utilisé à la réception si la facture ou le BL ne donne pas de coût, et après le dernier achat enregistré."
-            className={`w-full max-w-[7rem] ${uiInput}`}
-          />
-        </label>
-        <button type="submit" disabled={loading || !name.trim()} className={uiBtnPrimarySm}>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
+            <span className={uiLabel}>Unité</span>
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value as AllowedUnit)}
+              className={`${uiSelect} w-full min-w-0`}
+            >
+              {ALLOWED_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {STOCK_UNIT_LABEL_FR[u]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className={uiLabel}>Type</span>
+            <select
+              value={itemType}
+              onChange={(e) => setItemType(e.target.value as "ingredient" | "prep" | "resale")}
+              className={`${uiSelect} w-full min-w-0`}
+            >
+              {TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className={uiLabel}>Stock (mouvements)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={currentStockQty}
+              onChange={(e) => setCurrentStockQty(e.target.value)}
+              className={`${uiInput} w-full min-w-0`}
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className={uiLabel}>Seuil min (opt.)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={minStockQty}
+              onChange={(e) => setMinStockQty(e.target.value)}
+              placeholder="—"
+              className={`${uiInput} w-full min-w-0`}
+            />
+          </label>
+          <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1 lg:col-span-1">
+            <span className={uiLabel}>Prix achat réf. € HT / {unit}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={referencePurchasePrice}
+              onChange={(e) => setReferencePurchasePrice(e.target.value)}
+              placeholder="ex. 2,50"
+              title="Utilisé à la réception si la facture ou le BL ne donne pas de coût, et après le dernier achat enregistré."
+              className={`${uiInput} w-full min-w-0`}
+            />
+          </label>
+        </div>
+
+        <button type="submit" disabled={loading || !name.trim()} className={`${uiBtnPrimarySm} w-full sm:w-auto`}>
           {loading ? "Enregistrement…" : "Enregistrer"}
         </button>
       </form>

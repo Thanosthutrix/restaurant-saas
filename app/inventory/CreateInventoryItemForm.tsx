@@ -81,7 +81,7 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
       <div className="space-y-3">
         <div className="flex flex-col gap-1">
           <span className={uiLabel}>Type</span>
-          <div className="inline-flex h-11 items-center gap-1 self-start rounded-xl border border-stone-200 bg-stone-50 p-1">
+          <div className="grid grid-cols-3 gap-1 rounded-xl border border-stone-200 bg-stone-50 p-1">
             {ITEM_TYPES.map((t) => {
               const on = itemType === t.value;
               return (
@@ -90,7 +90,7 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
                   type="button"
                   aria-pressed={on}
                   onClick={() => setItemType(t.value)}
-                  className={`h-full rounded-lg px-3 text-sm font-semibold transition ${
+                  className={`min-h-11 rounded-lg px-1.5 text-xs font-semibold leading-tight transition sm:px-3 sm:text-sm ${
                     on ? `bg-white ${t.active} shadow-sm ring-1 ring-stone-200` : "text-stone-500 hover:text-stone-700"
                   }`}
                 >
@@ -101,23 +101,24 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
           </div>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className={uiLabel}>Nom</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="ex. farine"
-              className={`${uiInput} h-11 w-full`}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
+        <label className="flex flex-col gap-1">
+          <span className={uiLabel}>Nom</span>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="ex. farine"
+            className={`${uiInput} h-11 w-full min-w-0`}
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <label className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
             <span className={uiLabel}>Unité</span>
             <select
               value={unit}
               onChange={(e) => setUnit(e.target.value as AllowedUnit)}
-              className={`${uiSelect} h-11 min-w-[7rem]`}
+              className={`${uiSelect} h-11 w-full min-w-0`}
             >
               {ALLOWED_UNITS.map((u) => (
                 <option key={u} value={u}>
@@ -126,7 +127,7 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex min-w-0 flex-col gap-1">
             <span className={uiLabel}>Stock initial</span>
             <input
               type="text"
@@ -134,10 +135,10 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
               value={currentStockQty}
               onChange={(e) => setCurrentStockQty(e.target.value)}
               placeholder="0"
-              className={`${uiInput} h-11 w-24`}
+              className={`${uiInput} h-11 w-full min-w-0`}
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex min-w-0 flex-col gap-1">
             <span className={uiLabel}>Seuil min (opt.)</span>
             <input
               type="text"
@@ -145,18 +146,19 @@ export function CreateInventoryItemForm({ restaurantId }: { restaurantId: string
               value={minStockQty}
               onChange={(e) => setMinStockQty(e.target.value)}
               placeholder="—"
-              className={`${uiInput} h-11 w-24`}
+              className={`${uiInput} h-11 w-full min-w-0`}
             />
           </label>
-          <button
-            type="submit"
-            disabled={loading || !name.trim()}
-            className={`${uiBtnPrimary} inline-flex h-11 items-center justify-center gap-1.5`}
-          >
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading || !name.trim()}
+          className={`${uiBtnPrimary} inline-flex h-11 w-full items-center justify-center gap-1.5 sm:w-auto`}
+        >
             <Plus className="h-4 w-4" aria-hidden />
             {loading ? "Création…" : "Créer"}
-          </button>
-        </div>
+        </button>
       </div>
     </form>
   );

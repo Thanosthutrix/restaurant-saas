@@ -16,6 +16,7 @@ import {
   Truck,
 } from "lucide-react";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
+import { canAccessPage } from "@/lib/auth/appRoles";
 
 export type ShellNavGroup = "Accueil" | "Service" | "Gestion";
 
@@ -192,6 +193,31 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     match: (p) => p === "/account" || p.startsWith("/account/"),
   },
 ];
+
+/** Onglets principaux de la barre du bas (style app native). */
+export const BOTTOM_TAB_NAV_KEYS: ShellNavKey[] = ["dashboard", "salle", "caisse", "cuisine"];
+
+/** Libellés courts sous les icônes (barre du bas). */
+export const BOTTOM_TAB_SHORT_LABELS: Partial<Record<ShellNavKey, string>> = {
+  dashboard: "Accueil",
+  salle: "Salle",
+  caisse: "Caisse",
+  cuisine: "Cuisine",
+};
+
+export function filterShellNavItems(
+  allowedNavKeys?: ShellNavKey[] | null,
+  opts?: { omitDashboard?: boolean }
+): ShellNavItem[] {
+  const hasKeys = allowedNavKeys != null && allowedNavKeys.length > 0;
+  return SHELL_NAV_ITEMS.filter((item) => {
+    if (opts?.omitDashboard && item.navKey === "dashboard") return false;
+    if (!hasKeys) return true;
+    if (item.hideIfKeys?.some((k) => allowedNavKeys.includes(k))) return false;
+    if (canAccessPage(item.navKey, allowedNavKeys)) return true;
+    return item.coveredKeys?.some((k) => canAccessPage(k, allowedNavKeys)) ?? false;
+  });
+}
 
 export function isBareShellPath(pathname: string | null): boolean {
   if (!pathname) return true;

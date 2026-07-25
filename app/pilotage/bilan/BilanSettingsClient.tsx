@@ -53,7 +53,6 @@ export function BilanSettingsClient({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // Salaires : valeur locale par employé (saisie libre, save à la validation).
   const [rates, setRates] = useState<Record<string, string>>(() =>
     Object.fromEntries(staff.map((s) => [s.id, s.hourlyGrossRate != null ? String(s.hourlyGrossRate) : ""]))
   );
@@ -156,18 +155,20 @@ export function BilanSettingsClient({
   }
 
   const inputCls =
-    "w-24 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-sm text-stone-800 text-right tabular-nums";
+    "min-w-0 w-full max-w-[5.5rem] rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-sm text-stone-800 text-right tabular-nums";
+  const inputWideCls =
+    "min-w-0 w-full rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-sm text-stone-800";
   const btnCls =
-    "rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 disabled:opacity-50";
+    "shrink-0 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 disabled:opacity-50";
 
   return (
-    <div className={uiCard}>
+    <div className={`${uiCard} min-w-0 max-w-full overflow-hidden`}>
       <h2 className="text-sm font-semibold text-stone-900">Réglages du bilan</h2>
       {error ? <p className={`${uiError} mt-2`}>{error}</p> : null}
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-3">
+      <div className="mt-4 grid min-w-0 gap-8 xl:grid-cols-3">
         {/* Salaires */}
-        <section>
+        <section className="min-w-0">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">
             Salaires & PAS
           </h3>
@@ -179,40 +180,52 @@ export function BilanSettingsClient({
               <p className="text-sm text-stone-500">Aucun employé actif.</p>
             ) : (
               staff.map((s) => (
-                <div key={s.id} className="space-y-1.5 rounded-xl border border-stone-100 px-2.5 py-2">
+                <div key={s.id} className="min-w-0 rounded-xl border border-stone-100 p-3">
                   <p className="truncate text-sm font-medium text-stone-800">{s.displayName}</p>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-stone-500">Brut</span>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <input
-                        value={rates[s.id] ?? ""}
-                        onChange={(e) => setRates((r) => ({ ...r, [s.id]: e.target.value }))}
-                        placeholder="12,02"
-                        inputMode="decimal"
-                        className={inputCls}
-                        aria-label={`Brut horaire de ${s.displayName}`}
-                      />
-                      <span className="text-xs text-stone-400">€/h</span>
-                      <button type="button" disabled={pending} onClick={() => saveRate(s.id)} className={btnCls}>
-                        OK
-                      </button>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center">
+                      <span className="shrink-0 text-xs text-stone-500 sm:w-10">Brut</span>
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                        <input
+                          value={rates[s.id] ?? ""}
+                          onChange={(e) => setRates((r) => ({ ...r, [s.id]: e.target.value }))}
+                          placeholder="12,02"
+                          inputMode="decimal"
+                          className={inputCls}
+                          aria-label={`Brut horaire de ${s.displayName}`}
+                        />
+                        <span className="text-xs text-stone-400">€/h</span>
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => saveRate(s.id)}
+                          className={btnCls}
+                        >
+                          OK
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-stone-500">PAS</span>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <input
-                        value={pasRates[s.id] ?? ""}
-                        onChange={(e) => setPasRates((r) => ({ ...r, [s.id]: e.target.value }))}
-                        placeholder="0"
-                        inputMode="decimal"
-                        className={inputCls}
-                        aria-label={`Taux PAS de ${s.displayName}`}
-                      />
-                      <span className="text-xs text-stone-400">%</span>
-                      <button type="button" disabled={pending} onClick={() => savePasRate(s.id)} className={btnCls}>
-                        OK
-                      </button>
+                    <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center">
+                      <span className="shrink-0 text-xs text-stone-500 sm:w-10">PAS</span>
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                        <input
+                          value={pasRates[s.id] ?? ""}
+                          onChange={(e) => setPasRates((r) => ({ ...r, [s.id]: e.target.value }))}
+                          placeholder="0"
+                          inputMode="decimal"
+                          className={inputCls}
+                          aria-label={`Taux PAS de ${s.displayName}`}
+                        />
+                        <span className="text-xs text-stone-400">%</span>
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => savePasRate(s.id)}
+                          className={btnCls}
+                        >
+                          OK
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -222,7 +235,7 @@ export function BilanSettingsClient({
         </section>
 
         {/* Charges récurrentes sans facture */}
-        <section>
+        <section className="min-w-0">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">
             Charges récurrentes (sans facture)
           </h3>
@@ -233,15 +246,18 @@ export function BilanSettingsClient({
           </p>
           <div className="mt-3 space-y-2">
             {charges.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-2 text-sm">
-                <p className="min-w-0 truncate text-stone-700">
+              <div
+                key={c.id}
+                className="flex min-w-0 flex-col gap-1 rounded-lg py-1 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <p className="min-w-0 truncate text-sm text-stone-700">
                   {c.label}
                   <span className="ml-1.5 text-xs text-stone-400">
                     {getExpenseCategoryLabel(c.category)}
                   </span>
                 </p>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="tabular-nums font-medium text-stone-800">
+                <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+                  <span className="whitespace-nowrap text-sm tabular-nums font-medium text-stone-800">
                     {c.monthlyAmount.toLocaleString("fr-FR")} €
                     {PERIODICITIES.find((p) => p.value === c.periodicity)?.label ?? "/mois"}
                   </span>
@@ -257,28 +273,29 @@ export function BilanSettingsClient({
                 </div>
               </div>
             ))}
-            <div className="space-y-1.5 pt-1">
-              <div className="flex items-center gap-1.5">
-                <input
-                  value={chargeLabel}
-                  onChange={(e) => setChargeLabel(e.target.value)}
-                  placeholder="Loyer"
-                  className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-sm"
-                />
+            <div className="space-y-2 border-t border-stone-100 pt-3">
+              <input
+                value={chargeLabel}
+                onChange={(e) => setChargeLabel(e.target.value)}
+                placeholder="Loyer"
+                className={inputWideCls}
+              />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
                 <input
                   value={chargeAmount}
                   onChange={(e) => setChargeAmount(e.target.value)}
                   placeholder="1800"
                   inputMode="decimal"
-                  className={inputCls}
+                  className={inputWideCls}
                 />
+                <span className="text-xs text-stone-400 sm:text-right">€ HT</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <select
                   value={chargeCategory}
                   onChange={(e) => setChargeCategory(e.target.value)}
                   aria-label="Poste comptable"
-                  className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-sm text-stone-700"
+                  className={`${inputWideCls} cursor-pointer`}
                 >
                   {EXPENSE_CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>
@@ -290,7 +307,7 @@ export function BilanSettingsClient({
                   value={chargePeriodicity}
                   onChange={(e) => setChargePeriodicity(e.target.value)}
                   aria-label="Périodicité"
-                  className="rounded-xl border border-stone-200 bg-white px-2 py-1.5 text-sm text-stone-700"
+                  className={`${inputWideCls} cursor-pointer`}
                 >
                   {PERIODICITIES.map((p) => (
                     <option key={p.value} value={p.value}>
@@ -298,29 +315,29 @@ export function BilanSettingsClient({
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={addCharge}
-                  className={`${btnCls} inline-flex items-center gap-1`}
-                >
-                  <Plus className="h-3.5 w-3.5" aria-hidden />
-                  Ajouter
-                </button>
               </div>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={addCharge}
+                className={`${btnCls} inline-flex w-full items-center justify-center gap-1 sm:w-auto`}
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Ajouter
+              </button>
             </div>
           </div>
         </section>
 
         {/* Pourcentages */}
-        <section>
+        <section className="min-w-0">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500">Paie & estimations</h3>
           <div className="mt-3 space-y-3">
             <div>
               <label className="text-sm text-stone-700" htmlFor="atmpPct">
                 Taux AT/MP (% du brut)
               </label>
-              <div className="mt-1 flex items-center gap-1.5">
+              <div className="mt-1 flex max-w-full flex-wrap items-center gap-1.5">
                 <input
                   id="atmpPct"
                   value={atmpPct}
@@ -338,7 +355,7 @@ export function BilanSettingsClient({
               <label className="text-sm text-stone-700" htmlFor="employerPct">
                 Charges patronales (% du brut)
               </label>
-              <div className="mt-1 flex items-center gap-1.5">
+              <div className="mt-1 flex max-w-full flex-wrap items-center gap-1.5">
                 <input
                   id="employerPct"
                   value={employerPct}
@@ -354,7 +371,7 @@ export function BilanSettingsClient({
               <label className="text-sm text-stone-700" htmlFor="taxPct">
                 Impôts & cotisations dirigeant (% du résultat)
               </label>
-              <div className="mt-1 flex items-center gap-1.5">
+              <div className="mt-1 flex max-w-full flex-wrap items-center gap-1.5">
                 <input
                   id="taxPct"
                   value={taxPct}

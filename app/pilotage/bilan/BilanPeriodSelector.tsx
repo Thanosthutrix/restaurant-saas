@@ -13,6 +13,8 @@ const PRESET_OPTIONS = [
   { key: "custom", label: "Période personnalisée" },
 ] as const;
 
+type PeriodPreset = (typeof PRESET_OPTIONS)[number]["key"];
+
 type Props = {
   preset: string;
   from: string;
@@ -21,14 +23,20 @@ type Props = {
   periodQuery: string;
 };
 
-function isKnownPreset(preset: string): preset is (typeof PRESET_OPTIONS)[number]["key"] {
+function isPeriodPreset(value: string): value is PeriodPreset {
+  return PRESET_OPTIONS.some((p) => p.key === value);
+}
+
+function isKnownPreset(preset: string): preset is Exclude<PeriodPreset, "custom"> {
   return PRESET_OPTIONS.some((p) => p.key === preset && p.key !== "custom");
 }
 
 export function BilanPeriodSelector({ preset, from, to, mode, periodQuery }: Props) {
   const router = useRouter();
   const customActive = preset === "custom" || !isKnownPreset(preset);
-  const [selected, setSelected] = useState(customActive ? "custom" : preset);
+  const [selected, setSelected] = useState<PeriodPreset>(
+    customActive ? "custom" : isKnownPreset(preset) ? preset : "custom"
+  );
   const [customFrom, setCustomFrom] = useState(from);
   const [customTo, setCustomTo] = useState(to);
 
@@ -37,6 +45,7 @@ export function BilanPeriodSelector({ preset, from, to, mode, periodQuery }: Pro
   }
 
   function handleSelectChange(value: string) {
+    if (!isPeriodPreset(value)) return;
     setSelected(value);
     if (value !== "custom") {
       navigatePreset(value);

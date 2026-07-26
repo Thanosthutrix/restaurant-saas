@@ -1,7 +1,6 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
-import { getRestaurantById } from "@/lib/auth";
 import {
   addDaysToYmd,
   checkReservationSlotAvailable,
@@ -18,18 +17,37 @@ import {
 import {
   createReservationFromMetaConversation,
   formatReservationConfirmationMessage,
+  formatReservationReference,
 } from "./metaReservationService";
 import {
   getMetaConversationContext,
   updateConversationBookingState,
 } from "./messagingDb";
-import { getMetaPageMessagingCredentials, sendMetaConversationReply } from "./messagingSend";
+import {
+  BOOKING_CONFIRM_QUICK_REPLIES,
+  BOOKING_QUICK_REPLY,
+  getMetaPageMessagingCredentials,
+  getRestaurantMessagingDetails,
+  sendMetaConversationReply,
+  sendMetaConversationReplyWithQuickReplies,
+} from "./messagingSend";
 import type { MetaMessagingPlatform } from "./messagingTypes";
 
 const BOOKING_START = /\b(r[eé]serv(er|ation)|table|booking|book)\b/i;
 const BOOKING_CANCEL = /\b(annuler|cancel|stop|quit|recommencer)\b/i;
 const YES = /^(oui|ok|yes|confirmer|valider)\s*!?\s*$/i;
 const NO = /^(non|no)\s*!?\s*$/i;
+
+function resolveConfirmChoice(
+  inbound: string,
+  quickReplyPayload?: string | null
+): "yes" | "no" | null {
+  if (quickReplyPayload === BOOKING_QUICK_REPLY.confirmYes) return "yes";
+  if (quickReplyPayload === BOOKING_QUICK_REPLY.confirmNo) return "no";
+  if (YES.test(inbound.trim())) return "yes";
+  if (NO.test(inbound.trim())) return "no";
+  return null;
+}
 
 function formatYmdFr(ymd: string): string {
   const [y, m, d] = ymd.split("-");
@@ -42,9 +60,24 @@ async function reply(params: {
   externalUserId: string;
   customerName: string | null;
   text: string;
+  quickReplies?: typeof BOOKING_CONFIRM_QUICK_REPLIES;
 }): Promise<void> {
   const creds = await getMetaPageMessagingCredentials(params.restaurantId);
   if (!creds) return;
+
+  if (params.quickReplies?.length) {
+    await sendMetaConversationReplyWithQuickReplies({
+      restaurantId: params.restaurantId,
+      platform: params.platform,
+      externalUserId: params.externalUserId,
+      facebookPageId: creds.facebookPageId,
+      pageAccessToken: creds.pageAccessToken,
+      text: params.text,
+      quickReplies: params.quickReplies,
+      customerName: params.customerName,
+    });
+    return;
+  }
 
   await sendMetaConversationReply({
     restaurantId: params.restaurantId,
@@ -68,9 +101,12 @@ export async function processInboundMetaBookingBot(params: {
   externalUserId: string;
   customerName: string | null;
   text: string | null;
+  quickReplyPayload?: string | null;
+  postbackPayload?: string | null;
 }): Promise<void> {
-  const inbound = params.text?.trim();
-  if (!inbound) return;
+  const inbound = params.text?.trim() ?? "";
+  const actionPayload = params.quickReplyPayload ?? params.postbackPayload ?? null;
+  if (!inbound && !actionPayload) return;
 
   const ctx = await getMetaConversationContext(params.restaurantId, params.conversationId);
   if (!ctx) return;
@@ -217,20 +253,26 @@ export async function processInboundMetaBookingBot(params: {
         `• ${draft.partySize} personne${(draft.partySize ?? 0) > 1 ? "s" : ""}`,
         `• ${formatYmdFr(draft.ymd)} à ${timeHm.replace(":", "h")}`,
         "",
-        "Confirmez-vous ? (oui / non)",
+        "Confirmez-vous cette réservation ?",
       ].join("\n"),
+      quickReplies: BOOKING_CONFIRM_QUICK_REPLIES,
     });
     return;
   }
 
   if (state.step === "confirm") {
-    if (NO.test(inbound)) {
+    const choice = resolveConfirmChoice(inbound, actionPayload);
+    if (choice === "no") {
       await saveState(params.conversationId, { ...IDLE_BOOKING_STATE });
       await reply({ ...params, text: "Réservation annulée. Tapez « réserver » pour recommencer." });
       return;
     }
-    if (!YES.test(inbound)) {
-      await reply({ ...params, text: "Répondez oui pour confirmer ou non pour annuler." });
+    if (choice !== "yes") {
+      await reply({
+        ...params,
+        text: "Répondez Oui pour confirmer ou Non pour annuler (boutons ou texte).",
+        quickReplies: BOOKING_CONFIRM_QUICK_REPLIES,
+      });
       return;
     }
 
@@ -257,7 +299,7 @@ export async function processInboundMetaBookingBot(params: {
       return;
     }
 
-    const restaurant = await getRestaurantById(params.restaurantId);
+    const details = await getRestaurantMessagingDetails(params.restaurantId);
     await saveState(params.conversationId, {
       step: "idle",
       reservationId: created.reservationId,
@@ -270,9 +312,11 @@ export async function processInboundMetaBookingBot(params: {
       ...params,
       text: formatReservationConfirmationMessage({
         partySize: draft.partySize,
-        ymd: draft.ymd,
-        timeHm: draft.timeHm,
-        restaurantName: restaurant?.name ?? null,
+        startsAtIso: created.startsAt,
+        reservationRef: formatReservationReference(created.reservationId),
+        restaurantName: details.name,
+        restaurantAddress: details.address,
+        restaurantPhone: details.phone,
       }),
     });
   }

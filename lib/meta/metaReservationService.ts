@@ -66,7 +66,7 @@ export async function createReservationFromMetaConversation(params: {
     contact_email: null,
     notes,
     source,
-    status: "pending",
+    status: "confirmed",
     created_by_user_id: null,
   });
 
@@ -77,13 +77,19 @@ export async function createReservationFromMetaConversation(params: {
   return { reservationId: reservation.id, startsAt };
 }
 
+export function formatReservationReference(reservationId: string): string {
+  return reservationId.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
 export function formatReservationConfirmationMessage(params: {
   partySize: number;
-  ymd: string;
-  timeHm: string;
+  startsAtIso: string;
+  reservationRef: string;
   restaurantName?: string | null;
+  restaurantAddress?: string | null;
+  restaurantPhone?: string | null;
 }): string {
-  const when = new Date(`${params.ymd}T${params.timeHm}:00`).toLocaleString("fr-FR", {
+  const when = new Date(params.startsAtIso).toLocaleString("fr-FR", {
     timeZone: "Europe/Paris",
     weekday: "long",
     day: "numeric",
@@ -92,12 +98,26 @@ export function formatReservationConfirmationMessage(params: {
     minute: "2-digit",
   });
 
-  const name = params.restaurantName?.trim();
-  return [
-    name ? `Parfait — votre demande est enregistrée chez ${name} :` : "Parfait — votre demande est enregistrée :",
-    `• ${params.partySize} personne${params.partySize > 1 ? "s" : ""}`,
-    `• ${when}`,
-    "",
-    "Nous vous confirmons la réservation très prochainement. À bientôt !",
-  ].join("\n");
+  const lines: string[] = ["✅ Réservation confirmée", ""];
+
+  if (params.restaurantName?.trim()) {
+    lines.push(`📍 ${params.restaurantName.trim()}`);
+  }
+  lines.push(`👥 ${params.partySize} personne${params.partySize > 1 ? "s" : ""}`);
+  lines.push(`🗓 ${when}`);
+  lines.push(`🔖 Réf. ${params.reservationRef}`);
+
+  if (params.restaurantAddress?.trim()) {
+    lines.push(`📫 ${params.restaurantAddress.trim()}`);
+  }
+  if (params.restaurantPhone?.trim()) {
+    lines.push(`📞 ${params.restaurantPhone.trim()}`);
+  }
+
+  lines.push("");
+  lines.push(
+    "Nous avons hâte de vous accueillir ! Pour modifier ou annuler, répondez à ce message."
+  );
+
+  return lines.join("\n");
 }

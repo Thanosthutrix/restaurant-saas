@@ -4,6 +4,7 @@ import { processInboundMetaBookingBot } from "./bookingBot";
 import {
   findRestaurantIdByFacebookPageId,
   findRestaurantIdByInstagramAccountId,
+  getMetaConversationByPeer,
   recordOutboundMetaMessage,
   upsertInboundMetaMessage,
 } from "./messagingDb";
@@ -13,12 +14,14 @@ type MessagingEvent = {
   sender?: { id?: string };
   recipient?: { id?: string };
   timestamp?: number;
+  postback?: { payload?: string; title?: string };
   message?: {
     mid?: string;
     text?: string;
     attachments?: unknown[];
     is_echo?: boolean;
     is_deleted?: boolean;
+    quick_reply?: { payload?: string };
   };
 };
 
@@ -51,11 +54,67 @@ function resolvePlatform(objectType: string): MetaMessagingPlatform {
   return objectType === "instagram" ? "instagram_dm" : "facebook_messenger";
 }
 
+async function runBookingBot(params: {
+  restaurantId: string;
+  platform: MetaMessagingPlatform;
+  externalUserId: string;
+  conversationId: string;
+  text: string | null;
+  quickReplyPayload?: string | null;
+  postbackPayload?: string | null;
+}): Promise<void> {
+  try {
+    await processInboundMetaBookingBot({
+      restaurantId: params.restaurantId,
+      conversationId: params.conversationId,
+      platform: params.platform,
+      externalUserId: params.externalUserId,
+      customerName: null,
+      text: params.text,
+      quickReplyPayload: params.quickReplyPayload,
+      postbackPayload: params.postbackPayload,
+    });
+  } catch (err) {
+    console.error("[meta/webhook] booking bot:", err);
+  }
+}
+
+async function handlePostbackEvent(params: {
+  restaurantId: string;
+  platform: MetaMessagingPlatform;
+  event: MessagingEvent;
+}): Promise<void> {
+  const payload = params.event.postback?.payload;
+  const senderId = params.event.sender?.id;
+  if (!payload || !senderId) return;
+
+  const conv = await getMetaConversationByPeer({
+    restaurantId: params.restaurantId,
+    platform: params.platform,
+    externalUserId: senderId,
+  });
+  if (!conv) return;
+
+  await runBookingBot({
+    restaurantId: params.restaurantId,
+    platform: params.platform,
+    externalUserId: senderId,
+    conversationId: conv.id,
+    text: params.event.postback?.title ?? null,
+    postbackPayload: payload,
+  });
+}
+
 async function handleMessagingEvent(params: {
   restaurantId: string;
   platform: MetaMessagingPlatform;
   event: MessagingEvent;
 }): Promise<void> {
+  if (params.event.postback?.payload && !params.event.message) {
+    await handlePostbackEvent(params);
+    return;
+  }
+
   const message = params.event.message;
   if (!message || message.is_deleted) return;
 
@@ -79,22 +138,28 @@ async function handleMessagingEvent(params: {
 
   if (isEcho) {
     await recordOutboundMetaMessage(payload);
-  } else {
-    const result = await upsertInboundMetaMessage({ ...payload, incrementUnread: true });
-    if (result.inserted) {
-      try {
-        await processInboundMetaBookingBot({
-          restaurantId: params.restaurantId,
-          conversationId: result.conversationId,
-          platform: params.platform,
-          externalUserId,
-          customerName: null,
-          text: message.text ?? null,
-        });
-      } catch (err) {
-        console.error("[meta/webhook] booking bot:", err);
-      }
-    }
+    return;
+  }
+
+  const result = await upsertInboundMetaMessage({ ...payload, incrementUnread: true });
+  if (result.inserted) {
+    await runBookingBot({
+      restaurantId: params.restaurantId,
+      platform: params.platform,
+      externalUserId,
+      conversationId: result.conversationId,
+      text: message.text ?? null,
+      quickReplyPayload: message.quick_reply?.payload ?? null,
+    });
+  } else if (message.quick_reply?.payload) {
+    await runBookingBot({
+      restaurantId: params.restaurantId,
+      platform: params.platform,
+      externalUserId,
+      conversationId: result.conversationId,
+      text: message.text ?? null,
+      quickReplyPayload: message.quick_reply.payload,
+    });
   }
 }
 

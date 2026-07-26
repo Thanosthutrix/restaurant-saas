@@ -73,3 +73,47 @@ export async function sendMetaTextMessage(params: {
 
   return { messageId: json.message_id ?? null };
 }
+
+export type MetaQuickReplyOption = {
+  title: string;
+  payload: string;
+};
+
+export async function sendMetaTextMessageWithQuickReplies(params: {
+  facebookPageId: string;
+  pageAccessToken: string;
+  recipientId: string;
+  text: string;
+  quickReplies: MetaQuickReplyOption[];
+}): Promise<{ messageId: string | null }> {
+  const url = new URL(metaGraphUrl(`${params.facebookPageId}/messages`));
+  url.searchParams.set("access_token", params.pageAccessToken);
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      recipient: { id: params.recipientId },
+      messaging_type: "RESPONSE",
+      message: {
+        text: params.text.slice(0, 2000),
+        quick_replies: params.quickReplies.slice(0, 13).map((q) => ({
+          content_type: "text",
+          title: q.title.slice(0, 20),
+          payload: q.payload.slice(0, 1000),
+        })),
+      },
+    }),
+  });
+
+  const json = (await res.json()) as {
+    message_id?: string;
+    error?: { message?: string };
+  };
+
+  if (!res.ok) {
+    throw new Error(json.error?.message ?? `Envoi Meta impossible (${res.status}).`);
+  }
+
+  return { messageId: json.message_id ?? null };
+}

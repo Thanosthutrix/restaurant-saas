@@ -1,8 +1,22 @@
 import "server-only";
 
-import { sendMetaTextMessage } from "./messagingApi";
+import {
+  sendMetaTextMessage,
+  sendMetaTextMessageWithQuickReplies,
+  type MetaQuickReplyOption,
+} from "./messagingApi";
 import { recordOutboundMetaMessage } from "./messagingDb";
 import type { MetaMessagingPlatform } from "./messagingTypes";
+
+export const BOOKING_QUICK_REPLY = {
+  confirmYes: "BOOKING_CONFIRM_YES",
+  confirmNo: "BOOKING_CONFIRM_NO",
+} as const;
+
+export const BOOKING_CONFIRM_QUICK_REPLIES: MetaQuickReplyOption[] = [
+  { title: "Oui, confirmer", payload: BOOKING_QUICK_REPLY.confirmYes },
+  { title: "Non, annuler", payload: BOOKING_QUICK_REPLY.confirmNo },
+];
 
 export async function sendMetaConversationReply(params: {
   restaurantId: string;
@@ -32,6 +46,57 @@ export async function sendMetaConversationReply(params: {
     customerName: params.customerName ?? null,
     rawPayload: { source: "ubion_outbound" },
   });
+}
+
+export async function sendMetaConversationReplyWithQuickReplies(params: {
+  restaurantId: string;
+  platform: MetaMessagingPlatform;
+  externalUserId: string;
+  facebookPageId: string;
+  pageAccessToken: string;
+  text: string;
+  quickReplies: MetaQuickReplyOption[];
+  customerName?: string | null;
+}): Promise<void> {
+  const trimmed = params.text.trim();
+  if (!trimmed) throw new Error("Message vide.");
+
+  const sent = await sendMetaTextMessageWithQuickReplies({
+    facebookPageId: params.facebookPageId,
+    pageAccessToken: params.pageAccessToken,
+    recipientId: params.externalUserId,
+    text: trimmed,
+    quickReplies: params.quickReplies,
+  });
+
+  await recordOutboundMetaMessage({
+    restaurantId: params.restaurantId,
+    platform: params.platform,
+    externalUserId: params.externalUserId,
+    metaMessageId: sent.messageId,
+    text: trimmed,
+    customerName: params.customerName ?? null,
+    rawPayload: { source: "ubion_outbound", quickReplies: params.quickReplies },
+  });
+}
+
+export async function getRestaurantMessagingDetails(restaurantId: string): Promise<{
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+}> {
+  const { supabaseServer } = await import("@/lib/supabaseServer");
+  const { data } = await supabaseServer
+    .from("restaurants")
+    .select("name, address_text, phone")
+    .eq("id", restaurantId)
+    .maybeSingle();
+
+  return {
+    name: (data?.name as string | null) ?? null,
+    address: (data?.address_text as string | null) ?? null,
+    phone: (data?.phone as string | null) ?? null,
+  };
 }
 
 export async function getMetaPageMessagingCredentials(restaurantId: string): Promise<{

@@ -128,6 +128,11 @@ async function syncPlatformConversations(params: {
               externalUserId: peer.externalUserId,
               customerName: peer.customerName,
               text,
+              quickReplyPayload:
+                typeof (message as { quick_reply?: { payload?: string } }).quick_reply?.payload ===
+                "string"
+                  ? (message as { quick_reply: { payload: string } }).quick_reply.payload
+                  : null,
             });
           } catch (err) {
             console.warn("[meta/messagingSync] booking bot:", err);

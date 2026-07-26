@@ -1,5 +1,6 @@
 import "server-only";
 
+import { processInboundMetaBookingBot } from "./bookingBot";
 import {
   findRestaurantIdByFacebookPageId,
   findRestaurantIdByInstagramAccountId,
@@ -79,7 +80,21 @@ async function handleMessagingEvent(params: {
   if (isEcho) {
     await recordOutboundMetaMessage(payload);
   } else {
-    await upsertInboundMetaMessage({ ...payload, incrementUnread: true });
+    const result = await upsertInboundMetaMessage({ ...payload, incrementUnread: true });
+    if (result.inserted) {
+      try {
+        await processInboundMetaBookingBot({
+          restaurantId: params.restaurantId,
+          conversationId: result.conversationId,
+          platform: params.platform,
+          externalUserId,
+          customerName: null,
+          text: message.text ?? null,
+        });
+      } catch (err) {
+        console.error("[meta/webhook] booking bot:", err);
+      }
+    }
   }
 }
 

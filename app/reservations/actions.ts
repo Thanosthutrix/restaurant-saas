@@ -36,6 +36,9 @@ function reservationToCustomerSource(src: ReservationSource): CustomerSource {
     case "website":
     case "other":
       return src;
+    case "instagram_dm":
+    case "facebook_messenger":
+      return "social";
     default:
       return "other";
   }

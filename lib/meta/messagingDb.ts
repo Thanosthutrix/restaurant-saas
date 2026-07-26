@@ -6,6 +6,7 @@ import {
   isMetaMessagingScopesEnabled,
   isMetaWebhookConfigured,
 } from "./config";
+import type { ConversationBookingState } from "./bookingBotTypes";
 import type {
   MetaConversation,
   MetaMessage,
@@ -24,6 +25,7 @@ type ConversationRow = {
   last_message_at: string | null;
   last_message_preview: string | null;
   unread_count: number;
+  booking_state: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -191,6 +193,67 @@ function previewFromMessage(text: string | null, attachments: unknown): string {
   return "Message";
 }
 
+export type InboundMetaMessageResult = {
+  inserted: boolean;
+  conversationId: string;
+};
+
+export async function getMetaConversationContext(
+  restaurantId: string,
+  conversationId: string
+): Promise<{
+  id: string;
+  platform: MetaMessagingPlatform;
+  externalUserId: string;
+  customerName: string | null;
+  bookingState: unknown;
+} | null> {
+  const { data, error } = await supabaseServer
+    .from("restaurant_meta_conversations")
+    .select("id, platform, external_user_id, customer_name, booking_state")
+    .eq("id", conversationId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return {
+    id: data.id as string,
+    platform: data.platform as MetaMessagingPlatform,
+    externalUserId: data.external_user_id as string,
+    customerName: (data.customer_name as string | null) ?? null,
+    bookingState: data.booking_state,
+  };
+}
+
+export async function updateConversationBookingState(
+  conversationId: string,
+  state: ConversationBookingState
+): Promise<void> {
+  const { error } = await supabaseServer
+    .from("restaurant_meta_conversations")
+    .update({ booking_state: state })
+    .eq("id", conversationId);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function getMetaConversationByPeer(params: {
+  restaurantId: string;
+  platform: MetaMessagingPlatform;
+  externalUserId: string;
+}): Promise<{ id: string } | null> {
+  const { data, error } = await supabaseServer
+    .from("restaurant_meta_conversations")
+    .select("id")
+    .eq("restaurant_id", params.restaurantId)
+    .eq("platform", params.platform)
+    .eq("external_user_id", params.externalUserId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return { id: data.id as string };
+}
+
 export async function upsertInboundMetaMessage(params: {
   restaurantId: string;
   platform: MetaMessagingPlatform;
@@ -202,14 +265,19 @@ export async function upsertInboundMetaMessage(params: {
   customerName?: string | null;
   incrementUnread?: boolean;
   messageCreatedAt?: string | null;
-}): Promise<void> {
+}): Promise<InboundMetaMessageResult> {
   if (params.metaMessageId) {
     const { data: existing } = await supabaseServer
       .from("restaurant_meta_messages")
-      .select("id")
+      .select("id, conversation_id")
       .eq("meta_message_id", params.metaMessageId)
       .maybeSingle();
-    if (existing) return;
+    if (existing) {
+      return {
+        inserted: false,
+        conversationId: existing.conversation_id as string,
+      };
+    }
   }
 
   const { data: existingConv, error: convLookupError } = await supabaseServer
@@ -271,6 +339,7 @@ export async function upsertInboundMetaMessage(params: {
   });
 
   if (msgError) throw new Error(msgError.message);
+  return { inserted: true, conversationId };
 }
 
 export async function recordOutboundMetaMessage(params: {

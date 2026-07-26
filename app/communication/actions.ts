@@ -9,13 +9,18 @@ import {
   type PublishPlatformResult,
 } from "@/lib/meta/publishService";
 import { getRestaurantSocialState } from "@/lib/meta/metaDb";
+import { ensureMetaMessagingWebhooksSubscribed } from "@/lib/meta/metaDb";
+import { syncMetaMessagingFromGraph } from "@/lib/meta/messagingSync";
 import {
+  getMetaConversationContext,
   getMetaMessagingInbox,
   listMetaConversationMessages,
   markConversationRead,
 } from "@/lib/meta/messagingDb";
-import { ensureMetaMessagingWebhooksSubscribed } from "@/lib/meta/metaDb";
-import { syncMetaMessagingFromGraph } from "@/lib/meta/messagingSync";
+import {
+  getMetaPageMessagingCredentials,
+  sendMetaConversationReply,
+} from "@/lib/meta/messagingSend";
 import type { MetaMessage, MetaMessagingInbox } from "@/lib/meta/messagingTypes";
 import { parsePublishRequestFromFormData } from "@/lib/meta/publishOptions";
 import { listSocialPosts } from "@/lib/meta/socialPostsDb";
@@ -170,6 +175,50 @@ export async function subscribeMetaMessagingWebhooksAction(
     return { ok: true, data: await getMetaMessagingInbox(restaurantId) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Activation impossible." };
+  }
+}
+
+export async function sendMetaConversationMessageAction(
+  restaurantId: string,
+  conversationId: string,
+  text: string
+): Promise<ActionResult<{ inbox: MetaMessagingInbox; messages: MetaMessage[] }>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  const trimmed = text.trim();
+  if (!trimmed) return { ok: false, error: "Message vide." };
+
+  try {
+    const conv = await getMetaConversationContext(restaurantId, conversationId);
+    if (!conv) return { ok: false, error: "Conversation introuvable." };
+
+    const creds = await getMetaPageMessagingCredentials(restaurantId);
+    if (!creds) {
+      return { ok: false, error: "Compte Meta non connecté ou page non liée." };
+    }
+
+    await sendMetaConversationReply({
+      restaurantId,
+      platform: conv.platform,
+      externalUserId: conv.externalUserId,
+      facebookPageId: creds.facebookPageId,
+      pageAccessToken: creds.pageAccessToken,
+      text: trimmed,
+      customerName: conv.customerName,
+    });
+
+    revalidateCommunicationPaths();
+    const [inbox, messages] = await Promise.all([
+      getMetaMessagingInbox(restaurantId),
+      listMetaConversationMessages(restaurantId, conversationId),
+    ]);
+    return { ok: true, data: { inbox, messages } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Envoi impossible." };
   }
 }
 

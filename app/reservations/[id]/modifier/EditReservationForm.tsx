@@ -14,6 +14,8 @@ const SOURCES: { v: ReservationSource; label: string }[] = [
   { v: "phone", label: "Téléphone" },
   { v: "walk_in", label: "Passage / comptoir" },
   { v: "website", label: "Site / en ligne" },
+  { v: "instagram_dm", label: "Instagram DM" },
+  { v: "facebook_messenger", label: "Messenger" },
   { v: "other", label: "Autre" },
 ];
 

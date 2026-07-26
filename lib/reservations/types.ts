@@ -6,7 +6,13 @@ export type ReservationStatus =
   | "cancelled"
   | "no_show";
 
-export type ReservationSource = "phone" | "walk_in" | "website" | "other";
+export type ReservationSource =
+  | "phone"
+  | "walk_in"
+  | "website"
+  | "other"
+  | "instagram_dm"
+  | "facebook_messenger";
 
 export type RestaurantReservationRow = {
   id: string;

@@ -6,15 +6,17 @@ import {
   loadMetaConversationMessagesAction,
   loadMetaMessagingInboxAction,
   markMetaConversationReadAction,
+  sendMetaConversationMessageAction,
   subscribeMetaMessagingWebhooksAction,
 } from "@/app/communication/actions";
+import { Send } from "lucide-react";
 import type { MetaConversation, MetaMessage, MetaMessagingInbox } from "@/lib/meta/messagingTypes";
 import {
   uiBtnPrimarySm,
   uiBtnSecondary,
   uiCard,
   uiError,
-  uiFormLabel,
+  uiInput,
   uiLead,
   uiWarn,
 } from "@/components/ui/premium";
@@ -57,6 +59,8 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
   const [activating, setActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
 
   const selected = inbox.conversations.find((c) => c.id === selectedId) ?? null;
 
@@ -85,6 +89,23 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
     }
     setInbox(result.data!);
     setSuccess("Réception des messages activée — envoyez un DM test.");
+  }
+
+  async function sendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedId || !draft.trim()) return;
+    setSending(true);
+    setError(null);
+    setSuccess(null);
+    const result = await sendMetaConversationMessageAction(restaurantId, selectedId, draft);
+    setSending(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setDraft("");
+    setMessages(result.data!.messages);
+    setInbox(result.data!.inbox);
   }
 
   async function loadThread(conversationId: string) {
@@ -116,8 +137,8 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
         <div>
           <h2 className="text-base font-semibold text-stone-900">Messages</h2>
           <p className={`mt-1 ${uiLead}`}>
-            Instagram DM et Facebook Messenger — synchronisés depuis Meta (Actualiser pour récupérer
-            les nouveaux messages).
+            Répondez depuis Ubion ou laissez le bot gérer les réservations (mot-clé « réserver »).
+            Actualisez pour récupérer les nouveaux messages.
           </p>
         </div>
         <button
@@ -270,9 +291,27 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
                   <p className={`text-center text-sm ${uiLead}`}>Aucun message dans ce fil.</p>
                 ) : null}
               </div>
-              <p className={`border-t border-stone-100 px-4 py-2 text-center text-xs ${uiLead}`}>
-                Réponses depuis Ubion — Phase 2 (réservation automatique).
-              </p>
+              <form
+                onSubmit={sendMessage}
+                className="flex gap-2 border-t border-stone-200 bg-stone-50/50 p-3"
+              >
+                <input
+                  type="text"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Votre message…"
+                  disabled={sending || loading}
+                  className={`${uiInput} min-w-0 flex-1`}
+                />
+                <button
+                  type="submit"
+                  disabled={sending || loading || !draft.trim()}
+                  className={`inline-flex shrink-0 items-center gap-1.5 ${uiBtnPrimarySm}`}
+                >
+                  <Send className="h-4 w-4" aria-hidden />
+                  Envoyer
+                </button>
+              </form>
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-stone-400">

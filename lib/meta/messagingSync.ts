@@ -1,6 +1,7 @@
 import "server-only";
 
 import { supabaseServer } from "@/lib/supabaseServer";
+import { processInboundMetaBookingBot } from "./bookingBot";
 import { metaGraphUrl } from "./config";
 import { recordOutboundMetaMessage, upsertInboundMetaMessage } from "./messagingDb";
 import type { MetaMessagingPlatform } from "./messagingTypes";
@@ -31,6 +32,12 @@ type GraphListResponse = {
 
 const CONVERSATION_FIELDS =
   "participants,messages.limit(25){message,from,created_time,id}";
+
+function isRecentIso(iso: string | null | undefined, maxAgeMs = 20 * 60_000): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return !Number.isNaN(t) && Date.now() - t < maxAgeMs;
+}
 
 async function fetchGraphConversations(
   pathWithQuery: string,
@@ -111,7 +118,21 @@ async function syncPlatformConversations(params: {
       if (isOutbound) {
         await recordOutboundMetaMessage(payload);
       } else {
-        await upsertInboundMetaMessage({ ...payload, incrementUnread: false });
+        const result = await upsertInboundMetaMessage({ ...payload, incrementUnread: false });
+        if (result.inserted && isRecentIso(message.created_time)) {
+          try {
+            await processInboundMetaBookingBot({
+              restaurantId: params.restaurantId,
+              conversationId: result.conversationId,
+              platform: params.platform,
+              externalUserId: peer.externalUserId,
+              customerName: peer.customerName,
+              text,
+            });
+          } catch (err) {
+            console.warn("[meta/messagingSync] booking bot:", err);
+          }
+        }
       }
       synced += 1;
     }

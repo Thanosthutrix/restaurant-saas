@@ -4,12 +4,19 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser, getAccessibleRestaurantsForUser } from "@/lib/auth";
 import {
   loadCommunicationFeed,
-  publishCommunicationPost,
+  publishCommunicationBatch,
   refreshCommunicationStories,
+  type PublishPlatformResult,
 } from "@/lib/meta/publishService";
 import { getRestaurantSocialState } from "@/lib/meta/metaDb";
+import {
+  getMetaMessagingInbox,
+  listMetaConversationMessages,
+  markConversationRead,
+} from "@/lib/meta/messagingDb";
+import type { MetaMessage, MetaMessagingInbox } from "@/lib/meta/messagingTypes";
+import { parsePublishRequestFromFormData } from "@/lib/meta/publishOptions";
 import { listSocialPosts } from "@/lib/meta/socialPostsDb";
-import type { SocialContentType, SocialPlatform } from "@/lib/meta/socialPostsDb";
 
 type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -56,23 +63,22 @@ export async function refreshCommunicationContentAction(
 
 export async function publishCommunicationPostAction(
   formData: FormData
-): Promise<ActionResult<{ permalink: string | null }>> {
+): Promise<
+  ActionResult<{
+    batchId: string;
+    results: PublishPlatformResult[];
+  }>
+> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
   const restaurantId = String(formData.get("restaurantId") ?? "");
-  const platform = String(formData.get("platform") ?? "") as SocialPlatform;
-  const contentType = String(formData.get("contentType") ?? "") as SocialContentType;
-  const caption = String(formData.get("caption") ?? "");
-  const file = formData.get("image");
-
   if (!restaurantId) return { ok: false, error: "Restaurant manquant." };
-  if (platform !== "instagram" && platform !== "facebook") {
-    return { ok: false, error: "Réseau invalide." };
-  }
-  if (contentType !== "feed" && contentType !== "story" && contentType !== "reel") {
-    return { ok: false, error: "Type de contenu invalide." };
-  }
+
+  const parsed = parsePublishRequestFromFormData(formData);
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+
+  const file = formData.get("image");
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: "Image requise." };
   }
@@ -82,19 +88,82 @@ export async function publishCommunicationPostAction(
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const result = await publishCommunicationPost({
+    const batch = await publishCommunicationBatch({
       restaurantId,
       userId: user.id,
-      platform,
-      contentType,
-      caption,
+      request: parsed,
       imageBytes: bytes,
       contentTypeHeader: file.type || "image/jpeg",
     });
     revalidateCommunicationPaths();
     revalidatePath(`/restaurant/${restaurantId}`);
-    return { ok: true, data: { permalink: result.permalink } };
+
+    const allFailed = batch.results.every((r) => !r.ok);
+    if (allFailed) {
+      return {
+        ok: false,
+        error: batch.results.map((r) => `${r.platform}: ${r.error}`).join(" · "),
+      };
+    }
+
+    return { ok: true, data: batch };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Publication impossible." };
+  }
+}
+
+export async function loadMetaMessagingInboxAction(
+  restaurantId: string
+): Promise<ActionResult<MetaMessagingInbox>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  try {
+    return { ok: true, data: await getMetaMessagingInbox(restaurantId) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Chargement impossible." };
+  }
+}
+
+export async function loadMetaConversationMessagesAction(
+  restaurantId: string,
+  conversationId: string
+): Promise<ActionResult<{ inbox: MetaMessagingInbox; messages: MetaMessage[] }>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  try {
+    const [inbox, messages] = await Promise.all([
+      getMetaMessagingInbox(restaurantId),
+      listMetaConversationMessages(restaurantId, conversationId),
+    ]);
+    return { ok: true, data: { inbox, messages } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Chargement impossible." };
+  }
+}
+
+export async function markMetaConversationReadAction(
+  restaurantId: string,
+  conversationId: string
+): Promise<ActionResult<void>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  try {
+    await markConversationRead(restaurantId, conversationId);
+    revalidateCommunicationPaths();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Mise à jour impossible." };
   }
 }

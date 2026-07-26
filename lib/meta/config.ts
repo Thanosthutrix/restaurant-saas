@@ -13,6 +13,13 @@ export const META_OAUTH_SCOPES_PUBLISH = [
   "instagram_content_publish",
 ] as const;
 
+/** Scopes messagerie (Instagram DM + Messenger) — App Review requis en production. */
+export const META_OAUTH_SCOPES_MESSAGING = [
+  "pages_messaging",
+  "instagram_manage_messages",
+  "pages_manage_metadata",
+] as const;
+
 /** @deprecated Utiliser getMetaOAuthScopes() */
 export const META_OAUTH_SCOPES = [...META_OAUTH_SCOPES_READ, ...META_OAUTH_SCOPES_PUBLISH] as const;
 
@@ -21,11 +28,20 @@ export function isMetaPublishScopesEnabled(): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+export function isMetaMessagingScopesEnabled(): boolean {
+  const v = process.env.META_OAUTH_INCLUDE_MESSAGING_SCOPES?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 export function getMetaOAuthScopes(): readonly string[] {
+  const scopes: string[] = [...META_OAUTH_SCOPES_READ];
   if (isMetaPublishScopesEnabled()) {
-    return [...META_OAUTH_SCOPES_READ, ...META_OAUTH_SCOPES_PUBLISH];
+    scopes.push(...META_OAUTH_SCOPES_PUBLISH);
   }
-  return META_OAUTH_SCOPES_READ;
+  if (isMetaMessagingScopesEnabled()) {
+    scopes.push(...META_OAUTH_SCOPES_MESSAGING);
+  }
+  return scopes;
 }
 
 export const STORIES_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -58,6 +74,18 @@ export function getMetaOAuthRedirectUri(requestOrigin?: string | null): string {
 
 export function isMetaOAuthConfigured(): boolean {
   return Boolean(getMetaAppId() && getMetaAppSecret());
+}
+
+export function getMetaWebhookUrl(): string {
+  return `${getAppBaseUrl()}/api/meta/webhook`;
+}
+
+export function getMetaWebhookVerifyToken(): string | null {
+  return process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || null;
+}
+
+export function isMetaWebhookConfigured(): boolean {
+  return Boolean(getMetaWebhookVerifyToken() && getMetaAppSecret());
 }
 
 export const META_GRAPH_API_VERSION = "v21.0";

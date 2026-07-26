@@ -1,6 +1,6 @@
 import { supabaseServer } from "@/lib/supabaseServer";
 import type { SocialStory } from "@/lib/public/types";
-import { STORIES_CACHE_TTL_MS, getMetaOAuthRedirectUri, isMetaOAuthConfigured, isMetaPublishScopesEnabled } from "./config";
+import { STORIES_CACHE_TTL_MS, getMetaOAuthRedirectUri, isMetaMessagingScopesEnabled, isMetaOAuthConfigured, isMetaPublishScopesEnabled, isMetaWebhookConfigured, getMetaWebhookUrl } from "./config";
 import {
   discoverMetaFacebookPages,
   extractFacebookPageReference,
@@ -10,6 +10,8 @@ import {
   type MetaFacebookPage,
 } from "./graphApi";
 import { buildInstagramProfileUrl } from "./socialUrls";
+import { subscribePageMessagingWebhooks } from "./messagingApi";
+import { markMessagingWebhookSubscribed } from "./messagingDb";
 
 export type MetaConnectionStatus = "disconnected" | "connected" | "needs_action";
 
@@ -39,6 +41,10 @@ export type RestaurantSocialState = {
   metaOAuthConfigured: boolean;
   /** true si META_OAUTH_INCLUDE_PUBLISH_SCOPES est activé côté serveur. */
   publishScopesEnabled: boolean;
+  /** true si META_OAUTH_INCLUDE_MESSAGING_SCOPES est activé côté serveur. */
+  messagingScopesEnabled: boolean;
+  webhookUrl: string;
+  webhookConfigured: boolean;
   oauthRedirectUri: string;
   pendingPages: MetaFacebookPage[];
   pendingPagesError: string | null;
@@ -201,6 +207,18 @@ export async function linkMetaFacebookPage(params: {
   );
 
   if (error) throw new Error(error.message);
+
+  if (isMetaMessagingScopesEnabled()) {
+    try {
+      await subscribePageMessagingWebhooks({
+        facebookPageId: params.page.id,
+        pageAccessToken: params.page.accessToken,
+      });
+      await markMessagingWebhookSubscribed(params.restaurantId);
+    } catch (err) {
+      console.warn("[metaDb] subscribe messaging webhooks:", err);
+    }
+  }
 
   if (igUrl || params.page.link) {
     const current = await getRestaurantSocialLinks(params.restaurantId);
@@ -383,6 +401,9 @@ export async function getRestaurantSocialState(
     meta: mapConnection(row),
     metaOAuthConfigured: isMetaOAuthConfigured(),
     publishScopesEnabled: isMetaPublishScopesEnabled(),
+    messagingScopesEnabled: isMetaMessagingScopesEnabled(),
+    webhookUrl: getMetaWebhookUrl(),
+    webhookConfigured: isMetaWebhookConfigured(),
     oauthRedirectUri: getMetaOAuthRedirectUri(),
     pendingPages: pending.pages,
     pendingPagesError: pending.error,

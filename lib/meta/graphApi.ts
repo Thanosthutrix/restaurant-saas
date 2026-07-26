@@ -431,6 +431,9 @@ async function createInstagramMediaContainer(params: {
   imageUrl: string;
   caption?: string | null;
   mediaType?: "STORIES" | "REELS";
+  locationId?: string | null;
+  userTagUsername?: string | null;
+  shareToFeed?: boolean;
 }): Promise<string> {
   const body = new URLSearchParams({
     image_url: params.imageUrl,
@@ -438,6 +441,16 @@ async function createInstagramMediaContainer(params: {
   });
   if (params.caption?.trim()) body.set("caption", params.caption.trim());
   if (params.mediaType) body.set("media_type", params.mediaType);
+  if (params.locationId) body.set("location_id", params.locationId);
+  if (params.userTagUsername) {
+    body.set(
+      "user_tags",
+      JSON.stringify([{ username: params.userTagUsername.replace(/^@/, ""), x: 0.5, y: 0.5 }])
+    );
+  }
+  if (params.mediaType === "REELS" && params.shareToFeed != null) {
+    body.set("share_to_feed", params.shareToFeed ? "true" : "false");
+  }
 
   const res = await fetch(metaGraphUrl(`${params.instagramBusinessAccountId}/media`), {
     method: "POST",
@@ -477,6 +490,9 @@ export async function publishInstagramImage(params: {
   imageUrl: string;
   caption?: string | null;
   contentType: "feed" | "story" | "reel";
+  locationId?: string | null;
+  userTagUsername?: string | null;
+  shareReelToFeed?: boolean;
 }): Promise<PublishInstagramResult> {
   const mediaType =
     params.contentType === "story" ? "STORIES" : params.contentType === "reel" ? "REELS" : undefined;
@@ -487,6 +503,9 @@ export async function publishInstagramImage(params: {
     imageUrl: params.imageUrl,
     caption: params.contentType === "story" ? null : params.caption,
     mediaType,
+    locationId: params.locationId,
+    userTagUsername: params.userTagUsername,
+    shareToFeed: params.contentType === "reel" ? params.shareReelToFeed : undefined,
   });
 
   const mediaId = await publishInstagramMediaContainer({
@@ -513,10 +532,20 @@ export async function publishFacebookPagePost(params: {
   pageAccessToken: string;
   message: string;
   imageUrl?: string | null;
+  scheduledPublishTime?: number | null;
+  targeting?: Record<string, unknown> | null;
 }): Promise<PublishFacebookResult> {
   const body = new URLSearchParams({
     access_token: params.pageAccessToken,
   });
+
+  if (params.scheduledPublishTime) {
+    body.set("published", "false");
+    body.set("scheduled_publish_time", String(params.scheduledPublishTime));
+  }
+  if (params.targeting) {
+    body.set("targeting", JSON.stringify(params.targeting));
+  }
 
   let path = `${params.facebookPageId}/feed`;
   if (params.imageUrl) {
@@ -539,5 +568,37 @@ export async function publishFacebookPagePost(params: {
   return {
     postId,
     permalink: `https://www.facebook.com/${postId}`,
+  };
+}
+
+export async function publishFacebookPageStory(params: {
+  facebookPageId: string;
+  pageAccessToken: string;
+  imageUrl: string;
+}): Promise<PublishFacebookResult> {
+  const body = new URLSearchParams({
+    url: params.imageUrl,
+    access_token: params.pageAccessToken,
+  });
+
+  const res = await fetch(metaGraphUrl(`${params.facebookPageId}/photo_stories`), {
+    method: "POST",
+    body,
+  });
+  const json = (await res.json()) as {
+    success?: boolean;
+    post_id?: string;
+    id?: string;
+    error?: { message: string };
+  };
+
+  const postId = json.post_id ?? json.id;
+  if (!postId && !json.success) {
+    throw new Error(json.error?.message ?? "Publication story Facebook impossible.");
+  }
+
+  return {
+    postId: postId ?? "story",
+    permalink: postId ? `https://www.facebook.com/stories/${postId}` : null,
   };
 }

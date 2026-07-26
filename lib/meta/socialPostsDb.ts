@@ -20,6 +20,8 @@ export type SocialPostRow = {
   published_at: string | null;
   created_at: string;
   created_by: string | null;
+  publish_batch_id: string | null;
+  publish_options: unknown;
 };
 
 export type SocialPost = {
@@ -35,6 +37,7 @@ export type SocialPost = {
   errorMessage: string | null;
   publishedAt: string | null;
   createdAt: string;
+  publishBatchId: string | null;
 };
 
 function mapRow(row: SocialPostRow): SocialPost {
@@ -51,6 +54,7 @@ function mapRow(row: SocialPostRow): SocialPost {
     errorMessage: row.error_message,
     publishedAt: row.published_at,
     createdAt: row.created_at,
+    publishBatchId: row.publish_batch_id,
   };
 }
 
@@ -78,6 +82,8 @@ export async function insertSocialPost(params: {
   mediaUrl: string | null;
   status: SocialPostStatus;
   createdBy: string | null;
+  publishBatchId?: string | null;
+  publishOptions?: unknown;
 }): Promise<SocialPost> {
   const { data, error } = await supabaseServer
     .from("social_posts")
@@ -89,6 +95,8 @@ export async function insertSocialPost(params: {
       media_url: params.mediaUrl,
       status: params.status,
       created_by: params.createdBy,
+      publish_batch_id: params.publishBatchId ?? null,
+      publish_options: params.publishOptions ?? null,
     })
     .select("*")
     .single();

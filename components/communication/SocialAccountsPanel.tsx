@@ -342,12 +342,31 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, met
           </div>
         ) : null}
 
+        {state.metaOAuthConfigured && !state.messagingScopesEnabled ? (
+          <div className={`mt-3 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-2.5 text-sm text-sky-950`}>
+            <p className="font-semibold">Messagerie Instagram / Messenger (Phase 1)</p>
+            <p className={`mt-1 ${uiLead}`}>
+              Pour recevoir les DM dans l&apos;onglet Messages, activez{" "}
+              <code className="text-[11px]">pages_messaging</code>,{" "}
+              <code className="text-[11px]">instagram_manage_messages</code> dans Meta for Developers,
+              puis <code className="text-[11px]">META_OAUTH_INCLUDE_MESSAGING_SCOPES=true</code> et{" "}
+              <code className="text-[11px]">META_WEBHOOK_VERIFY_TOKEN</code> sur Vercel. Reconnectez ensuite.
+            </p>
+          </div>
+        ) : null}
+
         {state.metaOAuthConfigured ? (
           <div className={`mt-3 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2.5`}>
             <p className="text-xs font-semibold text-stone-800">URI de redirection Ubion</p>
             <code className="mt-1 block break-all text-[11px] text-stone-600">
               {state.oauthRedirectUri}
             </code>
+            {state.messagingScopesEnabled ? (
+              <p className={`mt-2 text-xs ${uiLead}`}>
+                Webhook messagerie :{" "}
+                <code className="break-all text-[11px]">{state.webhookUrl}</code>
+              </p>
+            ) : null}
           </div>
         ) : (
           <p className={`mt-3 ${uiWarn}`}>

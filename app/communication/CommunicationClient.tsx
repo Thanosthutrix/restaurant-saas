@@ -2,14 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { refreshCommunicationContentAction } from "@/app/communication/actions";
+import { MessagesPanel } from "@/components/communication/MessagesPanel";
 import { PublishComposer } from "@/components/communication/PublishComposer";
 import { SocialAccountsPanel } from "@/components/communication/SocialAccountsPanel";
 import { SocialContentPanel } from "@/components/communication/SocialContentPanel";
 import type { SocialFeedItem } from "@/lib/meta/graphApi";
 import type { RestaurantSocialState } from "@/lib/meta/metaDb";
+import type { MetaMessagingInbox } from "@/lib/meta/messagingTypes";
 import type { SocialPost } from "@/lib/meta/socialPostsDb";
 
-type Tab = "accounts" | "content" | "publish";
+type Tab = "accounts" | "content" | "publish" | "messages";
 
 type Props = {
   restaurantId: string;
@@ -18,12 +20,14 @@ type Props = {
   initialFeed: SocialFeedItem[];
   initialFeedError: string | null;
   initialPublishedPosts: SocialPost[];
+  initialMessagingInbox: MetaMessagingInbox;
   metaFlash?: "connected" | "error" | null;
   metaMessage?: string | null;
 };
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "accounts", label: "Comptes" },
+  { id: "messages", label: "Messages" },
   { id: "content", label: "Contenus" },
   { id: "publish", label: "Publier" },
 ];
@@ -35,19 +39,25 @@ export function CommunicationClient({
   initialFeed,
   initialFeedError,
   initialPublishedPosts,
+  initialMessagingInbox,
   metaFlash,
   metaMessage,
 }: Props) {
   const [tab, setTab] = useState<Tab>(metaFlash ? "accounts" : "content");
   const [socialState, setSocialState] = useState(initialSocialState);
+  const [messagingInbox, setMessagingInbox] = useState(initialMessagingInbox);
   const [feed, setFeed] = useState(initialFeed);
   const [feedError, setFeedError] = useState(initialFeedError);
   const [publishedPosts, setPublishedPosts] = useState(initialPublishedPosts);
   const [refreshing, setRefreshing] = useState(false);
 
   const meta = socialState.meta;
-  const instagramConnected = Boolean(meta?.instagramBusinessAccountId && meta.connectionStatus === "connected");
+  const instagramConnected = Boolean(
+    meta?.instagramBusinessAccountId && meta.connectionStatus === "connected"
+  );
   const facebookConnected = Boolean(meta?.facebookPageId && meta.connectionStatus === "connected");
+  const metaConnected = Boolean(meta?.connectionStatus === "connected" && meta.facebookPageId);
+  const unreadMessages = messagingInbox.conversations.reduce((n, c) => n + c.unreadCount, 0);
   const stories = meta?.stories ?? [];
 
   const tabLabel = useMemo(() => TABS.find((t) => t.id === tab)?.label ?? "", [tab]);
@@ -79,6 +89,11 @@ export function CommunicationClient({
             aria-current={tab === item.id ? "page" : undefined}
           >
             {item.label}
+            {item.id === "messages" && unreadMessages > 0 ? (
+              <span className="ml-1.5 rounded-full bg-copper-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {unreadMessages}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -92,6 +107,14 @@ export function CommunicationClient({
           metaFlash={metaFlash}
           metaMessage={metaMessage}
           onStateChange={setSocialState}
+        />
+      ) : null}
+
+      {tab === "messages" ? (
+        <MessagesPanel
+          restaurantId={restaurantId}
+          initialInbox={messagingInbox}
+          metaConnected={metaConnected}
         />
       ) : null}
 
@@ -113,6 +136,7 @@ export function CommunicationClient({
           restaurantId={restaurantId}
           instagramConnected={instagramConnected}
           facebookConnected={facebookConnected}
+          publishScopesEnabled={socialState.publishScopesEnabled}
           onPublished={refreshContent}
         />
       ) : null}

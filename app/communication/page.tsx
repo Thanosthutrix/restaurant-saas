@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Megaphone } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getRestaurantSocialState } from "@/lib/meta/metaDb";
+import { getMetaMessagingInbox } from "@/lib/meta/messagingDb";
 import { loadCommunicationFeed } from "@/lib/meta/publishService";
 import { listSocialPosts } from "@/lib/meta/socialPostsDb";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -19,10 +20,11 @@ export default async function CommunicationPage({ searchParams }: Props) {
 
   const { meta: metaFlash, meta_msg: metaMessage } = await searchParams;
 
-  const [socialState, feedResult, publishedPosts] = await Promise.all([
+  const [socialState, feedResult, publishedPosts, messagingInbox] = await Promise.all([
     getRestaurantSocialState(restaurant.id),
     loadCommunicationFeed(restaurant.id),
     listSocialPosts(restaurant.id),
+    getMetaMessagingInbox(restaurant.id),
   ]);
 
   return (
@@ -45,6 +47,7 @@ export default async function CommunicationPage({ searchParams }: Props) {
         initialFeed={feedResult.feed}
         initialFeedError={feedResult.feedError}
         initialPublishedPosts={publishedPosts}
+        initialMessagingInbox={messagingInbox}
         metaFlash={metaFlash === "connected" || metaFlash === "error" ? metaFlash : null}
         metaMessage={metaMessage ?? null}
       />

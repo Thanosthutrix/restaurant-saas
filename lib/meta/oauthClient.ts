@@ -11,23 +11,32 @@ type TokenResponse = {
   expires_in?: number;
 };
 
-export function buildMetaOAuthAuthorizeUrl(state: string): string {
+export function buildMetaOAuthAuthorizeUrl(
+  state: string,
+  opts?: { rerequest?: boolean; redirectUri?: string }
+): string {
   const appId = getMetaAppId();
   if (!appId) throw new Error("META_APP_ID manquant.");
 
-  // Facebook Login for Business (response_type=token, fragment côté client)
+  const redirectUri = opts?.redirectUri ?? getMetaOAuthRedirectUri();
+
   const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");
   url.searchParams.set("client_id", appId);
-  url.searchParams.set("redirect_uri", getMetaOAuthRedirectUri());
+  url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("display", "page");
-  url.searchParams.set("extras", JSON.stringify({ setup: { channel: "IG_API_ONBOARDING" } }));
-  url.searchParams.set("response_type", "token");
+  url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", getMetaOAuthScopes().join(","));
   url.searchParams.set("state", state);
+  if (opts?.rerequest) {
+    url.searchParams.set("auth_type", "rerequest");
+  }
   return url.toString();
 }
 
-export async function exchangeMetaOAuthCode(code: string): Promise<TokenResponse> {
+export async function exchangeMetaOAuthCode(
+  code: string,
+  redirectUri?: string
+): Promise<TokenResponse> {
   const appId = getMetaAppId();
   const appSecret = getMetaAppSecret();
   if (!appId || !appSecret) throw new Error("Configuration Meta OAuth incomplète.");
@@ -35,7 +44,7 @@ export async function exchangeMetaOAuthCode(code: string): Promise<TokenResponse
   const params = new URLSearchParams({
     client_id: appId,
     client_secret: appSecret,
-    redirect_uri: getMetaOAuthRedirectUri(),
+    redirect_uri: redirectUri ?? getMetaOAuthRedirectUri(),
     code,
   });
 

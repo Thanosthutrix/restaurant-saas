@@ -1,13 +1,14 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { getAccessibleRestaurantsForUser, getCurrentUser } from "@/lib/auth";
 import { getAppBaseUrl } from "@/lib/meta/config";
-import { upsertMetaUserConnection } from "@/lib/meta/metaDb";
-import {
-  exchangeMetaLongLivedToken,
-  exchangeMetaOAuthCode,
-  fetchMetaUserProfile,
-} from "@/lib/meta/oauthClient";
-import { decodeMetaOAuthState } from "@/lib/meta/oauthState";
+import { completeMetaOAuthFromCode } from "@/lib/meta/completeOAuth";
+
+function revalidateSocialPaths(restaurantId: string) {
+  revalidatePath(`/restaurants/${restaurantId}/edit`);
+  revalidatePath(`/restaurant/${restaurantId}`);
+  revalidatePath("/communication");
+  revalidatePath("/");
+}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -15,41 +16,18 @@ export async function GET(request: Request) {
   const stateRaw = url.searchParams.get("state");
   const oauthError = url.searchParams.get("error");
 
-  const state = stateRaw ? decodeMetaOAuthState(stateRaw) : null;
-  const fallbackEdit = `${getAppBaseUrl()}/dashboard`;
+  const fallback = `${getAppBaseUrl()}/communication?meta=error`;
 
-  if (oauthError || !code || !state) {
-    const target = state
-      ? `${getAppBaseUrl()}/communication?meta=error`
-      : `${fallbackEdit}?meta=error`;
-    return NextResponse.redirect(target);
+  if (oauthError || !code || !stateRaw) {
+    return NextResponse.redirect(fallback);
   }
 
-  const sessionUser = await getCurrentUser();
-  if (sessionUser && sessionUser.id !== state.userId) {
-    return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=error`);
-  }
-
-  const restaurants = await getAccessibleRestaurantsForUser(state.userId);
-  if (!restaurants.some((r) => r.id === state.restaurantId)) {
-    return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=error`);
-  }
-
-  try {
-    const short = await exchangeMetaOAuthCode(code);
-    const long = await exchangeMetaLongLivedToken(short.access_token);
-    const profile = await fetchMetaUserProfile(long.access_token);
-
-    await upsertMetaUserConnection({
-      restaurantId: state.restaurantId,
-      metaAccountName: profile.name,
-      userAccessToken: long.access_token,
-      expiresInSec: long.expires_in,
-    });
-
+  const result = await completeMetaOAuthFromCode({ code, state: stateRaw });
+  if (result.ok) {
+    revalidateSocialPaths(result.restaurantId);
     return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=connected`);
-  } catch (err) {
-    console.error("[meta/oauth/callback]", err);
-    return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=error`);
   }
+
+  console.error("[meta/oauth/callback]", result.error);
+  return NextResponse.redirect(fallback);
 }

@@ -1,7 +1,13 @@
 import { supabaseServer } from "@/lib/supabaseServer";
 import type { SocialStory } from "@/lib/public/types";
 import { STORIES_CACHE_TTL_MS, getMetaOAuthRedirectUri, isMetaOAuthConfigured, isMetaPublishScopesEnabled } from "./config";
-import { fetchInstagramStories, listMetaFacebookPages, type MetaFacebookPage } from "./graphApi";
+import {
+  discoverMetaFacebookPages,
+  extractFacebookPageReference,
+  fetchMetaFacebookPageById,
+  fetchInstagramStories,
+  type MetaFacebookPage,
+} from "./graphApi";
 import { buildInstagramProfileUrl } from "./socialUrls";
 
 export type MetaConnectionStatus = "disconnected" | "connected" | "needs_action";
@@ -34,6 +40,7 @@ export type RestaurantSocialState = {
   publishScopesEnabled: boolean;
   oauthRedirectUri: string;
   pendingPages: MetaFacebookPage[];
+  pendingPagesError: string | null;
 };
 
 type SocialRow = {
@@ -153,6 +160,14 @@ export async function upsertMetaUserConnection(params: {
       token_expires_at: expiresAt,
       connection_status: "needs_action",
       last_error: null,
+      facebook_page_id: null,
+      facebook_page_name: null,
+      facebook_page_url: null,
+      instagram_business_account_id: null,
+      instagram_username: null,
+      page_access_token: null,
+      stories_cache: null,
+      stories_synced_at: null,
     },
     { onConflict: "restaurant_id" }
   );
@@ -207,15 +222,95 @@ export async function disconnectMetaConnection(restaurantId: string): Promise<vo
   if (error) throw new Error(error.message);
 }
 
-export async function listPendingMetaPages(restaurantId: string): Promise<MetaFacebookPage[]> {
+export async function findMetaFacebookPage(
+  restaurantId: string,
+  pageId: string
+): Promise<MetaFacebookPage | null> {
   const row = await getConnectionRow(restaurantId);
-  if (!row?.user_access_token) return [];
-  if (row.facebook_page_id) return [];
+  if (!row?.user_access_token) return null;
+
+  const links = await getRestaurantSocialLinks(restaurantId);
   try {
-    return await listMetaFacebookPages(row.user_access_token);
+    const pages = await discoverMetaFacebookPages(row.user_access_token, {
+      facebookUrlHint: links.facebookUrl,
+    });
+    return pages.find((p) => p.id === pageId) ?? null;
+  } catch {
+    return fetchMetaFacebookPageById(pageId, row.user_access_token);
+  }
+}
+
+export async function linkMetaFacebookPageFromHint(
+  restaurantId: string
+): Promise<RestaurantMetaConnection | null> {
+  const row = await getConnectionRow(restaurantId);
+  if (!row?.user_access_token) {
+    throw new Error("Compte Meta non connecté.");
+  }
+
+  const links = await getRestaurantSocialLinks(restaurantId);
+  if (!links.facebookUrl) {
+    throw new Error("Enregistrez d'abord l'URL de votre page Facebook ci-dessus.");
+  }
+
+  const ref = extractFacebookPageReference(links.facebookUrl);
+  let page: MetaFacebookPage | null = null;
+
+  if (ref) {
+    page = await fetchMetaFacebookPageById(ref.value, row.user_access_token);
+  }
+
+  if (!page) {
+    try {
+      const pages = await discoverMetaFacebookPages(row.user_access_token, {
+        facebookUrlHint: links.facebookUrl,
+      });
+      if (ref?.type === "id") {
+        page = pages.find((p) => p.id === ref.value) ?? null;
+      }
+      if (!page && pages.length === 1) {
+        page = pages[0]!;
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Impossible de retrouver votre page Facebook.";
+      throw new Error(message);
+    }
+  }
+
+  if (!page) {
+    throw new Error(
+      "Impossible d'accéder à cette page avec votre compte Meta. Vérifiez que vous êtes admin de la page, puis reconnectez-vous en cochant la page dans la fenêtre Meta."
+    );
+  }
+
+  return linkMetaFacebookPage({ restaurantId, page });
+}
+
+export async function listPendingMetaPages(
+  restaurantId: string
+): Promise<{ pages: MetaFacebookPage[]; error: string | null }> {
+  const row = await getConnectionRow(restaurantId);
+  if (!row?.user_access_token) {
+    return { pages: [], error: null };
+  }
+  if (row.facebook_page_id) {
+    return { pages: [], error: null };
+  }
+  const links = await getRestaurantSocialLinks(restaurantId);
+  try {
+    const pages = await discoverMetaFacebookPages(row.user_access_token, {
+      facebookUrlHint: links.facebookUrl,
+    });
+    return { pages, error: null };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Impossible de lister vos pages Facebook.";
     console.warn("[metaDb] listPendingMetaPages:", err);
-    return [];
+    await supabaseServer
+      .from("restaurant_meta_connections")
+      .update({ last_error: message })
+      .eq("restaurant_id", restaurantId);
+    return { pages: [], error: message };
   }
 }
 
@@ -267,7 +362,7 @@ export async function syncInstagramStories(
 export async function getRestaurantSocialState(
   restaurantId: string
 ): Promise<RestaurantSocialState> {
-  const [links, row, pendingPages] = await Promise.all([
+  const [links, row, pending] = await Promise.all([
     getRestaurantSocialLinks(restaurantId),
     getConnectionRow(restaurantId),
     listPendingMetaPages(restaurantId),
@@ -279,7 +374,8 @@ export async function getRestaurantSocialState(
     metaOAuthConfigured: isMetaOAuthConfigured(),
     publishScopesEnabled: isMetaPublishScopesEnabled(),
     oauthRedirectUri: getMetaOAuthRedirectUri(),
-    pendingPages,
+    pendingPages: pending.pages,
+    pendingPagesError: pending.error,
   };
 }
 

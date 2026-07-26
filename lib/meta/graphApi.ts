@@ -34,13 +34,121 @@ export type MetaFacebookPage = {
 type GraphPageRow = {
   id: string;
   name: string;
-  access_token: string;
+  access_token?: string;
   link?: string;
   instagram_business_account?: {
     id: string;
     username?: string;
   } | null;
 };
+
+const META_PAGE_FIELDS =
+  "id,name,access_token,link,instagram_business_account{id,username}";
+
+const META_NO_PAGES_ERROR =
+  "Meta ne renvoie aucune page Facebook pour ce compte. Utilisez un compte admin d'une page pro (pas un profil perso seul). Lors de la connexion, cochez bien la page à partager avec Ubion, ou créez une page sur facebook.com/pages/create puis reconnectez-vous.";
+
+export type DiscoverMetaFacebookPagesOptions = {
+  facebookUrlHint?: string | null;
+};
+
+export type FacebookPageReference =
+  | { type: "id"; value: string }
+  | { type: "slug"; value: string };
+
+const FACEBOOK_PATH_BLOCKLIST = new Set([
+  "share",
+  "sharer",
+  "groups",
+  "events",
+  "watch",
+  "gaming",
+  "login",
+  "help",
+  "pages",
+]);
+
+export function extractFacebookPageReference(raw: string): FacebookPageReference | null {
+  const input = raw.trim();
+  if (!input) return null;
+
+  try {
+    const u = new URL(input.startsWith("http") ? input : `https://${input}`);
+    if (!u.hostname.includes("facebook.com") && !u.hostname.includes("fb.com")) {
+      return null;
+    }
+
+    const idParam = u.searchParams.get("id");
+    if (idParam && /^\d+$/.test(idParam)) {
+      return { type: "id", value: idParam };
+    }
+
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (parts[0] === "profile.php" && idParam && /^\d+$/.test(idParam)) {
+      return { type: "id", value: idParam };
+    }
+
+    if (parts[0] === "pages" && parts.length >= 2) {
+      const last = parts[parts.length - 1]!;
+      if (/^\d+$/.test(last)) return { type: "id", value: last };
+      if (!FACEBOOK_PATH_BLOCKLIST.has(last)) return { type: "slug", value: last };
+    }
+
+    const first = parts[0];
+    if (first && !FACEBOOK_PATH_BLOCKLIST.has(first)) {
+      if (/^\d+$/.test(first)) return { type: "id", value: first };
+      return { type: "slug", value: first };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function mapGraphPageRow(row: GraphPageRow): MetaFacebookPage | null {
+  if (!row.id || !row.name || !row.access_token) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    accessToken: row.access_token,
+    link: row.link ?? null,
+    instagramBusinessAccountId: row.instagram_business_account?.id ?? null,
+    instagramUsername: row.instagram_business_account?.username ?? null,
+  };
+}
+
+async function fetchGraphPageRows(
+  path: string,
+  userAccessToken: string,
+  maxRows = 100
+): Promise<GraphPageRow[]> {
+  const params = new URLSearchParams({
+    fields: META_PAGE_FIELDS,
+    access_token: userAccessToken,
+    limit: "50",
+  });
+
+  const rows: GraphPageRow[] = [];
+  let nextUrl: string | null = `${metaGraphUrl(path)}?${params.toString()}`;
+
+  while (nextUrl && rows.length < maxRows) {
+    const res = await fetch(nextUrl);
+    if (!res.ok) break;
+
+    const json = (await res.json()) as {
+      data?: GraphPageRow[];
+      error?: { message: string };
+      paging?: { next?: string };
+    };
+    if (json.error) break;
+
+    rows.push(...(json.data ?? []));
+    nextUrl = json.paging?.next ?? null;
+  }
+
+  return rows;
+}
 
 type GraphStoriesResponse = {
   data?: Array<{
@@ -54,30 +162,98 @@ type GraphStoriesResponse = {
   error?: { message: string; code?: number };
 };
 
-export async function listMetaFacebookPages(userAccessToken: string): Promise<MetaFacebookPage[]> {
-  const params = new URLSearchParams({
-    fields: "id,name,access_token,link,instagram_business_account{id,username}",
-    access_token: userAccessToken,
-    limit: "50",
-  });
+async function listMetaFacebookPagesFromAccounts(
+  userAccessToken: string
+): Promise<MetaFacebookPage[]> {
+  const rows = await fetchGraphPageRows("me/accounts", userAccessToken);
+  return rows.map(mapGraphPageRow).filter((p): p is MetaFacebookPage => p != null);
+}
 
-  const res = await fetch(`${metaGraphUrl("me/accounts")}?${params.toString()}`);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Pages Facebook introuvables (${res.status}) : ${text.slice(0, 300)}`);
+async function listMetaFacebookPagesViaBusinesses(
+  userAccessToken: string
+): Promise<MetaFacebookPage[]> {
+  const bizParams = new URLSearchParams({
+    fields: "id,name",
+    access_token: userAccessToken,
+    limit: "25",
+  });
+  const bizRes = await fetch(`${metaGraphUrl("me/businesses")}?${bizParams.toString()}`);
+  if (!bizRes.ok) return [];
+
+  const bizJson = (await bizRes.json()) as {
+    data?: Array<{ id: string; name?: string }>;
+    error?: { message: string };
+  };
+  if (bizJson.error) return [];
+
+  const byId = new Map<string, MetaFacebookPage>();
+
+  for (const biz of bizJson.data ?? []) {
+    for (const edge of ["owned_pages", "client_pages"] as const) {
+      const rows = await fetchGraphPageRows(`${biz.id}/${edge}`, userAccessToken, 50);
+      for (const row of rows) {
+        if (byId.has(row.id)) continue;
+        let page = mapGraphPageRow(row);
+        if (!page) {
+          page = await fetchMetaFacebookPageById(row.id, userAccessToken);
+        }
+        if (page) byId.set(page.id, page);
+      }
+    }
   }
 
-  const json = (await res.json()) as { data?: GraphPageRow[]; error?: { message: string } };
-  if (json.error) throw new Error(json.error.message);
+  return [...byId.values()];
+}
 
-  return (json.data ?? []).map((row) => ({
-    id: row.id,
-    name: row.name,
-    accessToken: row.access_token,
-    link: row.link ?? null,
-    instagramBusinessAccountId: row.instagram_business_account?.id ?? null,
-    instagramUsername: row.instagram_business_account?.username ?? null,
-  }));
+export async function fetchMetaFacebookPageById(
+  pageIdOrSlug: string,
+  userAccessToken: string
+): Promise<MetaFacebookPage | null> {
+  const params = new URLSearchParams({
+    fields: META_PAGE_FIELDS,
+    access_token: userAccessToken,
+  });
+  const res = await fetch(`${metaGraphUrl(pageIdOrSlug)}?${params.toString()}`);
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as GraphPageRow & { error?: { message: string } };
+  if (json.error) return null;
+  return mapGraphPageRow(json);
+}
+
+export async function discoverMetaFacebookPages(
+  userAccessToken: string,
+  opts?: DiscoverMetaFacebookPagesOptions
+): Promise<MetaFacebookPage[]> {
+  const byId = new Map<string, MetaFacebookPage>();
+
+  const add = (pages: MetaFacebookPage[]) => {
+    for (const page of pages) byId.set(page.id, page);
+  };
+
+  add(await listMetaFacebookPagesFromAccounts(userAccessToken));
+  add(await listMetaFacebookPagesViaBusinesses(userAccessToken));
+
+  if (opts?.facebookUrlHint) {
+    const ref = extractFacebookPageReference(opts.facebookUrlHint);
+    if (ref) {
+      const page = await fetchMetaFacebookPageById(ref.value, userAccessToken);
+      if (page) add([page]);
+    }
+  }
+
+  const pages = [...byId.values()];
+  if (pages.length === 0) {
+    throw new Error(META_NO_PAGES_ERROR);
+  }
+  return pages;
+}
+
+export async function listMetaFacebookPages(
+  userAccessToken: string,
+  opts?: DiscoverMetaFacebookPagesOptions
+): Promise<MetaFacebookPage[]> {
+  return discoverMetaFacebookPages(userAccessToken, opts);
 }
 
 export async function fetchInstagramStories(

@@ -10,14 +10,14 @@ import { CommunicationClient } from "./CommunicationClient";
 export const metadata = { title: "Communication & réseaux sociaux" };
 
 type Props = {
-  searchParams: Promise<{ meta?: string }>;
+  searchParams: Promise<{ meta?: string; meta_msg?: string }>;
 };
 
 export default async function CommunicationPage({ searchParams }: Props) {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const { meta: metaFlash } = await searchParams;
+  const { meta: metaFlash, meta_msg: metaMessage } = await searchParams;
 
   const [socialState, feedResult, publishedPosts] = await Promise.all([
     getRestaurantSocialState(restaurant.id),
@@ -46,6 +46,7 @@ export default async function CommunicationPage({ searchParams }: Props) {
         initialFeedError={feedResult.feedError}
         initialPublishedPosts={publishedPosts}
         metaFlash={metaFlash === "connected" || metaFlash === "error" ? metaFlash : null}
+        metaMessage={metaMessage ?? null}
       />
     </PageContainer>
   );

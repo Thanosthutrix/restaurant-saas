@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ExternalLink,
   Instagram,
@@ -12,7 +12,9 @@ import {
   disconnectMetaAction,
   getMetaOAuthStartUrlAction,
   linkMetaFacebookPageAction,
+  linkMetaFacebookPageFromHintAction,
   refreshInstagramStoriesAction,
+  refreshPendingMetaPagesAction,
   saveSocialLinksAction,
 } from "@/app/restaurants/socialActions";
 import type { RestaurantSocialState } from "@/lib/meta/metaDb";
@@ -34,6 +36,7 @@ type Props = {
   restaurantId: string;
   initialState: RestaurantSocialState;
   metaFlash?: "connected" | "error" | null;
+  metaMessage?: string | null;
   onStateChange?: (state: RestaurantSocialState) => void;
 };
 
@@ -45,7 +48,7 @@ function FacebookIcon({ className }: { className?: string }) {
   );
 }
 
-export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, onStateChange }: Props) {
+export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, metaMessage, onStateChange }: Props) {
   const [state, setState] = useState(initialState);
   const [instagramInput, setInstagramInput] = useState(
     state.links.instagramUsername
@@ -55,7 +58,9 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, onS
   const [facebookInput, setFacebookInput] = useState(state.links.facebookUrl ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(
-    metaFlash === "error" ? "Connexion Meta interrompue ou refusée." : null
+    metaFlash === "error"
+      ? metaMessage?.trim() || "Connexion Meta interrompue ou refusée."
+      : null
   );
   const [success, setSuccess] = useState<string | null>(
     metaFlash === "connected"
@@ -86,10 +91,10 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, onS
     setSuccess("Liens enregistrés — visibles sur le portail public.");
   }
 
-  async function handleConnectMeta() {
+  async function handleConnectMeta(rerequest = false) {
     setLoading(true);
     setError(null);
-    const result = await getMetaOAuthStartUrlAction(restaurantId);
+    const result = await getMetaOAuthStartUrlAction(restaurantId, { rerequest });
     setLoading(false);
     if (!result.ok) {
       setError(result.error);
@@ -161,6 +166,81 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, onS
 
   const meta = state.meta;
   const hasStories = (meta?.stories.length ?? 0) > 0;
+  const awaitingPageLink = Boolean(
+    meta?.metaAccountName && !meta.facebookPageId && meta.connectionStatus !== "connected"
+  );
+
+  useEffect(() => {
+    if (metaFlash !== "connected") return;
+    void refreshPendingMetaPagesAction(restaurantId).then((result) => {
+      if (result.ok && result.data) applyState(result.data);
+    });
+  }, [metaFlash, restaurantId]);
+
+  async function handleLinkFromSavedUrl() {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    let baseState = state;
+    if (facebookInput.trim()) {
+      const saved = await saveSocialLinksAction({
+        restaurantId,
+        instagramInput,
+        facebookInput,
+      });
+      if (!saved.ok) {
+        setLoading(false);
+        setError(saved.error);
+        return;
+      }
+      baseState = saved.data!;
+      applyState(baseState);
+    }
+
+    const result = await linkMetaFacebookPageFromHintAction(restaurantId);
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    applyState({
+      ...baseState,
+      meta: result.data!,
+      pendingPages: [],
+      pendingPagesError: null,
+    });
+    setSuccess(
+      result.data!.instagramBusinessAccountId
+        ? "Page liée depuis l'URL enregistrée — publication et stories disponibles."
+        : "Page Facebook liée (sans compte Instagram Business détecté)."
+    );
+  }
+
+  async function handleRefreshPages() {
+    setLoading(true);
+    setError(null);
+    const result = await refreshPendingMetaPagesAction(restaurantId);
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    applyState(result.data!);
+    if (result.data!.pendingPages.length === 0 && result.data!.pendingPagesError) {
+      setError(result.data!.pendingPagesError);
+    } else if (result.data!.pendingPages.length > 0) {
+      setSuccess("Choisissez la page Facebook à lier à l'établissement.");
+    } else if (result.data!.meta?.connectionStatus === "connected") {
+      setSuccess("Page Facebook liée.");
+    } else if (result.data!.pendingPagesError) {
+      setError(result.data!.pendingPagesError);
+    } else {
+      setError(
+        "Aucune page Facebook trouvée. Connectez-vous avec un compte admin d'une page pro, pas seulement un profil personnel."
+      );
+    }
+  }
 
   return (
     <div className={`${uiCard} space-y-5 p-5 sm:p-6`}>
@@ -238,8 +318,14 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, onS
       <div className="border-t border-stone-100 pt-5">
         <h3 className="text-sm font-semibold text-stone-900">Connexion Meta (publication & stories)</h3>
         <p className={`mt-1 ${uiLead}`}>
-          Compte Instagram Business lié à une page Facebook. Reconnectez après ajout des droits de
-          publication dans Meta for Developers.
+          Connectez-vous avec le compte <strong>Facebook</strong> qui administre la page du restaurant
+          (pas directement Instagram). Instagram Business doit déjà être lié à cette page dans Meta
+          Business Suite.
+        </p>
+        <p className={`mt-2 ${uiLead}`}>
+          Sur iPhone : restez dans Safari, évitez l&apos;app Instagram. Si Instagram demande un changement
+          de mot de passe, faites-le d&apos;abord dans l&apos;app Instagram, puis relancez la connexion
+          depuis Ubion.
         </p>
 
         {state.metaOAuthConfigured && !state.publishScopesEnabled ? (
@@ -307,7 +393,7 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, onS
               </button>
             </div>
           </div>
-        ) : state.pendingPages.length > 0 ? (
+        ) : awaitingPageLink || state.pendingPages.length > 0 ? (
           <div className="mt-3 space-y-2">
             <p className="text-sm text-stone-700">
               Compte <strong>{meta?.metaAccountName}</strong> connecté — choisissez la page :
@@ -331,11 +417,54 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, onS
                 <Link2 className="h-4 w-4 shrink-0 text-stone-400" aria-hidden />
               </button>
             ))}
+            {state.pendingPages.length === 0 ? (
+              <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50/80 p-3">
+                {state.pendingPagesError ? (
+                  <p className={`text-sm ${uiError}`}>{state.pendingPagesError}</p>
+                ) : (
+                  <p className={`text-sm ${uiLead}`}>
+                    Ubion a besoin d&apos;une <strong>page Facebook pro</strong> (ex. « La Piazza
+                    Normande »), pas d&apos;un profil personnel. Lors de la connexion Meta, cochez la
+                    page à autoriser.
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRefreshPages}
+                    disabled={loading}
+                    className={`inline-flex items-center gap-2 ${uiBtnSecondary}`}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden />
+                    Charger mes pages
+                  </button>
+                  {(state.links.facebookUrl || facebookInput.trim()) ? (
+                    <button
+                      type="button"
+                      onClick={handleLinkFromSavedUrl}
+                      disabled={loading}
+                      className={`inline-flex items-center gap-2 ${uiBtnPrimarySm}`}
+                    >
+                      <Link2 className="h-4 w-4" aria-hidden />
+                      Lier la page Facebook renseignée
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => handleConnectMeta(true)}
+                    disabled={loading}
+                    className={`inline-flex items-center gap-2 ${uiBtnOutlineSm}`}
+                  >
+                    Reconnecter et sélectionner ma page
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : state.metaOAuthConfigured ? (
           <button
             type="button"
-            onClick={handleConnectMeta}
+            onClick={() => handleConnectMeta(false)}
             disabled={loading}
             className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#1877F2] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#166fe5] disabled:opacity-50"
           >

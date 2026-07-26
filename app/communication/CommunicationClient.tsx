@@ -19,6 +19,7 @@ type Props = {
   initialFeedError: string | null;
   initialPublishedPosts: SocialPost[];
   metaFlash?: "connected" | "error" | null;
+  metaMessage?: string | null;
 };
 
 const TABS: { id: Tab; label: string }[] = [
@@ -35,6 +36,7 @@ export function CommunicationClient({
   initialFeedError,
   initialPublishedPosts,
   metaFlash,
+  metaMessage,
 }: Props) {
   const [tab, setTab] = useState<Tab>(metaFlash ? "accounts" : "content");
   const [socialState, setSocialState] = useState(initialSocialState);
@@ -88,6 +90,7 @@ export function CommunicationClient({
           restaurantId={restaurantId}
           initialState={socialState}
           metaFlash={metaFlash}
+          metaMessage={metaMessage}
           onStateChange={setSocialState}
         />
       ) : null}

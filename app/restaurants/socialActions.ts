@@ -1,12 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getCurrentUser, getAccessibleRestaurantsForUser } from "@/lib/auth";
-import { isMetaOAuthConfigured } from "@/lib/meta/config";
+import { getMetaOAuthRedirectUri, isMetaOAuthConfigured } from "@/lib/meta/config";
 import {
   disconnectMetaConnection,
+  findMetaFacebookPage,
   getRestaurantSocialState,
   linkMetaFacebookPage,
+  linkMetaFacebookPageFromHint,
   syncInstagramStories,
   updateRestaurantSocialLinks,
   type RestaurantMetaConnection,
@@ -79,7 +82,8 @@ export async function saveSocialLinksAction(params: {
 }
 
 export async function getMetaOAuthStartUrlAction(
-  restaurantId: string
+  restaurantId: string,
+  opts?: { rerequest?: boolean }
 ): Promise<ActionResult<{ url: string }>> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
@@ -93,13 +97,30 @@ export async function getMetaOAuthStartUrlAction(
   const access = await assertRestaurantAccess(user.id, restaurantId);
   if (!access.ok) return access;
 
+  const headerList = await headers();
+  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
+  const proto =
+    headerList.get("x-forwarded-proto") ??
+    (host && (host.includes("localhost") || host.startsWith("127.")) ? "http" : "https");
+  const requestOrigin = host ? `${proto}://${host}` : null;
+  const redirectUri = getMetaOAuthRedirectUri(requestOrigin);
+
   const state = encodeMetaOAuthState({
     restaurantId,
     userId: user.id,
     ts: Date.now(),
+    redirectUri,
   });
 
-  return { ok: true, data: { url: buildMetaOAuthAuthorizeUrl(state) } };
+  return {
+    ok: true,
+    data: {
+      url: buildMetaOAuthAuthorizeUrl(state, {
+        rerequest: opts?.rerequest,
+        redirectUri,
+      }),
+    },
+  };
 }
 
 export async function completeMetaOAuthAction(params: {
@@ -123,7 +144,9 @@ export async function linkMetaFacebookPageAction(
   if (!access.ok) return access;
 
   const state = await getRestaurantSocialState(restaurantId);
-  const page = state.pendingPages.find((p) => p.id === pageId);
+  const page =
+    state.pendingPages.find((p) => p.id === pageId) ??
+    (await findMetaFacebookPage(restaurantId, pageId));
   if (!page) return { ok: false, error: "Page Facebook introuvable." };
 
   try {
@@ -133,6 +156,43 @@ export async function linkMetaFacebookPageAction(
     return { ok: true, data: linked };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Liaison impossible." };
+  }
+}
+
+export async function linkMetaFacebookPageFromHintAction(
+  restaurantId: string
+): Promise<ActionResult<RestaurantMetaConnection>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  try {
+    const linked = await linkMetaFacebookPageFromHint(restaurantId);
+    revalidateSocialPaths(restaurantId);
+    if (!linked) return { ok: false, error: "Liaison impossible." };
+    return { ok: true, data: linked };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Liaison impossible." };
+  }
+}
+
+export async function refreshPendingMetaPagesAction(
+  restaurantId: string
+): Promise<ActionResult<RestaurantSocialState>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  try {
+    const state = await getRestaurantSocialState(restaurantId);
+    revalidateSocialPaths(restaurantId);
+    return { ok: true, data: state };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Chargement impossible." };
   }
 }
 

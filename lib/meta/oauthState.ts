@@ -12,6 +12,8 @@ export type MetaOAuthState = {
   restaurantId: string;
   userId: string;
   ts: number;
+  /** URI exacte utilisée au lancement OAuth (doit matcher l'échange du code). */
+  redirectUri?: string;
 };
 
 export function encodeMetaOAuthState(payload: MetaOAuthState): string {

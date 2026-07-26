@@ -1,5 +1,6 @@
 /** Scopes lecture (stories, pages, profil IG) — fonctionnent sans App Review avancée. */
 export const META_OAUTH_SCOPES_READ = [
+  "public_profile",
   "pages_show_list",
   "pages_read_engagement",
   "instagram_basic",
@@ -46,9 +47,12 @@ export function getAppBaseUrl(): string {
   return "http://localhost:3000";
 }
 
-export function getMetaOAuthRedirectUri(): string {
+export function getMetaOAuthRedirectUri(requestOrigin?: string | null): string {
   const explicit = process.env.META_OAUTH_REDIRECT_URI?.trim();
   if (explicit) return explicit;
+  if (requestOrigin?.trim()) {
+    return `${requestOrigin.trim().replace(/\/$/, "")}/meta/oauth/complete`;
+  }
   return `${getAppBaseUrl()}/meta/oauth/complete`;
 }
 

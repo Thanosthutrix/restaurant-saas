@@ -32,10 +32,11 @@ export function addDaysToYmd(ymd: string, days: number): string {
 }
 
 export function planningDayKeyFromYmd(ymd: string): PlanningDayKey {
+  const [y, m, d] = ymd.split("-").map(Number);
   const wd = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Paris",
     weekday: "short",
-  }).format(new Date(`${ymd}T12:00:00`));
+  }).format(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
   return WEEKDAY_TO_KEY[wd] ?? "mon";
 }
 
@@ -61,9 +62,16 @@ export function parseFrenchDateInput(text: string, referenceYmd = parisTodayYmd(
 }
 
 export function parseTimeHmInput(text: string): string | null {
-  const raw = text.trim().replace("h", ":");
-  const m = /^(\d{1,2})[:.](\d{2})$/.exec(raw);
-  if (!m) return normalizeClockToHhMm(raw);
+  const raw = text.trim().toLowerCase().replace(/\s+/g, "");
+  const withColon = raw.replace(/h/g, ":");
+  const hmOnly = /^(\d{1,2})$/.exec(withColon);
+  if (hmOnly) {
+    const h = Number(hmOnly[1]);
+    if (h < 0 || h > 23) return null;
+    return `${String(h).padStart(2, "0")}:00`;
+  }
+  const m = /^(\d{1,2})[:.](\d{2})$/.exec(withColon);
+  if (!m) return normalizeClockToHhMm(withColon);
   const h = Number(m[1]);
   const min = Number(m[2]);
   if (h < 0 || h > 23 || min < 0 || min > 59) return null;
@@ -96,13 +104,12 @@ async function loadRestaurantHours(restaurantId: string) {
 }
 
 /** Créneaux disponibles (heure Paris HH:mm) pour une date et un nombre de couverts. */
-export async function listAvailableReservationSlots(params: {
+async function computeAvailableSlots(params: {
   restaurantId: string;
   ymd: string;
   partySize: number;
-  durationMinutes?: number;
+  durationMinutes: number;
 }): Promise<{ slots: string[]; error: string | null }> {
-  const duration = params.durationMinutes ?? DEFAULT_DURATION_MINUTES;
   const { schedule, error: hoursError } = await loadRestaurantHours(params.restaurantId);
   if (hoursError) return { slots: [], error: hoursError };
 
@@ -145,7 +152,7 @@ export async function listAvailableReservationSlots(params: {
     const bandEnd = minutesFromMidnight(band.end);
     if (bandStart == null || bandEnd == null) continue;
 
-    for (let startMin = bandStart; startMin + duration <= bandEnd; startMin += SLOT_STEP_MINUTES) {
+    for (let startMin = bandStart; startMin + params.durationMinutes <= bandEnd; startMin += SLOT_STEP_MINUTES) {
       if (startMin < nowMinutes) continue;
 
       const h = Math.floor(startMin / 60);
@@ -156,7 +163,7 @@ export async function listAvailableReservationSlots(params: {
       if (startErr || !startsAt) continue;
 
       const slotStartMs = new Date(startsAt).getTime();
-      const slotEndMs = slotStartMs + duration * 60_000;
+      const slotEndMs = slotStartMs + params.durationMinutes * 60_000;
 
       let covers = params.partySize;
       for (const res of activeReservations) {
@@ -173,7 +180,49 @@ export async function listAvailableReservationSlots(params: {
     }
   }
 
-  return { slots: slots.slice(0, MAX_SLOTS_RETURNED), error: null };
+  return { slots, error: null };
+}
+
+export async function listAvailableReservationSlots(params: {
+  restaurantId: string;
+  ymd: string;
+  partySize: number;
+  durationMinutes?: number;
+  limit?: number;
+}): Promise<{ slots: string[]; error: string | null }> {
+  const duration = params.durationMinutes ?? DEFAULT_DURATION_MINUTES;
+  const result = await computeAvailableSlots({
+    restaurantId: params.restaurantId,
+    ymd: params.ymd,
+    partySize: params.partySize,
+    durationMinutes: duration,
+  });
+  if (result.error) return result;
+
+  const limit = params.limit ?? MAX_SLOTS_RETURNED;
+  return { slots: result.slots.slice(0, limit), error: null };
+}
+
+/** Vérifie un créneau précis (sans tronquer la liste affichée au bot). */
+export async function checkReservationSlotAvailable(params: {
+  restaurantId: string;
+  ymd: string;
+  timeHm: string;
+  partySize: number;
+  durationMinutes?: number;
+}): Promise<boolean> {
+  const normalized = parseTimeHmInput(params.timeHm) ?? params.timeHm;
+  if (!normalized) return false;
+
+  const duration = params.durationMinutes ?? DEFAULT_DURATION_MINUTES;
+  const { slots, error } = await computeAvailableSlots({
+    restaurantId: params.restaurantId,
+    ymd: params.ymd,
+    partySize: params.partySize,
+    durationMinutes: duration,
+  });
+  if (error) return false;
+  return slots.includes(normalized);
 }
 
 export async function isReservationSlotAvailable(params: {
@@ -183,6 +232,5 @@ export async function isReservationSlotAvailable(params: {
   partySize: number;
   durationMinutes?: number;
 }): Promise<boolean> {
-  const { slots } = await listAvailableReservationSlots(params);
-  return slots.includes(params.timeHm);
+  return checkReservationSlotAvailable(params);
 }

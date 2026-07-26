@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getRestaurantById } from "@/lib/auth";
 import {
   addDaysToYmd,
-  isReservationSlotAvailable,
+  checkReservationSlotAvailable,
   listAvailableReservationSlots,
   parseFrenchDateInput,
   parseTimeHmInput,
@@ -137,9 +137,11 @@ export async function processInboundMetaBookingBot(params: {
       restaurantId: params.restaurantId,
       ymd,
       partySize: draft.partySize ?? 2,
+      limit: 8,
     });
 
     if (error || slots.length === 0) {
+      await saveState(params.conversationId, { step: "date", draft: { partySize: draft.partySize } });
       await reply({
         ...params,
         text:
@@ -165,11 +167,18 @@ export async function processInboundMetaBookingBot(params: {
 
   if (state.step === "time") {
     let timeHm: string | null = null;
-    const option = Number.parseInt(inbound, 10);
-    if (Number.isInteger(option) && option >= 1 && draft.offeredSlots?.[option - 1]) {
-      timeHm = draft.offeredSlots[option - 1]!;
-    } else {
-      timeHm = parseTimeHmInput(inbound);
+    const trimmed = inbound.trim();
+    const offered = draft.offeredSlots ?? [];
+
+    if (/^\d+$/.test(trimmed)) {
+      const option = Number.parseInt(trimmed, 10);
+      if (option >= 1 && option <= offered.length) {
+        timeHm = offered[option - 1] ?? null;
+      }
+    }
+
+    if (!timeHm) {
+      timeHm = parseTimeHmInput(trimmed);
     }
 
     if (!timeHm || !draft.ymd) {
@@ -180,18 +189,21 @@ export async function processInboundMetaBookingBot(params: {
       return;
     }
 
-    const available = await isReservationSlotAvailable({
-      restaurantId: params.restaurantId,
-      ymd: draft.ymd,
-      timeHm,
-      partySize: draft.partySize ?? 2,
-    });
-    if (!available) {
-      await reply({
-        ...params,
-        text: "Ce créneau n'est plus disponible. Choisissez un autre horaire.",
+    const pickedFromOfferedList = offered.includes(timeHm);
+    if (!pickedFromOfferedList) {
+      const available = await checkReservationSlotAvailable({
+        restaurantId: params.restaurantId,
+        ymd: draft.ymd,
+        timeHm,
+        partySize: draft.partySize ?? 2,
       });
-      return;
+      if (!available) {
+        await reply({
+          ...params,
+          text: "Ce créneau n'est pas disponible. Choisissez un numéro dans la liste ou une autre heure.",
+        });
+        return;
+      }
     }
 
     draft.timeHm = timeHm;

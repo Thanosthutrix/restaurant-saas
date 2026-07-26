@@ -201,6 +201,7 @@ export async function upsertInboundMetaMessage(params: {
   rawPayload: unknown;
   customerName?: string | null;
   incrementUnread?: boolean;
+  messageCreatedAt?: string | null;
 }): Promise<void> {
   if (params.metaMessageId) {
     const { data: existing } = await supabaseServer
@@ -223,7 +224,8 @@ export async function upsertInboundMetaMessage(params: {
 
   let conversationId: string;
   const preview = previewFromMessage(params.text, params.attachments);
-  const now = new Date().toISOString();
+  const messageAt = params.messageCreatedAt ?? new Date().toISOString();
+  const now = messageAt;
 
   if (existingConv) {
     conversationId = existingConv.id as string;
@@ -265,6 +267,7 @@ export async function upsertInboundMetaMessage(params: {
     text: params.text,
     attachments: params.attachments ?? null,
     raw_payload: params.rawPayload ?? null,
+    created_at: messageAt,
   });
 
   if (msgError) throw new Error(msgError.message);
@@ -278,9 +281,12 @@ export async function recordOutboundMetaMessage(params: {
   text: string | null;
   attachments?: unknown;
   rawPayload?: unknown;
+  customerName?: string | null;
+  messageCreatedAt?: string | null;
 }): Promise<void> {
   const preview = previewFromMessage(params.text, params.attachments ?? null);
-  const now = new Date().toISOString();
+  const messageAt = params.messageCreatedAt ?? new Date().toISOString();
+  const now = messageAt;
 
   const { data: existingConv, error: convLookupError } = await supabaseServer
     .from("restaurant_meta_conversations")
@@ -301,6 +307,7 @@ export async function recordOutboundMetaMessage(params: {
         restaurant_id: params.restaurantId,
         platform: params.platform,
         external_user_id: params.externalUserId,
+        customer_name: params.customerName ?? null,
         last_message_at: now,
         last_message_preview: preview,
         unread_count: 0,
@@ -332,6 +339,7 @@ export async function recordOutboundMetaMessage(params: {
     text: params.text,
     attachments: params.attachments ?? null,
     raw_payload: params.rawPayload ?? null,
+    created_at: messageAt,
   });
 
   if (msgError) throw new Error(msgError.message);

@@ -15,6 +15,7 @@ import {
   markConversationRead,
 } from "@/lib/meta/messagingDb";
 import { ensureMetaMessagingWebhooksSubscribed } from "@/lib/meta/metaDb";
+import { syncMetaMessagingFromGraph } from "@/lib/meta/messagingSync";
 import type { MetaMessage, MetaMessagingInbox } from "@/lib/meta/messagingTypes";
 import { parsePublishRequestFromFormData } from "@/lib/meta/publishOptions";
 import { listSocialPosts } from "@/lib/meta/socialPostsDb";
@@ -123,6 +124,7 @@ export async function loadMetaMessagingInboxAction(
   if (!access.ok) return access;
 
   try {
+    await syncMetaMessagingFromGraph(restaurantId);
     return { ok: true, data: await getMetaMessagingInbox(restaurantId) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Chargement impossible." };
@@ -140,6 +142,7 @@ export async function loadMetaConversationMessagesAction(
   if (!access.ok) return access;
 
   try {
+    await syncMetaMessagingFromGraph(restaurantId);
     const [inbox, messages] = await Promise.all([
       getMetaMessagingInbox(restaurantId),
       listMetaConversationMessages(restaurantId, conversationId),
@@ -163,6 +166,7 @@ export async function subscribeMetaMessagingWebhooksAction(
     const result = await ensureMetaMessagingWebhooksSubscribed(restaurantId);
     if (!result.ok) return { ok: false, error: result.error };
     revalidateCommunicationPaths();
+    await syncMetaMessagingFromGraph(restaurantId);
     return { ok: true, data: await getMetaMessagingInbox(restaurantId) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Activation impossible." };

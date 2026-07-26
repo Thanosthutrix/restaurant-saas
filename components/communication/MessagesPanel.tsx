@@ -116,7 +116,8 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
         <div>
           <h2 className="text-base font-semibold text-stone-900">Messages</h2>
           <p className={`mt-1 ${uiLead}`}>
-            Instagram DM et Facebook Messenger reçus via webhook Meta (lecture seule — Phase 1).
+            Instagram DM et Facebook Messenger — synchronisés depuis Meta (Actualiser pour récupérer
+            les nouveaux messages).
           </p>
         </div>
         <button

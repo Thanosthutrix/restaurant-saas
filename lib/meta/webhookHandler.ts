@@ -37,9 +37,13 @@ async function resolveRestaurantId(
   entryId: string
 ): Promise<string | null> {
   if (objectType === "instagram") {
-    return findRestaurantIdByInstagramAccountId(entryId);
+    const byIg = await findRestaurantIdByInstagramAccountId(entryId);
+    if (byIg) return byIg;
+    return findRestaurantIdByFacebookPageId(entryId);
   }
-  return findRestaurantIdByFacebookPageId(entryId);
+  const byPage = await findRestaurantIdByFacebookPageId(entryId);
+  if (byPage) return byPage;
+  return findRestaurantIdByInstagramAccountId(entryId);
 }
 
 function resolvePlatform(objectType: string): MetaMessagingPlatform {

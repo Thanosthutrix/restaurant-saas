@@ -2,6 +2,7 @@ import { getAccessibleRestaurantsForUser, getCurrentUser } from "@/lib/auth";
 import {
   getRestaurantSocialLinks,
   linkMetaFacebookPage,
+  linkMetaFacebookPageFromHint,
   upsertMetaUserConnection,
 } from "@/lib/meta/metaDb";
 import {
@@ -65,15 +66,19 @@ export async function completeMetaOAuthFromCode(params: {
     });
 
     try {
-      const links = await getRestaurantSocialLinks(access.restaurantId);
-      const pages = await listMetaFacebookPages(long.access_token, {
-        facebookUrlHint: links.facebookUrl,
-      });
-      if (pages.length === 1) {
-        await linkMetaFacebookPage({ restaurantId: access.restaurantId, page: pages[0] });
-      }
+      await linkMetaFacebookPageFromHint(access.restaurantId);
     } catch {
-      /* L'utilisateur choisira la page manuellement. */
+      try {
+        const links = await getRestaurantSocialLinks(access.restaurantId);
+        const pages = await listMetaFacebookPages(long.access_token, {
+          facebookUrlHint: links.facebookUrl,
+        });
+        if (pages.length === 1) {
+          await linkMetaFacebookPage({ restaurantId: access.restaurantId, page: pages[0] });
+        }
+      } catch {
+        /* L'utilisateur choisira la page manuellement. */
+      }
     }
 
     return { ok: true, restaurantId: access.restaurantId };
@@ -112,6 +117,23 @@ export async function completeMetaOAuthFromToken(params: {
       userAccessToken: token,
       expiresInSec,
     });
+
+    try {
+      await linkMetaFacebookPageFromHint(access.restaurantId);
+    } catch {
+      try {
+        const links = await getRestaurantSocialLinks(access.restaurantId);
+        const pages = await listMetaFacebookPages(token, {
+          facebookUrlHint: links.facebookUrl,
+        });
+        if (pages.length === 1) {
+          await linkMetaFacebookPage({ restaurantId: access.restaurantId, page: pages[0] });
+        }
+      } catch {
+        /* L'utilisateur choisira la page manuellement. */
+      }
+    }
+
     return { ok: true, restaurantId: access.restaurantId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Connexion Meta impossible." };

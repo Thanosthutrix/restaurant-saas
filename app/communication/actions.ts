@@ -14,6 +14,7 @@ import {
   listMetaConversationMessages,
   markConversationRead,
 } from "@/lib/meta/messagingDb";
+import { ensureMetaMessagingWebhooksSubscribed } from "@/lib/meta/metaDb";
 import type { MetaMessage, MetaMessagingInbox } from "@/lib/meta/messagingTypes";
 import { parsePublishRequestFromFormData } from "@/lib/meta/publishOptions";
 import { listSocialPosts } from "@/lib/meta/socialPostsDb";
@@ -146,6 +147,25 @@ export async function loadMetaConversationMessagesAction(
     return { ok: true, data: { inbox, messages } };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Chargement impossible." };
+  }
+}
+
+export async function subscribeMetaMessagingWebhooksAction(
+  restaurantId: string
+): Promise<ActionResult<MetaMessagingInbox>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  try {
+    const result = await ensureMetaMessagingWebhooksSubscribed(restaurantId);
+    if (!result.ok) return { ok: false, error: result.error };
+    revalidateCommunicationPaths();
+    return { ok: true, data: await getMetaMessagingInbox(restaurantId) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Activation impossible." };
   }
 }
 

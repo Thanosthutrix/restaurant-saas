@@ -6,6 +6,7 @@ import { getCurrentUser, getAccessibleRestaurantsForUser } from "@/lib/auth";
 import { getMetaOAuthRedirectUri, isMetaOAuthConfigured } from "@/lib/meta/config";
 import {
   disconnectMetaConnection,
+  ensureMetaMessagingWebhooksSubscribed,
   findMetaFacebookPage,
   getRestaurantSocialState,
   linkMetaFacebookPage,
@@ -193,6 +194,25 @@ export async function refreshPendingMetaPagesAction(
     return { ok: true, data: state };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Chargement impossible." };
+  }
+}
+
+export async function subscribeMetaMessagingWebhooksAction(
+  restaurantId: string
+): Promise<ActionResult<RestaurantSocialState>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  try {
+    const result = await ensureMetaMessagingWebhooksSubscribed(restaurantId);
+    revalidateSocialPaths(restaurantId);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, data: await getRestaurantSocialState(restaurantId) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Activation impossible." };
   }
 }
 

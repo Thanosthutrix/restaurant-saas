@@ -6,9 +6,11 @@ import {
   loadMetaConversationMessagesAction,
   loadMetaMessagingInboxAction,
   markMetaConversationReadAction,
+  subscribeMetaMessagingWebhooksAction,
 } from "@/app/communication/actions";
 import type { MetaConversation, MetaMessage, MetaMessagingInbox } from "@/lib/meta/messagingTypes";
 import {
+  uiBtnPrimarySm,
   uiBtnSecondary,
   uiCard,
   uiError,
@@ -52,13 +54,16 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
   );
   const [messages, setMessages] = useState<MetaMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const selected = inbox.conversations.find((c) => c.id === selectedId) ?? null;
 
   async function refreshInbox() {
     setLoading(true);
     setError(null);
+    setSuccess(null);
     const result = await loadMetaMessagingInboxAction(restaurantId);
     setLoading(false);
     if (!result.ok) {
@@ -66,6 +71,20 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
       return;
     }
     setInbox(result.data!);
+  }
+
+  async function activateMessagingWebhooks() {
+    setActivating(true);
+    setError(null);
+    setSuccess(null);
+    const result = await subscribeMetaMessagingWebhooksAction(restaurantId);
+    setActivating(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setInbox(result.data!);
+    setSuccess("Réception des messages activée — envoyez un DM test.");
   }
 
   async function loadThread(conversationId: string) {
@@ -139,9 +158,25 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
               {new Date(inbox.webhookSubscribedAt).toLocaleString("fr-FR")}
             </p>
           ) : (
-            <p className={`mt-1 text-xs ${uiLead}`}>
-              Reliez la page Facebook dans Comptes pour abonner automatiquement la page aux messages.
-            </p>
+            <div className="mt-2 space-y-2">
+              <p className={`text-xs ${uiWarn}`}>
+                La page Facebook n&apos;est pas encore abonnée aux messages Meta. Sans cela, les DM
+                n&apos;arrivent pas dans Ubion — même si le webhook Meta est validé.
+              </p>
+              <button
+                type="button"
+                onClick={activateMessagingWebhooks}
+                disabled={activating || loading || !metaConnected}
+                className={`inline-flex items-center gap-2 ${uiBtnPrimarySm}`}
+              >
+                <RefreshCw className={`h-4 w-4 ${activating ? "animate-spin" : ""}`} aria-hidden />
+                Activer la réception des messages
+              </button>
+              <p className={`text-xs ${uiLead}`}>
+                Si l&apos;activation échoue (permissions manquantes), reconnectez Meta dans Comptes
+                via « Reconnecter et sélectionner ma page », puis recliquez ici.
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -248,6 +283,7 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
       </div>
 
       {error ? <p className={uiError}>{error}</p> : null}
+      {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
     </div>
   );
 }

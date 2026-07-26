@@ -4,6 +4,21 @@ import { metaGraphUrl } from "./config";
 
 const WEBHOOK_SUBSCRIBED_FIELDS = ["messages", "messaging_postbacks"] as const;
 
+export function formatMetaMessagingSubscribeError(raw: string): string {
+  if (raw.includes("pages_messaging")) {
+    return (
+      "Permissions messagerie manquantes sur le jeton de la page (pages_messaging). " +
+      "Reconnectez Meta via « Reconnecter et sélectionner ma page », puis reliez la page Facebook."
+    );
+  }
+  if (raw.includes("pages_manage_metadata")) {
+    return (
+      "Permission pages_manage_metadata manquante. Reconnectez Meta avec les scopes messagerie activés."
+    );
+  }
+  return raw;
+}
+
 export async function subscribePageMessagingWebhooks(params: {
   facebookPageId: string;
   pageAccessToken: string;
@@ -16,14 +31,12 @@ export async function subscribePageMessagingWebhooks(params: {
   const res = await fetch(url.toString(), { method: "POST" });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(
-      "Abonnement webhook Meta echoue (" + String(res.status) + ") : " + text.slice(0, 300)
-    );
+    throw new Error(formatMetaMessagingSubscribeError(text.slice(0, 400)));
   }
 
   const json = (await res.json()) as { success?: boolean; error?: { message: string } };
   if (json.error) {
-    throw new Error(json.error.message);
+    throw new Error(formatMetaMessagingSubscribeError(json.error.message));
   }
   if (json.success === false) {
     throw new Error("Abonnement webhook Meta refuse.");

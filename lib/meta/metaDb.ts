@@ -10,7 +10,7 @@ import {
   type MetaFacebookPage,
 } from "./graphApi";
 import { buildInstagramProfileUrl } from "./socialUrls";
-import { subscribePageMessagingWebhooks } from "./messagingApi";
+import { formatMetaMessagingSubscribeError, subscribePageMessagingWebhooks } from "./messagingApi";
 import { markMessagingWebhookSubscribed } from "./messagingDb";
 
 export type MetaConnectionStatus = "disconnected" | "connected" | "needs_action";
@@ -182,6 +182,78 @@ export async function upsertMetaUserConnection(params: {
   if (error) throw new Error(error.message);
 }
 
+export type MetaMessagingWebhookResult = { ok: true } | { ok: false; error: string };
+
+/** Rafraîchit le jeton page (si possible) puis abonne la page aux webhooks messages. */
+export async function ensureMetaMessagingWebhooksSubscribed(
+  restaurantId: string
+): Promise<MetaMessagingWebhookResult> {
+  if (!isMetaMessagingScopesEnabled()) {
+    return {
+      ok: false,
+      error: "Messagerie désactivée côté serveur (META_OAUTH_INCLUDE_MESSAGING_SCOPES=true).",
+    };
+  }
+  if (!isMetaWebhookConfigured()) {
+    return {
+      ok: false,
+      error: "Webhook non configuré (META_WEBHOOK_VERIFY_TOKEN manquant sur le serveur).",
+    };
+  }
+
+  const row = await getConnectionRow(restaurantId);
+  if (!row?.facebook_page_id) {
+    return { ok: false, error: "Liez d'abord votre page Facebook dans l'onglet Comptes." };
+  }
+  if (!row.user_access_token && !row.page_access_token) {
+    return { ok: false, error: "Compte Meta non connecté." };
+  }
+
+  let pageAccessToken = row.page_access_token;
+  if (row.user_access_token) {
+    const freshPage = await findMetaFacebookPage(restaurantId, row.facebook_page_id);
+    if (freshPage?.accessToken) {
+      pageAccessToken = freshPage.accessToken;
+      await supabaseServer
+        .from("restaurant_meta_connections")
+        .update({
+          page_access_token: freshPage.accessToken,
+          facebook_page_name: freshPage.name,
+          facebook_page_url: freshPage.link,
+          instagram_business_account_id: freshPage.instagramBusinessAccountId,
+          instagram_username: freshPage.instagramUsername,
+        })
+        .eq("restaurant_id", restaurantId);
+    }
+  }
+
+  if (!pageAccessToken) {
+    return { ok: false, error: "Jeton page Meta manquant — reliez la page Facebook." };
+  }
+
+  try {
+    await subscribePageMessagingWebhooks({
+      facebookPageId: row.facebook_page_id,
+      pageAccessToken,
+    });
+    await markMessagingWebhookSubscribed(restaurantId);
+    await supabaseServer
+      .from("restaurant_meta_connections")
+      .update({ last_error: null })
+      .eq("restaurant_id", restaurantId);
+    return { ok: true };
+  } catch (err) {
+    const message = formatMetaMessagingSubscribeError(
+      err instanceof Error ? err.message : "Abonnement webhook impossible."
+    );
+    await supabaseServer
+      .from("restaurant_meta_connections")
+      .update({ last_error: message })
+      .eq("restaurant_id", restaurantId);
+    return { ok: false, error: message };
+  }
+}
+
 export async function linkMetaFacebookPage(params: {
   restaurantId: string;
   page: MetaFacebookPage;
@@ -209,15 +281,7 @@ export async function linkMetaFacebookPage(params: {
   if (error) throw new Error(error.message);
 
   if (isMetaMessagingScopesEnabled()) {
-    try {
-      await subscribePageMessagingWebhooks({
-        facebookPageId: params.page.id,
-        pageAccessToken: params.page.accessToken,
-      });
-      await markMessagingWebhookSubscribed(params.restaurantId);
-    } catch (err) {
-      console.warn("[metaDb] subscribe messaging webhooks:", err);
-    }
+    await ensureMetaMessagingWebhooksSubscribed(params.restaurantId);
   }
 
   if (igUrl || params.page.link) {

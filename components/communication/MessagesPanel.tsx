@@ -137,7 +137,7 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
         <div>
           <h2 className="text-base font-semibold text-stone-900">Messages</h2>
           <p className={`mt-1 ${uiLead}`}>
-            Répondez depuis Ubion ou laissez le bot gérer les réservations (mot-clé « réserver »).
+            Répondez depuis Ubion ou laissez le bot gérer les réservations (bouton « Réserver » ou mot « réserver »).
             Actualisez pour récupérer les nouveaux messages.
           </p>
         </div>

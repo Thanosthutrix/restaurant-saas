@@ -10,7 +10,11 @@ import {
   type MetaFacebookPage,
 } from "./graphApi";
 import { buildInstagramProfileUrl } from "./socialUrls";
-import { formatMetaMessagingSubscribeError, subscribePageMessagingWebhooks } from "./messagingApi";
+import {
+  configurePageBookingMessengerProfile,
+  formatMetaMessagingSubscribeError,
+  subscribePageMessagingWebhooks,
+} from "./messagingApi";
 import { markMessagingWebhookSubscribed } from "./messagingDb";
 
 export type MetaConnectionStatus = "disconnected" | "connected" | "needs_action";
@@ -236,6 +240,14 @@ export async function ensureMetaMessagingWebhooksSubscribed(
       facebookPageId: row.facebook_page_id,
       pageAccessToken,
     });
+    try {
+      await configurePageBookingMessengerProfile({
+        facebookPageId: row.facebook_page_id,
+        pageAccessToken,
+      });
+    } catch (err) {
+      console.warn("[meta] messenger profile (bouton Réserver):", err);
+    }
     await markMessagingWebhookSubscribed(restaurantId);
     await supabaseServer
       .from("restaurant_meta_connections")

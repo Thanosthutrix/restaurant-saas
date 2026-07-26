@@ -9,6 +9,7 @@ import { recordOutboundMetaMessage } from "./messagingDb";
 import type { MetaMessagingPlatform } from "./messagingTypes";
 
 export const BOOKING_QUICK_REPLY = {
+  start: "BOOKING_START",
   confirmYes: "BOOKING_CONFIRM_YES",
   confirmNo: "BOOKING_CONFIRM_NO",
 } as const;

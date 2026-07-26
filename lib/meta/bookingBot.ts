@@ -19,6 +19,7 @@ import {
   formatReservationConfirmationMessage,
   formatReservationReference,
 } from "./metaReservationService";
+import { notifyTeamMetaReservationCreated } from "@/lib/push/notifyMetaReservation";
 import {
   getMetaConversationContext,
   updateConversationBookingState,
@@ -34,6 +35,11 @@ import {
 import type { MetaMessagingPlatform } from "./messagingTypes";
 
 const BOOKING_START = /\b(r[eé]serv(er|ation)|table|booking|book)\b/i;
+
+function isBookingStartIntent(inbound: string, actionPayload: string | null): boolean {
+  if (actionPayload === BOOKING_QUICK_REPLY.start) return true;
+  return BOOKING_START.test(inbound);
+}
 const BOOKING_CANCEL = /\b(annuler|cancel|stop|quit|recommencer)\b/i;
 const YES = /^(oui|ok|yes|confirmer|valider)\s*!?\s*$/i;
 const NO = /^(non|no)\s*!?\s*$/i;
@@ -117,13 +123,13 @@ export async function processInboundMetaBookingBot(params: {
     await saveState(params.conversationId, { ...IDLE_BOOKING_STATE });
     await reply({
       ...params,
-      text: "D'accord, j'annule la demande de réservation. Tapez « réserver » quand vous voulez recommencer.",
+      text: "D'accord, j'annule la demande de réservation. Utilisez le bouton « Réserver » ou tapez « réserver » pour recommencer.",
     });
     return;
   }
 
   if (state.step === "idle") {
-    if (!BOOKING_START.test(inbound)) return;
+    if (!isBookingStartIntent(inbound, actionPayload)) return;
     state = { step: "party_size", draft: {} };
     await saveState(params.conversationId, state);
     await reply({
@@ -264,7 +270,10 @@ export async function processInboundMetaBookingBot(params: {
     const choice = resolveConfirmChoice(inbound, actionPayload);
     if (choice === "no") {
       await saveState(params.conversationId, { ...IDLE_BOOKING_STATE });
-      await reply({ ...params, text: "Réservation annulée. Tapez « réserver » pour recommencer." });
+      await reply({
+        ...params,
+        text: "Réservation annulée. Utilisez le bouton « Réserver » ou tapez « réserver » pour recommencer.",
+      });
       return;
     }
     if (choice !== "yes") {
@@ -307,6 +316,17 @@ export async function processInboundMetaBookingBot(params: {
 
     revalidatePath("/reservations");
     revalidatePath("/communication");
+
+    void notifyTeamMetaReservationCreated({
+      restaurantId: params.restaurantId,
+      reservationId: created.reservationId,
+      partySize: draft.partySize,
+      startsAtIso: created.startsAt,
+      contactName: params.customerName ?? ctx.customerName,
+      platform: params.platform,
+    }).catch((err) => {
+      console.warn("[meta/bookingBot] push équipe:", err);
+    });
 
     await reply({
       ...params,

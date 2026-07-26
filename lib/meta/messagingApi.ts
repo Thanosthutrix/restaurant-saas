@@ -2,6 +2,8 @@ import "server-only";
 
 import { metaGraphUrl } from "./config";
 
+const BOOKING_START_PAYLOAD = "BOOKING_START";
+
 const WEBHOOK_SUBSCRIBED_FIELDS = ["messages", "messaging_postbacks"] as const;
 
 export function formatMetaMessagingSubscribeError(raw: string): string {
@@ -116,4 +118,50 @@ export async function sendMetaTextMessageWithQuickReplies(params: {
   }
 
   return { messageId: json.message_id ?? null };
+}
+
+/** Menu persistant Messenger, Get Started et ice breakers Instagram (bouton « Réserver »). */
+export async function configurePageBookingMessengerProfile(params: {
+  facebookPageId: string;
+  pageAccessToken: string;
+}): Promise<void> {
+  const url = new URL(metaGraphUrl(`${params.facebookPageId}/messenger_profile`));
+  url.searchParams.set("access_token", params.pageAccessToken);
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      get_started: { payload: BOOKING_START_PAYLOAD },
+      persistent_menu: [
+        {
+          locale: "default",
+          composer_input_disabled: false,
+          call_to_actions: [
+            {
+              type: "postback",
+              title: "Réserver",
+              payload: BOOKING_START_PAYLOAD,
+            },
+          ],
+        },
+      ],
+      ice_breakers: [
+        {
+          question: "Réserver une table",
+          payload: BOOKING_START_PAYLOAD,
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(formatMetaMessagingSubscribeError(text.slice(0, 400)));
+  }
+
+  const json = (await res.json()) as { result?: string; error?: { message: string } };
+  if (json.error) {
+    throw new Error(formatMetaMessagingSubscribeError(json.error.message));
+  }
 }

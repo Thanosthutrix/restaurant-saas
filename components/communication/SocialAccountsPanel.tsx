@@ -237,7 +237,7 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, met
       setError(result.data!.pendingPagesError);
     } else {
       setError(
-        "Aucune page Facebook trouvée. Connectez-vous avec un compte admin d'une page pro, pas seulement un profil personnel."
+        "Meta n'a pas partagé de page avec Ubion. Reconnectez-vous et cochez votre page à l'étape « Choisissez les Pages »."
       );
     }
   }
@@ -423,9 +423,10 @@ export function SocialAccountsPanel({ restaurantId, initialState, metaFlash, met
                   <p className={`text-sm ${uiError}`}>{state.pendingPagesError}</p>
                 ) : (
                   <p className={`text-sm ${uiLead}`}>
-                    Ubion a besoin d&apos;une <strong>page Facebook pro</strong> (ex. « La Piazza
-                    Normande »), pas d&apos;un profil personnel. Lors de la connexion Meta, cochez la
-                    page à autoriser.
+                    Si votre page apparaît dans Meta Business Suite mais pas ici, Meta ne l&apos;a
+                    probablement pas encore partagée avec Ubion. Cliquez « Reconnecter et sélectionner
+                    ma page » et cochez <strong>Ubion test</strong> à l&apos;étape « Choisissez les
+                    Pages ».
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">

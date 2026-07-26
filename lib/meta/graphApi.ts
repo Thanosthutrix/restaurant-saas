@@ -45,8 +45,67 @@ type GraphPageRow = {
 const META_PAGE_FIELDS =
   "id,name,access_token,link,instagram_business_account{id,username}";
 
+const META_PAGE_METADATA_FIELDS =
+  "id,name,link,instagram_business_account{id,username}";
+
 const META_NO_PAGES_ERROR =
-  "Meta ne renvoie aucune page Facebook pour ce compte. Utilisez un compte admin d'une page pro (pas un profil perso seul). Lors de la connexion, cochez bien la page à partager avec Ubion, ou créez une page sur facebook.com/pages/create puis reconnectez-vous.";
+  "Meta ne renvoie aucune page utilisable pour Ubion. Votre page pro peut être correcte — reconnectez-vous via « Reconnecter et sélectionner ma page » et cochez explicitement la page à partager (étape « Choisissez les Pages » dans la fenêtre Meta).";
+
+function metaPageKnownNoTokenError(pageName: string): string {
+  return `Meta reconnaît la page « ${pageName} », mais ne l'a pas autorisée pour Ubion. Reconnectez-vous et cochez cette page dans la fenêtre Meta (pas seulement votre profil personnel).`;
+}
+
+async function fetchPageAccessToken(
+  pageId: string,
+  userAccessToken: string
+): Promise<string | null> {
+  const params = new URLSearchParams({
+    fields: "access_token",
+    access_token: userAccessToken,
+  });
+  const res = await fetch(`${metaGraphUrl(pageId)}?${params.toString()}`);
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as { access_token?: string; error?: { message: string } };
+  if (json.error || !json.access_token) return null;
+  return json.access_token;
+}
+
+export async function fetchMetaFacebookPageMetadata(
+  pageIdOrSlug: string,
+  userAccessToken: string
+): Promise<GraphPageRow | null> {
+  const params = new URLSearchParams({
+    fields: META_PAGE_METADATA_FIELDS,
+    access_token: userAccessToken,
+  });
+  const res = await fetch(`${metaGraphUrl(pageIdOrSlug)}?${params.toString()}`);
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as GraphPageRow & { error?: { message: string } };
+  if (json.error || !json.id || !json.name) return null;
+  return json;
+}
+
+async function resolveMetaFacebookPage(
+  row: GraphPageRow,
+  userAccessToken: string
+): Promise<MetaFacebookPage | null> {
+  if (!row.id || !row.name) return null;
+
+  const accessToken =
+    row.access_token ?? (await fetchPageAccessToken(row.id, userAccessToken));
+  if (!accessToken) return null;
+
+  return {
+    id: row.id,
+    name: row.name,
+    accessToken,
+    link: row.link ?? null,
+    instagramBusinessAccountId: row.instagram_business_account?.id ?? null,
+    instagramUsername: row.instagram_business_account?.username ?? null,
+  };
+}
 
 export type DiscoverMetaFacebookPagesOptions = {
   facebookUrlHint?: string | null;
@@ -106,16 +165,16 @@ export function extractFacebookPageReference(raw: string): FacebookPageReference
   }
 }
 
-function mapGraphPageRow(row: GraphPageRow): MetaFacebookPage | null {
-  if (!row.id || !row.name || !row.access_token) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    accessToken: row.access_token,
-    link: row.link ?? null,
-    instagramBusinessAccountId: row.instagram_business_account?.id ?? null,
-    instagramUsername: row.instagram_business_account?.username ?? null,
-  };
+async function collectPagesFromRows(
+  rows: GraphPageRow[],
+  userAccessToken: string
+): Promise<MetaFacebookPage[]> {
+  const pages: MetaFacebookPage[] = [];
+  for (const row of rows) {
+    const page = await resolveMetaFacebookPage(row, userAccessToken);
+    if (page) pages.push(page);
+  }
+  return pages;
 }
 
 async function fetchGraphPageRows(
@@ -166,7 +225,14 @@ async function listMetaFacebookPagesFromAccounts(
   userAccessToken: string
 ): Promise<MetaFacebookPage[]> {
   const rows = await fetchGraphPageRows("me/accounts", userAccessToken);
-  return rows.map(mapGraphPageRow).filter((p): p is MetaFacebookPage => p != null);
+  return collectPagesFromRows(rows, userAccessToken);
+}
+
+async function listMetaFacebookPagesFromAssignedPages(
+  userAccessToken: string
+): Promise<MetaFacebookPage[]> {
+  const rows = await fetchGraphPageRows("me/assigned_pages", userAccessToken);
+  return collectPagesFromRows(rows, userAccessToken);
 }
 
 async function listMetaFacebookPagesViaBusinesses(
@@ -193,10 +259,7 @@ async function listMetaFacebookPagesViaBusinesses(
       const rows = await fetchGraphPageRows(`${biz.id}/${edge}`, userAccessToken, 50);
       for (const row of rows) {
         if (byId.has(row.id)) continue;
-        let page = mapGraphPageRow(row);
-        if (!page) {
-          page = await fetchMetaFacebookPageById(row.id, userAccessToken);
-        }
+        const page = await resolveMetaFacebookPage(row, userAccessToken);
         if (page) byId.set(page.id, page);
       }
     }
@@ -209,16 +272,25 @@ export async function fetchMetaFacebookPageById(
   pageIdOrSlug: string,
   userAccessToken: string
 ): Promise<MetaFacebookPage | null> {
-  const params = new URLSearchParams({
-    fields: META_PAGE_FIELDS,
-    access_token: userAccessToken,
-  });
-  const res = await fetch(`${metaGraphUrl(pageIdOrSlug)}?${params.toString()}`);
-  if (!res.ok) return null;
+  const meta = await fetchMetaFacebookPageMetadata(pageIdOrSlug, userAccessToken);
+  if (!meta) return null;
+  return resolveMetaFacebookPage(meta, userAccessToken);
+}
 
-  const json = (await res.json()) as GraphPageRow & { error?: { message: string } };
-  if (json.error) return null;
-  return mapGraphPageRow(json);
+async function throwDiscoverPagesError(
+  userAccessToken: string,
+  facebookUrlHint?: string | null
+): Promise<never> {
+  if (facebookUrlHint) {
+    const ref = extractFacebookPageReference(facebookUrlHint);
+    if (ref) {
+      const meta = await fetchMetaFacebookPageMetadata(ref.value, userAccessToken);
+      if (meta?.name) {
+        throw new Error(metaPageKnownNoTokenError(meta.name));
+      }
+    }
+  }
+  throw new Error(META_NO_PAGES_ERROR);
 }
 
 export async function discoverMetaFacebookPages(
@@ -232,6 +304,7 @@ export async function discoverMetaFacebookPages(
   };
 
   add(await listMetaFacebookPagesFromAccounts(userAccessToken));
+  add(await listMetaFacebookPagesFromAssignedPages(userAccessToken));
   add(await listMetaFacebookPagesViaBusinesses(userAccessToken));
 
   if (opts?.facebookUrlHint) {
@@ -244,7 +317,7 @@ export async function discoverMetaFacebookPages(
 
   const pages = [...byId.values()];
   if (pages.length === 0) {
-    throw new Error(META_NO_PAGES_ERROR);
+    await throwDiscoverPagesError(userAccessToken, opts?.facebookUrlHint);
   }
   return pages;
 }

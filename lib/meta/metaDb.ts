@@ -5,6 +5,7 @@ import {
   discoverMetaFacebookPages,
   extractFacebookPageReference,
   fetchMetaFacebookPageById,
+  fetchMetaFacebookPageMetadata,
   fetchInstagramStories,
   type MetaFacebookPage,
 } from "./graphApi";
@@ -279,8 +280,17 @@ export async function linkMetaFacebookPageFromHint(
   }
 
   if (!page) {
+    const ref = extractFacebookPageReference(links.facebookUrl);
+    if (ref) {
+      const meta = await fetchMetaFacebookPageMetadata(ref.value, row.user_access_token);
+      if (meta?.name) {
+        throw new Error(
+          `Meta reconnaît la page « ${meta.name} », mais ne l'a pas autorisée pour Ubion. Reconnectez-vous et cochez cette page dans la fenêtre Meta.`
+        );
+      }
+    }
     throw new Error(
-      "Impossible d'accéder à cette page avec votre compte Meta. Vérifiez que vous êtes admin de la page, puis reconnectez-vous en cochant la page dans la fenêtre Meta."
+      "Impossible d'accéder à cette page avec votre compte Meta. Reconnectez-vous en cochant la page dans la fenêtre Meta."
     );
   }
 

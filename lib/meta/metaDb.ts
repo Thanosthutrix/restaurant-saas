@@ -166,7 +166,7 @@ export async function upsertMetaUserConnection(params: {
       instagram_business_account_id: null,
       instagram_username: null,
       page_access_token: null,
-      stories_cache: null,
+      stories_cache: [],
       stories_synced_at: null,
     },
     { onConflict: "restaurant_id" }

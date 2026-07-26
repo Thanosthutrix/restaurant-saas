@@ -1,9 +1,31 @@
-export const META_OAUTH_SCOPES = [
+/** Scopes lecture (stories, pages, profil IG) — fonctionnent sans App Review avancée. */
+export const META_OAUTH_SCOPES_READ = [
   "pages_show_list",
   "pages_read_engagement",
   "instagram_basic",
   "business_management",
 ] as const;
+
+/** Scopes publication — à activer dans Meta for Developers AVANT de les demander à l'OAuth. */
+export const META_OAUTH_SCOPES_PUBLISH = [
+  "pages_manage_posts",
+  "instagram_content_publish",
+] as const;
+
+/** @deprecated Utiliser getMetaOAuthScopes() */
+export const META_OAUTH_SCOPES = [...META_OAUTH_SCOPES_READ, ...META_OAUTH_SCOPES_PUBLISH] as const;
+
+export function isMetaPublishScopesEnabled(): boolean {
+  const v = process.env.META_OAUTH_INCLUDE_PUBLISH_SCOPES?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+export function getMetaOAuthScopes(): readonly string[] {
+  if (isMetaPublishScopesEnabled()) {
+    return [...META_OAUTH_SCOPES_READ, ...META_OAUTH_SCOPES_PUBLISH];
+  }
+  return META_OAUTH_SCOPES_READ;
+}
 
 export const STORIES_CACHE_TTL_MS = 15 * 60 * 1000;
 

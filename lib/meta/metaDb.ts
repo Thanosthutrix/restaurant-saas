@@ -1,6 +1,6 @@
 import { supabaseServer } from "@/lib/supabaseServer";
 import type { SocialStory } from "@/lib/public/types";
-import { STORIES_CACHE_TTL_MS, getMetaOAuthRedirectUri, isMetaOAuthConfigured } from "./config";
+import { STORIES_CACHE_TTL_MS, getMetaOAuthRedirectUri, isMetaOAuthConfigured, isMetaPublishScopesEnabled } from "./config";
 import { fetchInstagramStories, listMetaFacebookPages, type MetaFacebookPage } from "./graphApi";
 import { buildInstagramProfileUrl } from "./socialUrls";
 
@@ -30,6 +30,8 @@ export type RestaurantSocialState = {
   links: RestaurantSocialLinks;
   meta: RestaurantMetaConnection | null;
   metaOAuthConfigured: boolean;
+  /** true si META_OAUTH_INCLUDE_PUBLISH_SCOPES est activé côté serveur. */
+  publishScopesEnabled: boolean;
   oauthRedirectUri: string;
   pendingPages: MetaFacebookPage[];
 };
@@ -275,6 +277,7 @@ export async function getRestaurantSocialState(
     links,
     meta: mapConnection(row),
     metaOAuthConfigured: isMetaOAuthConfigured(),
+    publishScopesEnabled: isMetaPublishScopesEnabled(),
     oauthRedirectUri: getMetaOAuthRedirectUri(),
     pendingPages,
   };

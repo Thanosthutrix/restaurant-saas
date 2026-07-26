@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   if (result.ok) {
     revalidatePath(`/restaurants/${result.restaurantId}/edit`);
     revalidatePath(`/restaurant/${result.restaurantId}`);
+    revalidatePath("/communication");
     revalidatePath("/");
     return NextResponse.json({ ok: true, restaurantId: result.restaurantId });
   }

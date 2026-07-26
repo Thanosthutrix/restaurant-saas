@@ -30,6 +30,7 @@ async function assertRestaurantAccess(userId: string, restaurantId: string) {
 function revalidateSocialPaths(restaurantId: string) {
   revalidatePath(`/restaurants/${restaurantId}/edit`);
   revalidatePath(`/restaurant/${restaurantId}`);
+  revalidatePath("/communication");
   revalidatePath("/");
 }
 

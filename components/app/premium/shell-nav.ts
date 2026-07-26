@@ -14,6 +14,7 @@ import {
   Archive,
   BarChart3,
   Truck,
+  Megaphone,
 } from "lucide-react";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
 import { canAccessPage } from "@/lib/auth/appRoles";
@@ -183,6 +184,14 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     navKey: "registres",
     group: "Gestion",
     match: (p) => p === "/registres",
+  },
+  {
+    href: "/communication",
+    label: "Communication",
+    icon: Megaphone,
+    navKey: "communication",
+    group: "Gestion",
+    match: (p) => p === "/communication" || p.startsWith("/communication/"),
   },
   {
     href: "/account",

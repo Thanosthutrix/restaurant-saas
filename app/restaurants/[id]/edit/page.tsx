@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { Building2, CalendarClock } from "lucide-react";
+import { Building2, CalendarClock, Megaphone } from "lucide-react";
 import { getCurrentUser, getAccessibleRestaurantsForUser } from "@/lib/auth";
 import { RestaurantPlanningSection } from "@/components/staff/RestaurantPlanningSection";
 import { EstablishmentSection } from "@/components/restaurant/EstablishmentSection";
@@ -19,21 +20,19 @@ import { EditRestaurantForm } from "./EditRestaurantForm";
 import { ApplyTemplateBlock } from "./ApplyTemplateBlock";
 import { PublicListingSection } from "./PublicListingSection";
 import { GoogleBusinessSection } from "./GoogleBusinessSection";
-import { SocialAccountsSection } from "./SocialAccountsSection";
 import { getRestaurantPublicProfileFromDb } from "@/lib/public/publicDb";
 import { getRestaurantGoogleState } from "@/lib/google/googleDb";
-import { getRestaurantSocialState } from "@/lib/meta/metaDb";
 import { getPublicListingPreview } from "@/lib/public/publicListingPreview";
-import { uiWarn } from "@/components/ui/premium";
+import { uiWarn, uiCard, uiLead, uiBtnSecondary } from "@/components/ui/premium";
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ google?: string; meta?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ google?: string }> };
 
 export default async function EditRestaurantPage({ params, searchParams }: Props) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { id } = await params;
-  const { google: googleFlash, meta: metaFlash } = await searchParams;
+  const { google: googleFlash } = await searchParams;
   const list = await getAccessibleRestaurantsForUser(user.id);
   const restaurant = list.find((r) => r.id === id);
   if (!restaurant) notFound();
@@ -44,7 +43,6 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
     publicProfile,
     publicPreview,
     googleState,
-    socialState,
     hourMaps,
     staffTargetsWeekly,
     peakBandsWeekly,
@@ -55,7 +53,6 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
     getRestaurantPublicProfileFromDb(restaurant.id),
     getPublicListingPreview(restaurant),
     getRestaurantGoogleState(restaurant.id),
-    getRestaurantSocialState(restaurant.id),
     getRestaurantPlanningHourMaps(restaurant.id),
     getRestaurantPlanningStaffTargetsWeekly(restaurant.id),
     getRestaurantPlanningPeakBandsWeekly(restaurant.id),
@@ -82,7 +79,7 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
           { label: "Fiche établissement" },
         ]}
         title="Fiche établissement"
-        subtitle={`${restaurant.name} · identité, visibilité publique, Google Business, réseaux sociaux et planning.`}
+        subtitle={`${restaurant.name} · identité, visibilité publique, Google Business et planning.`}
       />
 
       <EditRestaurantForm restaurant={restaurant} templates={templates} />
@@ -101,11 +98,23 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
               googleFlash === "connected" || googleFlash === "error" ? googleFlash : null
             }
           />
-          <SocialAccountsSection
-            restaurantId={restaurant.id}
-            initialState={socialState}
-            metaFlash={metaFlash === "connected" || metaFlash === "error" ? metaFlash : null}
-          />
+          <div className={`${uiCard} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between`}>
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 text-pink-700 ring-1 ring-pink-100">
+                <Megaphone className="h-5 w-5" aria-hidden />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold text-stone-900">Réseaux sociaux</h2>
+                <p className={`mt-1 ${uiLead}`}>
+                  Instagram, Facebook, stories et publications se gèrent depuis l&apos;espace
+                  Communication.
+                </p>
+              </div>
+            </div>
+            <Link href="/communication" className={uiBtnSecondary}>
+              Ouvrir Communication
+            </Link>
+          </div>
         </>
       ) : (
         <p className={uiWarn}>

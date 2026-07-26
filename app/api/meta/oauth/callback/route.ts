@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getAccessibleRestaurantsForUser, getCurrentUser } from "@/lib/auth";
 import { getAppBaseUrl } from "@/lib/meta/config";
 import { upsertMetaUserConnection } from "@/lib/meta/metaDb";
 import {
@@ -20,16 +20,19 @@ export async function GET(request: Request) {
 
   if (oauthError || !code || !state) {
     const target = state
-      ? `${getAppBaseUrl()}/restaurants/${state.restaurantId}/edit?meta=error`
+      ? `${getAppBaseUrl()}/communication?meta=error`
       : `${fallbackEdit}?meta=error`;
     return NextResponse.redirect(target);
   }
 
-  const user = await getCurrentUser();
-  if (!user || user.id !== state.userId) {
-    return NextResponse.redirect(
-      `${getAppBaseUrl()}/login?next=/restaurants/${state.restaurantId}/edit`
-    );
+  const sessionUser = await getCurrentUser();
+  if (sessionUser && sessionUser.id !== state.userId) {
+    return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=error`);
+  }
+
+  const restaurants = await getAccessibleRestaurantsForUser(state.userId);
+  if (!restaurants.some((r) => r.id === state.restaurantId)) {
+    return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=error`);
   }
 
   try {
@@ -44,13 +47,9 @@ export async function GET(request: Request) {
       expiresInSec: long.expires_in,
     });
 
-    return NextResponse.redirect(
-      `${getAppBaseUrl()}/restaurants/${state.restaurantId}/edit?meta=connected`
-    );
+    return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=connected`);
   } catch (err) {
     console.error("[meta/oauth/callback]", err);
-    return NextResponse.redirect(
-      `${getAppBaseUrl()}/restaurants/${state.restaurantId}/edit?meta=error`
-    );
+    return NextResponse.redirect(`${getAppBaseUrl()}/communication?meta=error`);
   }
 }

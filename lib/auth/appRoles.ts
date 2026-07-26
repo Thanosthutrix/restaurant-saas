@@ -48,6 +48,7 @@ export type ShellNavKey =
   | "clients_readonly"
   | "reservations"
   | "account"
+  | "communication"
   | "ai_assistant"
   // ── Sous-sections tableau de bord ──────────────────────────────────────
   | "dashboard_stats"
@@ -84,6 +85,7 @@ export const ALL_SHELL_NAV_KEYS: ShellNavKey[] = [
   "clients_readonly",
   "reservations",
   "account",
+  "communication",
   "ai_assistant",
   "dashboard_stats",
   "dashboard_recent_services",
@@ -248,6 +250,7 @@ export const NAV_KEY_LABELS_FR: Record<ShellNavKey, string> = {
   clients_readonly: "Clients & fidélité (lecture)",
   reservations: "Réservations",
   account: "Mon compte",
+  communication: "Communication & réseaux",
   ai_assistant: "Assistant IA (import)",
 };
 
@@ -279,6 +282,6 @@ export const NAV_KEY_GROUPS: { label: string; keys: ShellNavKey[] }[] = [
   },
   {
     label: "Gestion",
-    keys: ["equipe_manage", "margins", "insights", "hygiene"],
+    keys: ["equipe_manage", "margins", "insights", "hygiene", "communication"],
   },
 ];

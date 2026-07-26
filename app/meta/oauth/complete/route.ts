@@ -27,7 +27,7 @@ export async function GET() {
         var err = qs.get("error_description") || qs.get("error") || hashParams.get("error_description") || hashParams.get("error");
         msg.textContent = err
           ? "Connexion Meta refusée : " + err
-          : "Jeton manquant. Relancez « Connecter Facebook / Instagram » depuis Modifier le restaurant (ne rechargez pas cette page).";
+          : "Jeton manquant. Relancez « Connecter Facebook / Instagram » depuis Communication (ne rechargez pas cette page).";
         return;
       }
       fetch("/api/meta/oauth/complete", {
@@ -39,10 +39,13 @@ export async function GET() {
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.ok && data.restaurantId) {
-            window.location.replace("/restaurants/" + data.restaurantId + "/edit?meta=connected");
+            window.location.replace("/communication?meta=connected");
             return;
           }
           msg.textContent = data.error || "Erreur lors de la connexion Meta.";
+          if (data.error && data.error.indexOf("Session OAuth") >= 0) {
+            msg.textContent += " Relancez la connexion depuis Communication → Comptes.";
+          }
         })
         .catch(function (e) {
           msg.textContent = "Erreur réseau : " + (e && e.message ? e.message : "inconnue");

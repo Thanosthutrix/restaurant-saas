@@ -2,7 +2,7 @@ import {
   getMetaAppId,
   getMetaAppSecret,
   getMetaOAuthRedirectUri,
-  META_OAUTH_SCOPES,
+  getMetaOAuthScopes,
 } from "./config";
 
 type TokenResponse = {
@@ -22,7 +22,7 @@ export function buildMetaOAuthAuthorizeUrl(state: string): string {
   url.searchParams.set("display", "page");
   url.searchParams.set("extras", JSON.stringify({ setup: { channel: "IG_API_ONBOARDING" } }));
   url.searchParams.set("response_type", "token");
-  url.searchParams.set("scope", META_OAUTH_SCOPES.join(","));
+  url.searchParams.set("scope", getMetaOAuthScopes().join(","));
   url.searchParams.set("state", state);
   return url.toString();
 }

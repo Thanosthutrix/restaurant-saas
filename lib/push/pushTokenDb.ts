@@ -85,6 +85,23 @@ export async function listPushTokensForRestaurant(
   return out;
 }
 
+export async function listPushTokensForUser(userId: string): Promise<PushTokenRow[]> {
+  const { data, error } = await supabaseServer
+    .from("user_push_tokens")
+    .select("token, platform, user_id")
+    .eq("user_id", userId);
+
+  if (error || !data) return [];
+
+  return data
+    .map((row) => ({
+      token: row.token as string,
+      platform: row.platform as PushPlatform,
+      userId: row.user_id as string,
+    }))
+    .filter((row) => row.platform === "ios" || row.platform === "android");
+}
+
 export async function deletePushToken(token: string): Promise<void> {
   await supabaseServer.from("user_push_tokens").delete().eq("token", token);
 }

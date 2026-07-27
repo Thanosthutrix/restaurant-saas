@@ -65,6 +65,8 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [pushHint, setPushHint] = useState<string | null>(null);
+  const [pushReady, setPushReady] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
 
   const selected = inbox.conversations.find((c) => c.id === selectedId) ?? null;
 
@@ -190,22 +192,59 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
       credentials: "include",
     })
       .then((r) => r.json())
-      .then((json: { ok?: boolean; status?: { sendConfigured?: boolean; teamTokenCount?: number } }) => {
-        if (!json.ok || !json.status) return;
-        if (!json.status.sendConfigured) {
-          setPushHint(
-            "Notifications push désactivées : ajoutez APNS_KEY_ID, APNS_TEAM_ID et APNS_PRIVATE_KEY sur Vercel."
-          );
-        } else if ((json.status.teamTokenCount ?? 0) === 0) {
-          setPushHint(
-            "Aucun appareil enregistré pour les notifications — ouvrez Ubion sur iPhone et acceptez les alertes."
-          );
+      .then(
+        (json: {
+          ok?: boolean;
+          status?: { sendConfigured?: boolean; teamTokenCount?: number; apnsSandbox?: boolean | null };
+        }) => {
+          if (!json.ok || !json.status) return;
+          if (!json.status.sendConfigured) {
+            setPushReady(false);
+            setPushHint(
+              "Notifications push désactivées : ajoutez APNS_KEY_ID, APNS_TEAM_ID et APNS_PRIVATE_KEY sur Vercel (voir guide ci-dessous)."
+            );
+          } else if ((json.status.teamTokenCount ?? 0) === 0) {
+            setPushReady(false);
+            setPushHint(
+              "Aucun iPhone enregistré — ouvrez Ubion sur l'app native, acceptez les alertes, puis reconnectez-vous."
+            );
+          } else {
+            setPushReady(true);
+            const sandbox =
+              json.status.apnsSandbox === true
+                ? " (mode sandbox — build Xcode)"
+                : json.status.apnsSandbox === false
+                  ? " (mode production)"
+                  : "";
+            setPushHint(
+              `Notifications prêtes${sandbox} · ${json.status.teamTokenCount} appareil(s) enregistré(s).`
+            );
+          }
         }
-      })
+      )
       .catch(() => {
         /* ignore */
       });
   }, [restaurantId, metaConnected]);
+
+  async function testPushNotification() {
+    setTestingPush(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST", credentials: "include" });
+      const json = (await res.json()) as { ok?: boolean; error?: string; sent?: number };
+      if (!res.ok || !json.ok) {
+        setError(json.error ?? "Test notification impossible.");
+        return;
+      }
+      setSuccess(`Notification test envoyée (${json.sent ?? 1} appareil).`);
+    } catch {
+      setError("Test notification impossible.");
+    } finally {
+      setTestingPush(false);
+    }
+  }
 
   return (
     <div className={`${uiCard} space-y-4 p-5 sm:p-6`}>
@@ -231,7 +270,43 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
         <p className={uiError}>Connectez Meta dans l&apos;onglet Comptes pour activer la messagerie.</p>
       ) : null}
 
-      {pushHint ? <p className={uiWarn}>{pushHint}</p> : null}
+      {pushHint ? (
+        <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5">
+          <p className={uiWarn}>{pushHint}</p>
+          {!pushReady ? (
+            <details className="text-xs text-stone-600">
+              <summary className="cursor-pointer font-medium text-stone-700">
+                Configurer APNs sur Vercel (5 min)
+              </summary>
+              <ol className="mt-2 list-decimal space-y-1 pl-4">
+                <li>
+                  Apple Developer → Keys → créer une clé avec <strong>Apple Push Notifications (APNs)</strong>
+                </li>
+                <li>Télécharger le fichier <code className="text-[11px]">.p8</code> (une seule fois)</li>
+                <li>
+                  Vercel → Environment Variables → ajouter{" "}
+                  <code className="text-[11px]">APNS_KEY_ID</code>,{" "}
+                  <code className="text-[11px]">APNS_TEAM_ID=UD4W425386</code>,{" "}
+                  <code className="text-[11px]">APNS_PRIVATE_KEY</code> (contenu du .p8),{" "}
+                  <code className="text-[11px]">APNS_BUNDLE_ID=fr.ubion.app</code>,{" "}
+                  <code className="text-[11px]">APNS_USE_SANDBOX=true</code> (build Xcode)
+                </li>
+                <li>Redéployer Vercel, puis rouvrir Ubion sur iPhone</li>
+              </ol>
+            </details>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void testPushNotification()}
+              disabled={testingPush}
+              className={`inline-flex items-center gap-2 ${uiBtnSecondary}`}
+            >
+              <RefreshCw className={`h-4 w-4 ${testingPush ? "animate-spin" : ""}`} aria-hidden />
+              Tester une notification
+            </button>
+          )}
+        </div>
+      ) : null}
 
       {!inbox.messagingScopesEnabled ? (
         <p className={uiWarn}>

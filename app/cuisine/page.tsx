@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { ClipboardList, Droplets, Package, Percent, UtensilsCrossed } from "lucide-react";
+import { ClipboardList, Clapperboard, Droplets, Package, Percent, UtensilsCrossed } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getInventoryStockDashboardSummary } from "@/lib/db";
+import { loadKitchenPassQueue } from "@/lib/dining/kitchenPassData";
 import { cachedCountHygienePending, cachedCountPreparations2hSignals } from "@/lib/cache";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
@@ -19,6 +20,14 @@ type Action = {
 };
 
 const actions: Action[] = [
+  {
+    title: "Pass cuisine",
+    description: "Bons en direct dès qu'un serveur prend une commande en salle ou à la caisse.",
+    href: "/cuisine/pass",
+    icon: Clapperboard,
+    tone: "bg-stone-900 text-white",
+    hover: "tile-stone",
+  },
   {
     title: "Enregistrer un service",
     description: "Saisir les ventes d’un service pour garder le stock et les marges à jour.",
@@ -80,10 +89,14 @@ export default async function CuisinePage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [hygienePending, stockRes, prepSignals] = await Promise.all([
+  const [hygienePending, stockRes, prepSignals, kitchenQueue] = await Promise.all([
     cachedCountHygienePending(restaurant.id).catch(() => 0),
     getInventoryStockDashboardSummary(restaurant.id),
     cachedCountPreparations2hSignals(restaurant.id).catch(() => ({ reminder: 0, overdue: 0 })),
+    loadKitchenPassQueue(restaurant.id).catch(() => ({
+      data: { tickets: [], pendingLineCount: 0 },
+      error: null,
+    })),
   ]);
   const belowMin = stockRes?.data?.belowMinStockCount ?? 0;
   const prepBadge =
@@ -94,6 +107,17 @@ export default async function CuisinePage() {
         : null;
 
   const badges: Record<string, { text: string; title: string; tone: keyof typeof BADGE_TONE } | undefined> = {
+    "/cuisine/pass":
+      kitchenQueue.data.pendingLineCount > 0
+        ? {
+            text:
+              kitchenQueue.data.pendingLineCount > 99
+                ? "99+"
+                : String(kitchenQueue.data.pendingLineCount),
+            title: `${kitchenQueue.data.pendingLineCount} plat(s) en attente en cuisine`,
+            tone: "rose",
+          }
+        : undefined,
     "/hygiene":
       hygienePending > 0
         ? {

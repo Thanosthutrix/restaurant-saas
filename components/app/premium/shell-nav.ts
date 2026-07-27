@@ -99,6 +99,7 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     coveredKeys: ["dishes", "preparations", "inventory", "service_new"],
     match: (p) =>
       p === "/cuisine" ||
+      p.startsWith("/cuisine/") ||
       p === "/dishes" ||
       p.startsWith("/dishes/") ||
       p === "/preparations" ||

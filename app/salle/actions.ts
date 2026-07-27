@@ -39,6 +39,8 @@ import {
   type DiningOrderViewData,
 } from "@/lib/dining/diningOrderViewData";
 import { fetchOrderTicketSnapshot, type OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
+import { loadDiningOrderViewData } from "@/lib/dining/diningOrderViewData";
+import { notifyKitchenNewOrderLine } from "@/lib/push/notifyKitchenOrder";
 /**
  * Garde-fou IDOR : l'utilisateur doit être propriétaire ou membre du personnel actif
  * de ce restaurant. Sans cela, un `restaurantId` fourni par le client permettrait
@@ -57,6 +59,7 @@ export type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error
 function revalidateDiningOrderFull(orderId: string) {
   revalidatePath("/salle");
   revalidatePath("/caisse");
+  revalidatePath("/cuisine/pass");
   revalidatePath(`/salle/commande/${orderId}`);
 }
 
@@ -157,6 +160,23 @@ export async function addDishToDiningOrder(params: {
   if (snap.error || !snap.data) {
     return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
   }
+
+  void (async () => {
+    try {
+      const view = await loadDiningOrderViewData(restaurantId, orderId);
+      const addedLine = view.data?.lines.find((l) => l.dishId === dishId);
+      await notifyKitchenNewOrderLine({
+        restaurantId,
+        orderLabel: view.data?.placeDescription ?? "Commande",
+        dishName: addedLine?.dishName ?? "Plat",
+        qty,
+      });
+    } catch (err) {
+      console.warn("[dining] push cuisine:", err);
+    }
+  })();
+
+  revalidatePath("/cuisine/pass");
   return { ok: true, data: snap.data };
 }
 
@@ -543,6 +563,8 @@ export async function setDiningOrderLinePrepared(params: {
     .eq("id", lineId)
     .eq("restaurant_id", restaurantId);
   if (uErr) return { ok: false, error: uErr.message };
+
+  revalidatePath("/cuisine/pass");
 
   if (!isPrepared) {
     return { ok: true, data: { orderReadyEmail: "none" } };

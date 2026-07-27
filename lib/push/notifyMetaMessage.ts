@@ -28,6 +28,7 @@ export async function notifyTeamMetaMessageReceived(params: {
   hasAttachments?: boolean;
 }): Promise<{ sent: number; failed: number; skipped: boolean }> {
   if (!isPushSendConfigured()) {
+    console.warn("[push] notifyTeamMetaMessageReceived: APNs/FCM non configuré sur le serveur");
     return { sent: 0, failed: 0, skipped: true };
   }
 

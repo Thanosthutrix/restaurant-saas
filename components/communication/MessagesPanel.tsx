@@ -12,6 +12,7 @@ import {
 } from "@/app/communication/actions";
 import { Send } from "lucide-react";
 import type { MetaConversation, MetaMessage, MetaMessagingInbox } from "@/lib/meta/messagingTypes";
+import { META_MESSAGING_SYNCED_EVENT } from "@/lib/meta/metaMessagingSyncEvent";
 import {
   uiBtnPrimarySm,
   uiBtnSecondary,
@@ -63,20 +64,31 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
   const [success, setSuccess] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [pushHint, setPushHint] = useState<string | null>(null);
 
   const selected = inbox.conversations.find((c) => c.id === selectedId) ?? null;
 
-  async function refreshInbox() {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+  async function refreshInbox(options?: { silent?: boolean; reloadThread?: boolean }) {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+    }
     const result = await loadMetaMessagingInboxAction(restaurantId);
-    setLoading(false);
+    if (!silent) setLoading(false);
     if (!result.ok) {
-      setError(result.error);
+      if (!silent) setError(result.error);
       return;
     }
     setInbox(result.data!);
+    if (options?.reloadThread && selectedId) {
+      const thread = await loadMetaConversationMessagesAction(restaurantId, selectedId);
+      if (thread.ok) {
+        setMessages(thread.data!.messages);
+        setInbox(thread.data!.inbox);
+      }
+    }
   }
 
   async function activateMessagingWebhooks() {
@@ -151,19 +163,62 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, restaurantId]);
 
+  useEffect(() => {
+    if (!metaConnected) return;
+    void refreshInbox();
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void refreshInbox({ silent: true, reloadThread: true });
+    }, 20_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, metaConnected]);
+
+  useEffect(() => {
+    if (!metaConnected) return;
+    const onSynced = () => {
+      void refreshInbox({ silent: true, reloadThread: true });
+    };
+    window.addEventListener(META_MESSAGING_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(META_MESSAGING_SYNCED_EVENT, onSynced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, metaConnected, selectedId]);
+
+  useEffect(() => {
+    if (!metaConnected) return;
+    void fetch(`/api/push/status?restaurantId=${encodeURIComponent(restaurantId)}`, {
+      credentials: "include",
+    })
+      .then((r) => r.json())
+      .then((json: { ok?: boolean; status?: { sendConfigured?: boolean; teamTokenCount?: number } }) => {
+        if (!json.ok || !json.status) return;
+        if (!json.status.sendConfigured) {
+          setPushHint(
+            "Notifications push désactivées : ajoutez APNS_KEY_ID, APNS_TEAM_ID et APNS_PRIVATE_KEY sur Vercel."
+          );
+        } else if ((json.status.teamTokenCount ?? 0) === 0) {
+          setPushHint(
+            "Aucun appareil enregistré pour les notifications — ouvrez Ubion sur iPhone et acceptez les alertes."
+          );
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+  }, [restaurantId, metaConnected]);
+
   return (
     <div className={`${uiCard} space-y-4 p-5 sm:p-6`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-stone-900">Messages</h2>
           <p className={`mt-1 ${uiLead}`}>
-            Répondez depuis Ubion ou laissez le bot gérer les réservations (bouton « Réserver » ou mot « réserver »).
-            Actualisez pour récupérer les nouveaux messages.
+            Répondez depuis Ubion ou laissez le bot gérer les réservations. Les messages se synchronisent automatiquement (app ouverte ou cron serveur).
           </p>
         </div>
         <button
           type="button"
-          onClick={refreshInbox}
+          onClick={() => void refreshInbox()}
           disabled={loading}
           className={`inline-flex items-center gap-2 ${uiBtnSecondary}`}
         >
@@ -175,6 +230,8 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
       {!metaConnected ? (
         <p className={uiError}>Connectez Meta dans l&apos;onglet Comptes pour activer la messagerie.</p>
       ) : null}
+
+      {pushHint ? <p className={uiWarn}>{pushHint}</p> : null}
 
       {!inbox.messagingScopesEnabled ? (
         <p className={uiWarn}>

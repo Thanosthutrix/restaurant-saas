@@ -19,6 +19,7 @@ import { OfflineNavigationGuard } from "@/components/offline/OfflineNavigationGu
 import { OfflineStatusBar } from "@/components/offline/OfflineStatusBar";
 import { OfflineSyncProvider } from "@/components/offline/OfflineSyncProvider";
 import { SwipeBackNavigator } from "@/components/capacitor/SwipeBackNavigator";
+import { MetaMessagingBackgroundSync } from "@/components/meta/MetaMessagingBackgroundSync";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { type ShellNavKey } from "@/lib/auth/appRoles";
 import { prefetchRoutesWhenIdle } from "@/lib/ui/deferIdle";
@@ -290,6 +291,7 @@ export function PremiumAppShell({
             onMoreOpenChange={setMoreNavOpen}
             onPrefetch={prefetchRoute}
           />
+          <MetaMessagingBackgroundSync restaurantId={shellPayload?.currentRestaurantId ?? null} />
         </div>
       </div>
     </OfflineSyncProvider>

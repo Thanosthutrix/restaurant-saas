@@ -42,8 +42,6 @@ function isBookingStartIntent(inbound: string, actionPayload: string | null): bo
   return BOOKING_START.test(inbound);
 }
 const BOOKING_CANCEL = /\b(annuler|cancel|stop|quit|recommencer)\b/i;
-const YES = /^(oui|ok|yes|confirmer|valider)\s*!?\s*$/i;
-const NO = /^(non|no)\s*!?\s*$/i;
 
 function resolveConfirmChoice(
   inbound: string,
@@ -51,8 +49,17 @@ function resolveConfirmChoice(
 ): "yes" | "no" | null {
   if (quickReplyPayload === BOOKING_QUICK_REPLY.confirmYes) return "yes";
   if (quickReplyPayload === BOOKING_QUICK_REPLY.confirmNo) return "no";
-  if (YES.test(inbound.trim())) return "yes";
-  if (NO.test(inbound.trim())) return "no";
+
+  const normalized = inbound.trim().toLowerCase();
+  if (!normalized) return null;
+
+  // Titres des boutons Meta — la sync Graph ne transmet pas le payload quick reply.
+  if (/^oui,?\s*confirmer/.test(normalized)) return "yes";
+  if (/^non,?\s*annuler/.test(normalized)) return "no";
+
+  if (/\b(non|annuler)\b/.test(normalized) && !/\boui\b/.test(normalized)) return "no";
+  if (/\b(oui|ok|yes|confirmer|confirme|valider)\b/.test(normalized)) return "yes";
+
   return null;
 }
 
@@ -111,6 +118,25 @@ async function markInboundProcessed(
     ...state,
     lastProcessedInboundId: inboundMessageId,
   });
+}
+
+async function replyAndMarkInbound(
+  params: {
+    restaurantId: string;
+    platform: MetaMessagingPlatform;
+    externalUserId: string;
+    customerName: string | null;
+    conversationId: string;
+    inboundMessageId?: string | null;
+  },
+  state: ConversationBookingState,
+  replyParams: {
+    text: string;
+    quickReplies?: typeof BOOKING_CONFIRM_QUICK_REPLIES;
+  }
+): Promise<void> {
+  await markInboundProcessed(params.conversationId, state, params.inboundMessageId);
+  await reply({ ...params, ...replyParams });
 }
 
 export async function processInboundMetaBookingBot(params: {
@@ -189,8 +215,7 @@ export async function processInboundMetaBookingBot(params: {
   if (state.step === "party_size") {
     const n = Number.parseInt(inbound.replace(/\D/g, ""), 10);
     if (!Number.isInteger(n) || n < 1 || n > 12) {
-      await reply({
-        ...params,
+      await replyAndMarkInbound(params, state, {
         text: "Indiquez un nombre entre 1 et 12 (ex. 4).",
       });
       return;
@@ -213,14 +238,15 @@ export async function processInboundMetaBookingBot(params: {
   if (state.step === "date") {
     const ymd = parseFrenchDateInput(inbound);
     if (!ymd) {
-      await reply({
-        ...params,
+      await replyAndMarkInbound(params, state, {
         text: "Date non reconnue. Exemples : demain, 26/07 ou 26/07/2026.",
       });
       return;
     }
     if (ymd < parisTodayYmd()) {
-      await reply({ ...params, text: "Choisissez une date à partir d'aujourd'hui." });
+      await replyAndMarkInbound(params, state, {
+        text: "Choisissez une date à partir d'aujourd'hui.",
+      });
       return;
     }
 
@@ -234,8 +260,7 @@ export async function processInboundMetaBookingBot(params: {
 
     if (error || slots.length === 0) {
       await saveState(params.conversationId, { step: "date", draft: { partySize: draft.partySize } });
-      await reply({
-        ...params,
+      await replyAndMarkInbound(params, state, {
         text:
           error ??
           "Aucun créneau disponible ce jour-là. Proposez une autre date (ex. " +
@@ -279,8 +304,7 @@ export async function processInboundMetaBookingBot(params: {
     }
 
     if (!timeHm || !draft.ymd) {
-      await reply({
-        ...params,
+      await replyAndMarkInbound(params, state, {
         text: "Heure non reconnue. Choisissez un numéro dans la liste ou tapez une heure (ex. 19h30).",
       });
       return;
@@ -295,8 +319,7 @@ export async function processInboundMetaBookingBot(params: {
         partySize: draft.partySize ?? 2,
       });
       if (!available) {
-        await reply({
-          ...params,
+        await replyAndMarkInbound(params, state, {
           text: "Ce créneau n'est pas disponible. Choisissez un numéro dans la liste ou une autre heure.",
         });
         return;
@@ -341,8 +364,7 @@ export async function processInboundMetaBookingBot(params: {
       return;
     }
     if (choice !== "yes") {
-      await reply({
-        ...params,
+      await replyAndMarkInbound(params, state, {
         text: "Répondez Oui pour confirmer ou Non pour annuler (boutons ou texte).",
         quickReplies: BOOKING_CONFIRM_QUICK_REPLIES,
       });
@@ -365,8 +387,7 @@ export async function processInboundMetaBookingBot(params: {
     });
 
     if ("error" in created) {
-      await reply({
-        ...params,
+      await replyAndMarkInbound(params, state, {
         text: `Impossible d'enregistrer la réservation : ${created.error}. Tapez « réserver » pour réessayer.`,
       });
       return;

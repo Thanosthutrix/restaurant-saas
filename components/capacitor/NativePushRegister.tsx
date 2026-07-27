@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { isNativeApp } from "@/lib/capacitor/platform";
+import {
+  retryPendingPushRegistration,
+  sendPushTokenToServer,
+} from "@/lib/push/registerPushTokenClient";
 
 /**
  * Enregistre le token push natif (FCM/APNs) côté serveur.
@@ -14,14 +19,29 @@ export function NativePushRegister() {
     if (!isNativeApp()) return;
 
     void ensureNativePushRegistration(listenersReadyRef);
+    void retryPendingPushRegistration();
+
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        void retryPendingPushRegistration();
+      }
+    });
 
     const onVisible = () => {
       if (document.visibilityState === "visible") {
         void ensureNativePushRegistration(listenersReadyRef);
+        void retryPendingPushRegistration();
       }
     };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   return null;
@@ -36,7 +56,9 @@ async function ensureNativePushRegistration(listenersReadyRef: {
 
     if (!listenersReadyRef.current) {
       await PushNotifications.addListener("registration", async (event) => {
-        await sendTokenToServer(event.value, Capacitor.getPlatform());
+        const platform = Capacitor.getPlatform();
+        if (platform !== "ios" && platform !== "android") return;
+        await sendPushTokenToServer(event.value, platform);
       });
 
       await PushNotifications.addListener("registrationError", (error) => {
@@ -61,25 +83,5 @@ async function ensureNativePushRegistration(listenersReadyRef: {
     await PushNotifications.register();
   } catch (error) {
     console.warn("[ubion push] setup failed", error);
-  }
-}
-
-async function sendTokenToServer(token: string, platform: string): Promise<void> {
-  if (platform !== "ios" && platform !== "android") return;
-  if (!token || token.length < 8) return;
-
-  try {
-    const res = await fetch("/api/push/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ token, platform }),
-    });
-    const json = (await res.json()) as { ok?: boolean; error?: string };
-    if (!res.ok || !json.ok) {
-      console.warn("[ubion push] register API:", json.error ?? res.status);
-    }
-  } catch (error) {
-    console.warn("[ubion push] register API failed", error);
   }
 }

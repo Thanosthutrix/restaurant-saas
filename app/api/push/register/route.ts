@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import type { User } from "@supabase/supabase-js";
 import { getCurrentUser, getCurrentRestaurant } from "@/lib/auth";
 import { upsertUserPushToken, type PushPlatform } from "@/lib/push/pushTokenDb";
+import { supabaseServer } from "@/lib/supabaseServer";
 
 type Body = {
   token?: string;
@@ -12,8 +14,21 @@ function parsePlatform(raw: string | undefined): PushPlatform | null {
   return null;
 }
 
+async function resolveAuthenticatedUser(request: Request): Promise<User | null> {
+  const fromCookie = await getCurrentUser();
+  if (fromCookie) return fromCookie;
+
+  const authHeader = request.headers.get("authorization");
+  const bearer = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  if (!bearer) return null;
+
+  const { data, error } = await supabaseServer.auth.getUser(bearer);
+  if (error || !data.user) return null;
+  return data.user;
+}
+
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const user = await resolveAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ ok: false, error: "Non connecté." }, { status: 401 });
   }
@@ -43,6 +58,7 @@ export async function POST(request: Request) {
   });
 
   if (error) {
+    console.error("[push/register] upsert failed:", error.message);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 

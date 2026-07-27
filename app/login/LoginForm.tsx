@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthClientError } from "@/lib/supabase/authErrors";
+import { retryPendingPushRegistration } from "@/lib/push/registerPushTokenClient";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock, uiTextLink } from "@/components/ui/premium";
 
 export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerError?: string | null }) {
@@ -25,6 +26,7 @@ export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerErr
       setError(formatAuthClientError(err.message));
       return;
     }
+    await retryPendingPushRegistration();
     router.push(nextUrl);
     router.refresh();
   }

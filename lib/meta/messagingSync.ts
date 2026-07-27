@@ -1,5 +1,6 @@
 import "server-only";
 
+import { notifyTeamMetaMessageReceived } from "@/lib/push/notifyMetaMessage";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { processInboundMetaBookingBot } from "./bookingBot";
 import { metaGraphUrl } from "./config";
@@ -120,6 +121,15 @@ async function syncPlatformConversations(params: {
       } else {
         const result = await upsertInboundMetaMessage({ ...payload, incrementUnread: false });
         if (result.inserted && isRecentIso(message.created_time)) {
+          void notifyTeamMetaMessageReceived({
+            restaurantId: params.restaurantId,
+            conversationId: result.conversationId,
+            platform: params.platform,
+            contactName: peer.customerName,
+            text,
+          }).catch((err) => {
+            console.warn("[meta/messagingSync] push message:", err);
+          });
           try {
             await processInboundMetaBookingBot({
               restaurantId: params.restaurantId,

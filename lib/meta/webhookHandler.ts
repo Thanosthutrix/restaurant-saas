@@ -1,5 +1,6 @@
 import "server-only";
 
+import { notifyTeamMetaMessageReceived } from "@/lib/push/notifyMetaMessage";
 import { processInboundMetaBookingBot } from "./bookingBot";
 import {
   findRestaurantIdByFacebookPageId,
@@ -79,6 +80,19 @@ async function runBookingBot(params: {
   }
 }
 
+function notifyInboundMessage(params: {
+  restaurantId: string;
+  conversationId: string;
+  platform: MetaMessagingPlatform;
+  contactName: string | null;
+  text: string | null;
+  hasAttachments?: boolean;
+}): void {
+  void notifyTeamMetaMessageReceived(params).catch((err) => {
+    console.warn("[meta/webhook] push message:", err);
+  });
+}
+
 async function handlePostbackEvent(params: {
   restaurantId: string;
   platform: MetaMessagingPlatform;
@@ -142,7 +156,17 @@ async function handleMessagingEvent(params: {
   }
 
   const result = await upsertInboundMetaMessage({ ...payload, incrementUnread: true });
+  const hasAttachments = Boolean(message.attachments?.length);
+
   if (result.inserted) {
+    notifyInboundMessage({
+      restaurantId: params.restaurantId,
+      conversationId: result.conversationId,
+      platform: params.platform,
+      contactName: null,
+      text: message.text ?? null,
+      hasAttachments,
+    });
     await runBookingBot({
       restaurantId: params.restaurantId,
       platform: params.platform,
@@ -152,6 +176,14 @@ async function handleMessagingEvent(params: {
       quickReplyPayload: message.quick_reply?.payload ?? null,
     });
   } else if (message.quick_reply?.payload) {
+    notifyInboundMessage({
+      restaurantId: params.restaurantId,
+      conversationId: result.conversationId,
+      platform: params.platform,
+      contactName: null,
+      text: message.text ?? null,
+      hasAttachments,
+    });
     await runBookingBot({
       restaurantId: params.restaurantId,
       platform: params.platform,

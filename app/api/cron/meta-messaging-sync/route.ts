@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { syncAllRestaurantsMetaMessaging } from "@/lib/meta/syncAllMetaMessaging";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Cron Vercel — sync DM Meta + bot toutes les minutes (sans ouvrir Ubion). */
+/** Cron externe — sync DM Meta + bot (répond vite, travail en arrière-plan). */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) {
@@ -16,17 +16,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  try {
-    const result = await syncAllRestaurantsMetaMessaging();
-    if (result.errors.length > 0) {
-      console.warn("[cron/meta-messaging-sync]", result.errors.join(" · "));
+  after(async () => {
+    try {
+      const result = await syncAllRestaurantsMetaMessaging();
+      if (result.errors.length > 0) {
+        console.warn("[cron/meta-messaging-sync]", result.errors.join(" · "));
+      } else {
+        console.info("[cron/meta-messaging-sync] ok", result);
+      }
+    } catch (err) {
+      console.error("[cron/meta-messaging-sync]", err);
     }
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err) {
-    console.error("[cron/meta-messaging-sync]", err);
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Erreur sync." },
-      { status: 500 }
-    );
-  }
+  });
+
+  return NextResponse.json({
+    ok: true,
+    accepted: true,
+    message: "Sync Meta démarrée en arrière-plan.",
+  });
 }

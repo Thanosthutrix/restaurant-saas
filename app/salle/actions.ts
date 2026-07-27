@@ -39,7 +39,6 @@ import {
   type DiningOrderViewData,
 } from "@/lib/dining/diningOrderViewData";
 import { fetchOrderTicketSnapshot, type OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
-import { loadDiningOrderViewData } from "@/lib/dining/diningOrderViewData";
 import { notifyKitchenNewOrderLine } from "@/lib/push/notifyKitchenOrder";
 /**
  * Garde-fou IDOR : l'utilisateur doit être propriétaire ou membre du personnel actif

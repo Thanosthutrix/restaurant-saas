@@ -32,6 +32,22 @@ function buildApnsJwt(config: ApnsConfig): string {
   return token;
 }
 
+function normalizeDeviceToken(token: string): string {
+  return token.replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+}
+
+export function validateApnsCredentials(config: ApnsConfig): { ok: boolean; error?: string } {
+  try {
+    buildApnsJwt(config);
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Impossible de signer le JWT APNs.",
+    };
+  }
+}
+
 export async function sendApnsPush(params: {
   config: ApnsConfig;
   deviceToken: string;
@@ -39,6 +55,11 @@ export async function sendApnsPush(params: {
   body: string;
   data?: Record<string, string>;
 }): Promise<{ ok: boolean; status?: number; reason?: string }> {
+  const deviceToken = normalizeDeviceToken(params.deviceToken);
+  if (deviceToken.length < 32) {
+    return { ok: false, reason: "BadDeviceToken" };
+  }
+
   const host = params.config.useSandbox
     ? "https://api.sandbox.push.apple.com"
     : "https://api.push.apple.com";
@@ -61,7 +82,7 @@ export async function sendApnsPush(params: {
 
     const req = client.request({
       ":method": "POST",
-      ":path": `/3/device/${params.deviceToken}`,
+      ":path": `/3/device/${deviceToken}`,
       authorization: `bearer ${jwt}`,
       "apns-topic": params.config.bundleId,
       "apns-push-type": "alert",

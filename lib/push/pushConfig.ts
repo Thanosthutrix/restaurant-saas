@@ -15,7 +15,18 @@ export type FcmConfig = {
 };
 
 function normalizePrivateKey(raw: string): string {
-  return raw.replace(/\\n/g, "\n").trim();
+  let key = raw.trim();
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1).trim();
+  }
+  key = key.replace(/\\n/g, "\n");
+  if (!key.includes("BEGIN PRIVATE KEY") && /^MIGT[A-Za-z0-9+/=]+$/.test(key.replace(/\s/g, ""))) {
+    key = `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+  }
+  return key.trim();
 }
 
 export function getApnsConfig(): ApnsConfig | null {

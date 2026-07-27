@@ -195,13 +195,25 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
       .then(
         (json: {
           ok?: boolean;
-          status?: { sendConfigured?: boolean; teamTokenCount?: number; apnsSandbox?: boolean | null };
+          status?: {
+            sendConfigured?: boolean;
+            teamTokenCount?: number;
+            apnsSandbox?: boolean | null;
+            apnsJwtValid?: boolean | null;
+            apnsJwtError?: string | null;
+            apnsBundleId?: string | null;
+          };
         }) => {
           if (!json.ok || !json.status) return;
           if (!json.status.sendConfigured) {
             setPushReady(false);
             setPushHint(
-              "Notifications push désactivées : ajoutez APNS_KEY_ID, APNS_TEAM_ID et APNS_PRIVATE_KEY sur Vercel (voir guide ci-dessous)."
+              "APNs absent sur le serveur Production — vérifiez APNS_KEY_ID, APNS_TEAM_ID, APNS_PRIVATE_KEY sur Vercel puis redéployez."
+            );
+          } else if (json.status.apnsJwtValid === false) {
+            setPushReady(false);
+            setPushHint(
+              `Clé APNs invalide sur Vercel : ${json.status.apnsJwtError ?? "format APNS_PRIVATE_KEY incorrect"}.`
             );
           } else if ((json.status.teamTokenCount ?? 0) === 0) {
             setPushReady(false);
@@ -233,9 +245,15 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
     setSuccess(null);
     try {
       const res = await fetch("/api/push/test", { method: "POST", credentials: "include" });
-      const json = (await res.json()) as { ok?: boolean; error?: string; sent?: number };
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        sent?: number;
+        details?: string[];
+      };
       if (!res.ok || !json.ok) {
-        setError(json.error ?? "Test notification impossible.");
+        const detail = json.details?.length ? `\n${json.details.join("\n")}` : "";
+        setError(`${json.error ?? "Test notification impossible."}${detail}`);
         return;
       }
       setSuccess(`Notification test envoyée (${json.sent ?? 1} appareil).`);

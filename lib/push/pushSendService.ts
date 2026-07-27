@@ -59,9 +59,10 @@ export async function sendPushToDevices(params: {
   title: string;
   body: string;
   data?: Record<string, string>;
-}): Promise<{ sent: number; failed: number }> {
+}): Promise<{ sent: number; failed: number; failures: { platform: string; reason?: string }[] }> {
   let sent = 0;
   let failed = 0;
+  const failures: { platform: string; reason?: string }[] = [];
 
   for (const token of params.tokens) {
     try {
@@ -72,11 +73,18 @@ export async function sendPushToDevices(params: {
         data: params.data,
       });
       if (result.ok) sent += 1;
-      else failed += 1;
-    } catch {
+      else {
+        failed += 1;
+        failures.push({ platform: token.platform, reason: result.reason });
+      }
+    } catch (err) {
       failed += 1;
+      failures.push({
+        platform: token.platform,
+        reason: err instanceof Error ? err.message : "Erreur inconnue",
+      });
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, failures };
 }

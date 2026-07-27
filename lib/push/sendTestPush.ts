@@ -1,5 +1,6 @@
 import "server-only";
 
+import { explainApnsFailure } from "./apnsErrors";
 import { getPushServerStatus } from "./pushStatus";
 import { listPushTokensForUser } from "./pushTokenDb";
 import { sendPushToDevices } from "./pushSendService";
@@ -18,7 +19,16 @@ export async function sendTestPushToUser(userId: string): Promise<{
       sent: 0,
       failed: 0,
       error:
-        "APNs non configuré sur le serveur. Ajoutez APNS_KEY_ID, APNS_TEAM_ID et APNS_PRIVATE_KEY sur Vercel.",
+        "APNs non configuré sur le serveur. Vérifiez APNS_KEY_ID, APNS_TEAM_ID et APNS_PRIVATE_KEY sur Vercel (environnement Production).",
+    };
+  }
+
+  if (status.apnsJwtValid === false) {
+    return {
+      ok: false,
+      sent: 0,
+      failed: 0,
+      error: `Clé APNs illisible sur le serveur : ${status.apnsJwtError ?? "format APNS_PRIVATE_KEY incorrect"}.`,
     };
   }
 
@@ -41,14 +51,15 @@ export async function sendTestPushToUser(userId: string): Promise<{
   });
 
   if (result.sent === 0) {
+    const details = result.failures.map((f) =>
+      explainApnsFailure(f.reason, status.apnsSandbox)
+    );
     return {
       ok: false,
       sent: 0,
       failed: result.failed,
-      error:
-        status.apnsSandbox === true
-          ? "Envoi échoué. Vérifiez APNS_USE_SANDBOX=true (build Xcode) et la clé .p8 sur Vercel."
-          : "Envoi échoué. Vérifiez la clé APNs (.p8), Key ID, Team ID et APNS_BUNDLE_ID=fr.ubion.app sur Vercel.",
+      error: details[0] ?? "Envoi APNs échoué.",
+      details,
     };
   }
 

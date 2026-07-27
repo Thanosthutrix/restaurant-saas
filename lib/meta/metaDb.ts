@@ -241,10 +241,13 @@ export async function ensureMetaMessagingWebhooksSubscribed(
       pageAccessToken,
     });
     try {
-      await configurePageBookingMessengerProfile({
+      const profileResult = await configurePageBookingMessengerProfile({
         facebookPageId: row.facebook_page_id,
         pageAccessToken,
       });
+      if (profileResult.warnings.length > 0) {
+        console.warn("[meta] messenger profile partiel:", profileResult.warnings.join(" · "));
+      }
     } catch (err) {
       console.warn("[meta] messenger profile (bouton Réserver):", err);
     }

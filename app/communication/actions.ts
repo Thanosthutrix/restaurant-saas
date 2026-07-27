@@ -10,6 +10,7 @@ import {
 } from "@/lib/meta/publishService";
 import { getRestaurantSocialState } from "@/lib/meta/metaDb";
 import { ensureMetaMessagingWebhooksSubscribed } from "@/lib/meta/metaDb";
+import { configurePageBookingMessengerProfile } from "@/lib/meta/messagingApi";
 import { syncMetaMessagingFromGraph } from "@/lib/meta/messagingSync";
 import {
   getMetaConversationContext,
@@ -155,6 +156,32 @@ export async function loadMetaConversationMessagesAction(
     return { ok: true, data: { inbox, messages } };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Chargement impossible." };
+  }
+}
+
+export async function configureMetaBookingButtonsAction(
+  restaurantId: string
+): Promise<ActionResult<{ warnings: string[] }>> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const access = await assertRestaurantAccess(user.id, restaurantId);
+  if (!access.ok) return access;
+
+  const creds = await getMetaPageMessagingCredentials(restaurantId);
+  if (!creds) {
+    return { ok: false, error: "Page Facebook non liée." };
+  }
+
+  try {
+    const result = await configurePageBookingMessengerProfile(creds);
+    revalidateCommunicationPaths();
+    return { ok: true, data: result };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Configuration bouton Réserver impossible.",
+    };
   }
 }
 

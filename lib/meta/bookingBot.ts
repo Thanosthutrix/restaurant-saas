@@ -27,6 +27,7 @@ import {
 import {
   BOOKING_CONFIRM_QUICK_REPLIES,
   BOOKING_QUICK_REPLY,
+  BOOKING_START_QUICK_REPLIES,
   getMetaPageMessagingCredentials,
   getRestaurantMessagingDetails,
   sendMetaConversationReply,
@@ -100,6 +101,18 @@ async function saveState(conversationId: string, state: ConversationBookingState
   await updateConversationBookingState(conversationId, state);
 }
 
+async function markInboundProcessed(
+  conversationId: string,
+  state: ConversationBookingState,
+  inboundMessageId: string | null | undefined
+): Promise<void> {
+  if (!inboundMessageId) return;
+  await saveState(conversationId, {
+    ...state,
+    lastProcessedInboundId: inboundMessageId,
+  });
+}
+
 export async function processInboundMetaBookingBot(params: {
   restaurantId: string;
   conversationId: string;
@@ -107,6 +120,7 @@ export async function processInboundMetaBookingBot(params: {
   externalUserId: string;
   customerName: string | null;
   text: string | null;
+  inboundMessageId?: string | null;
   quickReplyPayload?: string | null;
   postbackPayload?: string | null;
 }): Promise<void> {
@@ -119,8 +133,16 @@ export async function processInboundMetaBookingBot(params: {
 
   let state = parseConversationBookingState(ctx.bookingState);
 
+  if (params.inboundMessageId && state.lastProcessedInboundId === params.inboundMessageId) {
+    return;
+  }
+
   if (BOOKING_CANCEL.test(inbound) && state.step !== "idle") {
-    await saveState(params.conversationId, { ...IDLE_BOOKING_STATE });
+    await saveState(params.conversationId, {
+      ...IDLE_BOOKING_STATE,
+      welcomeSent: state.welcomeSent,
+      lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
+    });
     await reply({
       ...params,
       text: "D'accord, j'annule la demande de réservation. Utilisez le bouton « Réserver » ou tapez « réserver » pour recommencer.",
@@ -129,13 +151,36 @@ export async function processInboundMetaBookingBot(params: {
   }
 
   if (state.step === "idle") {
-    if (!isBookingStartIntent(inbound, actionPayload)) return;
-    state = { step: "party_size", draft: {} };
-    await saveState(params.conversationId, state);
-    await reply({
-      ...params,
-      text: "Avec plaisir ! Pour combien de personnes souhaitez-vous réserver ? (1 à 12)",
-    });
+    if (isBookingStartIntent(inbound, actionPayload)) {
+      state = {
+        step: "party_size",
+        draft: {},
+        welcomeSent: true,
+        lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
+      };
+      await saveState(params.conversationId, state);
+      await reply({
+        ...params,
+        text: "Avec plaisir ! Pour combien de personnes souhaitez-vous réserver ? (1 à 12)",
+      });
+      return;
+    }
+
+    if (!state.welcomeSent && (inbound || actionPayload)) {
+      await saveState(params.conversationId, {
+        step: "idle",
+        welcomeSent: true,
+        lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
+      });
+      await reply({
+        ...params,
+        text: "Bonjour ! Souhaitez-vous réserver une table ?",
+        quickReplies: BOOKING_START_QUICK_REPLIES,
+      });
+      return;
+    }
+
+    await markInboundProcessed(params.conversationId, state, params.inboundMessageId);
     return;
   }
 
@@ -151,7 +196,12 @@ export async function processInboundMetaBookingBot(params: {
       return;
     }
     draft.partySize = n;
-    state = { step: "date", draft };
+    state = {
+      step: "date",
+      draft,
+      welcomeSent: true,
+      lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
+    };
     await saveState(params.conversationId, state);
     await reply({
       ...params,
@@ -196,7 +246,12 @@ export async function processInboundMetaBookingBot(params: {
     }
 
     draft.offeredSlots = slots;
-    state = { step: "time", draft };
+    state = {
+      step: "time",
+      draft,
+      welcomeSent: true,
+      lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
+    };
     await saveState(params.conversationId, state);
 
     const lines = slots.map((slot, i) => `${i + 1}. ${slot.replace(":", "h")}`);
@@ -249,7 +304,12 @@ export async function processInboundMetaBookingBot(params: {
     }
 
     draft.timeHm = timeHm;
-    state = { step: "confirm", draft };
+    state = {
+      step: "confirm",
+      draft,
+      welcomeSent: true,
+      lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
+    };
     await saveState(params.conversationId, state);
 
     await reply({
@@ -269,7 +329,11 @@ export async function processInboundMetaBookingBot(params: {
   if (state.step === "confirm") {
     const choice = resolveConfirmChoice(inbound, actionPayload);
     if (choice === "no") {
-      await saveState(params.conversationId, { ...IDLE_BOOKING_STATE });
+      await saveState(params.conversationId, {
+        ...IDLE_BOOKING_STATE,
+        welcomeSent: true,
+        lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
+      });
       await reply({
         ...params,
         text: "Réservation annulée. Utilisez le bouton « Réserver » ou tapez « réserver » pour recommencer.",
@@ -312,6 +376,8 @@ export async function processInboundMetaBookingBot(params: {
     await saveState(params.conversationId, {
       step: "idle",
       reservationId: created.reservationId,
+      welcomeSent: true,
+      lastProcessedInboundId: params.inboundMessageId ?? state.lastProcessedInboundId,
     });
 
     revalidatePath("/reservations");

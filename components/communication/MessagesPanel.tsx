@@ -5,6 +5,7 @@ import { Instagram, MessageCircle, RefreshCw } from "lucide-react";
 import {
   loadMetaConversationMessagesAction,
   loadMetaMessagingInboxAction,
+  configureMetaBookingButtonsAction,
   markMetaConversationReadAction,
   sendMetaConversationMessageAction,
   subscribeMetaMessagingWebhooksAction,
@@ -57,6 +58,7 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
   const [messages, setMessages] = useState<MetaMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [configuringButtons, setConfiguringButtons] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -89,6 +91,24 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
     }
     setInbox(result.data!);
     setSuccess("Réception des messages activée — envoyez un DM test.");
+  }
+
+  async function configureBookingButtons() {
+    setConfiguringButtons(true);
+    setError(null);
+    setSuccess(null);
+    const result = await configureMetaBookingButtonsAction(restaurantId);
+    setConfiguringButtons(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    const warnings = result.data?.warnings ?? [];
+    setSuccess(
+      warnings.length > 0
+        ? `Bouton Réserver partiellement configuré : ${warnings.join(" · ")}`
+        : "Bouton Réserver configuré (menu Messenger + ice breaker Instagram)."
+    );
   }
 
   async function sendMessage(e: React.FormEvent) {
@@ -175,10 +195,24 @@ export function MessagesPanel({ restaurantId, initialInbox, metaConnected }: Pro
           <p className="text-xs font-semibold text-stone-800">URL webhook Ubion</p>
           <code className="mt-1 block break-all text-[11px] text-stone-600">{inbox.webhookUrl}</code>
           {inbox.webhookSubscribedAt ? (
-            <p className={`mt-1 text-xs ${uiLead}`}>
-              Abonnement page enregistré le{" "}
-              {new Date(inbox.webhookSubscribedAt).toLocaleString("fr-FR")}
-            </p>
+            <div className="mt-2 space-y-2">
+              <p className={`text-xs ${uiLead}`}>
+                Abonnement page enregistré le{" "}
+                {new Date(inbox.webhookSubscribedAt).toLocaleString("fr-FR")}
+              </p>
+              <button
+                type="button"
+                onClick={configureBookingButtons}
+                disabled={configuringButtons || loading || !metaConnected}
+                className={`inline-flex items-center gap-2 ${uiBtnSecondary}`}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${configuringButtons ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                Configurer le bouton Réserver
+              </button>
+            </div>
           ) : (
             <div className="mt-2 space-y-2">
               <p className={`text-xs ${uiWarn}`}>

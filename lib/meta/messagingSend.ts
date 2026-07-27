@@ -14,6 +14,10 @@ export const BOOKING_QUICK_REPLY = {
   confirmNo: "BOOKING_CONFIRM_NO",
 } as const;
 
+export const BOOKING_START_QUICK_REPLIES: MetaQuickReplyOption[] = [
+  { title: "Réserver", payload: BOOKING_QUICK_REPLY.start },
+];
+
 export const BOOKING_CONFIRM_QUICK_REPLIES: MetaQuickReplyOption[] = [
   { title: "Oui, confirmer", payload: BOOKING_QUICK_REPLY.confirmYes },
   { title: "Non, annuler", payload: BOOKING_QUICK_REPLY.confirmNo },

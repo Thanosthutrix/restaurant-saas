@@ -3,7 +3,6 @@ import { Megaphone } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getRestaurantSocialState } from "@/lib/meta/metaDb";
 import { getMetaMessagingInbox } from "@/lib/meta/messagingDb";
-import { syncMetaMessagingFromGraph } from "@/lib/meta/messagingSync";
 import { loadCommunicationFeed } from "@/lib/meta/publishService";
 import { listSocialPosts } from "@/lib/meta/socialPostsDb";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -27,9 +26,6 @@ export default async function CommunicationPage({ searchParams }: Props) {
     listSocialPosts(restaurant.id),
   ]);
 
-  await syncMetaMessagingFromGraph(restaurant.id).catch(() => {
-    /* Webhook/sync optionnel — l'inbox reste lisible si Graph indisponible. */
-  });
   const messagingInbox = await getMetaMessagingInbox(restaurant.id);
 
   return (

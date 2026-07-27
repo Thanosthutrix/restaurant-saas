@@ -1,8 +1,8 @@
 import "server-only";
 
 import { notifyTeamMetaMessageReceived } from "@/lib/push/notifyMetaMessage";
+import { processBookingBotCatchUp } from "./bookingBotCatchUp";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { processInboundMetaBookingBot } from "./bookingBot";
 import { metaGraphUrl } from "./config";
 import { recordOutboundMetaMessage, upsertInboundMetaMessage } from "./messagingDb";
 import type { MetaMessagingPlatform } from "./messagingTypes";
@@ -130,23 +130,6 @@ async function syncPlatformConversations(params: {
           }).catch((err) => {
             console.warn("[meta/messagingSync] push message:", err);
           });
-          try {
-            await processInboundMetaBookingBot({
-              restaurantId: params.restaurantId,
-              conversationId: result.conversationId,
-              platform: params.platform,
-              externalUserId: peer.externalUserId,
-              customerName: peer.customerName,
-              text,
-              quickReplyPayload:
-                typeof (message as { quick_reply?: { payload?: string } }).quick_reply?.payload ===
-                "string"
-                  ? (message as { quick_reply: { payload: string } }).quick_reply.payload
-                  : null,
-            });
-          } catch (err) {
-            console.warn("[meta/messagingSync] booking bot:", err);
-          }
         }
       }
       synced += 1;
@@ -194,6 +177,8 @@ export async function syncMetaMessagingFromGraph(
       pageAccessToken,
     });
   }
+
+  await processBookingBotCatchUp(restaurantId);
 
   return { syncedMessages };
 }

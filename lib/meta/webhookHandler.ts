@@ -3,9 +3,9 @@ import "server-only";
 import { notifyTeamMetaMessageReceived } from "@/lib/push/notifyMetaMessage";
 import { processInboundMetaBookingBot } from "./bookingBot";
 import {
+  ensureMetaConversationForPeer,
   findRestaurantIdByFacebookPageId,
   findRestaurantIdByInstagramAccountId,
-  getMetaConversationByPeer,
   recordOutboundMetaMessage,
   upsertInboundMetaMessage,
 } from "./messagingDb";
@@ -60,7 +60,9 @@ async function runBookingBot(params: {
   platform: MetaMessagingPlatform;
   externalUserId: string;
   conversationId: string;
+  customerName: string | null;
   text: string | null;
+  inboundMessageId?: string | null;
   quickReplyPayload?: string | null;
   postbackPayload?: string | null;
 }): Promise<void> {
@@ -70,8 +72,9 @@ async function runBookingBot(params: {
       conversationId: params.conversationId,
       platform: params.platform,
       externalUserId: params.externalUserId,
-      customerName: null,
+      customerName: params.customerName,
       text: params.text,
+      inboundMessageId: params.inboundMessageId ?? null,
       quickReplyPayload: params.quickReplyPayload,
       postbackPayload: params.postbackPayload,
     });
@@ -102,19 +105,22 @@ async function handlePostbackEvent(params: {
   const senderId = params.event.sender?.id;
   if (!payload || !senderId) return;
 
-  const conv = await getMetaConversationByPeer({
+  const conversationId = await ensureMetaConversationForPeer({
     restaurantId: params.restaurantId,
     platform: params.platform,
     externalUserId: senderId,
   });
-  if (!conv) return;
+
+  const postbackKey = `postback:${payload}:${params.event.timestamp ?? Date.now()}`;
 
   await runBookingBot({
     restaurantId: params.restaurantId,
     platform: params.platform,
     externalUserId: senderId,
-    conversationId: conv.id,
+    conversationId,
+    customerName: null,
     text: params.event.postback?.title ?? null,
+    inboundMessageId: postbackKey,
     postbackPayload: payload,
   });
 }
@@ -157,6 +163,8 @@ async function handleMessagingEvent(params: {
 
   const result = await upsertInboundMetaMessage({ ...payload, incrementUnread: true });
   const hasAttachments = Boolean(message.attachments?.length);
+  const inboundMessageId = message.mid ?? null;
+  const shouldRunBot = result.inserted || Boolean(message.quick_reply?.payload);
 
   if (result.inserted) {
     notifyInboundMessage({
@@ -167,14 +175,6 @@ async function handleMessagingEvent(params: {
       text: message.text ?? null,
       hasAttachments,
     });
-    await runBookingBot({
-      restaurantId: params.restaurantId,
-      platform: params.platform,
-      externalUserId,
-      conversationId: result.conversationId,
-      text: message.text ?? null,
-      quickReplyPayload: message.quick_reply?.payload ?? null,
-    });
   } else if (message.quick_reply?.payload) {
     notifyInboundMessage({
       restaurantId: params.restaurantId,
@@ -184,13 +184,18 @@ async function handleMessagingEvent(params: {
       text: message.text ?? null,
       hasAttachments,
     });
+  }
+
+  if (shouldRunBot) {
     await runBookingBot({
       restaurantId: params.restaurantId,
       platform: params.platform,
       externalUserId,
       conversationId: result.conversationId,
+      customerName: null,
       text: message.text ?? null,
-      quickReplyPayload: message.quick_reply.payload,
+      inboundMessageId,
+      quickReplyPayload: message.quick_reply?.payload ?? null,
     });
   }
 }

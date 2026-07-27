@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getMetaWebhookVerifyToken } from "@/lib/meta/config";
 import { handleMetaWebhookPayload } from "@/lib/meta/webhookHandler";
 import { verifyMetaWebhookSignature } from "@/lib/meta/webhookVerify";
@@ -39,11 +39,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  try {
-    await handleMetaWebhookPayload(body as Parameters<typeof handleMetaWebhookPayload>[0]);
-  } catch (err) {
-    console.error("[meta/webhook] handler error:", err);
-  }
+  const payload = body as Parameters<typeof handleMetaWebhookPayload>[0];
+
+  after(async () => {
+    try {
+      await handleMetaWebhookPayload(payload);
+    } catch (err) {
+      console.error("[meta/webhook] handler error:", err);
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }

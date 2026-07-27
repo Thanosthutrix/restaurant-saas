@@ -120,10 +120,11 @@ export async function sendMetaTextMessageWithQuickReplies(params: {
   return { messageId: json.message_id ?? null };
 }
 
-/** Menu persistant Messenger, Get Started et ice breakers Instagram (bouton « Réserver »). */
-export async function configurePageBookingMessengerProfile(params: {
+async function postMessengerProfileFragment(params: {
   facebookPageId: string;
   pageAccessToken: string;
+  body: Record<string, unknown>;
+  label: string;
 }): Promise<void> {
   const url = new URL(metaGraphUrl(`${params.facebookPageId}/messenger_profile`));
   url.searchParams.set("access_token", params.pageAccessToken);
@@ -131,37 +132,80 @@ export async function configurePageBookingMessengerProfile(params: {
   const res = await fetch(url.toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      get_started: { payload: BOOKING_START_PAYLOAD },
-      persistent_menu: [
-        {
-          locale: "default",
-          composer_input_disabled: false,
-          call_to_actions: [
-            {
-              type: "postback",
-              title: "Réserver",
-              payload: BOOKING_START_PAYLOAD,
-            },
-          ],
-        },
-      ],
-      ice_breakers: [
-        {
-          question: "Réserver une table",
-          payload: BOOKING_START_PAYLOAD,
-        },
-      ],
-    }),
+    body: JSON.stringify(params.body),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(formatMetaMessagingSubscribeError(text.slice(0, 400)));
+    throw new Error(
+      `${params.label} : ${formatMetaMessagingSubscribeError(text.slice(0, 400))}`
+    );
   }
 
   const json = (await res.json()) as { result?: string; error?: { message: string } };
   if (json.error) {
-    throw new Error(formatMetaMessagingSubscribeError(json.error.message));
+    throw new Error(`${params.label} : ${formatMetaMessagingSubscribeError(json.error.message)}`);
   }
+}
+
+/** Menu persistant Messenger, Get Started et ice breakers Instagram (bouton « Réserver »). */
+export async function configurePageBookingMessengerProfile(params: {
+  facebookPageId: string;
+  pageAccessToken: string;
+}): Promise<{ warnings: string[] }> {
+  const warnings: string[] = [];
+  const base = {
+    facebookPageId: params.facebookPageId,
+    pageAccessToken: params.pageAccessToken,
+  };
+
+  const fragments: { label: string; body: Record<string, unknown> }[] = [
+    {
+      label: "Get Started",
+      body: { get_started: { payload: BOOKING_START_PAYLOAD } },
+    },
+    {
+      label: "Menu persistant",
+      body: {
+        persistent_menu: [
+          {
+            locale: "default",
+            composer_input_disabled: false,
+            call_to_actions: [
+              {
+                type: "postback",
+                title: "Réserver",
+                payload: BOOKING_START_PAYLOAD,
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      label: "Ice breakers Instagram",
+      body: {
+        ice_breakers: [
+          {
+            question: "Réserver une table",
+            payload: BOOKING_START_PAYLOAD,
+          },
+        ],
+      },
+    },
+  ];
+
+  for (const fragment of fragments) {
+    try {
+      await postMessengerProfileFragment({ ...base, ...fragment });
+    } catch (err) {
+      warnings.push(err instanceof Error ? err.message : fragment.label);
+    }
+  }
+
+  if (warnings.length === fragments.length) {
+    throw new Error(warnings.join(" · "));
+  }
+
+  return { warnings };
 }

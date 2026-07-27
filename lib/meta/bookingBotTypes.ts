@@ -11,6 +11,10 @@ export type ConversationBookingState = {
   step: BookingBotStep;
   draft?: BookingBotDraft;
   reservationId?: string;
+  /** Message d'accueil avec bouton Réserver déjà envoyé. */
+  welcomeSent?: boolean;
+  /** Dernier message entrant traité par le bot (évite les rejeux au sync). */
+  lastProcessedInboundId?: string;
 };
 
 export const IDLE_BOOKING_STATE: ConversationBookingState = { step: "idle" };
@@ -57,5 +61,8 @@ export function parseConversationBookingState(raw: unknown): ConversationBooking
     draft,
     reservationId:
       typeof obj.reservationId === "string" ? obj.reservationId : undefined,
+    welcomeSent: obj.welcomeSent === true,
+    lastProcessedInboundId:
+      typeof obj.lastProcessedInboundId === "string" ? obj.lastProcessedInboundId : undefined,
   };
 }

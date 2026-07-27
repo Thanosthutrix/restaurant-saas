@@ -254,6 +254,95 @@ export async function getMetaConversationByPeer(params: {
   return { id: data.id as string };
 }
 
+/** Crée la conversation si absente (ex. postback « Réserver » avant tout message). */
+export async function ensureMetaConversationForPeer(params: {
+  restaurantId: string;
+  platform: MetaMessagingPlatform;
+  externalUserId: string;
+  customerName?: string | null;
+}): Promise<string> {
+  const existing = await getMetaConversationByPeer(params);
+  if (existing) return existing.id;
+
+  const { data, error } = await supabaseServer
+    .from("restaurant_meta_conversations")
+    .insert({
+      restaurant_id: params.restaurantId,
+      platform: params.platform,
+      external_user_id: params.externalUserId,
+      customer_name: params.customerName ?? null,
+      unread_count: 0,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Conversation impossible.");
+  }
+  return data.id as string;
+}
+
+export type LatestInboundMetaMessage = {
+  id: string;
+  metaMessageId: string | null;
+  text: string | null;
+  createdAt: string;
+};
+
+export async function getLatestInboundMetaMessage(
+  conversationId: string
+): Promise<LatestInboundMetaMessage | null> {
+  const { data, error } = await supabaseServer
+    .from("restaurant_meta_messages")
+    .select("id, meta_message_id, text, created_at")
+    .eq("conversation_id", conversationId)
+    .eq("direction", "inbound")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return {
+    id: data.id as string,
+    metaMessageId: (data.meta_message_id as string | null) ?? null,
+    text: (data.text as string | null) ?? null,
+    createdAt: data.created_at as string,
+  };
+}
+
+export async function listRecentMetaConversations(
+  restaurantId: string,
+  maxAgeMs = 30 * 60_000
+): Promise<
+  {
+    id: string;
+    platform: MetaMessagingPlatform;
+    externalUserId: string;
+    customerName: string | null;
+    bookingState: unknown;
+    lastMessageAt: string | null;
+  }[]
+> {
+  const since = new Date(Date.now() - maxAgeMs).toISOString();
+  const { data, error } = await supabaseServer
+    .from("restaurant_meta_conversations")
+    .select("id, platform, external_user_id, customer_name, booking_state, last_message_at")
+    .eq("restaurant_id", restaurantId)
+    .gte("last_message_at", since)
+    .order("last_message_at", { ascending: false })
+    .limit(50);
+
+  if (error) return [];
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    platform: row.platform as MetaMessagingPlatform,
+    externalUserId: row.external_user_id as string,
+    customerName: (row.customer_name as string | null) ?? null,
+    bookingState: row.booking_state,
+    lastMessageAt: (row.last_message_at as string | null) ?? null,
+  }));
+}
+
 export async function upsertInboundMetaMessage(params: {
   restaurantId: string;
   platform: MetaMessagingPlatform;

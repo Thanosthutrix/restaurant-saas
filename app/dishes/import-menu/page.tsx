@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
 import { ImportMenuClient } from "./ImportMenuClient";
 
+export const maxDuration = 300;
+
 export default async function ImportMenuPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");

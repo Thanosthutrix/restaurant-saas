@@ -3,6 +3,11 @@
 import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestions";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  MENU_ANALYSIS_CLIENT_TIMEOUT_MS,
+  MENU_ANALYSIS_TIMEOUT_USER_MESSAGE,
+  withTimeout,
+} from "@/lib/async/withTimeout";
 
 export const MENU_IMPORT_STORAGE_BUCKET = "receipts";
 
@@ -23,17 +28,33 @@ export async function uploadMenuImageForRestaurant(
   return { url: data.publicUrl, path };
 }
 
+async function postMenuAnalyze(body: Record<string, string>): Promise<Response> {
+  return withTimeout(
+    fetch("/api/menu-imports/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "same-origin",
+    }),
+    MENU_ANALYSIS_CLIENT_TIMEOUT_MS,
+    MENU_ANALYSIS_TIMEOUT_USER_MESSAGE
+  );
+}
+
 /** Analyse via le chemin Storage (serveur télécharge avec la service role — bucket privé OK). */
 export async function fetchMenuAnalysisFromStoragePath(
   bucket: string,
   path: string
 ): Promise<{ items: MenuSuggestionItem[]; error: string | null }> {
-  const res = await fetch("/api/menu-imports/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ storage_bucket: bucket, storage_path: path }),
-    credentials: "same-origin",
-  });
+  let res: Response;
+  try {
+    res = await postMenuAnalyze({ storage_bucket: bucket, storage_path: path });
+  } catch (e) {
+    return {
+      items: [],
+      error: e instanceof Error ? e.message : MENU_ANALYSIS_TIMEOUT_USER_MESSAGE,
+    };
+  }
   const data = await res.json();
   const errorMessage = (data?.error as string | undefined) ?? (!res.ok ? "Erreur lors de l’analyse." : null);
   if (errorMessage) {
@@ -47,12 +68,15 @@ export async function fetchMenuAnalysisFromStoragePath(
 export async function fetchMenuAnalysisFromImageUrl(
   imageUrl: string
 ): Promise<{ items: MenuSuggestionItem[]; error: string | null }> {
-  const res = await fetch("/api/menu-imports/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image_url: imageUrl }),
-    credentials: "same-origin",
-  });
+  let res: Response;
+  try {
+    res = await postMenuAnalyze({ image_url: imageUrl });
+  } catch (e) {
+    return {
+      items: [],
+      error: e instanceof Error ? e.message : MENU_ANALYSIS_TIMEOUT_USER_MESSAGE,
+    };
+  }
   const data = await res.json();
   const errorMessage = (data?.error as string | undefined) ?? (!res.ok ? "Erreur lors de l’analyse." : null);
   if (errorMessage) {

@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, ScanLine, UtensilsCrossed } from "lucide-react";
 import { createRestaurantFormData } from "../actions";
+import {
+  MENU_ANALYSIS_SERVER_ACTION_TIMEOUT_MS,
+  MENU_ANALYSIS_TIMEOUT_USER_MESSAGE,
+  withTimeout,
+} from "@/lib/async/withTimeout";
 import { createDishesFromMenuSuggestions } from "@/app/dishes/import-menu/actions";
 import {
   MenuSuggestionsEditor,
@@ -90,45 +95,54 @@ export function CreateRestaurantForm({ templates }: { templates: RestaurantTempl
     for (const f of recipeFiles) {
       fd.append("recipe_image", f);
     }
-    const result = await createRestaurantFormData(fd);
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    const restaurantId = result.restaurantId;
-    if (!restaurantId) {
-      await goDashboard();
-      return;
-    }
-    if (result.recipeSuggestions) {
-      const payload: PendingOnboardingRecipesStored = { v: 1, items: result.recipeSuggestions };
-      try {
-        sessionStorage.setItem(PENDING_ONBOARDING_RECIPES_KEY, JSON.stringify(payload));
-      } catch {
-        setError(
-          "Impossible de conserver les suggestions de recettes localement. Vous pourrez réimporter les recettes depuis Plats."
-        );
-        return;
-      }
-    }
-    if (menuFiles.length === 0) {
-      if (result.recipeSuggestions) {
-        router.replace("/onboarding/review-recipes");
-        return;
-      }
-      await goDashboard();
-      return;
-    }
-    const raw = result.menuSuggestions ?? [];
-    setSuggestions(menuItemsToEditableRows(raw));
-    setPhase("review");
-    if (raw.length === 0) {
-      setError(
-        "Aucun plat détecté. Vous pouvez passer au tableau de bord et utiliser Plats → Importer une photo de carte."
+    try {
+      const result = await withTimeout(
+        createRestaurantFormData(fd),
+        MENU_ANALYSIS_SERVER_ACTION_TIMEOUT_MS,
+        MENU_ANALYSIS_TIMEOUT_USER_MESSAGE
       );
-    } else {
-      setError(null);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      const restaurantId = result.restaurantId;
+      if (!restaurantId) {
+        await goDashboard();
+        return;
+      }
+      if (result.recipeSuggestions) {
+        const payload: PendingOnboardingRecipesStored = { v: 1, items: result.recipeSuggestions };
+        try {
+          sessionStorage.setItem(PENDING_ONBOARDING_RECIPES_KEY, JSON.stringify(payload));
+        } catch {
+          setError(
+            "Impossible de conserver les suggestions de recettes localement. Vous pourrez réimporter les recettes depuis Plats."
+          );
+          return;
+        }
+      }
+      if (menuFiles.length === 0) {
+        if (result.recipeSuggestions) {
+          router.replace("/onboarding/review-recipes");
+          return;
+        }
+        await goDashboard();
+        return;
+      }
+      const raw = result.menuSuggestions ?? [];
+      setSuggestions(menuItemsToEditableRows(raw));
+      setPhase("review");
+      if (raw.length === 0) {
+        setError(
+          "Aucun plat détecté. Vous pouvez passer au tableau de bord et utiliser Plats → Importer une photo de carte."
+        );
+      } else {
+        setError(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Création impossible.");
+    } finally {
+      setLoading(false);
     }
   }
 

@@ -4,6 +4,8 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
 import { analyzeMenuImage, analyzeMenuImageFromStoragePath } from "@/lib/menu-analysis";
 
+export const maxDuration = 300;
+
 export type AnalyzeMenuResponse = {
   success: boolean;
   items: MenuSuggestionItem[];

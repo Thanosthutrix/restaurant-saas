@@ -6,6 +6,8 @@ import { OnboardingPageShell } from "@/components/onboarding/OnboardingPageShell
 import { uiCard } from "@/components/ui/premium";
 import { OnboardingImportsClient } from "./OnboardingImportsClient";
 
+export const maxDuration = 300;
+
 export default async function OnboardingImportsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

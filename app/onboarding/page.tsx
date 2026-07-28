@@ -5,6 +5,8 @@ import { getRestaurantTemplates } from "@/lib/templates/restaurantTemplates";
 import { OnboardingPageShell } from "@/components/onboarding/OnboardingPageShell";
 import { OnboardingForm } from "./OnboardingForm";
 
+export const maxDuration = 300;
+
 export default async function OnboardingPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

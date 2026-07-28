@@ -7,7 +7,11 @@ import type { MenuSuggestionItem, MenuSuggestionMode } from "@/lib/menuSuggestio
 
 export type { MenuSuggestionItem, MenuSuggestionMode } from "@/lib/menuSuggestionTypes";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  timeout: 120_000,
+  maxRetries: 1,
+});
 
 const MAX_SIZE = 1800;
 const JPEG_QUALITY = 80;
@@ -381,8 +385,12 @@ export async function analyzeMenuImageFromBuffer(
     return runOpenAiMenuAnalysis(jpegDataUrl);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "analysis failed";
+    const friendly =
+      msg.includes("timeout") || msg.includes("timed out") || msg.includes("Timeout")
+        ? "L'analyse OpenAI a expiré. Réessayez avec une photo plus légère ou un PDF plus court."
+        : msg;
     console.error(LOG_PREFIX, "buffer analysis error", msg, e);
-    return { suggestions: [], error: msg };
+    return { suggestions: [], error: friendly };
   }
 }
 

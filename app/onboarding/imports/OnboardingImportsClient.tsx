@@ -25,6 +25,11 @@ import {
   uiSuccess,
 } from "@/components/ui/premium";
 import { analyzeOnboardingImportDocuments, importOnboardingBusinessDocuments, importOnboardingRevenueDocuments } from "./actions";
+import {
+  MENU_ANALYSIS_SERVER_ACTION_TIMEOUT_MS,
+  MENU_ANALYSIS_TIMEOUT_USER_MESSAGE,
+  withTimeout,
+} from "@/lib/async/withTimeout";
 
 type SupplierOption = { id: string; name: string };
 
@@ -137,45 +142,54 @@ export function OnboardingImportsClient({ suppliers }: { suppliers: SupplierOpti
     for (const file of equipmentFiles) formData.append("equipment_image", file);
 
     setPending(true);
-    const result = await analyzeOnboardingImportDocuments(formData);
-    setPending(false);
-    if (!result.ok) {
-      setError(result.errors.join(" ") || "Analyse impossible.");
-      return;
-    }
-
     try {
-      if (result.recipeSuggestions) {
-        const payload: PendingOnboardingRecipesStored = { v: 1, items: result.recipeSuggestions };
-        sessionStorage.setItem(PENDING_ONBOARDING_RECIPES_KEY, JSON.stringify(payload));
+      const result = await withTimeout(
+        analyzeOnboardingImportDocuments(formData),
+        MENU_ANALYSIS_SERVER_ACTION_TIMEOUT_MS,
+        MENU_ANALYSIS_TIMEOUT_USER_MESSAGE
+      );
+      if (!result.ok) {
+        setError(result.errors.join(" ") || "Analyse impossible.");
+        return;
       }
+
+      try {
+        if (result.recipeSuggestions) {
+          const payload: PendingOnboardingRecipesStored = { v: 1, items: result.recipeSuggestions };
+          sessionStorage.setItem(PENDING_ONBOARDING_RECIPES_KEY, JSON.stringify(payload));
+        }
+        if (result.menuSuggestions) {
+          const payload: PendingOnboardingMenuStored = { v: 1, items: result.menuSuggestions };
+          sessionStorage.setItem(PENDING_ONBOARDING_MENU_KEY, JSON.stringify(payload));
+        }
+        if (result.equipmentSuggestions) {
+          const payload: PendingOnboardingEquipmentStored = { v: 1, items: result.equipmentSuggestions };
+          sessionStorage.setItem(PENDING_ONBOARDING_EQUIPMENT_KEY, JSON.stringify(payload));
+        }
+      } catch {
+        setError("Impossible de conserver les suggestions localement. Réessayez avec moins de fichiers.");
+        return;
+      }
+
       if (result.menuSuggestions) {
-        const payload: PendingOnboardingMenuStored = { v: 1, items: result.menuSuggestions };
-        sessionStorage.setItem(PENDING_ONBOARDING_MENU_KEY, JSON.stringify(payload));
+        router.push("/onboarding/review-menu");
+        return;
+      }
+      if (result.recipeSuggestions) {
+        router.push("/onboarding/review-recipes");
+        return;
       }
       if (result.equipmentSuggestions) {
-        const payload: PendingOnboardingEquipmentStored = { v: 1, items: result.equipmentSuggestions };
-        sessionStorage.setItem(PENDING_ONBOARDING_EQUIPMENT_KEY, JSON.stringify(payload));
+        router.push("/onboarding/review-equipment");
+        return;
       }
-    } catch {
-      setError("Impossible de conserver les suggestions localement. Réessayez avec moins de fichiers.");
-      return;
+      router.push("/dashboard");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Analyse impossible.");
+    } finally {
+      setPending(false);
     }
-
-    if (result.menuSuggestions) {
-      router.push("/onboarding/review-menu");
-      return;
-    }
-    if (result.recipeSuggestions) {
-      router.push("/onboarding/review-recipes");
-      return;
-    }
-    if (result.equipmentSuggestions) {
-      router.push("/onboarding/review-equipment");
-      return;
-    }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   async function submitBusinessImports(e: React.FormEvent) {

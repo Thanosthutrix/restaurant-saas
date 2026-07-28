@@ -5,6 +5,8 @@ import { getRestaurantTemplates } from "@/lib/templates/restaurantTemplates";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { CreateRestaurantForm } from "./CreateRestaurantForm";
 
+export const maxDuration = 300;
+
 export default async function NewRestaurantPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

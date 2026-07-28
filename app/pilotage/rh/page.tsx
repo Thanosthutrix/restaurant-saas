@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Building2, Banknote, FileText, Users } from "lucide-react";
+import { Building2, Banknote, BarChart3, FileText, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -29,6 +29,14 @@ const tiles: {
     icon: FileText,
     tone: "bg-rose-50 text-rose-700",
     tile: "tile-rose",
+  },
+  {
+    title: "Suivi heures",
+    description: "Heures contractuelles vs planning — heures sup. et cumul CDD.",
+    href: "/pilotage/rh/contrats/suivi-heures",
+    icon: BarChart3,
+    tone: "bg-violet-50 text-violet-700",
+    tile: "tile-violet",
   },
   {
     title: "Fiches de paie",

@@ -28,6 +28,8 @@ function mapStaff(row: Record<string, unknown>): StaffMember {
       row.contract_type == null || String(row.contract_type).trim() === ""
         ? null
         : String(row.contract_type).trim(),
+    contract_start_date: toPlanningYmdFromUnknown(row.contract_start_date),
+    contract_end_date: toPlanningYmdFromUnknown(row.contract_end_date),
     target_weekly_hours: target,
     max_daily_hours: (() => {
       const md = row.max_daily_hours;

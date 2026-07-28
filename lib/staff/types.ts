@@ -13,6 +13,10 @@ export type StaffMember = {
   app_nav_keys: string[] | null;
   /** Contrat (cdi, cdd, …). */
   contract_type: string | null;
+  /** Date d'entrée / début de contrat (AAAA-MM-JJ). */
+  contract_start_date: string | null;
+  /** Date de fin (CDD, intérim…). */
+  contract_end_date: string | null;
   /** Volume horaire cible hebdomadaire. */
   target_weekly_hours: number | null;
   /** Plafond d’heures nettes planifiables par jour (null = illimité). */

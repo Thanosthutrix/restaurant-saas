@@ -39,6 +39,9 @@ export default async function HcrContractsPage() {
         subtitle="Créez, enregistrez et retrouvez vos brouillons de contrats CDI, CDD ou saisonniers."
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <Link href="/pilotage/rh/contrats/suivi-heures" className={uiBtnSecondary}>
+              Suivi heures
+            </Link>
             <Link href="/pilotage/rh/administratif" className={uiBtnSecondary}>
               Profil employeur
             </Link>

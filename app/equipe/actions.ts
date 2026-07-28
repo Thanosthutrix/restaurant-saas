@@ -29,9 +29,11 @@ import {
 import { trySyncRestaurantHoursToGoogle } from "@/lib/google/syncHours";
 import {
   CONTRACT_TYPES,
+  contractTypeShowsEndDate,
   isContractType,
   minutesFromMidnight,
   normalizeClockToHhMm,
+  parseContractYmd,
   parseOpeningHoursJson,
   type TimeBand,
 } from "@/lib/staff/planningHoursTypes";
@@ -286,6 +288,8 @@ export async function updateStaffPlanningProfileAction(
   payload: {
     roleLabel: string | null;
     contractType: string | null;
+    contractStartDate: string | null;
+    contractEndDate: string | null;
     targetWeeklyHours: number | null;
     maxDailyHours: number | null;
     planningNotes: string | null;
@@ -326,11 +330,33 @@ export async function updateStaffPlanningProfileAction(
   const availability = parseOpeningHoursJson(payload.availability);
   const prepBands = parseOpeningHoursJson(payload.prepBands);
 
+  let contractStart: string | null = null;
+  let contractEnd: string | null = null;
+  if (ct) {
+    const startRaw = payload.contractStartDate?.trim() ?? "";
+    const endRaw = payload.contractEndDate?.trim() ?? "";
+    contractStart = startRaw ? parseContractYmd(startRaw) : null;
+    if (startRaw && !contractStart) {
+      return { ok: false, error: "Date d'entrée invalide (AAAA-MM-JJ)." };
+    }
+    if (contractTypeShowsEndDate(ct)) {
+      contractEnd = endRaw ? parseContractYmd(endRaw) : null;
+      if (endRaw && !contractEnd) {
+        return { ok: false, error: "Date de fin invalide (AAAA-MM-JJ)." };
+      }
+    }
+    if (contractStart && contractEnd && contractEnd < contractStart) {
+      return { ok: false, error: "La date de fin doit être postérieure à la date d'entrée." };
+    }
+  }
+
   const { error } = await supabaseServer
     .from("staff_members")
     .update({
       role_label: roleLabel,
       contract_type: ct,
+      contract_start_date: contractStart,
+      contract_end_date: contractEnd,
       target_weekly_hours: target,
       max_daily_hours: maxDaily,
       planning_notes: notes,
@@ -342,6 +368,7 @@ export async function updateStaffPlanningProfileAction(
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/equipe");
+  revalidatePath("/pilotage/rh/contrats/suivi-heures");
   return { ok: true };
 }
 

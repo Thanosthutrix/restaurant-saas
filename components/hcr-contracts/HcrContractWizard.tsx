@@ -343,6 +343,14 @@ export function HcrContractWizard({
         ...prev,
         employee: { ...prev.employee, staffMemberId: selected.id, firstName: split.firstName, lastName: split.lastName },
         contractKind: selected.contract_type === "cdd" ? "cdd" : prev.contractKind,
+        termDetails: {
+          ...prev.termDetails,
+          reason: prev.termDetails?.reason ?? null,
+          startDate: selected.contract_start_date ?? prev.termDetails?.startDate ?? "",
+          endDate: selected.contract_end_date ?? prev.termDetails?.endDate ?? "",
+          hasUncertainTerm: prev.termDetails?.hasUncertainTerm ?? false,
+          renewalClause: prev.termDetails?.renewalClause ?? false,
+        },
         jobAndPay: {
           ...prev.jobAndPay,
           jobTitle: selected.role_label ?? prev.jobAndPay.jobTitle,

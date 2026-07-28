@@ -7,6 +7,8 @@ import type { StaffMember } from "@/lib/staff/types";
 import {
   CONTRACT_LABELS_FR,
   CONTRACT_TYPES,
+  contractTypeShowsEndDate,
+  contractTypeShowsStartDate,
   type ContractType,
   type OpeningHoursMap,
   type PlanningDayKey,
@@ -30,6 +32,8 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
 
   const [roleLabel, setRoleLabel] = useState(member.role_label ?? "");
   const [contractType, setContractType] = useState<string>(member.contract_type ?? "");
+  const [contractStartDate, setContractStartDate] = useState(member.contract_start_date ?? "");
+  const [contractEndDate, setContractEndDate] = useState(member.contract_end_date ?? "");
   const [targetHours, setTargetHours] = useState<string>(
     member.target_weekly_hours != null ? String(member.target_weekly_hours) : ""
   );
@@ -117,6 +121,10 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
       const r = await updateStaffPlanningProfileAction(restaurantId, member.id, {
         roleLabel: roleLabel.trim() || null,
         contractType: contractType || null,
+        contractStartDate: contractStartDate.trim() || null,
+        contractEndDate: contractTypeShowsEndDate(contractType)
+          ? contractEndDate.trim() || null
+          : null,
         targetWeeklyHours: targetHours.trim() === "" ? null : Number(targetHours.replace(",", ".")),
         maxDailyHours: maxDailyHours.trim() === "" ? null : Number(maxDailyHours.replace(",", ".")),
         planningNotes: notes.trim() || null,
@@ -167,7 +175,11 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
             id={`ct-${member.id}`}
             className={`${uiInput} mt-1 w-full text-sm`}
             value={contractType}
-            onChange={(e) => setContractType(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setContractType(next);
+              if (!contractTypeShowsEndDate(next)) setContractEndDate("");
+            }}
           >
             <option value="">—</option>
             {CONTRACT_TYPES.map((c: ContractType) => (
@@ -176,7 +188,40 @@ export function StaffPlanningProfileForm({ restaurantId, member }: Props) {
               </option>
             ))}
           </select>
+          <p className="mt-0.5 text-[10px] text-stone-500">
+            Contrat signé hors app : renseignez aussi les dates ci-dessous.
+          </p>
         </div>
+        {contractTypeShowsStartDate(contractType) ? (
+          <div>
+            <label className={uiLabel} htmlFor={`cs-${member.id}`}>
+              Date d&apos;entrée
+            </label>
+            <input
+              id={`cs-${member.id}`}
+              type="date"
+              className={`${uiInput} mt-1 w-full text-sm`}
+              value={contractStartDate}
+              onChange={(e) => setContractStartDate(e.target.value)}
+            />
+          </div>
+        ) : null}
+        {contractTypeShowsEndDate(contractType) ? (
+          <div>
+            <label className={uiLabel} htmlFor={`ce-${member.id}`}>
+              Date de fin
+            </label>
+            <input
+              id={`ce-${member.id}`}
+              type="date"
+              className={`${uiInput} mt-1 w-full text-sm`}
+              value={contractEndDate}
+              min={contractStartDate || undefined}
+              onChange={(e) => setContractEndDate(e.target.value)}
+            />
+            <p className="mt-0.5 text-[10px] text-stone-500">Obligatoire pour le suivi heures CDD.</p>
+          </div>
+        ) : null}
         <div>
           <label className={uiLabel} htmlFor={`th-${member.id}`}>
             Volume cible (h / semaine)

@@ -46,6 +46,21 @@ export function isContractType(s: string | null | undefined): s is ContractType 
   return s != null && (CONTRACT_TYPES as readonly string[]).includes(s);
 }
 
+/** Contrats à durée déterminée : date de fin affichée (CDD, intérim, stage…). */
+export function contractTypeShowsEndDate(ct: string | null | undefined): boolean {
+  return ct === "cdd" || ct === "interim" || ct === "stage" || ct === "extra" || ct === "autre";
+}
+
+/** Date d'entrée pertinente dès qu'un type de contrat est choisi. */
+export function contractTypeShowsStartDate(ct: string | null | undefined): boolean {
+  return isContractType(ct);
+}
+
+export function parseContractYmd(raw: string | null | undefined): string | null {
+  const s = (raw ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
 export function parseOpeningHoursJson(raw: unknown): OpeningHoursMap {
   if (raw == null || typeof raw !== "object") return {};
   const out: OpeningHoursMap = {};

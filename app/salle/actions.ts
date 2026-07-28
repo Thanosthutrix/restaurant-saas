@@ -6,7 +6,7 @@ import { getRestaurantForPage } from "@/lib/auth";
 import { assertRestaurantAction, assertRestaurantMembership } from "@/lib/auth/restaurantActionAccess";
 import { getCurrentUser } from "@/lib/auth";
 import { createCustomer } from "@/lib/customers/customersDb";
-import { createService, deleteService, getService } from "@/lib/db";
+import { createService, deleteService, getService, getDish } from "@/lib/db";
 import { recordServiceSalesAndApplyStock } from "@/lib/service/recordServiceSalesAndApplyStock";
 import type { ServiceType } from "@/lib/constants";
 import { recordOrderSettledForCustomer } from "@/lib/customers/customersDb";
@@ -36,10 +36,16 @@ import { revertConsumptionFromStock } from "@/lib/recipes/applyConsumptionToStoc
 import { trySendDiningOrderReadyEmail } from "@/lib/messaging/diningOrderReadyEmail";
 import {
   loadDiningOrderViewData,
+  mapLinesToClients,
   type DiningOrderViewData,
 } from "@/lib/dining/diningOrderViewData";
 import { fetchOrderTicketSnapshot, type OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 import { notifyKitchenNewOrderLine } from "@/lib/push/notifyKitchenOrder";
+import { mealCourseFromMenuCategory, type DiningMealCourse } from "@/lib/dining/courseTypes";
+import {
+  fireMealCourseForOrder,
+  maybeNotifyServerCoursesReady,
+} from "@/lib/dining/diningCourseService";
 /**
  * Garde-fou IDOR : l'utilisateur doit être propriétaire ou membre du personnel actif
  * de ce restaurant. Sans cela, un `restaurantId` fourni par le client permettrait
@@ -138,6 +144,10 @@ export async function addDishToDiningOrder(params: {
 
   if (findErr) return { ok: false, error: findErr.message };
 
+  const dishRes = await getDish(dishId);
+  const courseType = mealCourseFromMenuCategory(dishRes.data?.menu_category);
+  const fireImmediately = courseType == null;
+
   if (line) {
     const newQty = toNumber((line as { qty: unknown }).qty) + qty;
     const { error: upErr } = await supabaseServer
@@ -151,6 +161,8 @@ export async function addDishToDiningOrder(params: {
       dining_order_id: orderId,
       dish_id: dishId,
       qty,
+      course_type: courseType,
+      sent_to_kitchen_at: fireImmediately ? new Date().toISOString() : null,
     });
     if (insErr) return { ok: false, error: insErr.message };
   }
@@ -160,22 +172,51 @@ export async function addDishToDiningOrder(params: {
     return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
   }
 
-  void (async () => {
-    try {
-      const view = await loadDiningOrderViewData(restaurantId, orderId);
-      const addedLine = view.data?.lines.find((l) => l.dishId === dishId);
-      await notifyKitchenNewOrderLine({
-        restaurantId,
-        orderLabel: view.data?.placeDescription ?? "Commande",
-        dishName: addedLine?.dishName ?? "Plat",
-        qty,
-      });
-    } catch (err) {
-      console.warn("[dining] push cuisine:", err);
-    }
-  })();
+  if (fireImmediately) {
+    void (async () => {
+      try {
+        const view = await loadDiningOrderViewData(restaurantId, orderId);
+        const addedLine = view.data?.lines.find((l) => l.dishId === dishId);
+        await notifyKitchenNewOrderLine({
+          restaurantId,
+          orderLabel: view.data?.placeDescription ?? "Commande",
+          dishName: addedLine?.dishName ?? "Plat",
+          qty,
+        });
+      } catch (err) {
+        console.warn("[dining] push cuisine:", err);
+      }
+    })();
+  }
 
   revalidatePath("/cuisine/pass");
+  return { ok: true, data: snap.data };
+}
+
+export async function fireDiningOrderCourse(params: {
+  restaurantId: string;
+  orderId: string;
+  courseType: DiningMealCourse;
+}): Promise<ActionResult<OrderTicketSnapshot>> {
+  const memberAuthz = await memberGate(params.restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
+
+  const orderRes = await getDiningOrder(params.orderId, params.restaurantId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  if (!orderRes.data || orderRes.data.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+
+  const fired = await fireMealCourseForOrder(params);
+  if (!fired.ok) return { ok: false, error: fired.error };
+
+  const snap = await fetchOrderTicketSnapshot(params.restaurantId, params.orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+
+  revalidatePath("/cuisine/pass");
+  revalidatePath(`/salle/commande/${params.orderId}`);
   return { ok: true, data: snap.data };
 }
 
@@ -556,6 +597,9 @@ export async function setDiningOrderLinePrepared(params: {
     return { ok: false, error: "Commande déjà encaissée." };
   }
 
+  const linesBeforeRes = await getDiningOrderLines(orderId, restaurantId);
+  const linesBefore = mapLinesToClients(linesBeforeRes.data);
+
   const { error: uErr } = await supabaseServer
     .from("dining_order_lines")
     .update({ is_prepared: isPrepared })
@@ -565,13 +609,20 @@ export async function setDiningOrderLinePrepared(params: {
 
   revalidatePath("/cuisine/pass");
 
-  if (!isPrepared) {
-    return { ok: true, data: { orderReadyEmail: "none" } };
-  }
+  if (isPrepared) {
+    const linesAfterRes = await getDiningOrderLines(orderId, restaurantId);
+    const linesAfter = mapLinesToClients(linesAfterRes.data);
+    void maybeNotifyServerCoursesReady({
+      restaurantId,
+      orderId,
+      linesBefore,
+      linesAfter,
+    }).catch((err) => console.warn("[dining] notify course ready:", err));
 
-  void trySendDiningOrderReadyEmail({ restaurantId, orderId, mode: "auto" }).catch(() => {
-    /* e-mail en arrière-plan : ne bloque pas l’UI */
-  });
+    void trySendDiningOrderReadyEmail({ restaurantId, orderId, mode: "auto" }).catch(() => {
+      /* e-mail en arrière-plan : ne bloque pas l’UI */
+    });
+  }
 
   return { ok: true, data: { orderReadyEmail: "none" } };
 }

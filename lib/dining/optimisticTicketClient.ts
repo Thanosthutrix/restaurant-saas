@@ -40,6 +40,8 @@ export function optimisticAddDishLine(
       dishName: dish.name,
       qty: 1,
       isPrepared: false,
+      courseType: null,
+      sentToKitchenAt: null,
       lineGrossTtc: gross,
       lineTotalTtc: gross,
       discountKind: "none" as DiningDiscountKind,

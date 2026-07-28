@@ -40,6 +40,10 @@ export type DiningOrderLineRow = {
   qty: unknown;
   /** Cuisine : la ligne est prête (plat terminé). */
   is_prepared?: boolean;
+  /** Service repas : entrée, plat ou dessert. */
+  course_type?: string | null;
+  /** Horodatage envoi cuisine (NULL = en attente serveur). */
+  sent_to_kitchen_at?: string | null;
   discount_kind?: string;
   discount_value?: unknown;
 };
@@ -327,7 +331,7 @@ export async function listOpenOrdersForCaisse(
     supabaseServer
       .from("dining_order_lines")
       .select(
-        "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
       )
       .eq("restaurant_id", restaurantId)
       .in("dining_order_id", orderIds)
@@ -438,7 +442,7 @@ export async function getDiningOrderLines(
   const { data, error } = await supabaseServer
     .from("dining_order_lines")
     .select(
-      "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+      "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
     )
     .eq("dining_order_id", orderId)
     .eq("restaurant_id", restaurantId)
@@ -456,7 +460,7 @@ export async function getDiningOrderLineById(
   const { data, error } = await supabaseServer
     .from("dining_order_lines")
     .select(
-      "id, dining_order_id, dish_id, qty, is_prepared, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+      "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
     )
     .eq("id", lineId)
     .eq("restaurant_id", restaurantId)

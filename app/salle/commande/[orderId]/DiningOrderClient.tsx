@@ -32,6 +32,7 @@ import {
   DiningOrderTicketLinesScroll,
   fmtEur,
 } from "@/components/dining/DiningOrderTicketUi";
+import { DiningCoursePanel } from "@/components/dining/DiningCoursePanel";
 import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "@/app/caisse/caisseQuickStorage";
 import type { CustomerLookupRow } from "@/lib/customers/customersDb";
 import { CustomerTicketMemoDialog } from "../CustomerTicketMemoDialog";
@@ -478,7 +479,18 @@ export function DiningOrderClient({
   );
 
   const linesContent = (
-    <DiningOrderTicketLinesScroll>
+    <>
+      {status === "open" && localLines.length > 0 ? (
+        <DiningCoursePanel
+          restaurantId={restaurantId}
+          orderId={orderId}
+          lines={localLines}
+          pending={pending}
+          onTicketApplied={applyTicket}
+          onError={setError}
+        />
+      ) : null}
+      <DiningOrderTicketLinesScroll>
       {localLines.length === 0 ? (
         <DiningOrderTicketEmptyLines message="Ajoutez des plats depuis la carte ci‑dessous." />
       ) : (
@@ -497,6 +509,7 @@ export function DiningOrderClient({
         </ul>
       )}
     </DiningOrderTicketLinesScroll>
+    </>
   );
 
   const footer = (

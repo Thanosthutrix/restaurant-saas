@@ -27,7 +27,7 @@ export default async function KitchenPassPage() {
       <PageHeader
         eyebrow="Service"
         title="Pass cuisine"
-        subtitle="Les bons arrivent dès qu'un serveur prend une commande en salle ou à la caisse. Touchez « Prêt » quand le plat est terminé."
+        subtitle="Les bons apparaissent quand le serveur envoie un service (entrées, plats, desserts). Touchez « Prêt » quand le plat est terminé."
       />
       <KitchenPassClient restaurantId={restaurant.id} initialQueue={data} />
     </PageContainer>

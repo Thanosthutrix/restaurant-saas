@@ -23,6 +23,7 @@ import {
   sumDiningOrderPayments,
 } from "@/lib/dining/diningDb";
 import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
+import { isMealCourse } from "@/lib/dining/courseTypes";
 import { diningOrderGuestDisplayName, diningTableTicketTitle } from "@/lib/dining/ticketLabel";
 
 export type DiningOrderLinkedCustomer = {
@@ -69,6 +70,12 @@ export function mapLinesToClients(
       dishName: d?.name ?? "Plat",
       qty: Number(l.qty),
       isPrepared: Boolean((l as { is_prepared?: boolean }).is_prepared),
+      courseType: isMealCourse((l as { course_type?: string }).course_type)
+        ? (l as { course_type: "entrée" | "plat" | "dessert" }).course_type
+        : null,
+      sentToKitchenAt:
+        ((l as { sent_to_kitchen_at?: string | null }).sent_to_kitchen_at as string | null) ??
+        null,
       lineGrossTtc: lineGrossTtc(l),
       lineTotalTtc: lineTtc(l),
       discountKind: parseDiningDiscountKind(l.discount_kind),

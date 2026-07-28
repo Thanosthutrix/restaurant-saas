@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { mapLinesToClients } from "@/lib/dining/diningOrderViewData";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import { addDishToDiningOrder } from "@/app/salle/actions";
 import type { ActionResult } from "@/app/salle/actions";
@@ -9,13 +10,10 @@ import {
   createOpenCounterTicketOrder,
   getDiningOrder,
   getDiningOrderLines,
-  lineGrossTtc,
-  lineTtc,
   listDiningOrderPayments,
   orderTotalTtc,
   sumDiningOrderPayments,
 } from "@/lib/dining/diningDb";
-import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 function quickCounterLabel(): string {
@@ -140,22 +138,7 @@ export async function getQuickCounterOrderSnapshot(
   const { data: lines, error: lErr } = await getDiningOrderLines(orderId, restaurantId);
   if (lErr) return { ok: false, error: lErr.message };
 
-  const lineClients: DiningLineClient[] = (lines ?? []).map((l) => {
-    const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
-    const dv = l.discount_value;
-    const discountValue = dv == null || dv === "" ? null : Number(dv);
-    return {
-      id: l.id,
-      dishId: l.dish_id,
-      dishName: d?.name ?? "Plat",
-      qty: Number(l.qty),
-      isPrepared: Boolean((l as { is_prepared?: boolean }).is_prepared),
-      lineGrossTtc: lineGrossTtc(l),
-      lineTotalTtc: lineTtc(l),
-      discountKind: parseDiningDiscountKind(l.discount_kind),
-      discountValue: discountValue != null && Number.isFinite(discountValue) ? discountValue : null,
-    };
-  });
+  const lineClients = mapLinesToClients(lines);
 
   const totalTtc = orderTotalTtc(lines ?? []);
   const payRes = await listDiningOrderPayments(orderId, restaurantId);

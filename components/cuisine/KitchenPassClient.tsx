@@ -132,8 +132,8 @@ export function KitchenPassClient({ restaurantId, initialQueue }: Props) {
           <ChefHat className="h-12 w-12 text-stone-300" aria-hidden />
           <p className="text-base font-medium text-stone-700">Rien à préparer pour le moment</p>
           <p className={`max-w-sm ${uiLead}`}>
-            Dès qu&apos;un serveur ajoute un plat en salle ou à la caisse, le bon apparaît ici
-            instantanément.
+            Dès qu&apos;un serveur envoie un service (entrées, plats…), les bons apparaissent ici
+            par table.
           </p>
         </div>
       ) : (
@@ -149,6 +149,36 @@ export function KitchenPassClient({ restaurantId, initialQueue }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+function KitchenPassLineRow({
+  line,
+  busyLineId,
+  onMarkPrepared,
+}: {
+  line: KitchenPassTicket["pendingLines"][number];
+  busyLineId: string | null;
+  onMarkPrepared: (lineId: string) => void;
+}) {
+  return (
+    <li className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-base font-semibold text-stone-900">
+          <span className="mr-2 tabular-nums text-copper-600">×{line.qty}</span>
+          {line.dishName}
+        </p>
+        <p className="text-xs text-stone-500">{formatTime(line.createdAt)}</p>
+      </div>
+      <button
+        type="button"
+        disabled={busyLineId === line.id}
+        onClick={() => void onMarkPrepared(line.id)}
+        className="shrink-0 rounded-xl border-2 border-emerald-600 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
+      >
+        Prêt
+      </button>
+    </li>
   );
 }
 
@@ -170,23 +200,21 @@ function KitchenTicketCard({
         ) : null}
       </header>
       <ul className="divide-y divide-stone-100">
-        {ticket.pendingLines.map((line) => (
-          <li key={line.id} className="flex items-center gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-semibold text-stone-900">
-                <span className="mr-2 tabular-nums text-copper-600">×{line.qty}</span>
-                {line.dishName}
-              </p>
-              <p className="text-xs text-stone-500">{formatTime(line.createdAt)}</p>
-            </div>
-            <button
-              type="button"
-              disabled={busyLineId === line.id}
-              onClick={() => void onMarkPrepared(line.id)}
-              className="shrink-0 rounded-xl border-2 border-emerald-600 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
-            >
-              Prêt
-            </button>
+        {ticket.courseGroups.map((group) => (
+          <li key={group.label} className="px-4 py-2">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-copper-700">
+              {group.label}
+            </p>
+            <ul className="space-y-2">
+              {group.lines.map((line) => (
+                <KitchenPassLineRow
+                  key={line.id}
+                  line={line}
+                  busyLineId={busyLineId}
+                  onMarkPrepared={onMarkPrepared}
+                />
+              ))}
+            </ul>
           </li>
         ))}
       </ul>

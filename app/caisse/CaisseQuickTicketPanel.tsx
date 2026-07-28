@@ -23,6 +23,7 @@ import {
   DiningOrderTicketLinesScroll,
   fmtEur,
 } from "@/components/dining/DiningOrderTicketUi";
+import { DiningCoursePanel } from "@/components/dining/DiningCoursePanel";
 import { getQuickCounterOrderSnapshot } from "./actions";
 import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "./caisseQuickStorage";
 import { uiLead, uiSuccess } from "@/components/ui/premium";
@@ -316,7 +317,18 @@ export function CaisseQuickTicketPanel({
   );
 
   const linesContent = (
-    <DiningOrderTicketLinesScroll>
+    <>
+      {!loading && lines.length > 0 ? (
+        <DiningCoursePanel
+          restaurantId={restaurantId}
+          orderId={orderId}
+          lines={lines}
+          pending={pending}
+          onTicketApplied={applyTicket}
+          onError={setError}
+        />
+      ) : null}
+      <DiningOrderTicketLinesScroll>
       {loading ? (
         <p className={`py-2 text-center text-xs ${uiLead}`}>…</p>
       ) : lines.length === 0 ? (
@@ -337,6 +349,7 @@ export function CaisseQuickTicketPanel({
         </ul>
       )}
     </DiningOrderTicketLinesScroll>
+    </>
   );
 
   const footer = (

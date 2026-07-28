@@ -9,6 +9,7 @@ import {
   diningOrderGuestDisplayName,
   diningTableTicketTitle,
 } from "./ticketLabel";
+import { isMealCourse, mealCourseLabel, type DiningMealCourse } from "./courseTypes";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export type KitchenPassLine = {
@@ -16,12 +17,20 @@ export type KitchenPassLine = {
   dishName: string;
   qty: number;
   isPrepared: boolean;
+  courseType: DiningMealCourse | null;
   createdAt: string;
+};
+
+export type KitchenPassCourseGroup = {
+  courseType: DiningMealCourse | null;
+  label: string;
+  lines: KitchenPassLine[];
 };
 
 export type KitchenPassTicket = {
   orderId: string;
   label: string;
+  courseGroups: KitchenPassCourseGroup[];
   pendingLines: KitchenPassLine[];
   oldestPendingAt: string | null;
 };
@@ -46,7 +55,32 @@ function orderLabel(params: {
   );
 }
 
-/** Bons cuisine : lignes non prêtes des commandes ouvertes, groupées par ticket. */
+function groupLinesByCourse(lines: KitchenPassLine[]): KitchenPassCourseGroup[] {
+  const groups = new Map<string, KitchenPassCourseGroup>();
+
+  for (const line of lines) {
+    const key = line.courseType ?? "_other";
+    const existing = groups.get(key);
+    if (existing) {
+      existing.lines.push(line);
+      continue;
+    }
+    groups.set(key, {
+      courseType: line.courseType,
+      label: line.courseType ? mealCourseLabel(line.courseType) : "Autres",
+      lines: [line],
+    });
+  }
+
+  const order = ["entrée", "plat", "dessert", "_other"];
+  return [...groups.values()].sort((a, b) => {
+    const ka = a.courseType ?? "_other";
+    const kb = b.courseType ?? "_other";
+    return order.indexOf(ka) - order.indexOf(kb);
+  });
+}
+
+/** Bons cuisine : lignes envoyées par le serveur et non encore prêtes. */
 export async function loadKitchenPassQueue(restaurantId: string): Promise<{
   data: KitchenPassQueue;
   error: Error | null;
@@ -75,10 +109,11 @@ export async function loadKitchenPassQueue(restaurantId: string): Promise<{
     supabaseServer
       .from("dining_order_lines")
       .select(
-        "id, dining_order_id, dish_id, qty, is_prepared, created_at, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, created_at, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
       )
       .eq("restaurant_id", restaurantId)
       .in("dining_order_id", orderIds)
+      .not("sent_to_kitchen_at", "is", null)
       .eq("is_prepared", false)
       .order("created_at", { ascending: true }),
   ]);
@@ -95,14 +130,19 @@ export async function loadKitchenPassQueue(restaurantId: string): Promise<{
   );
 
   const linesByOrder = new Map<string, KitchenPassLine[]>();
-  for (const raw of (linesRes.data ?? []) as unknown as (LineWithDish & { created_at: string })[]) {
+  for (const raw of (linesRes.data ?? []) as unknown as (LineWithDish & {
+    created_at: string;
+    course_type?: string | null;
+  })[]) {
     const dish = dishFromJoin(raw);
+    const courseRaw = raw.course_type;
     const arr = linesByOrder.get(raw.dining_order_id) ?? [];
     arr.push({
       id: raw.id,
       dishName: dish?.name ?? "Plat",
       qty: Number(raw.qty),
       isPrepared: Boolean(raw.is_prepared),
+      courseType: isMealCourse(courseRaw) ? courseRaw : null,
       createdAt: raw.created_at,
     });
     linesByOrder.set(raw.dining_order_id, arr);
@@ -131,6 +171,7 @@ export async function loadKitchenPassQueue(restaurantId: string): Promise<{
         customerName,
         guestNotes: order.notes,
       }),
+      courseGroups: groupLinesByCourse(pendingLines),
       pendingLines,
       oldestPendingAt: pendingLines[0]?.createdAt ?? null,
     });

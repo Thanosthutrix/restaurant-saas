@@ -94,6 +94,16 @@ export function isBarLinesFired(lines: DiningLineClient[]): boolean {
   return drinks.every((l) => Boolean(l.sentToKitchenAt));
 }
 
+export function isBarLinesAllPrepared(lines: DiningLineClient[]): boolean {
+  const drinks = barLines(lines);
+  return drinks.length > 0 && drinks.every((l) => l.isPrepared);
+}
+
+export function isKitchenExtraLinesAllPrepared(lines: DiningLineClient[]): boolean {
+  const extras = kitchenExtraLines(lines);
+  return extras.length > 0 && extras.every((l) => l.isPrepared);
+}
+
 export function canFireKitchenExtraLines(lines: DiningLineClient[]): boolean {
   const extras = kitchenExtraLines(lines);
   return extras.length > 0 && extras.some((l) => !l.sentToKitchenAt);

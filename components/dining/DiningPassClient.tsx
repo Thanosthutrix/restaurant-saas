@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { RefreshCw } from "lucide-react";
 import type { DiningPassQueue, DiningPassTicket } from "@/lib/dining/diningPassData";
+import { TABLE_WAIT_COLOR_CLASS, type TableWaitColor } from "@/lib/dining/diningWaitSettings";
 import { uiBtnSecondary, uiCard, uiError, uiLead } from "@/components/ui/premium";
 
 const POLL_MS = 2_000;
@@ -23,6 +24,11 @@ export type DiningPassClientConfig = {
     | { ok: false; error: string }
   >;
   markPrepared: (params: { restaurantId: string; lineId: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  markAllPrepared: (params: {
+    restaurantId: string;
+    orderId: string;
+    lineIds: string[];
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 type Props = {
@@ -36,6 +42,16 @@ function formatTime(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function PassUrgencyDot({ color }: { color: TableWaitColor }) {
+  return (
+    <span
+      className={`inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white/80 shadow ${TABLE_WAIT_COLOR_CLASS[color]}`}
+      title="Urgence"
+      aria-hidden
+    />
+  );
 }
 
 function playNewTicketSound() {
@@ -59,6 +75,7 @@ export function DiningPassClient({ restaurantId, initialQueue, config }: Props) 
   const [queue, setQueue] = useState(initialQueue);
   const [loading, setLoading] = useState(false);
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
+  const [busyTicketId, setBusyTicketId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const prevPendingRef = useRef(initialQueue.pendingLineCount);
   const EmptyIcon = config.emptyIcon;
@@ -107,17 +124,26 @@ export function DiningPassClient({ restaurantId, initialQueue, config }: Props) 
       setError(result.error);
       return;
     }
-    setQueue((prev) => {
-      const tickets = prev.tickets
-        .map((ticket) => ({
-          ...ticket,
-          pendingLines: ticket.pendingLines.filter((l) => l.id !== lineId),
-        }))
-        .filter((t) => t.pendingLines.length > 0);
-      const pendingLineCount = tickets.reduce((n, t) => n + t.pendingLines.length, 0);
-      prevPendingRef.current = pendingLineCount;
-      return { tickets, pendingLineCount };
+    await refresh(true);
+  }
+
+  async function markAllPrepared(ticket: DiningPassTicket) {
+    const lineIds = ticket.pendingLines.map((l) => l.id);
+    if (lineIds.length === 0) return;
+
+    setBusyTicketId(ticket.orderId);
+    setError(null);
+    const result = await config.markAllPrepared({
+      restaurantId,
+      orderId: ticket.orderId,
+      lineIds,
     });
+    setBusyTicketId(null);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    await refresh(true);
   }
 
   return (
@@ -156,7 +182,9 @@ export function DiningPassClient({ restaurantId, initialQueue, config }: Props) 
               key={ticket.orderId}
               ticket={ticket}
               busyLineId={busyLineId}
+              busyTicket={busyTicketId === ticket.orderId}
               onMarkPrepared={markPrepared}
+              onMarkAllPrepared={() => void markAllPrepared(ticket)}
               headerClass={config.headerClass}
               groupLabelClass={config.groupLabelClass}
             />
@@ -220,23 +248,46 @@ function PassLineRow({
 function PassTicketCard({
   ticket,
   busyLineId,
+  busyTicket,
   onMarkPrepared,
+  onMarkAllPrepared,
   headerClass,
   groupLabelClass,
 }: {
   ticket: DiningPassTicket;
   busyLineId: string | null;
+  busyTicket: boolean;
   onMarkPrepared: (lineId: string) => void;
+  onMarkAllPrepared: () => void;
   headerClass: string;
   groupLabelClass: string;
 }) {
+  const lineCount = ticket.pendingLines.length;
+
   return (
     <article className="overflow-hidden rounded-2xl border-2 border-stone-900 bg-white shadow-md">
       <header className={`px-4 py-3 text-white ${headerClass}`}>
-        <h2 className="text-lg font-bold leading-tight">{ticket.label}</h2>
-        {ticket.oldestPendingAt ? (
-          <p className="mt-0.5 text-xs opacity-80">Depuis {formatTime(ticket.oldestPendingAt)}</p>
-        ) : null}
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-lg font-bold leading-tight">
+              <PassUrgencyDot color={ticket.waitColor} />
+              <span className="min-w-0 truncate">{ticket.label}</span>
+            </h2>
+            {ticket.oldestSentAt ? (
+              <p className="mt-0.5 text-xs opacity-80">Envoyé à {formatTime(ticket.oldestSentAt)}</p>
+            ) : null}
+          </div>
+          {lineCount > 1 ? (
+            <button
+              type="button"
+              disabled={busyTicket || busyLineId != null}
+              onClick={onMarkAllPrepared}
+              className="shrink-0 rounded-lg border-2 border-white/40 bg-white/15 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/25 disabled:opacity-50"
+            >
+              {busyTicket ? "…" : "Tout prêt"}
+            </button>
+          ) : null}
+        </div>
       </header>
       <ul className="divide-y divide-stone-100">
         {ticket.courseGroups.map((group) => (

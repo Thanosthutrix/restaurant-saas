@@ -15,6 +15,12 @@ import {
   kitchenLabelsFromSnapshot,
   parseKitchenModsSnapshot,
 } from "./lineModificationLogic";
+import { loadDiningWaitThresholds } from "./tableWaitStatusDb";
+import {
+  waitColorFromSentAt,
+  waitColorUrgencyRank,
+  type TableWaitColor,
+} from "./diningWaitSettings";
 import { categoryPathLabel, listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
 import { lineGoesToBarPass, lineGoesToKitchenPass } from "./passDestination";
 
@@ -25,6 +31,7 @@ export type DiningPassLine = {
   isPrepared: boolean;
   courseType: DiningMealCourse | null;
   createdAt: string;
+  sentAt: string;
   kitchenLabels: string[];
 };
 
@@ -39,7 +46,10 @@ export type DiningPassTicket = {
   label: string;
   courseGroups: DiningPassCourseGroup[];
   pendingLines: DiningPassLine[];
-  oldestPendingAt: string | null;
+  /** Plus ancien envoi serveur (sent_to_kitchen_at) du ticket. */
+  oldestSentAt: string | null;
+  /** Urgence visuelle (bleu → rouge). */
+  waitColor: TableWaitColor;
 };
 
 export type DiningPassQueue = {
@@ -87,15 +97,27 @@ function groupLinesByCourse(lines: DiningPassLine[], destination: DiningPassDest
   }
 
   if (destination === "bar") {
-    return [...groups.values()];
+    return [...groups.values()].map((g) => ({
+      ...g,
+      lines: [...g.lines].sort(
+        (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+      ),
+    }));
   }
 
   const order = ["entrée", "plat", "dessert", "_other"];
-  return [...groups.values()].sort((a, b) => {
-    const ka = a.courseType ?? "_other";
-    const kb = b.courseType ?? "_other";
-    return order.indexOf(ka) - order.indexOf(kb);
-  });
+  return [...groups.values()]
+    .sort((a, b) => {
+      const ka = a.courseType ?? "_other";
+      const kb = b.courseType ?? "_other";
+      return order.indexOf(ka) - order.indexOf(kb);
+    })
+    .map((g) => ({
+      ...g,
+      lines: [...g.lines].sort(
+        (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+      ),
+    }));
 }
 
 function lineMatchesDestination(
@@ -117,7 +139,10 @@ export async function loadDiningPassQueue(
   const { data: openBundle, error: oErr } = await listOpenDiningOrdersWithCustomerNames(restaurantId);
   if (oErr) return { data: { tickets: [], pendingLineCount: 0 }, error: oErr };
 
-  const { data: flatCategories } = await listRestaurantCategories(restaurantId);
+  const [thresholds, { data: flatCategories }] = await Promise.all([
+    loadDiningWaitThresholds(restaurantId),
+    listRestaurantCategories(restaurantId),
+  ]);
 
   const orders = openBundle.orders;
   if (orders.length === 0) {
@@ -163,6 +188,7 @@ export async function loadDiningPassQueue(
   const linesByOrder = new Map<string, DiningPassLine[]>();
   const rawLines = (linesRes.data ?? []) as unknown as (LineWithDish & {
     created_at: string;
+    sent_to_kitchen_at: string;
     course_type?: string | null;
     kitchen_mods_snapshot?: unknown;
   })[];
@@ -189,6 +215,7 @@ export async function loadDiningPassQueue(
     );
     const kitchenLabels = kitchenLabelsFromSnapshot(snapshot);
     const arr = linesByOrder.get(raw.dining_order_id) ?? [];
+    const sentAt = raw.sent_to_kitchen_at;
     arr.push({
       id: raw.id,
       dishName: dish?.name ?? "Article",
@@ -196,6 +223,7 @@ export async function loadDiningPassQueue(
       isPrepared: Boolean(raw.is_prepared),
       courseType,
       createdAt: raw.created_at,
+      sentAt,
       kitchenLabels,
     });
     linesByOrder.set(raw.dining_order_id, arr);
@@ -216,6 +244,12 @@ export async function loadDiningPassQueue(
       ? openBundle.customerNameById.get(order.customer_id) ?? null
       : null;
 
+    const sortedPending = [...pendingLines].sort(
+      (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+    );
+    const oldestSentAt = sortedPending[0]?.sentAt ?? null;
+    const waitColor = waitColorFromSentAt(oldestSentAt, thresholds);
+
     tickets.push({
       orderId: order.id,
       label: orderLabel({
@@ -224,15 +258,18 @@ export async function loadDiningPassQueue(
         customerName,
         guestNotes: order.notes,
       }),
-      courseGroups: groupLinesByCourse(pendingLines, destination),
-      pendingLines,
-      oldestPendingAt: pendingLines[0]?.createdAt ?? null,
+      courseGroups: groupLinesByCourse(sortedPending, destination),
+      pendingLines: sortedPending,
+      oldestSentAt,
+      waitColor,
     });
   }
 
   tickets.sort((a, b) => {
-    const ta = a.oldestPendingAt ? new Date(a.oldestPendingAt).getTime() : 0;
-    const tb = b.oldestPendingAt ? new Date(b.oldestPendingAt).getTime() : 0;
+    const urgency = waitColorUrgencyRank(b.waitColor) - waitColorUrgencyRank(a.waitColor);
+    if (urgency !== 0) return urgency;
+    const ta = a.oldestSentAt ? new Date(a.oldestSentAt).getTime() : 0;
+    const tb = b.oldestSentAt ? new Date(b.oldestSentAt).getTime() : 0;
     return ta - tb;
   });
 

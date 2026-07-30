@@ -25,9 +25,13 @@ export default async function KitchenPassPage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Service"
+        breadcrumbs={[
+          { label: "Salle", href: "/salle" },
+          { label: "Cuisine", href: "/cuisine" },
+          { label: "Pass cuisine" },
+        ]}
         title="Pass cuisine"
-        subtitle="Les bons apparaissent quand le serveur valide un service (entrées, plats, desserts). Les boissons vont au pass bar."
+        subtitle="Les bons apparaissent quand le serveur valide un service. Triés par urgence (rouge en premier). Touchez « Prêt » ligne par ligne ou « Tout prêt » pour le ticket."
       />
       <KitchenPassClient restaurantId={restaurant.id} initialQueue={data} />
     </PageContainer>

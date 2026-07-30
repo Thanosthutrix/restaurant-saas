@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { RotateCw } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { TABLE_WAIT_COLOR_CLASS } from "@/lib/dining/diningWaitSettings";
+import type { TableChannelStatus, TableServiceStatus } from "@/lib/dining/tableWaitStatus";
 
 export type FloorTableStatus = "free" | "occupied";
 
@@ -84,6 +86,9 @@ type InteractiveFloorPlanProps = {
   hidePlanHints?: boolean;
   itemKind?: "table" | "equipment";
   tableStatusMap?: Record<string, { state: FloorPlanTableStatusState; temperature?: number }>;
+  /** Indicateurs d'attente / prêt cuisine & bar (plan salle en service). */
+  tableServiceStatusMap?: Record<string, TableServiceStatus>;
+  onTableReadyAck?: (table: FloorTable) => void;
 };
 
 const DEFAULT_TABLE_WIDTH = 12;
@@ -94,6 +99,36 @@ const MAX_TABLE_WIDTH = 40;
 const MAX_TABLE_HEIGHT = 40;
 const MIN_FIXTURE_WIDTH = 2;
 const MIN_FIXTURE_HEIGHT = 1.5;
+
+function tableChannelDotClass(channel: TableChannelStatus, variant: "kitchen" | "bar"): string {
+  const base =
+    variant === "bar"
+      ? "h-3 w-3 rounded-full border-2 border-white shadow ring-1 ring-violet-200"
+      : "h-3 w-3 rounded-full border-2 border-white shadow";
+  if (channel.blinking) {
+    return `${base} animate-pulse bg-emerald-400 ring-2 ring-emerald-300`;
+  }
+  if (channel.waitColor) {
+    return `${base} ${TABLE_WAIT_COLOR_CLASS[channel.waitColor]}`;
+  }
+  return `${base} bg-stone-300`;
+}
+
+function TableServiceStatusDots({ status }: { status: TableServiceStatus }) {
+  return (
+    <div
+      className="pointer-events-none absolute right-1 top-1 flex flex-col items-end gap-0.5"
+      aria-hidden
+    >
+      {status.kitchen.active ? (
+        <span className={tableChannelDotClass(status.kitchen, "kitchen")} title="Cuisine" />
+      ) : null}
+      {status.bar.active ? (
+        <span className={tableChannelDotClass(status.bar, "bar")} title="Bar" />
+      ) : null}
+    </div>
+  );
+}
 const MAX_FIXTURE_WIDTH = 96;
 const MAX_FIXTURE_HEIGHT = 96;
 const MIN_CAPACITY = 2;
@@ -548,6 +583,8 @@ export function InteractiveFloorPlan({
   hidePlanHints = false,
   itemKind = "table",
   tableStatusMap,
+  tableServiceStatusMap,
+  onTableReadyAck,
 }: InteractiveFloorPlanProps) {
   const isPlanEditor = mode === "plan-editor";
   const isKitchenTemp = mode === "kitchen-temp";
@@ -911,6 +948,14 @@ export function InteractiveFloorPlan({
     setDragTarget(null);
 
     if (clickedTable) {
+      const serviceStatus = tableServiceStatusMap?.[clickedTable.id];
+      const isBlinking =
+        serviceStatus?.kitchen.blinking === true || serviceStatus?.bar.blinking === true;
+      if (isBlinking) {
+        setActiveSelection(null);
+        onTableReadyAck?.(clickedTable);
+        return;
+      }
       if (isTableServiceReady(clickedTable)) {
         setActiveSelection(null);
         onTableClick?.(clickedTable);
@@ -1139,6 +1184,7 @@ export function InteractiveFloorPlan({
           const isServiceReady = showLiveTableStatus && isTableServiceReady(table);
           const isPendingSetup = showLiveTableStatus && !isKitchenTemp && !isServiceReady;
           const tempStatus = tableStatusMap?.[table.id];
+          const serviceStatus = tableServiceStatusMap?.[table.id];
           const layout = getLayoutBounds(table);
 
           function kitchenTempClasses(): string {
@@ -1224,6 +1270,9 @@ export function InteractiveFloorPlan({
                   <span className="mt-0.5 text-[11px] font-semibold tabular-nums text-emerald-800 sm:text-xs">
                     {tempStatus.temperature} °C
                   </span>
+                ) : null}
+                {showLiveTableStatus && !isKitchenTemp && serviceStatus ? (
+                  <TableServiceStatusDots status={serviceStatus} />
                 ) : null}
                   </button>
                 </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Armchair } from "lucide-react";
 import {
   InteractiveFloorPlan,
@@ -11,6 +11,9 @@ import {
 } from "@/components/salle/InteractiveFloorPlan";
 import { FloorPlanLevelTabs } from "@/components/salle/FloorPlanLevelTabs";
 import type { DiningOrderSessionBundle } from "@/lib/dining/diningOrderViewData";
+import { TABLE_WAIT_COLOR_CLASS } from "@/lib/dining/diningWaitSettings";
+import type { TableChannelStatus, TableServiceStatus } from "@/lib/dining/tableWaitStatus";
+import { tableHasBlinkingStatus } from "@/lib/dining/tableWaitStatus";
 import {
   parseStoredFloorPlanDocument,
   setActiveLevelId,
@@ -30,7 +33,10 @@ import {
   useFloorPlanDocumentPersistence,
 } from "@/lib/salle/useFloorPlanPersistence";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import { acknowledgeTableReadyAction, loadTableServiceStatusAction } from "@/app/salle/actions";
 import { SalleTableOrderModal } from "./SalleTableOrderModal";
+
+const POLL_MS = 3_000;
 
 const salleActionBtnBase =
   "inline-flex min-h-8 w-full items-center justify-center rounded-lg border px-1 py-1.5 text-center text-[11px] font-semibold leading-tight shadow-sm transition active:scale-[0.98] sm:min-h-9 sm:px-2 sm:text-xs lg:px-3";
@@ -42,6 +48,26 @@ type TableTileSummary = {
   label: string;
   clientName?: string;
 };
+
+function tileDotClass(channel: TableChannelStatus, variant: "kitchen" | "bar"): string {
+  const base = variant === "bar" ? "h-2 w-2 ring-1 ring-violet-200" : "h-2 w-2";
+  if (channel.blinking) return `${base} animate-pulse rounded-full bg-emerald-400`;
+  if (channel.waitColor) return `${base} rounded-full ${TABLE_WAIT_COLOR_CLASS[channel.waitColor]}`;
+  return `${base} rounded-full bg-stone-300`;
+}
+
+function TileStatusDots({ status }: { status: TableServiceStatus }) {
+  return (
+    <div className="absolute right-2 top-2 flex flex-col gap-0.5">
+      {status.kitchen.active ? (
+        <span className={tileDotClass(status.kitchen, "kitchen")} title="Cuisine" />
+      ) : null}
+      {status.bar.active ? (
+        <span className={tileDotClass(status.bar, "bar")} title="Bar" />
+      ) : null}
+    </div>
+  );
+}
 
 type SalleFloorPlanClientProps = {
   restaurantId: string;
@@ -61,6 +87,9 @@ export function SalleFloorPlanClient({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [selectedTable, setSelectedTable] = useState<FloorTable | null>(null);
+  const [tableServiceStatusMap, setTableServiceStatusMap] = useState<
+    Record<string, TableServiceStatus>
+  >({});
   const { persistDocument, resolveDocument } = useFloorPlanDocumentPersistence(
     restaurantId,
     serverStoredDocument
@@ -83,9 +112,35 @@ export function SalleFloorPlanClient({
   const activeLevelId = document.activeLevelId;
   const levels = sortLevels(document.levels);
 
+  const refreshTableStatus = useCallback(async () => {
+    const res = await loadTableServiceStatusAction(restaurantId);
+    if (res.ok && res.data) {
+      setTableServiceStatusMap(res.data.byTableId);
+    }
+  }, [restaurantId]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    void refreshTableStatus();
+    const id = window.setInterval(() => {
+      if (window.document.visibilityState !== "visible") return;
+      void refreshTableStatus();
+    }, POLL_MS);
+    const onWake = () => {
+      if (window.document.visibilityState === "visible") void refreshTableStatus();
+    };
+    window.document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    return () => {
+      window.clearInterval(id);
+      window.document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+    };
+  }, [mounted, refreshTableStatus]);
 
   function reloadLayout(doc: StoredFloorPlanDocument, levelId: string) {
     const serviceOverrides = loadServiceTableOverrides(restaurantId);
@@ -131,6 +186,20 @@ export function SalleFloorPlanClient({
     }));
   }
 
+  async function handleTableReadyAck(table: FloorTable) {
+    const res = await acknowledgeTableReadyAction({ restaurantId, tableId: table.id });
+    if (res.ok) void refreshTableStatus();
+  }
+
+  function handleTablePress(table: FloorTable) {
+    const status = tableServiceStatusMap[table.id];
+    if (tableHasBlinkingStatus(status)) {
+      void handleTableReadyAck(table);
+      return;
+    }
+    setSelectedTable(table);
+  }
+
   const visibleTableIds = useMemo(() => new Set(layout.tables.map((t) => t.id)), [layout.tables]);
 
   const openCountByLevel = useMemo(() => {
@@ -150,6 +219,7 @@ export function SalleFloorPlanClient({
   const debouncedRefresh = useDebouncedCallback(() => {
     router.refresh();
     reloadLayout(document, activeLevelId);
+    void refreshTableStatus();
   }, 2000);
 
   if (!mounted) {
@@ -204,7 +274,9 @@ export function SalleFloorPlanClient({
           initialTables={layout.tables}
           initialFixtures={layout.fixtures}
           onLayoutChange={({ tables }) => handleServiceLayoutChange(tables)}
-          onTableClick={setSelectedTable}
+          onTableClick={handleTablePress}
+          onTableReadyAck={handleTableReadyAck}
+          tableServiceStatusMap={tableServiceStatusMap}
           activatedTableIds={layout.activatedTableIds}
           onTableActivate={handleTableActivate}
         />
@@ -219,6 +291,7 @@ export function SalleFloorPlanClient({
             setSelectedTable(null);
             router.refresh();
             reloadLayout(document, activeLevelId);
+            void refreshTableStatus();
           }}
           onOrderChanged={debouncedRefresh}
         />
@@ -243,17 +316,22 @@ export function SalleFloorPlanClient({
                 status: "free",
               } satisfies FloorTable);
             const occupied = tableForModal.status === "occupied";
+            const serviceStatus = tableServiceStatusMap[summary.id];
+            const blinking = tableHasBlinkingStatus(serviceStatus);
             return (
               <li key={summary.id}>
                 <button
                   type="button"
-                  onClick={() => setSelectedTable(tableForModal)}
-                  className={`group flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition hover:-translate-y-0.5 hover:shadow-md ${
-                    occupied
-                      ? "border-copper-300 bg-copper-50/60 ring-1 ring-copper-200"
-                      : "border-stone-200/70 bg-white shadow-sm hover:border-copper-200"
+                  onClick={() => handleTablePress(tableForModal)}
+                  className={`group relative flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition hover:-translate-y-0.5 hover:shadow-md ${
+                    blinking
+                      ? "border-emerald-400 bg-emerald-50/80 ring-2 ring-emerald-300 animate-pulse"
+                      : occupied
+                        ? "border-copper-300 bg-copper-50/60 ring-1 ring-copper-200"
+                        : "border-stone-200/70 bg-white shadow-sm hover:border-copper-200"
                   }`}
                 >
+                  {serviceStatus ? <TileStatusDots status={serviceStatus} /> : null}
                   <span
                     className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
                       occupied ? "bg-copper-100 text-copper-800" : "bg-stone-100 text-stone-500"
@@ -266,7 +344,7 @@ export function SalleFloorPlanClient({
                   </span>
                   {occupied ? (
                     <span className="line-clamp-1 text-xs font-medium text-copper-800">
-                      {summary.clientName ?? "Commande en cours"}
+                      {blinking ? "Prêt — touchez pour valider" : summary.clientName ?? "Commande en cours"}
                     </span>
                   ) : (
                     <span className="text-xs text-stone-400">Libre</span>

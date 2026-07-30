@@ -24,6 +24,18 @@ export function discountBadge(l: DiningLineClient) {
   return "Remise";
 }
 
+function ticketLineStatusLabel(line: DiningLineClient): string {
+  if (line.isPrepared) return "Prêt";
+  if (line.sentToKitchenAt) return line.isBarLine ? "Au bar" : "En cuisine";
+  return "Brouillon";
+}
+
+function ticketLineStatusClass(line: DiningLineClient): string {
+  if (line.isPrepared) return "bg-emerald-100 text-emerald-800";
+  if (line.sentToKitchenAt) return line.isBarLine ? "bg-violet-100 text-violet-900" : "bg-amber-100 text-amber-900";
+  return "bg-stone-200 text-stone-600";
+}
+
 type LineRowProps = {
   line: DiningLineClient;
   pending: boolean;
@@ -32,8 +44,6 @@ type LineRowProps = {
   onDiscount: (line: DiningLineClient) => void;
   /** Personnalisation garniture / accompagnement. */
   onCustomize?: (line: DiningLineClient) => void;
-  /** Si renseigné, affiche le bouton Prêt (cuisine). */
-  onToggleLinePrepared?: (lineId: string, next: boolean) => void;
 };
 
 export function DiningOrderTicketLineRow({
@@ -43,7 +53,6 @@ export function DiningOrderTicketLineRow({
   onRemove,
   onDiscount,
   onCustomize,
-  onToggleLinePrepared,
 }: LineRowProps) {
   const hasMods = l.kitchenLabels.length > 0;
 
@@ -88,21 +97,12 @@ export function DiningOrderTicketLineRow({
           Modif.
         </button>
       ) : null}
-      {onToggleLinePrepared ? (
-        <button
-          type="button"
-          disabled={pending}
-          title="Marquer le plat comme prêt (cuisine)"
-          onClick={() => onToggleLinePrepared(l.id, !l.isPrepared)}
-          className={
-            l.isPrepared
-              ? "flex h-10 shrink-0 items-center rounded-lg border border-emerald-300 bg-emerald-100 px-2.5 text-xs font-semibold leading-none text-emerald-900 transition hover:bg-emerald-200 disabled:opacity-50"
-              : "flex h-10 shrink-0 items-center rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-semibold leading-none text-stone-600 transition hover:bg-stone-100 disabled:opacity-50"
-          }
-        >
-          Prêt
-        </button>
-      ) : null}
+      <span
+        className={`flex h-10 shrink-0 items-center rounded-lg px-2.5 text-[10px] font-bold uppercase tracking-wide ${ticketLineStatusClass(l)}`}
+        title="Statut cuisine / bar"
+      >
+        {ticketLineStatusLabel(l)}
+      </span>
       <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"

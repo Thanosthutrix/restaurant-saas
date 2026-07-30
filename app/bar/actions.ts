@@ -3,7 +3,7 @@
 import { loadBarPassQueue, type DiningPassQueue } from "@/lib/dining/diningPassData";
 import { getCurrentUser } from "@/lib/auth";
 import { assertRestaurantMembership } from "@/lib/auth/restaurantActionAccess";
-import { setDiningOrderLinePrepared } from "@/app/salle/actions";
+import { setDiningOrderLinePrepared, setDiningOrderLinesPrepared } from "@/app/salle/actions";
 
 type ActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -37,4 +37,12 @@ export async function markBarLinePreparedAction(params: {
   });
   if (!result.ok) return result;
   return { ok: true };
+}
+
+export async function markBarTicketAllPreparedAction(params: {
+  restaurantId: string;
+  orderId: string;
+  lineIds: string[];
+}): Promise<ActionResult> {
+  return setDiningOrderLinesPrepared(params);
 }

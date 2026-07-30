@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Send } from "lucide-react";
+import { Check } from "lucide-react";
 import {
   fireDiningOrderBar,
   fireDiningOrderCourse,
@@ -14,6 +14,8 @@ import {
   canFireBarLines,
   canFireKitchenExtraLines,
   isBarLinesFired,
+  isBarLinesAllPrepared,
+  isKitchenExtraLinesAllPrepared,
   isKitchenExtraLinesFired,
   kitchenExtraLines,
   type DiningCourseSummary,
@@ -89,8 +91,8 @@ function CourseBlock({
             onClick={() => onFire(summary.courseType)}
             className={`inline-flex items-center gap-1.5 ${uiBtnPrimarySm}`}
           >
-            <Send className="h-3.5 w-3.5" aria-hidden />
-            Valider et envoyer
+            <Check className="h-3.5 w-3.5" aria-hidden />
+            Valider
           </button>
         ) : (
           <span className={`text-[10px] ${uiLead}`}>Terminez le service précédent</span>
@@ -119,6 +121,7 @@ function ExtraBlock({
   title,
   lines,
   fired,
+  allPrepared,
   canFire,
   pending,
   onFire,
@@ -128,6 +131,7 @@ function ExtraBlock({
   title: string;
   lines: DiningLineClient[];
   fired: boolean;
+  allPrepared: boolean;
   canFire: boolean;
   pending: boolean;
   onFire: () => void;
@@ -140,7 +144,11 @@ function ExtraBlock({
     <div className={`rounded-xl border border-stone-200 bg-stone-50/50 p-2.5 ${accentClass}`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold uppercase tracking-wide text-stone-600">{title}</p>
-        {fired ? (
+        {allPrepared ? (
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+            Prêt — à servir
+          </span>
+        ) : fired ? (
           <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-900">
             {firedLabel}
           </span>
@@ -151,8 +159,8 @@ function ExtraBlock({
             onClick={onFire}
             className={`inline-flex items-center gap-1.5 ${uiBtnPrimarySm}`}
           >
-            <Send className="h-3.5 w-3.5" aria-hidden />
-            Valider et envoyer
+            <Check className="h-3.5 w-3.5" aria-hidden />
+            Valider
           </button>
         ) : null}
       </div>
@@ -230,7 +238,7 @@ export function DiningCoursePanel({
   return (
     <div className="space-y-2 border-b border-stone-100 px-2 py-2">
       <p className="text-[11px] font-semibold text-stone-700">
-        Composez le ticket, puis validez chaque bloc : cuisine (repas) ou bar (boissons / vins).
+        Composez le ticket, puis validez chaque bloc pour l&apos;envoyer en cuisine ou au bar.
       </p>
       {summaries.map((summary) => (
         <CourseBlock
@@ -244,6 +252,7 @@ export function DiningCoursePanel({
         title="Boissons & vins → bar"
         lines={drinks}
         fired={isBarLinesFired(lines)}
+        allPrepared={isBarLinesAllPrepared(lines)}
         canFire={canFireBarLines(lines)}
         pending={busy}
         onFire={fireBar}
@@ -254,6 +263,7 @@ export function DiningCoursePanel({
         title="Autres → cuisine"
         lines={kitchenExtras}
         fired={isKitchenExtraLinesFired(lines)}
+        allPrepared={isKitchenExtraLinesAllPrepared(lines)}
         canFire={canFireKitchenExtraLines(lines)}
         pending={busy}
         onFire={fireKitchenExtras}

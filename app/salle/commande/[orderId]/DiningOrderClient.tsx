@@ -9,8 +9,8 @@ import {
   addDishToDiningOrder,
   cancelOpenDiningOrder,
   notifyDiningOrderReadyByEmail,
+  refreshOrderTicketSnapshot,
   removeDiningOrderLine,
-  setDiningOrderLinePrepared,
   setDiningOrderLineQty,
   settleDiningOrder,
 } from "@/app/salle/actions";
@@ -42,7 +42,6 @@ import { uiCard, uiError, uiLead, uiSuccess } from "@/components/ui/premium";
 import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 import {
   optimisticAddDishLine,
-  optimisticLinePrepared,
   optimisticLineQty,
   optimisticRemoveLine,
   orderTotalFromLines,
@@ -192,6 +191,26 @@ export function DiningOrderClient({
     setLocalPaidTtc(amountPaidTtc);
   }, [orderId, lines, totalTtc, amountPaidTtc]);
 
+  useEffect(() => {
+    if (status !== "open") return;
+
+    const poll = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshOrderTicketSnapshot({ restaurantId, orderId }).then((res) => {
+        if (res.ok && res.data) applyTicket(res.data);
+      });
+    };
+
+    const id = window.setInterval(poll, 3_000);
+    document.addEventListener("visibilitychange", poll);
+    window.addEventListener("focus", poll);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", poll);
+      window.removeEventListener("focus", poll);
+    };
+  }, [status, restaurantId, orderId]);
+
   const applyTicket = (ticket: OrderTicketSnapshot) => {
     setLocalLines(ticket.lines);
     setLocalTotalTtc(ticket.totalTtc);
@@ -248,20 +267,6 @@ export function DiningOrderClient({
         return;
       }
       applyTicket(res.data);
-    });
-  };
-
-  const toggleLinePrepared = (lineId: string, next: boolean) => {
-    setError(null);
-    setSuccess(null);
-    const prevLines = localLines;
-    setLocalLines(optimisticLinePrepared(localLines, lineId, next));
-    startTransition(async () => {
-      const res = await setDiningOrderLinePrepared({ restaurantId, lineId, isPrepared: next });
-      if (!res.ok) {
-        setLocalLines(prevLines);
-        setError(res.error);
-      }
     });
   };
 
@@ -473,9 +478,8 @@ export function DiningOrderClient({
       {!embeddedInModal && !isTableOrder ? (
         <p className={`mt-0.5 text-[10px] ${uiLead}`}>
           Touchez une ligne pour une remise. « Modif. » pour personnaliser un plat.
-          Validez le service ci-dessus pour envoyer en cuisine d&apos;un coup.
-          « Prêt » = plat terminé côté cuisine
-          (e-mail client si toutes les lignes sont prêtes et fiche avec e-mail).
+          Validez chaque bloc pour envoyer en cuisine ou au bar.
+          Le statut se met à jour quand la cuisine ou le bar marque « Prêt ».
         </p>
       ) : null}
     </div>
@@ -507,7 +511,6 @@ export function DiningOrderClient({
               onRemove={removeLine}
               onDiscount={setDiscountLine}
               onCustomize={status === "open" ? setCustomizeLine : undefined}
-              onToggleLinePrepared={status === "open" ? toggleLinePrepared : undefined}
             />
           ))}
         </ul>

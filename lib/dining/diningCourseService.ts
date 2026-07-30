@@ -2,10 +2,13 @@ import "server-only";
 
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import {
+  barLines,
   buildMealCourseSummaries,
   canFireBarLines,
   canFireKitchenExtraLines,
   canFireMealCourse,
+  isBarLinesAllPrepared,
+  isKitchenExtraLinesAllPrepared,
   kitchenExtraLines,
 } from "@/lib/dining/diningCourseLogic";
 import { mealCourseLabel, type DiningMealCourse } from "@/lib/dining/courseTypes";
@@ -17,7 +20,13 @@ import { getDiningOrderLines } from "@/lib/dining/diningDb";
 import { loadDiningOrderViewData, mapLinesToClientsEnriched } from "@/lib/dining/diningOrderViewData";
 import { buildSnapshotFromModifications } from "@/lib/dining/lineModificationLogic";
 import { notifyBarOrderBatch, notifyKitchenOrderBatch } from "@/lib/push/notifyKitchenOrder";
-import { notifyServerCourseReady } from "@/lib/push/notifyServerCourseReady";
+import { notifyServerBarReady,
+  notifyServerCourseReady,
+  notifyServerKitchenExtrasReady,
+} from "@/lib/push/notifyServerCourseReady";
+import {
+  markTableReadySignalsNotified,
+} from "@/lib/dining/tableWaitStatusDb";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 function courseWasAllPrepared(lines: DiningLineClient[], course: DiningMealCourse): boolean {
@@ -25,7 +34,17 @@ function courseWasAllPrepared(lines: DiningLineClient[], course: DiningMealCours
   return courseLines.length > 0 && courseLines.every((l) => l.isPrepared);
 }
 
-/** Après marquage « prêt », notifie le serveur si un service vient de se terminer. */
+function barWasAllPrepared(lines: DiningLineClient[]): boolean {
+  const drinks = barLines(lines);
+  return drinks.length > 0 && drinks.every((l) => l.isPrepared);
+}
+
+function kitchenExtrasWasAllPrepared(lines: DiningLineClient[]): boolean {
+  const extras = kitchenExtraLines(lines);
+  return extras.length > 0 && extras.every((l) => l.isPrepared);
+}
+
+/** Après marquage « prêt », notifie le serveur si un lot vient de se terminer. */
 export async function maybeNotifyServerCoursesReady(params: {
   restaurantId: string;
   orderId: string;
@@ -41,6 +60,11 @@ export async function maybeNotifyServerCoursesReady(params: {
     if (now && !was) {
       const summary = buildMealCourseSummaries(params.linesAfter).find((s) => s.courseType === course);
       if (summary?.fired) {
+        await markTableReadySignalsNotified({
+          restaurantId: params.restaurantId,
+          orderId: params.orderId,
+          kitchen: true,
+        });
         void notifyServerCourseReady({
           restaurantId: params.restaurantId,
           orderId: params.orderId,
@@ -49,6 +73,36 @@ export async function maybeNotifyServerCoursesReady(params: {
         }).catch((err) => console.warn("[dining] push serveur service:", err));
       }
     }
+  }
+
+  const barWas = barWasAllPrepared(params.linesBefore);
+  const barNow = isBarLinesAllPrepared(params.linesAfter);
+  if (barNow && !barWas && barLines(params.linesAfter).every((l) => l.sentToKitchenAt)) {
+    await markTableReadySignalsNotified({
+      restaurantId: params.restaurantId,
+      orderId: params.orderId,
+      bar: true,
+    });
+    void notifyServerBarReady({
+      restaurantId: params.restaurantId,
+      orderId: params.orderId,
+      orderLabel,
+    }).catch((err) => console.warn("[dining] push serveur bar:", err));
+  }
+
+  const extrasWas = kitchenExtrasWasAllPrepared(params.linesBefore);
+  const extrasNow = isKitchenExtraLinesAllPrepared(params.linesAfter);
+  if (extrasNow && !extrasWas && kitchenExtraLines(params.linesAfter).every((l) => l.sentToKitchenAt)) {
+    await markTableReadySignalsNotified({
+      restaurantId: params.restaurantId,
+      orderId: params.orderId,
+      kitchen: true,
+    });
+    void notifyServerKitchenExtrasReady({
+      restaurantId: params.restaurantId,
+      orderId: params.orderId,
+      orderLabel,
+    }).catch((err) => console.warn("[dining] push serveur extras:", err));
   }
 }
 

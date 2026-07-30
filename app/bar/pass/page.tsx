@@ -25,9 +25,12 @@ export default async function BarPassPage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Service"
+        breadcrumbs={[
+          { label: "Salle", href: "/salle" },
+          { label: "Pass bar" },
+        ]}
         title="Pass bar"
-        subtitle="Boissons et vins uniquement. Touchez « Prêt » une fois servi."
+        subtitle="Boissons et vins uniquement. Tri par urgence (rouge en premier). Touchez « Prêt » ou « Tout prêt » — le serveur est notifié quand tout est prêt."
       />
       <BarPassClient restaurantId={restaurant.id} initialQueue={data} />
     </PageContainer>

@@ -7,7 +7,6 @@ import {
   cancelOpenDiningOrder,
   notifyDiningOrderReadyByEmail,
   removeDiningOrderLine,
-  setDiningOrderLinePrepared,
   settleDiningOrder,
   setDiningOrderLineQty,
 } from "@/app/salle/actions";
@@ -30,7 +29,6 @@ import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "./caisseQuickStorage";
 import { uiLead, uiSuccess } from "@/components/ui/premium";
 import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
 import {
-  optimisticLinePrepared,
   optimisticLineQty,
   optimisticRemoveLine,
   orderTotalFromLines,
@@ -212,23 +210,6 @@ export function CaisseQuickTicketPanel({
     });
   };
 
-  const toggleLinePrepared = (lineId: string, next: boolean) => {
-    if (!snapshot) return;
-    setError(null);
-    setInfo(null);
-    const prevSnapshot = snapshot;
-    const optimisticLines = optimisticLinePrepared(snapshot.lines, lineId, next);
-    setSnapshot({ ...snapshot, lines: optimisticLines });
-    startTransition(async () => {
-      const res = await setDiningOrderLinePrepared({ restaurantId, lineId, isPrepared: next });
-      if (!res.ok) {
-        setSnapshot(prevSnapshot);
-        setError(res.error);
-        return;
-      }
-    });
-  };
-
   const sendReadyEmailManual = () => {
     setError(null);
     setInfo(null);
@@ -346,7 +327,6 @@ export function CaisseQuickTicketPanel({
               onRemove={removeLine}
               onDiscount={setDiscountLine}
               onCustomize={setCustomizeLine}
-              onToggleLinePrepared={toggleLinePrepared}
             />
           ))}
         </ul>

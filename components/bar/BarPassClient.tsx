@@ -1,7 +1,7 @@
 "use client";
 
 import { Wine } from "lucide-react";
-import { loadBarPassAction, markBarLinePreparedAction } from "@/app/bar/actions";
+import { loadBarPassAction, markBarLinePreparedAction, markBarTicketAllPreparedAction } from "@/app/bar/actions";
 import type { DiningPassQueue } from "@/lib/dining/diningPassData";
 import { DiningPassClient, type DiningPassClientConfig } from "@/components/dining/DiningPassClient";
 
@@ -22,6 +22,7 @@ const barPassConfig: DiningPassClientConfig = {
     return { ok: true as const, data: res.data };
   },
   markPrepared: markBarLinePreparedAction,
+  markAllPrepared: markBarTicketAllPreparedAction,
 };
 
 type Props = {

@@ -4,6 +4,7 @@ import { ChefHat } from "lucide-react";
 import {
   loadKitchenPassAction,
   markKitchenLinePreparedAction,
+  markKitchenTicketAllPreparedAction,
 } from "@/app/cuisine/actions";
 import type { KitchenPassQueue } from "@/lib/dining/kitchenPassData";
 import { DiningPassClient, type DiningPassClientConfig } from "@/components/dining/DiningPassClient";
@@ -25,6 +26,7 @@ const kitchenPassConfig: DiningPassClientConfig = {
     return { ok: true as const, data: res.data };
   },
   markPrepared: markKitchenLinePreparedAction,
+  markAllPrepared: markKitchenTicketAllPreparedAction,
 };
 
 type Props = {

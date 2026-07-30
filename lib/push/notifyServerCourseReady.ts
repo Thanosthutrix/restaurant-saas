@@ -37,3 +37,63 @@ export async function notifyServerCourseReady(params: {
 
   return { ...result, skipped: false };
 }
+
+/** Notifie le serveur que toutes les boissons / vins d'un ticket sont prêtes. */
+export async function notifyServerBarReady(params: {
+  restaurantId: string;
+  orderId: string;
+  orderLabel: string;
+}): Promise<{ sent: number; failed: number; skipped: boolean }> {
+  if (!isPushSendConfigured()) {
+    return { sent: 0, failed: 0, skipped: true };
+  }
+
+  const tokens = await listPushTokensForRestaurant(params.restaurantId);
+  if (tokens.length === 0) {
+    return { sent: 0, failed: 0, skipped: true };
+  }
+
+  const result = await sendPushToDevices({
+    tokens,
+    title: `Boissons prêtes · ${params.orderLabel}`,
+    body: "Toutes les boissons sont prêtes — vous pouvez servir.",
+    data: {
+      type: "dining_bar_ready",
+      orderId: params.orderId,
+      restaurantId: params.restaurantId,
+      url: `/salle/commande/${params.orderId}`,
+    },
+  });
+
+  return { ...result, skipped: false };
+}
+
+/** Notifie le serveur que les autres articles cuisine sont prêts. */
+export async function notifyServerKitchenExtrasReady(params: {
+  restaurantId: string;
+  orderId: string;
+  orderLabel: string;
+}): Promise<{ sent: number; failed: number; skipped: boolean }> {
+  if (!isPushSendConfigured()) {
+    return { sent: 0, failed: 0, skipped: true };
+  }
+
+  const tokens = await listPushTokensForRestaurant(params.restaurantId);
+  if (tokens.length === 0) {
+    return { sent: 0, failed: 0, skipped: true };
+  }
+
+  const result = await sendPushToDevices({
+    tokens,
+    title: `Commande prête · ${params.orderLabel}`,
+    body: "Les articles cuisine sont prêts — vous pouvez servir.",
+    data: {
+      type: "dining_kitchen_extras_ready",
+      orderId: params.orderId,
+      restaurantId: params.restaurantId,
+      url: `/salle/commande/${params.orderId}`,
+    },
+  });
+
+  return { ...result, skipped: false };
+}

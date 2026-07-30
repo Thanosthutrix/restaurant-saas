@@ -49,6 +49,11 @@ import {
   maybeNotifyServerCoursesReady,
 } from "@/lib/dining/diningCourseService";
 import {
+  acknowledgeTableReadySignals,
+  loadTableServiceStatusSnapshot,
+  type TableServiceStatusSnapshot,
+} from "@/lib/dining/tableWaitStatusDb";
+import {
   listCustomizableComponentsForDish,
   listLineModificationsByLineIds,
   replaceLineModifications,
@@ -129,6 +134,20 @@ export async function loadDiningOrderModalData(params: {
     return { ok: false, error: loaded.error ?? "Impossible de charger la commande." };
   }
   return { ok: true, data: loaded.data };
+}
+
+export async function refreshOrderTicketSnapshot(params: {
+  restaurantId: string;
+  orderId: string;
+}): Promise<ActionResult<OrderTicketSnapshot>> {
+  const memberAuthz = await memberGate(params.restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
+
+  const snap = await fetchOrderTicketSnapshot(params.restaurantId, params.orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+  return { ok: true, data: snap.data };
 }
 
 export async function addDishToDiningOrder(params: {
@@ -823,9 +842,39 @@ export async function recordDiningOrderPartialPayment(params: {
 }
 
 /**
- * Marque une ligne de commande salle comme prête côté cuisine. Si toutes les lignes sont prêtes
+ * Marque une ligne de commande salle comme prête côté cuisine / bar. Si toutes les lignes sont prêtes
  * et qu’un client avec e-mail est lié, un e-mail « commande prête » est tenté (idempotent).
  */
+function revalidateDiningOrderPaths(orderId: string) {
+  revalidatePath("/cuisine/pass");
+  revalidatePath("/bar/pass");
+  revalidatePath("/salle");
+  revalidatePath(`/salle/commande/${orderId}`);
+}
+
+async function afterLinesMarkedPrepared(params: {
+  restaurantId: string;
+  orderId: string;
+  linesBefore: Awaited<ReturnType<typeof mapLinesToClientsEnriched>>;
+}) {
+  const linesAfterRes = await getDiningOrderLines(params.orderId, params.restaurantId);
+  const linesAfter = await mapLinesToClientsEnriched(params.restaurantId, linesAfterRes.data);
+  void maybeNotifyServerCoursesReady({
+    restaurantId: params.restaurantId,
+    orderId: params.orderId,
+    linesBefore: params.linesBefore,
+    linesAfter,
+  }).catch((err) => console.warn("[dining] notify course ready:", err));
+
+  void trySendDiningOrderReadyEmail({
+    restaurantId: params.restaurantId,
+    orderId: params.orderId,
+    mode: "auto",
+  }).catch(() => {
+    /* e-mail en arrière-plan : ne bloque pas l’UI */
+  });
+}
+
 export async function setDiningOrderLinePrepared(params: {
   restaurantId: string;
   lineId: string;
@@ -860,25 +909,53 @@ export async function setDiningOrderLinePrepared(params: {
     .eq("restaurant_id", restaurantId);
   if (uErr) return { ok: false, error: uErr.message };
 
-  revalidatePath("/cuisine/pass");
-  revalidatePath("/bar/pass");
+  revalidateDiningOrderPaths(orderId);
 
   if (isPrepared) {
-    const linesAfterRes = await getDiningOrderLines(orderId, restaurantId);
-    const linesAfter = await mapLinesToClientsEnriched(restaurantId, linesAfterRes.data);
-    void maybeNotifyServerCoursesReady({
-      restaurantId,
-      orderId,
-      linesBefore,
-      linesAfter,
-    }).catch((err) => console.warn("[dining] notify course ready:", err));
-
-    void trySendDiningOrderReadyEmail({ restaurantId, orderId, mode: "auto" }).catch(() => {
-      /* e-mail en arrière-plan : ne bloque pas l’UI */
-    });
+    await afterLinesMarkedPrepared({ restaurantId, orderId, linesBefore });
   }
 
   return { ok: true, data: { orderReadyEmail: "none" } };
+}
+
+/** Marque plusieurs lignes envoyées comme prêtes (pass cuisine / bar). */
+export async function setDiningOrderLinesPrepared(params: {
+  restaurantId: string;
+  orderId: string;
+  lineIds: string[];
+}): Promise<ActionResult> {
+  const { restaurantId, orderId } = params;
+  const lineIds = [...new Set(params.lineIds.filter(Boolean))];
+  if (lineIds.length === 0) {
+    return { ok: false, error: "Aucune ligne à marquer." };
+  }
+
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
+
+  const ord = await getDiningOrder(orderId, restaurantId);
+  if (ord.error || !ord.data || ord.data.status !== "open") {
+    return { ok: false, error: "Commande déjà encaissée." };
+  }
+
+  const linesBeforeRes = await getDiningOrderLines(orderId, restaurantId);
+  const linesBefore = await mapLinesToClientsEnriched(restaurantId, linesBeforeRes.data);
+
+  const { error: uErr } = await supabaseServer
+    .from("dining_order_lines")
+    .update({ is_prepared: true })
+    .eq("restaurant_id", restaurantId)
+    .eq("dining_order_id", orderId)
+    .in("id", lineIds)
+    .not("sent_to_kitchen_at", "is", null)
+    .eq("is_prepared", false);
+
+  if (uErr) return { ok: false, error: uErr.message };
+
+  revalidateDiningOrderPaths(orderId);
+  await afterLinesMarkedPrepared({ restaurantId, orderId, linesBefore });
+
+  return { ok: true };
 }
 
 /**
@@ -1256,4 +1333,41 @@ export async function assertRestaurantContext(): Promise<
   const r = await getRestaurantForPage();
   if (!r) return { ok: false, error: "Restaurant non trouvé." };
   return { ok: true, data: { restaurantId: r.id } };
+}
+
+export async function loadTableServiceStatusAction(
+  restaurantId: string
+): Promise<ActionResult<TableServiceStatusSnapshot>> {
+  const memberAuthz = await memberGate(restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
+
+  const { data, error } = await loadTableServiceStatusSnapshot(restaurantId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data };
+}
+
+export async function acknowledgeTableReadyAction(params: {
+  restaurantId: string;
+  tableId: string;
+}): Promise<ActionResult> {
+  const memberAuthz = await memberGate(params.restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
+
+  const { data: statusSnap } = await loadTableServiceStatusSnapshot(params.restaurantId);
+  const status = statusSnap.byTableId[params.tableId];
+  if (!status) return { ok: false, error: "Aucun signal à acquitter." };
+
+  const orderId = status.kitchen.orderId ?? status.bar.orderId;
+  if (!orderId) return { ok: false, error: "Commande introuvable." };
+
+  const result = await acknowledgeTableReadySignals({
+    restaurantId: params.restaurantId,
+    orderId,
+    kitchen: status.kitchen.blinking,
+    bar: status.bar.blinking,
+  });
+  if (!result.ok) return result;
+
+  revalidatePath("/salle");
+  return { ok: true };
 }

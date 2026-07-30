@@ -12,13 +12,14 @@ import { CaisseQuickTicketPanel } from "./CaisseQuickTicketPanel";
 import { CAISSE_QUICK_COUNTER_STORAGE_KEY } from "./caisseQuickStorage";
 import { uiCard, uiError, uiLead, uiSuccess } from "@/components/ui/premium";
 import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
+import { optimisticAddDishLine, orderTotalFromLines } from "@/lib/dining/optimisticTicketClient";
 
 function DishTapButton({
   dish,
   onAddDish,
 }: {
   dish: Dish;
-  onAddDish: (dishId: string) => Promise<{ ok: boolean; error?: string }>;
+  onAddDish: (dish: Dish) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [addedCount, setAddedCount] = useState(0);
@@ -26,20 +27,15 @@ function DishTapButton({
 
   const tap = () => {
     setError(null);
-
-    // Retour visuel OPTIMISTE immédiat + AUCUN `disabled` : on peut enchaîner les taps
-    // en rafale (style natif). La création de ticket est sérialisée côté parent
-    // (`addDish`), donc un seul ticket est créé quel que soit le rythme des taps.
     setAddedCount((n) => n + 1);
     setFlash(true);
     window.setTimeout(() => setFlash(false), 600);
-
-    void onAddDish(dish.id).then((res) => {
-      if (!res.ok) {
-        setAddedCount((n) => Math.max(0, n - 1)); // rollback du badge optimiste
-        setError(res.error ?? "Erreur inattendue.");
-      }
-    });
+    try {
+      onAddDish(dish);
+    } catch (e) {
+      setAddedCount((n) => Math.max(0, n - 1));
+      setError(e instanceof Error ? e.message : "Erreur inattendue.");
+    }
   };
 
   return (
@@ -100,17 +96,6 @@ export function CaisseDishPicker({
     return n + uncategorized.length;
   }, [directByCategoryId, uncategorized]);
 
-  const resetQuickTicket = useCallback(() => {
-    try {
-      sessionStorage.removeItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-    setActiveOrderId(null);
-    setTicketSummary(null);
-    router.refresh();
-  }, [router]);
-
   const syncFromStorage = useCallback(() => {
     try {
       const id = sessionStorage.getItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
@@ -138,9 +123,13 @@ export function CaisseDishPicker({
     orderIdRef.current = activeOrderId;
   }, [activeOrderId]);
   const createInFlightRef = useRef<Promise<string | null> | null>(null);
+  const addQueueRef = useRef(Promise.resolve());
+  const pendingAddsRef = useRef(0);
+  const lastTicketRef = useRef<OrderTicketSnapshot | null>(null);
 
   const applyOrderResult = useCallback((orderId: string, ticket: OrderTicketSnapshot) => {
     orderIdRef.current = orderId;
+    lastTicketRef.current = ticket;
     try {
       sessionStorage.setItem(CAISSE_QUICK_COUNTER_STORAGE_KEY, orderId);
     } catch {
@@ -150,56 +139,98 @@ export function CaisseDishPicker({
     setTicketPatch(ticket);
   }, []);
 
+  const finalizeAdd = (orderId: string, ticket: OrderTicketSnapshot) => {
+    pendingAddsRef.current = Math.max(0, pendingAddsRef.current - 1);
+    if (pendingAddsRef.current === 0) {
+      applyOrderResult(orderId, ticket);
+    } else {
+      lastTicketRef.current = ticket;
+    }
+  };
+
   const addDish = useCallback(
-    async (dishId: string): Promise<{ ok: boolean; error?: string }> => {
-      try {
-        let orderId = orderIdRef.current;
+    (dish: Dish) => {
+      pendingAddsRef.current += 1;
 
-        // Une création est déjà en cours : on attend son ID au lieu d'en lancer une 2e.
-        if (!orderId && createInFlightRef.current) {
-          orderId = await createInFlightRef.current;
-        }
-
-        // Aucune commande : on en crée UNE seule (verrou). Cette action ajoute déjà ce plat.
-        if (!orderId) {
-          const createPromise = (async (): Promise<string | null> => {
-            const res = await addDishToQuickCounterOrReuse({
-              restaurantId,
-              dishId,
-              existingOrderId: null,
-            });
-            if (!res.ok || !res.data) {
-              throw new Error(res.ok === false ? res.error : "Erreur inattendue.");
-            }
-            applyOrderResult(res.data.orderId, res.data.ticket);
-            return res.data.orderId;
-          })();
-          createInFlightRef.current = createPromise;
-          try {
-            await createPromise;
-          } finally {
-            if (createInFlightRef.current === createPromise) createInFlightRef.current = null;
-          }
-          return { ok: true };
-        }
-
-        // Une commande existe déjà : on la réutilise (aucun nouveau ticket créé).
-        const res = await addDishToQuickCounterOrReuse({
-          restaurantId,
-          dishId,
-          existingOrderId: orderId,
-        });
-        if (!res.ok || !res.data) {
-          return { ok: false, error: res.ok === false ? res.error : "Erreur inattendue." };
-        }
-        applyOrderResult(res.data.orderId, res.data.ticket);
-        return { ok: true };
-      } catch (e) {
-        return { ok: false, error: e instanceof Error ? e.message : "Erreur inattendue." };
+      if (lastTicketRef.current) {
+        const lines = optimisticAddDishLine(lastTicketRef.current.lines, dish);
+        const patch: OrderTicketSnapshot = {
+          lines,
+          totalTtc: orderTotalFromLines(lines),
+          amountPaidTtc: lastTicketRef.current.amountPaidTtc,
+          amountDueTtc: Math.max(
+            0,
+            Math.round(
+              (orderTotalFromLines(lines) - lastTicketRef.current.amountPaidTtc) * 100
+            ) / 100
+          ),
+        };
+        lastTicketRef.current = patch;
+        setTicketPatch(patch);
       }
+
+      addQueueRef.current = addQueueRef.current
+        .then(async () => {
+          let orderId = orderIdRef.current;
+
+          if (!orderId && createInFlightRef.current) {
+            orderId = await createInFlightRef.current;
+          }
+
+          if (!orderId) {
+            const createPromise = (async (): Promise<string | null> => {
+              const res = await addDishToQuickCounterOrReuse({
+                restaurantId,
+                dishId: dish.id,
+                existingOrderId: null,
+              });
+              if (!res.ok || !res.data) {
+                throw new Error(res.ok === false ? res.error : "Erreur inattendue.");
+              }
+              orderIdRef.current = res.data.orderId;
+              finalizeAdd(res.data.orderId, res.data.ticket);
+              return res.data.orderId;
+            })();
+            createInFlightRef.current = createPromise;
+            try {
+              await createPromise;
+            } finally {
+              if (createInFlightRef.current === createPromise) createInFlightRef.current = null;
+            }
+            return;
+          }
+
+          const res = await addDishToQuickCounterOrReuse({
+            restaurantId,
+            dishId: dish.id,
+            existingOrderId: orderId,
+          });
+          if (!res.ok || !res.data) {
+            throw new Error(res.ok === false ? res.error : "Erreur inattendue.");
+          }
+          finalizeAdd(res.data.orderId, res.data.ticket);
+        })
+        .catch(() => {
+          pendingAddsRef.current = Math.max(0, pendingAddsRef.current - 1);
+        });
     },
     [restaurantId, applyOrderResult]
   );
+
+  const resetQuickTicket = useCallback(() => {
+    try {
+      sessionStorage.removeItem(CAISSE_QUICK_COUNTER_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    setActiveOrderId(null);
+    setTicketSummary(null);
+    lastTicketRef.current = null;
+    pendingAddsRef.current = 0;
+    createInFlightRef.current = null;
+    addQueueRef.current = Promise.resolve();
+    router.refresh();
+  }, [router]);
 
   if (totalPlats === 0) {
     return (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Dish } from "@/lib/db";
 import type { CategoryTreeNode } from "@/lib/catalog/restaurantCategories";
 import {
@@ -52,67 +52,38 @@ const DEFAULT_SERVICE = "lunch" as const;
 
 function OrderDishTapButton({
   dish,
-  restaurantId,
-  orderId,
-  onOptimisticAdd,
-  onTicketApplied,
-  onRevert,
+  onAdd,
 }: {
   dish: Dish;
-  restaurantId: string;
-  orderId: string;
-  onOptimisticAdd: () => void;
-  onTicketApplied: (ticket: OrderTicketSnapshot) => void;
-  onRevert: () => void;
+  onAdd: (dish: Dish) => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
   const [addedCount, setAddedCount] = useState(0);
   const [flash, setFlash] = useState(false);
 
   const tap = () => {
-    setError(null);
-    onOptimisticAdd();
+    onAdd(dish);
     setAddedCount((n) => n + 1);
     setFlash(true);
     window.setTimeout(() => setFlash(false), 600);
-    startTransition(async () => {
-      const res = await addDishToDiningOrder({
-        restaurantId,
-        orderId,
-        dishId: dish.id,
-        qty: 1,
-      });
-      if (!res.ok || !res.data) {
-        onRevert();
-        setError(res.ok === false ? res.error : "Erreur inattendue.");
-        return;
-      }
-      onTicketApplied(res.data);
-    });
   };
 
   return (
-    <div className="space-y-1">
-      <DishCatalogTileButton
-        dish={dish}
-        disabled={pending}
-        onClick={tap}
-        badge={
-          addedCount > 0 ? (
-            <span
-              className={`flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-xs font-bold text-white transition ${
-                flash ? "scale-110 bg-emerald-600" : "bg-copper-700"
-              }`}
-              aria-label={`${addedCount} ajouté${addedCount > 1 ? "s" : ""}`}
-            >
-              ×{addedCount}
-            </span>
-          ) : null
-        }
-      />
-      {error ? <p className={`${uiError} text-xs`}>{error}</p> : null}
-    </div>
+    <DishCatalogTileButton
+      dish={dish}
+      onClick={tap}
+      badge={
+        addedCount > 0 ? (
+          <span
+            className={`flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-xs font-bold text-white transition ${
+              flash ? "scale-110 bg-emerald-600" : "bg-copper-700"
+            }`}
+            aria-label={`${addedCount} ajouté${addedCount > 1 ? "s" : ""}`}
+          >
+            ×{addedCount}
+          </span>
+        ) : null
+      }
+    />
   );
 }
 
@@ -183,21 +154,38 @@ export function DiningOrderClient({
   const [localLines, setLocalLines] = useState(lines);
   const [localTotalTtc, setLocalTotalTtc] = useState(totalTtc);
   const [localPaidTtc, setLocalPaidTtc] = useState(amountPaidTtc);
-  const ticketRollbackRef = useRef<{ lines: DiningLineClient[]; totalTtc: number } | null>(null);
+  const pendingAddsRef = useRef(0);
+  const addQueueRef = useRef(Promise.resolve());
 
   useEffect(() => {
+    if (pendingAddsRef.current > 0) return;
     setLocalLines(lines);
     setLocalTotalTtc(totalTtc);
     setLocalPaidTtc(amountPaidTtc);
   }, [orderId, lines, totalTtc, amountPaidTtc]);
+
+  const applyTicket = useCallback((ticket: OrderTicketSnapshot) => {
+    setLocalLines(ticket.lines);
+    setLocalTotalTtc(ticket.totalTtc);
+    setLocalPaidTtc(ticket.amountPaidTtc);
+  }, []);
+
+  const applyTicketIfIdle = useCallback(
+    (ticket: OrderTicketSnapshot) => {
+      if (pendingAddsRef.current > 0) return;
+      applyTicket(ticket);
+    },
+    [applyTicket]
+  );
 
   useEffect(() => {
     if (status !== "open") return;
 
     const poll = () => {
       if (document.visibilityState !== "visible") return;
+      if (pendingAddsRef.current > 0) return;
       void refreshOrderTicketSnapshot({ restaurantId, orderId }).then((res) => {
-        if (res.ok && res.data) applyTicket(res.data);
+        if (res.ok && res.data) applyTicketIfIdle(res.data);
       });
     };
 
@@ -209,13 +197,41 @@ export function DiningOrderClient({
       document.removeEventListener("visibilitychange", poll);
       window.removeEventListener("focus", poll);
     };
-  }, [status, restaurantId, orderId]);
+  }, [status, restaurantId, orderId, applyTicketIfIdle]);
 
-  const applyTicket = (ticket: OrderTicketSnapshot) => {
-    setLocalLines(ticket.lines);
-    setLocalTotalTtc(ticket.totalTtc);
-    setLocalPaidTtc(ticket.amountPaidTtc);
-  };
+  const handleAddDish = useCallback(
+    (dish: Dish) => {
+      setError(null);
+      pendingAddsRef.current += 1;
+      setLocalLines((prev) => {
+        const next = optimisticAddDishLine(prev, dish);
+        setLocalTotalTtc(orderTotalFromLines(next));
+        return next;
+      });
+
+      addQueueRef.current = addQueueRef.current
+        .then(async () => {
+          const res = await addDishToDiningOrder({
+            restaurantId,
+            orderId,
+            dishId: dish.id,
+            qty: 1,
+          });
+          pendingAddsRef.current = Math.max(0, pendingAddsRef.current - 1);
+          if (!res.ok || !res.data) {
+            setError(res.ok === false ? res.error : "Erreur inattendue.");
+            const refresh = await refreshOrderTicketSnapshot({ restaurantId, orderId });
+            if (refresh.ok && refresh.data) applyTicket(refresh.data);
+            return;
+          }
+          if (pendingAddsRef.current === 0) applyTicket(res.data);
+        })
+        .catch(() => {
+          pendingAddsRef.current = Math.max(0, pendingAddsRef.current - 1);
+        });
+    },
+    [restaurantId, orderId, applyTicket]
+  );
 
   const notifyListStale = () => {
     onOrderChanged?.();
@@ -593,26 +609,7 @@ export function DiningOrderClient({
           roots={catalogRoots}
           directByCategoryId={directByCategoryId}
           uncategorized={uncategorized}
-          renderDish={(dish) => (
-            <OrderDishTapButton
-              dish={dish}
-              restaurantId={restaurantId}
-              orderId={orderId}
-              onOptimisticAdd={() => {
-                ticketRollbackRef.current = { lines: localLines, totalTtc: localTotalTtc };
-                const optimisticLines = optimisticAddDishLine(localLines, dish);
-                setLocalLines(optimisticLines);
-                setLocalTotalTtc(orderTotalFromLines(optimisticLines));
-              }}
-              onTicketApplied={applyTicket}
-              onRevert={() => {
-                const prev = ticketRollbackRef.current;
-                if (!prev) return;
-                setLocalLines(prev.lines);
-                setLocalTotalTtc(prev.totalTtc);
-              }}
-            />
-          )}
+          renderDish={(dish) => <OrderDishTapButton dish={dish} onAdd={handleAddDish} />}
           renderModalFooter={(close) => {
             const count = localLines.reduce((acc, l) => acc + l.qty, 0);
             return (

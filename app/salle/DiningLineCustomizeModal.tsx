@@ -133,8 +133,8 @@ export function DiningLineCustomizeModal({ restaurantId, line, onClose, onApplie
       <div className="mx-auto w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
         <h2 className="text-lg font-bold text-stone-900">Personnaliser — {line.dishName}</h2>
         <p className={`mt-1 text-sm ${uiLead}`}>
-          Retirez une garniture ou changez l&apos;accompagnement, puis validez pour l&apos;envoyer au
-          pass cuisine.
+          Retirez une garniture ou changez l&apos;accompagnement. Les modifs partiront avec le
+          service lorsque vous validerez l&apos;envoi en cuisine.
         </p>
 
         {loadingOptions ? (

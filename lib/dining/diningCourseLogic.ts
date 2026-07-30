@@ -5,6 +5,7 @@ import {
   isMealCourse,
   mealCourseLabel,
 } from "./courseTypes";
+import { isKitchenExtraMenuCategory } from "./passDestination";
 
 export type DiningCourseSummary = {
   courseType: DiningMealCourse;
@@ -64,8 +65,60 @@ export function buildMealCourseSummaries(lines: DiningLineClient[]): DiningCours
   }).filter((s) => s.lines.length > 0);
 }
 
+export function barLines(lines: DiningLineClient[]): DiningLineClient[] {
+  return lines.filter((l) => l.isBarLine);
+}
+
+export function kitchenExtraLines(lines: DiningLineClient[]): DiningLineClient[] {
+  return lines.filter(
+    (l) =>
+      !l.isBarLine &&
+      (l.courseType == null || !isMealCourse(l.courseType)) &&
+      isKitchenExtraMenuCategory(l.menuCategory)
+  );
+}
+
+/** @deprecated Utiliser barLines / kitchenExtraLines */
 export function otherLines(lines: DiningLineClient[]): DiningLineClient[] {
   return lines.filter((l) => !l.courseType || !isMealCourse(l.courseType));
+}
+
+export function canFireBarLines(lines: DiningLineClient[]): boolean {
+  const drinks = barLines(lines);
+  return drinks.length > 0 && drinks.some((l) => !l.sentToKitchenAt);
+}
+
+export function isBarLinesFired(lines: DiningLineClient[]): boolean {
+  const drinks = barLines(lines);
+  if (drinks.length === 0) return false;
+  return drinks.every((l) => Boolean(l.sentToKitchenAt));
+}
+
+export function canFireKitchenExtraLines(lines: DiningLineClient[]): boolean {
+  const extras = kitchenExtraLines(lines);
+  return extras.length > 0 && extras.some((l) => !l.sentToKitchenAt);
+}
+
+export function isKitchenExtraLinesFired(lines: DiningLineClient[]): boolean {
+  const extras = kitchenExtraLines(lines);
+  if (extras.length === 0) return false;
+  return extras.every((l) => Boolean(l.sentToKitchenAt));
+}
+
+/** @deprecated */
+export function canFireOtherLines(lines: DiningLineClient[]): boolean {
+  return canFireBarLines(lines) || canFireKitchenExtraLines(lines);
+}
+
+/** @deprecated */
+export function isOtherLinesFired(lines: DiningLineClient[]): boolean {
+  const bar = barLines(lines);
+  const kitchen = kitchenExtraLines(lines);
+  if (bar.length === 0 && kitchen.length === 0) return false;
+  return (
+    (bar.length === 0 || isBarLinesFired(lines)) &&
+    (kitchen.length === 0 || isKitchenExtraLinesFired(lines))
+  );
 }
 
 /** Services entièrement prêts (envoyés + tous les plats prêts) — à notifier au serveur. */

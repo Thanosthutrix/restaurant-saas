@@ -13,8 +13,6 @@ import {
   setDiningOrderLinePrepared,
   setDiningOrderLineQty,
   settleDiningOrder,
-  validateAllDiningOrderKitchenMods,
-  validateDiningOrderLineKitchenMods,
 } from "@/app/salle/actions";
 import {
   DINING_PAYMENT_LABEL_FR,
@@ -33,7 +31,6 @@ import {
   DiningOrderTicketFooterBar,
   DiningOrderTicketLineRow,
   DiningOrderTicketLinesScroll,
-  DiningOrderKitchenModsBanner,
   fmtEur,
 } from "@/components/dining/DiningOrderTicketUi";
 import { DiningCoursePanel } from "@/components/dining/DiningCoursePanel";
@@ -210,11 +207,6 @@ export function DiningOrderClient({
     return n + uncategorized.length;
   }, [directByCategoryId, uncategorized]);
 
-  const pendingKitchenModsCount = useMemo(
-    () => localLines.filter((l) => l.pendingKitchenMods).length,
-    [localLines]
-  );
-
   const syncFromServer = () => {
     notifyListStale();
   };
@@ -270,30 +262,6 @@ export function DiningOrderClient({
         setLocalLines(prevLines);
         setError(res.error);
       }
-    });
-  };
-
-  const validateLineKitchenMods = (lineId: string) => {
-    setError(null);
-    startTransition(async () => {
-      const res = await validateDiningOrderLineKitchenMods({ restaurantId, lineId });
-      if (!res.ok || !res.data) {
-        setError(res.ok === false ? res.error : "Validation impossible.");
-        return;
-      }
-      applyTicket(res.data);
-    });
-  };
-
-  const validateAllKitchenMods = () => {
-    setError(null);
-    startTransition(async () => {
-      const res = await validateAllDiningOrderKitchenMods({ restaurantId, orderId });
-      if (!res.ok || !res.data) {
-        setError(res.ok === false ? res.error : "Validation impossible.");
-        return;
-      }
-      applyTicket(res.data);
     });
   };
 
@@ -504,9 +472,8 @@ export function DiningOrderClient({
       </div>
       {!embeddedInModal && !isTableOrder ? (
         <p className={`mt-0.5 text-[10px] ${uiLead}`}>
-          Touchez une ligne pour une remise (%, montant ou offert). « Modif. » pour retirer une garniture
-          ou changer l&apos;accompagnement, puis « Valider » pour l&apos;envoyer au pass cuisine.
-          Touchez le total pour remise globale, diviser l&apos;addition ou paiement partiel.
+          Touchez une ligne pour une remise. « Modif. » pour personnaliser un plat.
+          Validez le service ci-dessus pour envoyer en cuisine d&apos;un coup.
           « Prêt » = plat terminé côté cuisine
           (e-mail client si toutes les lignes sont prêtes et fiche avec e-mail).
         </p>
@@ -526,13 +493,6 @@ export function DiningOrderClient({
           onError={setError}
         />
       ) : null}
-      {status === "open" && pendingKitchenModsCount > 0 ? (
-        <DiningOrderKitchenModsBanner
-          pendingCount={pendingKitchenModsCount}
-          pending={pending}
-          onValidateAll={validateAllKitchenMods}
-        />
-      ) : null}
       <DiningOrderTicketLinesScroll>
       {localLines.length === 0 ? (
         <DiningOrderTicketEmptyLines message="Ajoutez des plats depuis la carte ci‑dessous." />
@@ -547,7 +507,6 @@ export function DiningOrderClient({
               onRemove={removeLine}
               onDiscount={setDiscountLine}
               onCustomize={status === "open" ? setCustomizeLine : undefined}
-              onValidateKitchenMods={status === "open" ? validateLineKitchenMods : undefined}
               onToggleLinePrepared={status === "open" ? toggleLinePrepared : undefined}
             />
           ))}

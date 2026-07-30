@@ -40,23 +40,20 @@ import {
   type DiningOrderViewData,
 } from "@/lib/dining/diningOrderViewData";
 import { fetchOrderTicketSnapshot, type OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
-import { notifyKitchenNewOrderLine } from "@/lib/push/notifyKitchenOrder";
 import { mealCourseFromMenuCategory, type DiningMealCourse } from "@/lib/dining/courseTypes";
 import {
   fireMealCourseForOrder,
+  fireBarLinesForOrder,
+  fireKitchenExtraLinesForOrder,
   maybeNotifyServerCoursesReady,
 } from "@/lib/dining/diningCourseService";
 import {
   listCustomizableComponentsForDish,
   listLineModificationsByLineIds,
   replaceLineModifications,
-  validateKitchenModsForLine,
 } from "@/lib/dining/diningLineModificationsDb";
 import {
   buildModificationFingerprint,
-  buildSnapshotFromModifications,
-  hasPendingKitchenMods,
-  parseKitchenModsSnapshot,
   type LineModificationInput,
 } from "@/lib/dining/lineModificationLogic";
 import type { DishCustomizableComponent } from "@/lib/dining/lineModificationTypes";
@@ -79,6 +76,8 @@ function revalidateDiningOrderFull(orderId: string) {
   revalidatePath("/salle");
   revalidatePath("/caisse");
   revalidatePath("/cuisine/pass");
+  revalidatePath("/bar/pass");
+  revalidatePath("/bar/pass");
   revalidatePath(`/salle/commande/${orderId}`);
 }
 
@@ -161,13 +160,21 @@ export async function addDishToDiningOrder(params: {
 
   const dishRes = await getDish(dishId);
   const courseType = mealCourseFromMenuCategory(dishRes.data?.menu_category);
-  const fireImmediately = courseType == null;
 
   if (line) {
+    const { data: existingRow } = await supabaseServer
+      .from("dining_order_lines")
+      .select("sent_to_kitchen_at")
+      .eq("id", (line as { id: string }).id)
+      .maybeSingle();
+    const alreadySent = Boolean(
+      (existingRow as { sent_to_kitchen_at?: string | null } | null)?.sent_to_kitchen_at
+    );
+
     const newQty = toNumber((line as { qty: unknown }).qty) + qty;
     const { error: upErr } = await supabaseServer
       .from("dining_order_lines")
-      .update({ qty: newQty, is_prepared: false })
+      .update(alreadySent ? { qty: newQty, is_prepared: false } : { qty: newQty })
       .eq("id", (line as { id: string }).id);
     if (upErr) return { ok: false, error: upErr.message };
   } else {
@@ -177,7 +184,7 @@ export async function addDishToDiningOrder(params: {
       dish_id: dishId,
       qty,
       course_type: courseType,
-      sent_to_kitchen_at: fireImmediately ? new Date().toISOString() : null,
+      sent_to_kitchen_at: null,
       modification_fingerprint: null,
     });
     if (insErr) return { ok: false, error: insErr.message };
@@ -188,24 +195,7 @@ export async function addDishToDiningOrder(params: {
     return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
   }
 
-  if (fireImmediately) {
-    void (async () => {
-      try {
-        const view = await loadDiningOrderViewData(restaurantId, orderId);
-        const addedLine = view.data?.lines.find((l) => l.dishId === dishId);
-        await notifyKitchenNewOrderLine({
-          restaurantId,
-          orderLabel: view.data?.placeDescription ?? "Commande",
-          dishName: addedLine?.dishName ?? "Plat",
-          qty,
-        });
-      } catch (err) {
-        console.warn("[dining] push cuisine:", err);
-      }
-    })();
-  }
-
-  revalidatePath("/cuisine/pass");
+  revalidatePath(`/salle/commande/${orderId}`);
   return { ok: true, data: snap.data };
 }
 
@@ -380,101 +370,6 @@ export async function setDiningOrderLineModifications(params: {
   return { ok: true, data: snap.data };
 }
 
-export async function validateDiningOrderLineKitchenMods(params: {
-  restaurantId: string;
-  lineId: string;
-}): Promise<ActionResult<OrderTicketSnapshot>> {
-  const memberAuthz = await memberGate(params.restaurantId);
-  if (!memberAuthz.ok) return memberAuthz;
-
-  const { data: row, error } = await supabaseServer
-    .from("dining_order_lines")
-    .select("id, dining_order_id, sent_to_kitchen_at")
-    .eq("id", params.lineId)
-    .eq("restaurant_id", params.restaurantId)
-    .maybeSingle();
-
-  if (error) return { ok: false, error: error.message };
-  if (!row) return { ok: false, error: "Ligne introuvable." };
-
-  const orderId = (row as { dining_order_id: string }).dining_order_id;
-  const order = await getDiningOrder(orderId, params.restaurantId);
-  if (order.error || !order.data || order.data.status !== "open") {
-    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
-  }
-
-  const modsMap = await listLineModificationsByLineIds(params.restaurantId, [params.lineId]);
-  const mods = modsMap.get(params.lineId) ?? [];
-  const snapshot = buildSnapshotFromModifications(mods);
-  const sentAt = (row as { sent_to_kitchen_at?: string | null }).sent_to_kitchen_at;
-
-  await validateKitchenModsForLine({
-    restaurantId: params.restaurantId,
-    lineId: params.lineId,
-    snapshot,
-    lineAlreadySentToKitchen: Boolean(sentAt),
-  });
-
-  revalidateDiningOrderFull(orderId);
-  revalidatePath("/cuisine/pass");
-
-  const snap = await fetchOrderTicketSnapshot(params.restaurantId, orderId);
-  if (snap.error || !snap.data) {
-    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
-  }
-  return { ok: true, data: snap.data };
-}
-
-export async function validateAllDiningOrderKitchenMods(params: {
-  restaurantId: string;
-  orderId: string;
-}): Promise<ActionResult<OrderTicketSnapshot>> {
-  const memberAuthz = await memberGate(params.restaurantId);
-  if (!memberAuthz.ok) return memberAuthz;
-
-  const order = await getDiningOrder(params.orderId, params.restaurantId);
-  if (order.error || !order.data || order.data.status !== "open") {
-    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
-  }
-
-  const linesRes = await getDiningOrderLines(params.orderId, params.restaurantId);
-  if (linesRes.error) return { ok: false, error: linesRes.error.message };
-
-  const lineIds = (linesRes.data ?? []).map((l) => l.id);
-  if (lineIds.length === 0) {
-    const snap = await fetchOrderTicketSnapshot(params.restaurantId, params.orderId);
-    return snap.data ? { ok: true, data: snap.data } : { ok: false, error: snap.error ?? "Erreur." };
-  }
-
-  const modsByLineId = await listLineModificationsByLineIds(params.restaurantId, lineIds);
-
-  for (const line of linesRes.data ?? []) {
-    const mods = modsByLineId.get(line.id) ?? [];
-    const snapshot = parseKitchenModsSnapshot(
-      (line as { kitchen_mods_snapshot?: unknown }).kitchen_mods_snapshot
-    );
-    if (!hasPendingKitchenMods(mods, snapshot)) continue;
-
-    const nextSnapshot = buildSnapshotFromModifications(mods);
-    const sentAt = (line as { sent_to_kitchen_at?: string | null }).sent_to_kitchen_at;
-    await validateKitchenModsForLine({
-      restaurantId: params.restaurantId,
-      lineId: line.id,
-      snapshot: nextSnapshot,
-      lineAlreadySentToKitchen: Boolean(sentAt),
-    });
-  }
-
-  revalidateDiningOrderFull(params.orderId);
-  revalidatePath("/cuisine/pass");
-
-  const snap = await fetchOrderTicketSnapshot(params.restaurantId, params.orderId);
-  if (snap.error || !snap.data) {
-    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
-  }
-  return { ok: true, data: snap.data };
-}
-
 export async function fireDiningOrderCourse(params: {
   restaurantId: string;
   orderId: string;
@@ -498,8 +393,70 @@ export async function fireDiningOrderCourse(params: {
   }
 
   revalidatePath("/cuisine/pass");
+  revalidatePath("/bar/pass");
   revalidatePath(`/salle/commande/${params.orderId}`);
   return { ok: true, data: snap.data };
+}
+
+export async function fireDiningOrderBar(params: {
+  restaurantId: string;
+  orderId: string;
+}): Promise<ActionResult<OrderTicketSnapshot>> {
+  const memberAuthz = await memberGate(params.restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
+
+  const orderRes = await getDiningOrder(params.orderId, params.restaurantId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  if (!orderRes.data || orderRes.data.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+
+  const fired = await fireBarLinesForOrder(params);
+  if (!fired.ok) return { ok: false, error: fired.error };
+
+  const snap = await fetchOrderTicketSnapshot(params.restaurantId, params.orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+
+  revalidatePath("/bar/pass");
+  revalidatePath(`/salle/commande/${params.orderId}`);
+  return { ok: true, data: snap.data };
+}
+
+export async function fireDiningOrderKitchenExtras(params: {
+  restaurantId: string;
+  orderId: string;
+}): Promise<ActionResult<OrderTicketSnapshot>> {
+  const memberAuthz = await memberGate(params.restaurantId);
+  if (!memberAuthz.ok) return memberAuthz;
+
+  const orderRes = await getDiningOrder(params.orderId, params.restaurantId);
+  if (orderRes.error) return { ok: false, error: orderRes.error.message };
+  if (!orderRes.data || orderRes.data.status !== "open") {
+    return { ok: false, error: "Commande introuvable ou déjà encaissée." };
+  }
+
+  const fired = await fireKitchenExtraLinesForOrder(params);
+  if (!fired.ok) return { ok: false, error: fired.error };
+
+  const snap = await fetchOrderTicketSnapshot(params.restaurantId, params.orderId);
+  if (snap.error || !snap.data) {
+    return { ok: false, error: snap.error ?? "Impossible de charger le ticket." };
+  }
+
+  revalidatePath("/cuisine/pass");
+  revalidatePath("/bar/pass");
+  revalidatePath(`/salle/commande/${params.orderId}`);
+  return { ok: true, data: snap.data };
+}
+
+/** @deprecated Utiliser fireDiningOrderBar */
+export async function fireDiningOrderExtras(params: {
+  restaurantId: string;
+  orderId: string;
+}): Promise<ActionResult<OrderTicketSnapshot>> {
+  return fireDiningOrderBar(params);
 }
 
 export async function setDiningOrderLineQty(params: {
@@ -514,7 +471,7 @@ export async function setDiningOrderLineQty(params: {
 
   const { data: row, error: fErr } = await supabaseServer
     .from("dining_order_lines")
-    .select("id, dining_order_id, qty")
+    .select("id, dining_order_id, qty, sent_to_kitchen_at")
     .eq("id", lineId)
     .eq("restaurant_id", restaurantId)
     .maybeSingle();
@@ -529,7 +486,9 @@ export async function setDiningOrderLineQty(params: {
   }
 
   const prevQty = toNumber((row as { qty: unknown }).qty);
-  const resetPrepared = !Number.isFinite(prevQty) || Math.abs(prevQty - qty) > 1e-9;
+  const qtyChanged = !Number.isFinite(prevQty) || Math.abs(prevQty - qty) > 1e-9;
+  const alreadySent = Boolean((row as { sent_to_kitchen_at?: string | null }).sent_to_kitchen_at);
+  const resetPrepared = qtyChanged && alreadySent;
   const { error: uErr } = await supabaseServer
     .from("dining_order_lines")
     .update(resetPrepared ? { qty, is_prepared: false } : { qty })
@@ -890,6 +849,7 @@ export async function setDiningOrderLinePrepared(params: {
   if (uErr) return { ok: false, error: uErr.message };
 
   revalidatePath("/cuisine/pass");
+  revalidatePath("/bar/pass");
 
   if (isPrepared) {
     const linesAfterRes = await getDiningOrderLines(orderId, restaurantId);

@@ -1,5 +1,7 @@
 import type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
 import type { DiningLineModification } from "@/lib/dining/lineModificationTypes";
+import type { MenuCategory } from "@/lib/public/menuCategories";
+import { isMenuCategory } from "@/lib/public/menuCategories";
 
 export type DiningLineClient = {
   id: string;
@@ -22,6 +24,10 @@ export type DiningLineClient = {
   modifications: DiningLineModification[];
   /** Libellés modifs en cours (ticket serveur). */
   kitchenLabels: string[];
+  /** Catégorie carte (boisson, vin, plat…). */
+  menuCategory: MenuCategory | null;
+  /** Ligne routée vers le pass bar. */
+  isBarLine: boolean;
   /** Modifs en attente de validation serveur pour le pass cuisine. */
   pendingKitchenMods: boolean;
   /** Au moins un composant retirable ou accompagnement substituable. */

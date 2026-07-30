@@ -34,6 +34,9 @@ import {
   hasPendingKitchenMods,
   parseKitchenModsSnapshot,
 } from "@/lib/dining/lineModificationLogic";
+import { isBarMenuCategory } from "@/lib/dining/passDestination";
+import { isMenuCategory } from "@/lib/public/menuCategories";
+import { dishFromJoin } from "@/lib/dining/diningDb";
 
 export type DiningOrderLinkedCustomer = {
   id: string;
@@ -78,6 +81,10 @@ export function mapLinesToClients(
 
   return (lines ?? []).map((l) => {
     const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
+    const dishJoin = dishFromJoin(l as Parameters<typeof dishFromJoin>[0]);
+    const menuCategoryRaw = dishJoin?.menu_category;
+    const menuCategory = isMenuCategory(menuCategoryRaw) ? menuCategoryRaw : null;
+    const isBarLine = isBarMenuCategory(menuCategoryRaw);
     const dv = l.discount_value;
     const discountValue = dv == null || dv === "" ? null : Number(dv);
     const modifications = modsByLineId?.get(l.id) ?? [];
@@ -85,7 +92,10 @@ export function mapLinesToClients(
     const snapshot = parseKitchenModsSnapshot(
       (l as { kitchen_mods_snapshot?: unknown }).kitchen_mods_snapshot
     );
-    const pendingKitchenMods = hasPendingKitchenMods(modifications, snapshot);
+    const sentToKitchenAt =
+      ((l as { sent_to_kitchen_at?: string | null }).sent_to_kitchen_at as string | null) ?? null;
+    const pendingKitchenMods =
+      Boolean(sentToKitchenAt) && hasPendingKitchenMods(modifications, snapshot);
     return {
       id: l.id,
       dishId: l.dish_id,
@@ -95,15 +105,15 @@ export function mapLinesToClients(
       courseType: isMealCourse((l as { course_type?: string }).course_type)
         ? (l as { course_type: "entrée" | "plat" | "dessert" }).course_type
         : null,
-      sentToKitchenAt:
-        ((l as { sent_to_kitchen_at?: string | null }).sent_to_kitchen_at as string | null) ??
-        null,
+      sentToKitchenAt,
       lineGrossTtc: lineGrossTtc(l),
       lineTotalTtc: lineTtc(l),
       discountKind: parseDiningDiscountKind(l.discount_kind),
       discountValue: discountValue != null && Number.isFinite(discountValue) ? discountValue : null,
       modifications,
       kitchenLabels,
+      menuCategory,
+      isBarLine,
       pendingKitchenMods,
       canCustomize: customizableDishIds?.has(l.dish_id) ?? false,
     };

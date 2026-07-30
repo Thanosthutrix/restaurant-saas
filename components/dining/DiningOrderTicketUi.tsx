@@ -32,8 +32,6 @@ type LineRowProps = {
   onDiscount: (line: DiningLineClient) => void;
   /** Personnalisation garniture / accompagnement. */
   onCustomize?: (line: DiningLineClient) => void;
-  /** Envoyer les modifs au pass cuisine. */
-  onValidateKitchenMods?: (lineId: string) => void;
   /** Si renseigné, affiche le bouton Prêt (cuisine). */
   onToggleLinePrepared?: (lineId: string, next: boolean) => void;
 };
@@ -45,7 +43,6 @@ export function DiningOrderTicketLineRow({
   onRemove,
   onDiscount,
   onCustomize,
-  onValidateKitchenMods,
   onToggleLinePrepared,
 }: LineRowProps) {
   const hasMods = l.kitchenLabels.length > 0;
@@ -79,9 +76,6 @@ export function DiningOrderTicketLineRow({
             ))}
           </ul>
         ) : null}
-        {l.pendingKitchenMods ? (
-          <p className="mt-0.5 text-[10px] font-semibold text-rose-700">Modifs non envoyées à la cuisine</p>
-        ) : null}
       </div>
       {onCustomize && l.canCustomize ? (
         <button
@@ -92,17 +86,6 @@ export function DiningOrderTicketLineRow({
           className="flex h-10 shrink-0 items-center rounded-lg border border-amber-300 bg-amber-50 px-2.5 text-xs font-bold leading-none text-amber-900 transition hover:bg-amber-100 disabled:opacity-50"
         >
           Modif.
-        </button>
-      ) : null}
-      {onValidateKitchenMods && l.pendingKitchenMods ? (
-        <button
-          type="button"
-          disabled={pending}
-          title="Envoyer ces modifications au pass cuisine"
-          onClick={() => onValidateKitchenMods(l.id)}
-          className="flex h-10 shrink-0 items-center rounded-lg border-2 border-copper-600 bg-copper-600 px-2.5 text-xs font-bold leading-none text-white transition hover:bg-copper-700 disabled:opacity-50"
-        >
-          Valider
         </button>
       ) : null}
       {onToggleLinePrepared ? (
@@ -269,36 +252,5 @@ export function DiningOrderTicketLinesScroll({ children }: { children: ReactNode
 export function DiningOrderTicketEmptyLines({ message }: { message: string }) {
   return (
     <p className={`py-2 text-center text-xs ${uiLead}`}>{message}</p>
-  );
-}
-
-type KitchenModsBannerProps = {
-  pendingCount: number;
-  pending: boolean;
-  onValidateAll: () => void;
-};
-
-export function DiningOrderKitchenModsBanner({
-  pendingCount,
-  pending,
-  onValidateAll,
-}: KitchenModsBannerProps) {
-  if (pendingCount <= 0) return null;
-
-  return (
-    <div className="mx-2 mb-1 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50/90 px-2.5 py-2">
-      <p className="text-[11px] font-medium text-rose-900">
-        {pendingCount} modification{pendingCount > 1 ? "s" : ""} en attente — la cuisine ne les voit
-        pas tant que vous n&apos;avez pas validé.
-      </p>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={onValidateAll}
-        className="shrink-0 rounded-lg border-2 border-copper-600 bg-copper-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-copper-700 disabled:opacity-50"
-      >
-        Tout valider cuisine
-      </button>
-    </div>
   );
 }

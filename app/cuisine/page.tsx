@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { ClipboardList, Clapperboard, Droplets, Package, Percent, UtensilsCrossed } from "lucide-react";
+import { ClipboardList, Clapperboard, Droplets, Package, Percent, UtensilsCrossed, Wine } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getInventoryStockDashboardSummary } from "@/lib/db";
-import { loadKitchenPassQueue } from "@/lib/dining/kitchenPassData";
+import { loadKitchenPassQueue, loadBarPassQueue } from "@/lib/dining/kitchenPassData";
 import { cachedCountHygienePending, cachedCountPreparations2hSignals } from "@/lib/cache";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
@@ -22,15 +22,23 @@ type Action = {
 const actions: Action[] = [
   {
     title: "Pass cuisine",
-    description: "Bons en direct dès qu'un serveur prend une commande en salle ou à la caisse.",
+    description: "Repas et envois cuisine — pas les boissons (voir pass bar).",
     href: "/cuisine/pass",
     icon: Clapperboard,
     tone: "bg-stone-900 text-white",
     hover: "tile-stone",
   },
   {
+    title: "Pass bar",
+    description: "Boissons et vins dès que le serveur valide l'envoi au bar.",
+    href: "/bar/pass",
+    icon: Wine,
+    tone: "bg-violet-900 text-white",
+    hover: "tile-violet",
+  },
+  {
     title: "Enregistrer un service",
-    description: "Saisir les ventes d’un service pour garder le stock et les marges à jour.",
+    description: "Saisir les ventes d'un service pour garder le stock et les marges à jour.",
     href: "/service/new",
     icon: ClipboardList,
     tone: "bg-copper-50 text-copper-700",
@@ -89,11 +97,15 @@ export default async function CuisinePage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [hygienePending, stockRes, prepSignals, kitchenQueue] = await Promise.all([
+  const [hygienePending, stockRes, prepSignals, kitchenQueue, barQueue] = await Promise.all([
     cachedCountHygienePending(restaurant.id).catch(() => 0),
     getInventoryStockDashboardSummary(restaurant.id),
     cachedCountPreparations2hSignals(restaurant.id).catch(() => ({ reminder: 0, overdue: 0 })),
     loadKitchenPassQueue(restaurant.id).catch(() => ({
+      data: { tickets: [], pendingLineCount: 0 },
+      error: null,
+    })),
+    loadBarPassQueue(restaurant.id).catch(() => ({
       data: { tickets: [], pendingLineCount: 0 },
       error: null,
     })),
@@ -115,6 +127,15 @@ export default async function CuisinePage() {
                 ? "99+"
                 : String(kitchenQueue.data.pendingLineCount),
             title: `${kitchenQueue.data.pendingLineCount} plat(s) en attente en cuisine`,
+            tone: "rose",
+          }
+        : undefined,
+    "/bar/pass":
+      barQueue.data.pendingLineCount > 0
+        ? {
+            text:
+              barQueue.data.pendingLineCount > 99 ? "99+" : String(barQueue.data.pendingLineCount),
+            title: `${barQueue.data.pendingLineCount} boisson(s) en attente au bar`,
             tone: "rose",
           }
         : undefined,

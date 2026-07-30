@@ -49,6 +49,8 @@ export function optimisticAddDishLine(
       modifications: [],
       kitchenLabels: [],
       pendingKitchenMods: false,
+      menuCategory: null,
+      isBarLine: false,
       canCustomize: false,
     },
   ];

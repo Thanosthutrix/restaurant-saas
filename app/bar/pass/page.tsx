@@ -1,20 +1,20 @@
 import { redirect } from "next/navigation";
 import { getRestaurantForPage } from "@/lib/auth";
-import { loadKitchenPassQueue } from "@/lib/dining/kitchenPassData";
-import { KitchenPassClient } from "@/components/cuisine/KitchenPassClient";
+import { loadBarPassQueue } from "@/lib/dining/diningPassData";
+import { BarPassClient } from "@/components/bar/BarPassClient";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
-export default async function KitchenPassPage() {
+export default async function BarPassPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const { data, error } = await loadKitchenPassQueue(restaurant.id);
+  const { data, error } = await loadBarPassQueue(restaurant.id);
   if (error) {
     return (
       <PageContainer>
         <PageHeader
           eyebrow="Service"
-          title="Pass cuisine"
+          title="Pass bar"
           subtitle="Impossible de charger la file d'attente."
         />
         <p className="text-sm text-rose-700">{error.message}</p>
@@ -26,10 +26,10 @@ export default async function KitchenPassPage() {
     <PageContainer>
       <PageHeader
         eyebrow="Service"
-        title="Pass cuisine"
-        subtitle="Les bons apparaissent quand le serveur valide un service (entrées, plats, desserts). Les boissons vont au pass bar."
+        title="Pass bar"
+        subtitle="Boissons et vins uniquement. Touchez « Prêt » une fois servi."
       />
-      <KitchenPassClient restaurantId={restaurant.id} initialQueue={data} />
+      <BarPassClient restaurantId={restaurant.id} initialQueue={data} />
     </PageContainer>
   );
 }

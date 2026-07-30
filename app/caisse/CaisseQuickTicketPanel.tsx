@@ -10,9 +10,12 @@ import {
   setDiningOrderLinePrepared,
   settleDiningOrder,
   setDiningOrderLineQty,
+  validateAllDiningOrderKitchenMods,
+  validateDiningOrderLineKitchenMods,
 } from "@/app/salle/actions";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import { DiningLineDiscountModal } from "@/app/salle/DiningLineDiscountModal";
+import { DiningLineCustomizeModal } from "@/app/salle/DiningLineCustomizeModal";
 import { DiningOrderTotalModal } from "@/app/salle/DiningOrderTotalModal";
 import type { DiningPaymentMethod } from "@/lib/dining/diningPaymentMethods";
 import {
@@ -21,6 +24,7 @@ import {
   DiningOrderTicketFooterBar,
   DiningOrderTicketLineRow,
   DiningOrderTicketLinesScroll,
+  DiningOrderKitchenModsBanner,
   fmtEur,
 } from "@/components/dining/DiningOrderTicketUi";
 import { DiningCoursePanel } from "@/components/dining/DiningCoursePanel";
@@ -74,6 +78,7 @@ export function CaisseQuickTicketPanel({
   const [pending, startTransition] = useTransition();
   const [paymentMethod, setPaymentMethod] = useState<DiningPaymentMethod>("card");
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
+  const [customizeLine, setCustomizeLine] = useState<DiningLineClient | null>(null);
   const [totalModalOpen, setTotalModalOpen] = useState(false);
 
   const prevOrderIdRef = useRef<string | null>(null);
@@ -227,6 +232,30 @@ export function CaisseQuickTicketPanel({
     });
   };
 
+  const validateLineKitchenMods = (lineId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const res = await validateDiningOrderLineKitchenMods({ restaurantId, lineId });
+      if (!res.ok || !res.data) {
+        setError(res.ok === false ? res.error : "Validation impossible.");
+        return;
+      }
+      applyTicket(res.data);
+    });
+  };
+
+  const validateAllKitchenMods = () => {
+    setError(null);
+    startTransition(async () => {
+      const res = await validateAllDiningOrderKitchenMods({ restaurantId, orderId });
+      if (!res.ok || !res.data) {
+        setError(res.ok === false ? res.error : "Validation impossible.");
+        return;
+      }
+      applyTicket(res.data);
+    });
+  };
+
   const sendReadyEmailManual = () => {
     setError(null);
     setInfo(null);
@@ -271,6 +300,7 @@ export function CaisseQuickTicketPanel({
   };
 
   const lines = snapshot?.lines ?? [];
+  const pendingKitchenModsCount = lines.filter((l) => l.pendingKitchenMods).length;
   const totalTtc = snapshot?.totalTtc ?? 0;
   const amountPaidTtc = snapshot?.amountPaidTtc ?? 0;
   const ticketLabel = snapshot?.ticketLabel ?? "…";
@@ -328,6 +358,13 @@ export function CaisseQuickTicketPanel({
           onError={setError}
         />
       ) : null}
+      {pendingKitchenModsCount > 0 ? (
+        <DiningOrderKitchenModsBanner
+          pendingCount={pendingKitchenModsCount}
+          pending={pending}
+          onValidateAll={validateAllKitchenMods}
+        />
+      ) : null}
       <DiningOrderTicketLinesScroll>
       {loading ? (
         <p className={`py-2 text-center text-xs ${uiLead}`}>…</p>
@@ -343,6 +380,8 @@ export function CaisseQuickTicketPanel({
               onAdjust={(id, d) => adjustLine(id, d)}
               onRemove={removeLine}
               onDiscount={setDiscountLine}
+              onCustomize={setCustomizeLine}
+              onValidateKitchenMods={validateLineKitchenMods}
               onToggleLinePrepared={toggleLinePrepared}
             />
           ))}
@@ -395,6 +434,16 @@ export function CaisseQuickTicketPanel({
         onClose={() => setDiscountLine(null)}
         onApplied={(ticket) => {
           setDiscountLine(null);
+          if (ticket) applyTicket(ticket);
+        }}
+      />
+
+      <DiningLineCustomizeModal
+        restaurantId={restaurantId}
+        line={customizeLine}
+        onClose={() => setCustomizeLine(null)}
+        onApplied={(ticket) => {
+          setCustomizeLine(null);
           if (ticket) applyTicket(ticket);
         }}
       />

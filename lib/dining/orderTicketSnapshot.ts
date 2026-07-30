@@ -5,7 +5,7 @@ import {
   orderTotalTtc,
   sumDiningOrderPayments,
 } from "@/lib/dining/diningDb";
-import { mapLinesToClients } from "@/lib/dining/diningOrderViewData";
+import { mapLinesToClientsEnriched } from "@/lib/dining/diningOrderViewData";
 
 export type OrderTicketSnapshot = {
   lines: DiningLineClient[];
@@ -26,7 +26,7 @@ export async function fetchOrderTicketSnapshot(
   if (linesRes.error) return { data: null, error: linesRes.error.message };
 
   const rawLines = linesRes.data ?? [];
-  const lines = mapLinesToClients(rawLines);
+  const lines = await mapLinesToClientsEnriched(restaurantId, rawLines);
   const totalTtc = orderTotalTtc(rawLines);
   const amountPaidTtc = payRes.error ? 0 : sumDiningOrderPayments(payRes.data);
   const amountDueTtc = Math.max(0, Math.round((totalTtc - amountPaidTtc) * 100) / 100);

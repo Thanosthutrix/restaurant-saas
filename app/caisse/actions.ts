@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { mapLinesToClients } from "@/lib/dining/diningOrderViewData";
+import { mapLinesToClientsEnriched } from "@/lib/dining/diningOrderViewData";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import { addDishToDiningOrder } from "@/app/salle/actions";
 import type { ActionResult } from "@/app/salle/actions";
@@ -138,7 +138,7 @@ export async function getQuickCounterOrderSnapshot(
   const { data: lines, error: lErr } = await getDiningOrderLines(orderId, restaurantId);
   if (lErr) return { ok: false, error: lErr.message };
 
-  const lineClients = mapLinesToClients(lines);
+  const lineClients = await mapLinesToClientsEnriched(restaurantId, lines);
 
   const totalTtc = orderTotalTtc(lines ?? []);
   const payRes = await listDiningOrderPayments(orderId, restaurantId);

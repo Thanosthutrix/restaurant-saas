@@ -18,7 +18,7 @@ export function optimisticAddDishLine(
 ): DiningLineClient[] {
   const unit = Number(dish.selling_price_ttc);
   const unitTtc = Number.isFinite(unit) && unit > 0 ? unit : 0;
-  const existing = lines.find((l) => l.dishId === dish.id);
+  const existing = lines.find((l) => l.dishId === dish.id && l.modifications.length === 0);
 
   if (existing) {
     const qty = existing.qty + 1;
@@ -46,6 +46,10 @@ export function optimisticAddDishLine(
       lineTotalTtc: gross,
       discountKind: "none" as DiningDiscountKind,
       discountValue: null,
+      modifications: [],
+      kitchenLabels: [],
+      pendingKitchenMods: false,
+      canCustomize: false,
     },
   ];
 }

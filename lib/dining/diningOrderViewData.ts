@@ -25,6 +25,15 @@ import {
 import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
 import { isMealCourse } from "@/lib/dining/courseTypes";
 import { diningOrderGuestDisplayName, diningTableTicketTitle } from "@/lib/dining/ticketLabel";
+import {
+  listCustomizableComponentsForDish,
+  listLineModificationsByLineIds,
+} from "@/lib/dining/diningLineModificationsDb";
+import {
+  formatModificationsForKitchen,
+  hasPendingKitchenMods,
+  parseKitchenModsSnapshot,
+} from "@/lib/dining/lineModificationLogic";
 
 export type DiningOrderLinkedCustomer = {
   id: string;
@@ -58,12 +67,25 @@ export type DiningOrderCatalogData = {
 };
 
 export function mapLinesToClients(
-  lines: Awaited<ReturnType<typeof getDiningOrderLines>>["data"]
+  lines: Awaited<ReturnType<typeof getDiningOrderLines>>["data"],
+  opts?: {
+    modsByLineId?: Map<string, import("@/lib/dining/lineModificationTypes").DiningLineModification[]>;
+    customizableDishIds?: Set<string>;
+  }
 ): DiningLineClient[] {
+  const modsByLineId = opts?.modsByLineId;
+  const customizableDishIds = opts?.customizableDishIds;
+
   return (lines ?? []).map((l) => {
     const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
     const dv = l.discount_value;
     const discountValue = dv == null || dv === "" ? null : Number(dv);
+    const modifications = modsByLineId?.get(l.id) ?? [];
+    const kitchenLabels = formatModificationsForKitchen(modifications);
+    const snapshot = parseKitchenModsSnapshot(
+      (l as { kitchen_mods_snapshot?: unknown }).kitchen_mods_snapshot
+    );
+    const pendingKitchenMods = hasPendingKitchenMods(modifications, snapshot);
     return {
       id: l.id,
       dishId: l.dish_id,
@@ -80,8 +102,35 @@ export function mapLinesToClients(
       lineTotalTtc: lineTtc(l),
       discountKind: parseDiningDiscountKind(l.discount_kind),
       discountValue: discountValue != null && Number.isFinite(discountValue) ? discountValue : null,
+      modifications,
+      kitchenLabels,
+      pendingKitchenMods,
+      canCustomize: customizableDishIds?.has(l.dish_id) ?? false,
     };
   });
+}
+
+export async function mapLinesToClientsEnriched(
+  restaurantId: string,
+  lines: Awaited<ReturnType<typeof getDiningOrderLines>>["data"]
+): Promise<DiningLineClient[]> {
+  const raw = lines ?? [];
+  if (raw.length === 0) return [];
+
+  const lineIds = raw.map((l) => l.id);
+  const dishIds = [...new Set(raw.map((l) => l.dish_id))];
+
+  const [modsByLineId, customizableSets] = await Promise.all([
+    listLineModificationsByLineIds(restaurantId, lineIds),
+    Promise.all(dishIds.map((dishId) => listCustomizableComponentsForDish(restaurantId, dishId))),
+  ]);
+
+  const customizableDishIds = new Set<string>();
+  dishIds.forEach((dishId, i) => {
+    if ((customizableSets[i]?.length ?? 0) > 0) customizableDishIds.add(dishId);
+  });
+
+  return mapLinesToClients(raw, { modsByLineId, customizableDishIds });
 }
 
 export async function loadDiningOrderCatalogData(
@@ -143,7 +192,7 @@ export async function loadDiningOrderViewData(
   if (lErr) return { data: null, error: lErr.message };
 
   const table = tableRes.data;
-  const lineClients = mapLinesToClients(lines);
+  const lineClients = await mapLinesToClientsEnriched(restaurantId, lines);
   const totalTtc = orderTotalTtc(lines ?? []);
 
   let amountPaidTtc = 0;

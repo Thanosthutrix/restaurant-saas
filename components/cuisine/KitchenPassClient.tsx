@@ -161,14 +161,34 @@ function KitchenPassLineRow({
   busyLineId: string | null;
   onMarkPrepared: (lineId: string) => void;
 }) {
+  const hasMods = line.kitchenLabels.length > 0;
+
   return (
-    <li className="flex items-center gap-3">
+    <li
+      className={
+        hasMods
+          ? "flex items-start gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2.5"
+          : "flex items-center gap-3"
+      }
+    >
       <div className="min-w-0 flex-1">
         <p className="text-base font-semibold text-stone-900">
           <span className="mr-2 tabular-nums text-copper-600">×{line.qty}</span>
           {line.dishName}
         </p>
-        <p className="text-xs text-stone-500">{formatTime(line.createdAt)}</p>
+        {hasMods ? (
+          <ul className="mt-1.5 space-y-1">
+            {line.kitchenLabels.map((label) => (
+              <li
+                key={label}
+                className="text-sm font-black uppercase tracking-wide text-amber-950"
+              >
+                ⚠ {label}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className={`text-xs text-stone-500 ${hasMods ? "mt-1.5" : ""}`}>{formatTime(line.createdAt)}</p>
       </div>
       <button
         type="button"

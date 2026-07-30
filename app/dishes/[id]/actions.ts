@@ -65,11 +65,15 @@ export async function addDishComponent(params: {
 
   const [dishRes, itemRes] = await Promise.all([
     supabaseServer.from("dishes").select("id, restaurant_id, production_mode").eq("id", dishId).maybeSingle(),
-    supabaseServer.from("inventory_items").select("id, restaurant_id").eq("id", inventoryItemId).maybeSingle(),
+    supabaseServer
+      .from("inventory_items")
+      .select("id, restaurant_id, item_type")
+      .eq("id", inventoryItemId)
+      .maybeSingle(),
   ]);
 
   const dish = dishRes.data as { id: string; restaurant_id: string; production_mode?: string } | null;
-  const item = itemRes.data as { id: string; restaurant_id: string } | null;
+  const item = itemRes.data as { id: string; restaurant_id: string; item_type?: string } | null;
 
   if (dishRes.error) return { ok: false, error: dishRes.error.message };
   if (itemRes.error) return { ok: false, error: itemRes.error.message };
@@ -91,6 +95,7 @@ export async function addDishComponent(params: {
     dish_id: dishId,
     inventory_item_id: inventoryItemId,
     qty,
+    component_role: "integrated",
   });
 
   if (error) {
@@ -229,6 +234,62 @@ export async function updateDishComponent(params: {
   await syncDishRecipeStatus(dishId, restaurantId);
   revalidatePath(`/dishes/${dishId}`, "page");
   revalidatePath("/margins", "page");
+  return { ok: true };
+}
+
+export async function updateDishComponentRole(params: {
+  id: string;
+  restaurantId: string;
+  dishId: string;
+  componentRole: "integrated" | "topping" | "accompaniment";
+}): Promise<ActionResult> {
+  const { id, restaurantId, dishId, componentRole } = params;
+  const authz = await gateDishes(restaurantId);
+  if (!authz.ok) return authz;
+
+  const { data: row, error: fetchError } = await supabaseServer
+    .from("dish_components")
+    .select("id, dish_id, inventory_item_id, restaurant_id")
+    .eq("id", id)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (fetchError) return { ok: false, error: fetchError.message };
+  if (!row) return { ok: false, error: "Ligne de composition introuvable." };
+
+  const r = row as { inventory_item_id: string };
+  const { data: inv, error: invErr } = await supabaseServer
+    .from("inventory_items")
+    .select("id, item_type, restaurant_id")
+    .eq("id", r.inventory_item_id)
+    .maybeSingle();
+
+  if (invErr) return { ok: false, error: invErr.message };
+  const item = inv as { item_type?: string; restaurant_id: string } | null;
+  if (!item) return { ok: false, error: "Composant introuvable." };
+  if (item.restaurant_id !== restaurantId) {
+    return { ok: false, error: "Composant introuvable." };
+  }
+  if (item.item_type === "prep") {
+    return {
+      ok: false,
+      error: "Une préparation intégrée à la recette ne peut pas être retirable au service.",
+    };
+  }
+  if (item.item_type !== "ingredient") {
+    return { ok: false, error: "Seuls les ingrédients directs peuvent être modifiables au service." };
+  }
+
+  const { error } = await supabaseServer
+    .from("dish_components")
+    .update({ component_role: componentRole })
+    .eq("id", id)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/dishes/${dishId}`, "page");
+  revalidatePath("/salle");
+  revalidatePath("/caisse");
   return { ok: true };
 }
 

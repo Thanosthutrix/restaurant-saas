@@ -11,6 +11,10 @@ import {
 } from "./ticketLabel";
 import { isMealCourse, mealCourseLabel, type DiningMealCourse } from "./courseTypes";
 import { supabaseServer } from "@/lib/supabaseServer";
+import {
+  kitchenLabelsFromSnapshot,
+  parseKitchenModsSnapshot,
+} from "./lineModificationLogic";
 
 export type KitchenPassLine = {
   id: string;
@@ -19,6 +23,7 @@ export type KitchenPassLine = {
   isPrepared: boolean;
   courseType: DiningMealCourse | null;
   createdAt: string;
+  kitchenLabels: string[];
 };
 
 export type KitchenPassCourseGroup = {
@@ -109,7 +114,7 @@ export async function loadKitchenPassQueue(restaurantId: string): Promise<{
     supabaseServer
       .from("dining_order_lines")
       .select(
-        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, created_at, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
+        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, created_at, kitchen_mods_snapshot, dishes(name, selling_price_ttc, selling_vat_rate_pct)"
       )
       .eq("restaurant_id", restaurantId)
       .in("dining_order_id", orderIds)
@@ -130,12 +135,19 @@ export async function loadKitchenPassQueue(restaurantId: string): Promise<{
   );
 
   const linesByOrder = new Map<string, KitchenPassLine[]>();
-  for (const raw of (linesRes.data ?? []) as unknown as (LineWithDish & {
+  const rawLines = (linesRes.data ?? []) as unknown as (LineWithDish & {
     created_at: string;
     course_type?: string | null;
-  })[]) {
+    kitchen_mods_snapshot?: unknown;
+  })[];
+
+  for (const raw of rawLines) {
     const dish = dishFromJoin(raw);
     const courseRaw = raw.course_type;
+    const snapshot = parseKitchenModsSnapshot(
+      (raw as { kitchen_mods_snapshot?: unknown }).kitchen_mods_snapshot
+    );
+    const kitchenLabels = kitchenLabelsFromSnapshot(snapshot);
     const arr = linesByOrder.get(raw.dining_order_id) ?? [];
     arr.push({
       id: raw.id,
@@ -144,6 +156,7 @@ export async function loadKitchenPassQueue(restaurantId: string): Promise<{
       isPrepared: Boolean(raw.is_prepared),
       courseType: isMealCourse(courseRaw) ? courseRaw : null,
       createdAt: raw.created_at,
+      kitchenLabels,
     });
     linesByOrder.set(raw.dining_order_id, arr);
   }

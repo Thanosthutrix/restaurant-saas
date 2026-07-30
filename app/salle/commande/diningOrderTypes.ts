@@ -1,4 +1,5 @@
 import type { DiningDiscountKind } from "@/lib/dining/lineDiscount";
+import type { DiningLineModification } from "@/lib/dining/lineModificationTypes";
 
 export type DiningLineClient = {
   id: string;
@@ -17,4 +18,12 @@ export type DiningLineClient = {
   lineTotalTtc: number;
   discountKind: DiningDiscountKind;
   discountValue: number | null;
+  /** Retraits garniture / changements accompagnement. */
+  modifications: DiningLineModification[];
+  /** Libellés modifs en cours (ticket serveur). */
+  kitchenLabels: string[];
+  /** Modifs en attente de validation serveur pour le pass cuisine. */
+  pendingKitchenMods: boolean;
+  /** Au moins un composant retirable ou accompagnement substituable. */
+  canCustomize: boolean;
 };

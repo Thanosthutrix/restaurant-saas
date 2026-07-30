@@ -7,6 +7,7 @@ import {
   addDishComponent,
   updateDishProductionMode,
   updateDishComponent,
+  updateDishComponentRole,
   deleteDishComponent,
 } from "./actions";
 import { createInventoryItem } from "@/app/inventory/actions";
@@ -18,6 +19,10 @@ import {
   uiSegmentActive,
   uiSegmentIdle,
 } from "@/components/ui/premium";
+import {
+  DISH_COMPONENT_ROLE_LABELS,
+  type DishComponentRole,
+} from "@/lib/dining/lineModificationTypes";
 
 export function DishComponentsBlock({
   dish,
@@ -34,6 +39,7 @@ export function DishComponentsBlock({
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
   const [qtyInputs, setQtyInputs] = useState<Record<string, string>>({});
   const router = useRouter();
 
@@ -117,6 +123,22 @@ export function DishComponentsBlock({
     else setError(added.error);
   }
 
+  async function handleRoleChange(comp: DishComponent, role: DishComponentRole) {
+    const item = itemById.get(comp.inventory_item_id);
+    if (item?.item_type === "prep") return;
+    setError(null);
+    setSavingRoleId(comp.id);
+    const result = await updateDishComponentRole({
+      id: comp.id,
+      restaurantId,
+      dishId: dish.id,
+      componentRole: role,
+    });
+    setSavingRoleId(null);
+    if (result.ok) router.refresh();
+    else setError(result.error);
+  }
+
   async function handleDelete(compId: string) {
     setError(null);
     setDeletingId(compId);
@@ -173,7 +195,9 @@ export function DishComponentsBlock({
               const item = itemById.get(c.inventory_item_id);
               const unit = item?.unit ?? "";
               const qtyDisplay = getQtyDisplay(c);
-              const disabled = savingId === c.id || deletingId === c.id;
+              const disabled = savingId === c.id || deletingId === c.id || savingRoleId === c.id;
+              const isIngredient = item?.item_type === "ingredient";
+              const role = (c.component_role ?? "integrated") as DishComponentRole;
               return (
                 <li
                   key={c.id}
@@ -182,6 +206,23 @@ export function DishComponentsBlock({
                   <span className="w-32 shrink-0 font-semibold text-stone-900 sm:w-40">
                     {item?.name ?? c.inventory_item_id}
                   </span>
+                  {isIngredient && !isResale ? (
+                    <select
+                      className={`min-w-[10rem] ${uiInput} text-xs`}
+                      value={role}
+                      disabled={disabled}
+                      aria-label={`Rôle service ${item?.name ?? c.inventory_item_id}`}
+                      onChange={(e) => void handleRoleChange(c, e.target.value as DishComponentRole)}
+                    >
+                      {(Object.keys(DISH_COMPONENT_ROLE_LABELS) as DishComponentRole[]).map((r) => (
+                        <option key={r} value={r}>
+                          {DISH_COMPONENT_ROLE_LABELS[r]}
+                        </option>
+                      ))}
+                    </select>
+                  ) : item?.item_type === "prep" ? (
+                    <span className="text-xs font-medium text-stone-500">Préparation (recette)</span>
+                  ) : null}
                   <input
                     type="text"
                     inputMode="decimal"
@@ -223,6 +264,10 @@ export function DishComponentsBlock({
         {!isResale ? (
           <div className="border-t border-stone-100 pt-4">
             <p className="mb-2 text-sm font-semibold text-stone-800">Ajouter un composant</p>
+            <p className="mb-2 text-xs text-stone-500">
+              Les ingrédients directs peuvent être marqués « Garniture retirable » ou « Accompagnement »
+              pour la personnalisation au service. Les préparations restent intégrées à la recette.
+            </p>
             <InventoryItemSearchOrCreate
               allItems={allItems}
               excludedIds={alreadyUsed}

@@ -322,6 +322,7 @@ export type DishComponent = {
   dish_id: string;
   inventory_item_id: string;
   qty: number;
+  component_role?: "integrated" | "topping" | "accompaniment";
   created_at?: string;
 };
 
@@ -776,7 +777,7 @@ export async function getDishComponents(
 ): Promise<{ data: DishComponent[] | null; error: Error | null }> {
   const { data, error } = await supabaseServer
     .from("dish_components")
-    .select("id, restaurant_id, dish_id, inventory_item_id, qty, created_at")
+    .select("id, restaurant_id, dish_id, inventory_item_id, qty, component_role, created_at")
     .eq("dish_id", dishId);
 
   if (error) return { data: null, error: new Error(error.message) };

@@ -13,6 +13,8 @@ import {
   setDiningOrderLinePrepared,
   setDiningOrderLineQty,
   settleDiningOrder,
+  validateAllDiningOrderKitchenMods,
+  validateDiningOrderLineKitchenMods,
 } from "@/app/salle/actions";
 import {
   DINING_PAYMENT_LABEL_FR,
@@ -21,6 +23,7 @@ import {
 } from "@/lib/dining/diningPaymentMethods";
 import { ReopenSettledDiningOrderButton } from "@/app/salle/ReopenSettledDiningOrderButton";
 import { DiningLineDiscountModal } from "@/app/salle/DiningLineDiscountModal";
+import { DiningLineCustomizeModal } from "@/app/salle/DiningLineCustomizeModal";
 import { DiningOrderTotalModal } from "@/app/salle/DiningOrderTotalModal";
 import type { DiningLineClient } from "../diningOrderTypes";
 import { DishCatalogTileButton, DishCatalogTiles } from "@/components/dining/DishCatalogTiles";
@@ -30,6 +33,7 @@ import {
   DiningOrderTicketFooterBar,
   DiningOrderTicketLineRow,
   DiningOrderTicketLinesScroll,
+  DiningOrderKitchenModsBanner,
   fmtEur,
 } from "@/components/dining/DiningOrderTicketUi";
 import { DiningCoursePanel } from "@/components/dining/DiningCoursePanel";
@@ -177,6 +181,7 @@ export function DiningOrderClient({
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
+  const [customizeLine, setCustomizeLine] = useState<DiningLineClient | null>(null);
   const [totalModalOpen, setTotalModalOpen] = useState(false);
   const [memoOpen, setMemoOpen] = useState(false);
   const [localLines, setLocalLines] = useState(lines);
@@ -204,6 +209,11 @@ export function DiningOrderClient({
     const n = Object.values(directByCategoryId).reduce((s, arr) => s + arr.length, 0);
     return n + uncategorized.length;
   }, [directByCategoryId, uncategorized]);
+
+  const pendingKitchenModsCount = useMemo(
+    () => localLines.filter((l) => l.pendingKitchenMods).length,
+    [localLines]
+  );
 
   const syncFromServer = () => {
     notifyListStale();
@@ -260,6 +270,30 @@ export function DiningOrderClient({
         setLocalLines(prevLines);
         setError(res.error);
       }
+    });
+  };
+
+  const validateLineKitchenMods = (lineId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const res = await validateDiningOrderLineKitchenMods({ restaurantId, lineId });
+      if (!res.ok || !res.data) {
+        setError(res.ok === false ? res.error : "Validation impossible.");
+        return;
+      }
+      applyTicket(res.data);
+    });
+  };
+
+  const validateAllKitchenMods = () => {
+    setError(null);
+    startTransition(async () => {
+      const res = await validateAllDiningOrderKitchenMods({ restaurantId, orderId });
+      if (!res.ok || !res.data) {
+        setError(res.ok === false ? res.error : "Validation impossible.");
+        return;
+      }
+      applyTicket(res.data);
     });
   };
 
@@ -470,8 +504,10 @@ export function DiningOrderClient({
       </div>
       {!embeddedInModal && !isTableOrder ? (
         <p className={`mt-0.5 text-[10px] ${uiLead}`}>
-          Touchez une ligne pour une remise (%, montant ou offert). Touchez le total pour remise globale,
-          diviser l&apos;addition ou paiement partiel. « Prêt » = plat terminé côté cuisine
+          Touchez une ligne pour une remise (%, montant ou offert). « Modif. » pour retirer une garniture
+          ou changer l&apos;accompagnement, puis « Valider » pour l&apos;envoyer au pass cuisine.
+          Touchez le total pour remise globale, diviser l&apos;addition ou paiement partiel.
+          « Prêt » = plat terminé côté cuisine
           (e-mail client si toutes les lignes sont prêtes et fiche avec e-mail).
         </p>
       ) : null}
@@ -490,6 +526,13 @@ export function DiningOrderClient({
           onError={setError}
         />
       ) : null}
+      {status === "open" && pendingKitchenModsCount > 0 ? (
+        <DiningOrderKitchenModsBanner
+          pendingCount={pendingKitchenModsCount}
+          pending={pending}
+          onValidateAll={validateAllKitchenMods}
+        />
+      ) : null}
       <DiningOrderTicketLinesScroll>
       {localLines.length === 0 ? (
         <DiningOrderTicketEmptyLines message="Ajoutez des plats depuis la carte ci‑dessous." />
@@ -503,6 +546,8 @@ export function DiningOrderClient({
               onAdjust={(id, d) => adjustLine(id, d)}
               onRemove={removeLine}
               onDiscount={setDiscountLine}
+              onCustomize={status === "open" ? setCustomizeLine : undefined}
+              onValidateKitchenMods={status === "open" ? validateLineKitchenMods : undefined}
               onToggleLinePrepared={status === "open" ? toggleLinePrepared : undefined}
             />
           ))}
@@ -633,6 +678,15 @@ export function DiningOrderClient({
         restaurantId={restaurantId}
         line={discountLine}
         onClose={() => setDiscountLine(null)}
+        onApplied={(ticket) => {
+          if (ticket) applyTicket(ticket);
+        }}
+      />
+
+      <DiningLineCustomizeModal
+        restaurantId={restaurantId}
+        line={customizeLine}
+        onClose={() => setCustomizeLine(null)}
         onApplied={(ticket) => {
           if (ticket) applyTicket(ticket);
         }}

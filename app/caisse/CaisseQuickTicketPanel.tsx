@@ -306,6 +306,7 @@ export function CaisseQuickTicketPanel({
           restaurantId={restaurantId}
           orderId={orderId}
           lines={lines}
+          amountPaidTtc={amountPaidTtc}
           pending={pending}
           onTicketApplied={applyTicket}
           onError={setError}

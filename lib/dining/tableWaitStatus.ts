@@ -46,15 +46,16 @@ function buildChannelStatus(params: {
   const allPrepared = sentLines.length > 0 && pendingLines.length === 0;
 
   if (allPrepared) {
+    const blinking = isBlinking(params.notifiedAt, params.ackAt);
     return {
       orderId: params.orderId,
-      active: true,
+      active: blinking,
       waitColor: null,
-      blinking: isBlinking(params.notifiedAt, params.ackAt),
+      blinking,
     };
   }
 
-  const oldestSent = sentLines
+  const oldestSent = pendingLines
     .map((l) => l.sentToKitchenAt!)
     .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]!;
 

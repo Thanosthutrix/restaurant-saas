@@ -492,6 +492,7 @@ export function DiningOrderClient({
           restaurantId={restaurantId}
           orderId={orderId}
           lines={localLines}
+          amountPaidTtc={localPaidTtc}
           pending={pending}
           onTicketApplied={applyTicket}
           onError={setError}

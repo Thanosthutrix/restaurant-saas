@@ -81,6 +81,17 @@ export function optimisticRemoveLine(lines: DiningLineClient[], lineId: string):
   return lines.filter((l) => l.id !== lineId);
 }
 
+/** Marque des lignes comme envoyées (validation serveur optimiste). */
+export function optimisticFireLines(
+  lines: DiningLineClient[],
+  shouldFire: (line: DiningLineClient) => boolean
+): DiningLineClient[] {
+  const now = new Date().toISOString();
+  return lines.map((l) =>
+    shouldFire(l) && !l.sentToKitchenAt ? { ...l, sentToKitchenAt: now } : l
+  );
+}
+
 export function optimisticLinePrepared(
   lines: DiningLineClient[],
   lineId: string,

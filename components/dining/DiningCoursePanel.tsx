@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import {
   fireDiningOrderBar,
@@ -21,12 +21,16 @@ import {
   type DiningCourseSummary,
 } from "@/lib/dining/diningCourseLogic";
 import type { OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
+import { optimisticFireLines, orderTotalFromLines } from "@/lib/dining/optimisticTicketClient";
 import { uiBtnPrimarySm, uiLead } from "@/components/ui/premium";
+
+type FiringBlock = "entrée" | "plat" | "dessert" | "bar" | "kitchenExtras";
 
 type Props = {
   restaurantId: string;
   orderId: string;
   lines: DiningLineClient[];
+  amountPaidTtc: number;
   pending: boolean;
   onTicketApplied: (ticket: OrderTicketSnapshot) => void;
   onError: (message: string) => void;
@@ -65,11 +69,11 @@ function LineDetail({ line }: { line: DiningLineClient }) {
 
 function CourseBlock({
   summary,
-  pending,
+  blockBusy,
   onFire,
 }: {
   summary: DiningCourseSummary;
-  pending: boolean;
+  blockBusy: boolean;
   onFire: (courseType: DiningCourseSummary["courseType"]) => void;
 }) {
   return (
@@ -87,7 +91,7 @@ function CourseBlock({
         ) : summary.canFire ? (
           <button
             type="button"
-            disabled={pending}
+            disabled={blockBusy}
             onClick={() => onFire(summary.courseType)}
             className={`inline-flex items-center gap-1.5 ${uiBtnPrimarySm}`}
           >
@@ -95,7 +99,7 @@ function CourseBlock({
             Valider
           </button>
         ) : (
-          <span className={`text-[10px] ${uiLead}`}>Terminez le service précédent</span>
+          <span className={`text-[10px] ${uiLead}`}>Envoyez le service précédent</span>
         )}
       </div>
       <ul className="space-y-1">
@@ -123,7 +127,7 @@ function ExtraBlock({
   fired,
   allPrepared,
   canFire,
-  pending,
+  blockBusy,
   onFire,
   firedLabel,
   accentClass,
@@ -133,7 +137,7 @@ function ExtraBlock({
   fired: boolean;
   allPrepared: boolean;
   canFire: boolean;
-  pending: boolean;
+  blockBusy: boolean;
   onFire: () => void;
   firedLabel: string;
   accentClass: string;
@@ -155,7 +159,7 @@ function ExtraBlock({
         ) : canFire ? (
           <button
             type="button"
-            disabled={pending}
+            disabled={blockBusy}
             onClick={onFire}
             className={`inline-flex items-center gap-1.5 ${uiBtnPrimarySm}`}
           >
@@ -187,49 +191,95 @@ export function DiningCoursePanel({
   restaurantId,
   orderId,
   lines,
+  amountPaidTtc,
   pending,
   onTicketApplied,
   onError,
 }: Props) {
-  const [firing, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const [firingBlock, setFiringBlock] = useState<FiringBlock | null>(null);
   const summaries = buildMealCourseSummaries(lines);
   const drinks = barLines(lines);
   const kitchenExtras = kitchenExtraLines(lines);
-  const busy = pending || firing;
 
-  function fireCourse(courseType: DiningCourseSummary["courseType"]) {
+  function applyOptimistic(nextLines: DiningLineClient[], amountPaidTtc: number) {
+    onTicketApplied({
+      lines: nextLines,
+      totalTtc: orderTotalFromLines(nextLines),
+      amountPaidTtc,
+      amountDueTtc: Math.max(
+        0,
+        Math.round((orderTotalFromLines(nextLines) - amountPaidTtc) * 100) / 100
+      ),
+    });
+  }
+
+  function runFire(params: {
+    block: FiringBlock;
+    optimistic: DiningLineClient[];
+    rollback: DiningLineClient[];
+    amountPaidTtc: number;
+    request: () => Promise<{ ok: true; data?: OrderTicketSnapshot } | { ok: false; error: string }>;
+    errorMessage: string;
+  }) {
     onError("");
+    setFiringBlock(params.block);
+    applyOptimistic(params.optimistic, params.amountPaidTtc);
     startTransition(async () => {
-      const res = await fireDiningOrderCourse({ restaurantId, orderId, courseType });
+      const res = await params.request();
+      setFiringBlock(null);
       if (!res.ok || !res.data) {
-        onError(res.ok === false ? res.error : "Envoi cuisine impossible.");
+        applyOptimistic(params.rollback, params.amountPaidTtc);
+        onError(res.ok === false ? res.error : params.errorMessage);
         return;
       }
       onTicketApplied(res.data);
+    });
+  }
+
+  function fireCourse(courseType: DiningCourseSummary["courseType"]) {
+    const rollback = lines;
+    const optimistic = optimisticFireLines(
+      lines,
+      (l) => l.courseType === courseType && !l.sentToKitchenAt
+    );
+    runFire({
+      block: courseType,
+      optimistic,
+      rollback,
+      amountPaidTtc,
+      request: () => fireDiningOrderCourse({ restaurantId, orderId, courseType }),
+      errorMessage: "Envoi cuisine impossible.",
     });
   }
 
   function fireBar() {
-    onError("");
-    startTransition(async () => {
-      const res = await fireDiningOrderBar({ restaurantId, orderId });
-      if (!res.ok || !res.data) {
-        onError(res.ok === false ? res.error : "Envoi bar impossible.");
-        return;
-      }
-      onTicketApplied(res.data);
+    const rollback = lines;
+    const optimistic = optimisticFireLines(lines, (l) => l.isBarLine && !l.sentToKitchenAt);
+    runFire({
+      block: "bar",
+      optimistic,
+      rollback,
+      amountPaidTtc,
+      request: () => fireDiningOrderBar({ restaurantId, orderId }),
+      errorMessage: "Envoi bar impossible.",
     });
   }
 
   function fireKitchenExtras() {
-    onError("");
-    startTransition(async () => {
-      const res = await fireDiningOrderKitchenExtras({ restaurantId, orderId });
-      if (!res.ok || !res.data) {
-        onError(res.ok === false ? res.error : "Envoi cuisine impossible.");
-        return;
-      }
-      onTicketApplied(res.data);
+    const extraIds = new Set(kitchenExtraLines(lines).map((l) => l.id));
+    const rollback = lines;
+    const optimistic = optimisticFireLines(
+      lines,
+      (l) => extraIds.has(l.id) && !l.sentToKitchenAt
+    );
+    runFire({
+      block: "kitchenExtras",
+      optimistic,
+      rollback,
+      amountPaidTtc,
+      request: () => fireDiningOrderKitchenExtras({ restaurantId, orderId }),
+      errorMessage: "Envoi cuisine impossible.",
     });
   }
 
@@ -244,7 +294,7 @@ export function DiningCoursePanel({
         <CourseBlock
           key={summary.courseType}
           summary={summary}
-          pending={busy}
+          blockBusy={pending || firingBlock === summary.courseType}
           onFire={fireCourse}
         />
       ))}
@@ -254,7 +304,7 @@ export function DiningCoursePanel({
         fired={isBarLinesFired(lines)}
         allPrepared={isBarLinesAllPrepared(lines)}
         canFire={canFireBarLines(lines)}
-        pending={busy}
+        blockBusy={pending || firingBlock === "bar"}
         onFire={fireBar}
         firedLabel="Au bar"
         accentClass=""
@@ -265,7 +315,7 @@ export function DiningCoursePanel({
         fired={isKitchenExtraLinesFired(lines)}
         allPrepared={isKitchenExtraLinesAllPrepared(lines)}
         canFire={canFireKitchenExtraLines(lines)}
-        pending={busy}
+        blockBusy={pending || firingBlock === "kitchenExtras"}
         onFire={fireKitchenExtras}
         firedLabel="En cuisine"
         accentClass=""

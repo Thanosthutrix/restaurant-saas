@@ -33,7 +33,7 @@ function isCourseAllPrepared(courseLines: DiningLineClient[]): boolean {
   return courseLines.every((l) => l.isPrepared);
 }
 
-/** Prérequis : les services précédents (entrée → plat) sont entièrement prêts. */
+/** Prérequis : les services précédents (entrée → plat) ont été envoyés. */
 export function canFireMealCourse(
   lines: DiningLineClient[],
   course: DiningMealCourse
@@ -46,7 +46,7 @@ export function canFireMealCourse(
     const prevCourse = MEAL_COURSE_ORDER[i]!;
     const prevLines = linesForCourse(lines, prevCourse);
     if (prevLines.length === 0) continue;
-    if (!isCourseAllPrepared(prevLines)) return false;
+    if (!isCourseFired(prevLines)) return false;
   }
   return true;
 }

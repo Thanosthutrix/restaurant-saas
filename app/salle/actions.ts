@@ -40,7 +40,8 @@ import {
   type DiningOrderViewData,
 } from "@/lib/dining/diningOrderViewData";
 import { fetchOrderTicketSnapshot, type OrderTicketSnapshot } from "@/lib/dining/orderTicketSnapshot";
-import { mealCourseFromMenuCategory, type DiningMealCourse } from "@/lib/dining/courseTypes";
+import { categoryPathLabel, listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
+import { resolveMealCourse, type DiningMealCourse } from "@/lib/dining/courseTypes";
 import {
   fireMealCourseForOrder,
   fireBarLinesForOrder,
@@ -158,8 +159,19 @@ export async function addDishToDiningOrder(params: {
 
   if (findErr) return { ok: false, error: findErr.message };
 
-  const dishRes = await getDish(dishId);
-  const courseType = mealCourseFromMenuCategory(dishRes.data?.menu_category);
+  const [dishRes, { data: flatCats }] = await Promise.all([
+    getDish(dishId),
+    listRestaurantCategories(restaurantId),
+  ]);
+  const dish = dishRes.data;
+  const categoryPath =
+    dish?.category_id && flatCats?.length
+      ? categoryPathLabel(dish.category_id, flatCats)
+      : null;
+  const courseType = resolveMealCourse({
+    menuCategory: dish?.menu_category,
+    categoryPath,
+  });
 
   if (line) {
     const { data: existingRow } = await supabaseServer

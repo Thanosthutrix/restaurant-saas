@@ -1,11 +1,13 @@
 import {
   buildCategoryTree,
   buildDirectItemsByCategoryId,
+  categoryPathLabel,
   filterCategoryTreeByIds,
   listRestaurantCategories,
   pruneCategoryTreeWithItems,
   visibleCategoryIdsWithAncestors,
   type CategoryTreeNode,
+  type RestaurantCategory,
 } from "@/lib/catalog/restaurantCategories";
 import type { DiningLineClient } from "@/app/salle/commande/diningOrderTypes";
 import { getCustomerById } from "@/lib/customers/customersDb";
@@ -23,7 +25,7 @@ import {
   sumDiningOrderPayments,
 } from "@/lib/dining/diningDb";
 import { parseDiningDiscountKind } from "@/lib/dining/lineDiscount";
-import { isMealCourse } from "@/lib/dining/courseTypes";
+import { resolveMealCourse } from "@/lib/dining/courseTypes";
 import { diningOrderGuestDisplayName, diningTableTicketTitle } from "@/lib/dining/ticketLabel";
 import {
   listCustomizableComponentsForDish,
@@ -34,7 +36,7 @@ import {
   hasPendingKitchenMods,
   parseKitchenModsSnapshot,
 } from "@/lib/dining/lineModificationLogic";
-import { isBarMenuCategory } from "@/lib/dining/passDestination";
+import { lineGoesToBarPass } from "@/lib/dining/passDestination";
 import { isMenuCategory } from "@/lib/public/menuCategories";
 import { dishFromJoin } from "@/lib/dining/diningDb";
 
@@ -74,17 +76,24 @@ export function mapLinesToClients(
   opts?: {
     modsByLineId?: Map<string, import("@/lib/dining/lineModificationTypes").DiningLineModification[]>;
     customizableDishIds?: Set<string>;
+    flatCategories?: RestaurantCategory[];
   }
 ): DiningLineClient[] {
   const modsByLineId = opts?.modsByLineId;
   const customizableDishIds = opts?.customizableDishIds;
+  const flatCategories = opts?.flatCategories;
 
   return (lines ?? []).map((l) => {
     const d = Array.isArray(l.dishes) ? l.dishes[0] : l.dishes;
     const dishJoin = dishFromJoin(l as Parameters<typeof dishFromJoin>[0]);
     const menuCategoryRaw = dishJoin?.menu_category;
     const menuCategory = isMenuCategory(menuCategoryRaw) ? menuCategoryRaw : null;
-    const isBarLine = isBarMenuCategory(menuCategoryRaw);
+    const categoryId = dishJoin?.category_id ?? null;
+    const categoryPath =
+      categoryId && flatCategories?.length
+        ? categoryPathLabel(categoryId, flatCategories)
+        : null;
+    const isBarLine = lineGoesToBarPass({ menuCategory: menuCategoryRaw, categoryPath });
     const dv = l.discount_value;
     const discountValue = dv == null || dv === "" ? null : Number(dv);
     const modifications = modsByLineId?.get(l.id) ?? [];
@@ -96,15 +105,18 @@ export function mapLinesToClients(
       ((l as { sent_to_kitchen_at?: string | null }).sent_to_kitchen_at as string | null) ?? null;
     const pendingKitchenMods =
       Boolean(sentToKitchenAt) && hasPendingKitchenMods(modifications, snapshot);
+    const courseType = resolveMealCourse({
+      storedCourseType: (l as { course_type?: string }).course_type,
+      menuCategory: menuCategoryRaw,
+      categoryPath,
+    });
     return {
       id: l.id,
       dishId: l.dish_id,
       dishName: d?.name ?? "Plat",
       qty: Number(l.qty),
       isPrepared: Boolean((l as { is_prepared?: boolean }).is_prepared),
-      courseType: isMealCourse((l as { course_type?: string }).course_type)
-        ? (l as { course_type: "entrée" | "plat" | "dessert" }).course_type
-        : null,
+      courseType,
       sentToKitchenAt,
       lineGrossTtc: lineGrossTtc(l),
       lineTotalTtc: lineTtc(l),
@@ -113,6 +125,7 @@ export function mapLinesToClients(
       modifications,
       kitchenLabels,
       menuCategory,
+      categoryPath,
       isBarLine,
       pendingKitchenMods,
       canCustomize: customizableDishIds?.has(l.dish_id) ?? false,
@@ -130,9 +143,10 @@ export async function mapLinesToClientsEnriched(
   const lineIds = raw.map((l) => l.id);
   const dishIds = [...new Set(raw.map((l) => l.dish_id))];
 
-  const [modsByLineId, customizableSets] = await Promise.all([
+  const [modsByLineId, customizableSets, { data: flatCategories }] = await Promise.all([
     listLineModificationsByLineIds(restaurantId, lineIds),
     Promise.all(dishIds.map((dishId) => listCustomizableComponentsForDish(restaurantId, dishId))),
+    listRestaurantCategories(restaurantId),
   ]);
 
   const customizableDishIds = new Set<string>();
@@ -140,7 +154,7 @@ export async function mapLinesToClientsEnriched(
     if ((customizableSets[i]?.length ?? 0) > 0) customizableDishIds.add(dishId);
   });
 
-  return mapLinesToClients(raw, { modsByLineId, customizableDishIds });
+  return mapLinesToClients(raw, { modsByLineId, customizableDishIds, flatCategories: flatCategories ?? [] });
 }
 
 export async function loadDiningOrderCatalogData(

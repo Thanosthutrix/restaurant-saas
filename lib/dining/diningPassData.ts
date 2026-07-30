@@ -9,12 +9,13 @@ import {
   diningOrderGuestDisplayName,
   diningTableTicketTitle,
 } from "./ticketLabel";
-import { isMealCourse, mealCourseLabel, type DiningMealCourse } from "./courseTypes";
+import { mealCourseLabel, resolveMealCourse, type DiningMealCourse } from "./courseTypes";
 import { supabaseServer } from "@/lib/supabaseServer";
 import {
   kitchenLabelsFromSnapshot,
   parseKitchenModsSnapshot,
 } from "./lineModificationLogic";
+import { categoryPathLabel, listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
 import { lineGoesToBarPass, lineGoesToKitchenPass } from "./passDestination";
 
 export type DiningPassLine = {
@@ -100,11 +101,12 @@ function groupLinesByCourse(lines: DiningPassLine[], destination: DiningPassDest
 function lineMatchesDestination(
   destination: DiningPassDestination,
   courseType: string | null | undefined,
-  menuCategory: string | null | undefined
+  menuCategory: string | null | undefined,
+  categoryPath: string | null | undefined
 ): boolean {
   return destination === "bar"
-    ? lineGoesToBarPass({ courseType, menuCategory })
-    : lineGoesToKitchenPass({ courseType, menuCategory });
+    ? lineGoesToBarPass({ courseType, menuCategory, categoryPath })
+    : lineGoesToKitchenPass({ courseType, menuCategory, categoryPath });
 }
 
 /** File d'attente pass cuisine ou pass bar (lignes envoyées, non prêtes). */
@@ -114,6 +116,8 @@ export async function loadDiningPassQueue(
 ): Promise<{ data: DiningPassQueue; error: Error | null }> {
   const { data: openBundle, error: oErr } = await listOpenDiningOrdersWithCustomerNames(restaurantId);
   if (oErr) return { data: { tickets: [], pendingLineCount: 0 }, error: oErr };
+
+  const { data: flatCategories } = await listRestaurantCategories(restaurantId);
 
   const orders = openBundle.orders;
   if (orders.length === 0) {
@@ -136,7 +140,7 @@ export async function loadDiningPassQueue(
     supabaseServer
       .from("dining_order_lines")
       .select(
-        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, created_at, kitchen_mods_snapshot, dishes(name, menu_category, selling_price_ttc, selling_vat_rate_pct)"
+        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, created_at, kitchen_mods_snapshot, dishes(name, menu_category, category_id, selling_price_ttc, selling_vat_rate_pct)"
       )
       .eq("restaurant_id", restaurantId)
       .in("dining_order_id", orderIds)
@@ -167,8 +171,18 @@ export async function loadDiningPassQueue(
     const dish = dishFromJoin(raw);
     const courseRaw = raw.course_type;
     const menuCategory = dish?.menu_category ?? null;
+    const categoryPath =
+      dish?.category_id && flatCategories?.length
+        ? categoryPathLabel(dish.category_id, flatCategories)
+        : null;
 
-    if (!lineMatchesDestination(destination, courseRaw, menuCategory)) continue;
+    const courseType = resolveMealCourse({
+      storedCourseType: courseRaw,
+      menuCategory,
+      categoryPath,
+    });
+
+    if (!lineMatchesDestination(destination, courseType, menuCategory, categoryPath)) continue;
 
     const snapshot = parseKitchenModsSnapshot(
       (raw as { kitchen_mods_snapshot?: unknown }).kitchen_mods_snapshot
@@ -180,7 +194,7 @@ export async function loadDiningPassQueue(
       dishName: dish?.name ?? "Article",
       qty: Number(raw.qty),
       isPrepared: Boolean(raw.is_prepared),
-      courseType: isMealCourse(courseRaw) ? courseRaw : null,
+      courseType,
       createdAt: raw.created_at,
       kitchenLabels,
     });

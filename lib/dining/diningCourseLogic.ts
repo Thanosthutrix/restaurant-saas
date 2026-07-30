@@ -74,7 +74,7 @@ export function kitchenExtraLines(lines: DiningLineClient[]): DiningLineClient[]
     (l) =>
       !l.isBarLine &&
       (l.courseType == null || !isMealCourse(l.courseType)) &&
-      isKitchenExtraMenuCategory(l.menuCategory)
+      isKitchenExtraMenuCategory(l.menuCategory, l.categoryPath)
   );
 }
 

@@ -26,6 +26,8 @@ export type DiningLineClient = {
   kitchenLabels: string[];
   /** Catégorie carte (boisson, vin, plat…). */
   menuCategory: MenuCategory | null;
+  /** Chemin rubrique carte (ex. Boissons › Cocktails). */
+  categoryPath: string | null;
   /** Ligne routée vers le pass bar. */
   isBarLine: boolean;
   /** Modifs en attente de validation serveur pour le pass cuisine. */

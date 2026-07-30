@@ -50,6 +50,7 @@ export function optimisticAddDishLine(
       kitchenLabels: [],
       pendingKitchenMods: false,
       menuCategory: null,
+      categoryPath: null,
       isBarLine: false,
       canCustomize: false,
     },

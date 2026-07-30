@@ -331,7 +331,7 @@ export async function listOpenOrdersForCaisse(
     supabaseServer
       .from("dining_order_lines")
       .select(
-        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, kitchen_mods_snapshot, dishes(name, menu_category, selling_price_ttc, selling_vat_rate_pct)"
+        "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, kitchen_mods_snapshot, dishes(name, menu_category, category_id, selling_price_ttc, selling_vat_rate_pct)"
       )
       .eq("restaurant_id", restaurantId)
       .in("dining_order_id", orderIds)
@@ -420,6 +420,7 @@ export async function getDiningOrder(
 type DishJoinRow = {
   name: string;
   menu_category?: string | null;
+  category_id?: string | null;
   selling_price_ttc: unknown;
   selling_vat_rate_pct: unknown;
 };
@@ -443,7 +444,7 @@ export async function getDiningOrderLines(
   const { data, error } = await supabaseServer
     .from("dining_order_lines")
     .select(
-      "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, kitchen_mods_snapshot, dishes(name, menu_category, selling_price_ttc, selling_vat_rate_pct)"
+      "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, kitchen_mods_snapshot, dishes(name, menu_category, category_id, selling_price_ttc, selling_vat_rate_pct)"
     )
     .eq("dining_order_id", orderId)
     .eq("restaurant_id", restaurantId)
@@ -461,7 +462,7 @@ export async function getDiningOrderLineById(
   const { data, error } = await supabaseServer
     .from("dining_order_lines")
     .select(
-      "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, kitchen_mods_snapshot, dishes(name, menu_category, selling_price_ttc, selling_vat_rate_pct)"
+      "id, dining_order_id, dish_id, qty, is_prepared, course_type, sent_to_kitchen_at, discount_kind, discount_value, kitchen_mods_snapshot, dishes(name, menu_category, category_id, selling_price_ttc, selling_vat_rate_pct)"
     )
     .eq("id", lineId)
     .eq("restaurant_id", restaurantId)

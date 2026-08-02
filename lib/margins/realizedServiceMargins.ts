@@ -1,11 +1,30 @@
 /**
  * Marge réalisée par service : CA (ticket ou prix carte) vs coût matière FIFO
  * (allocations sur mouvements de consommation `Service {id}`).
+ *
+ * À défaut de lots valorisés — typiquement quand les factures d'achat ne sont pas
+ * encore saisies — le coût théorique des recettes prend le relais, et la ligne est
+ * signalée comme estimée plutôt que d'afficher une marge de 100 %.
  */
 
 import { supabaseServer } from "@/lib/supabaseServer";
+import { computeDishFoodCostHt } from "@/lib/margins/dishMarginAnalysis";
 import { tryParseServiceIdFromConsumptionLabel } from "@/lib/stock/fifo";
 import { roundMoney } from "@/lib/stock/purchasePriceHistory";
+
+/**
+ * Origine du coût matière retenu pour la marge.
+ * - `invoiced` : coût réel des lots consommés (réceptions valorisées).
+ * - `estimated` : aucun lot valorisé, on retombe sur le coût théorique des recettes.
+ * - `mixed` : une partie seulement des sorties était adossée à un lot valorisé.
+ */
+export type MarginCostBasis = "invoiced" | "estimated" | "mixed";
+
+export const MARGIN_COST_BASIS_LABEL: Record<MarginCostBasis, string> = {
+  invoiced: "Coût réel (factures)",
+  estimated: "Estimation (sans facture)",
+  mixed: "Partiellement estimé",
+};
 
 export type RealizedServiceMarginRow = {
   serviceId: string;
@@ -17,6 +36,11 @@ export type RealizedServiceMarginRow = {
   revenueNote: string;
   fifoCostHt: number;
   fifoHasUnknownCost: boolean;
+  /** Coût matière finalement retenu (réel, estimé, ou les deux). */
+  costHt: number;
+  costBasis: MarginCostBasis;
+  /** Part estimée du coût, pour expliquer un `mixed`. */
+  estimatedCostHt: number;
   marginHt: number | null;
   marginPct: number | null;
 };
@@ -114,6 +138,52 @@ type SaleRow = {
   dishes: { selling_price_ht: unknown } | null;
 };
 
+/**
+ * Coût matière **théorique** de chaque service : recettes dépliées × quantités vendues.
+ * Sert de repli quand aucune réception valorisée n'adosse la consommation, pour ne
+ * pas laisser croire à une marge de 100 % faute de factures saisies.
+ */
+export async function theoreticalCostByServiceId(
+  restaurantId: string,
+  serviceIds: string[]
+): Promise<Map<string, { cost: number; complete: boolean }>> {
+  const out = new Map<string, { cost: number; complete: boolean }>();
+  for (const id of serviceIds) out.set(id, { cost: 0, complete: true });
+  if (serviceIds.length === 0) return out;
+
+  const { data: sales, error } = await supabaseServer
+    .from("service_sales")
+    .select("service_id, dish_id, qty")
+    .eq("restaurant_id", restaurantId)
+    .in("service_id", serviceIds);
+
+  if (error || !sales?.length) return out;
+
+  const rows = sales as unknown as { service_id: string; dish_id: string; qty: unknown }[];
+
+  // Un plat revient sur de nombreux services : on ne calcule sa recette qu'une fois.
+  const unitCostByDish = new Map<string, { unit: number; complete: boolean }>();
+  for (const dishId of new Set(rows.map((r) => r.dish_id))) {
+    const res = await computeDishFoodCostHt(restaurantId, dishId);
+    unitCostByDish.set(dishId, { unit: res.foodCostHt, complete: res.costIsComplete });
+  }
+
+  for (const r of rows) {
+    const qty = Number(r.qty);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+    const bucket = out.get(r.service_id);
+    if (!bucket) continue;
+    const fc = unitCostByDish.get(r.dish_id);
+    if (!fc || !fc.complete || fc.unit <= 0) {
+      bucket.complete = false;
+      if (!fc || fc.unit <= 0) continue;
+    }
+    bucket.cost = roundMoney(bucket.cost + fc.unit * qty);
+  }
+
+  return out;
+}
+
 async function revenueByServiceId(
   restaurantId: string,
   serviceIds: string[]
@@ -196,9 +266,10 @@ export async function getRealizedMarginRowsForServices(
   services: { id: string; service_date: string; service_type: string }[]
 ): Promise<RealizedServiceMarginRow[]> {
   const ids = services.map((s) => s.id);
-  const [fifoMap, revMap] = await Promise.all([
+  const [fifoMap, revMap, theoMap] = await Promise.all([
     fifoCostByServiceId(restaurantId, ids),
     revenueByServiceId(restaurantId, ids),
+    theoreticalCostByServiceId(restaurantId, ids),
   ]);
 
   const rows: RealizedServiceMarginRow[] = [];
@@ -206,16 +277,35 @@ export async function getRealizedMarginRowsForServices(
   for (const s of services) {
     const fifo = fifoMap.get(s.id) ?? { cost: 0, hasUnknown: false };
     const rev = revMap.get(s.id) ?? { total: null, complete: false, note: "—" };
+    const theo = theoMap.get(s.id) ?? { cost: 0, complete: false };
 
     const revenueHt = rev.total != null && rev.total > 0 ? rev.total : null;
 
-    const canMargin =
-      rev.complete && revenueHt != null && revenueHt > 0 && !fifo.hasUnknown;
+    // Coût retenu : le réel quand les lots sont valorisés, sinon le théorique.
+    // Sans ce repli, un restaurant qui n'a pas encore saisi ses factures verrait
+    // une marge de 100 %, ce qui est plus trompeur qu'une estimation assumée.
+    let costHt = fifo.cost;
+    let estimatedCostHt = 0;
+    let costBasis: MarginCostBasis = "invoiced";
+
+    if (fifo.cost <= 0 && theo.cost > 0) {
+      costHt = theo.cost;
+      estimatedCostHt = theo.cost;
+      costBasis = "estimated";
+    } else if (fifo.hasUnknown && theo.cost > fifo.cost) {
+      // Une partie des sorties n'avait pas de coût lot : on complète avec le théorique.
+      estimatedCostHt = roundMoney(theo.cost - fifo.cost);
+      costHt = theo.cost;
+      costBasis = "mixed";
+    }
+
+    // La marge reste calculable même sur une base estimée : c'est le sens de la demande.
+    const canMargin = rev.complete && revenueHt != null && revenueHt > 0 && costHt > 0;
 
     let marginHt: number | null = null;
     let marginPct: number | null = null;
-    if (canMargin) {
-      marginHt = roundMoney(revenueHt - fifo.cost);
+    if (canMargin && revenueHt != null) {
+      marginHt = roundMoney(revenueHt - costHt);
       marginPct = revenueHt > 0 ? roundPct((marginHt / revenueHt) * 100) : null;
     }
 
@@ -228,6 +318,9 @@ export async function getRealizedMarginRowsForServices(
       revenueNote: rev.note,
       fifoCostHt: fifo.cost,
       fifoHasUnknownCost: fifo.hasUnknown,
+      costHt,
+      costBasis,
+      estimatedCostHt,
       marginHt,
       marginPct,
     });

@@ -17,6 +17,8 @@ import {
   DishLeaderboard,
   type LeaderItem,
   MarginDonut,
+  CostBasisBadge,
+  EstimatedCostNotice,
   RateCell,
   RateChip,
   SplitBar,
@@ -94,9 +96,12 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
   let sumMargin = 0;
   let sumRevForMargin = 0;
   let partialServices = 0;
+  /** Services dont le coût matière repose, au moins en partie, sur une estimation. */
+  let estimatedServices = 0;
   for (const r of realizedRows) {
     if (r.revenueHt != null) sumRev += r.revenueHt;
-    sumCost += r.fifoCostHt;
+    sumCost += r.costHt;
+    if (r.costBasis !== "invoiced") estimatedServices++;
     if (r.marginHt != null && r.revenueHt != null) {
       sumMargin += r.marginHt;
       sumRevForMargin += r.revenueHt;
@@ -111,9 +116,11 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
   let dSumFifo = 0;
   let dSumMargin = 0;
   let dRevForMargin = 0;
+  let estimatedDishes = 0;
   for (const r of dishMarginRows) {
     if (r.revenueHt != null) dSumRev += r.revenueHt;
-    dSumFifo += r.allocatedFifoCostHt;
+    dSumFifo += r.costHt;
+    if (r.costBasis !== "invoiced") estimatedDishes++;
     if (r.marginHt != null && r.revenueHt != null) {
       dSumMargin += r.marginHt;
       dRevForMargin += r.revenueHt;
@@ -240,12 +247,15 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
                 <ChevronDown className="h-4 w-4 text-stone-400 transition group-open:rotate-180" aria-hidden />
               </summary>
               <div className="overflow-x-auto border-t border-stone-100">
+                <div className="px-4 pt-3">
+                  <EstimatedCostNotice count={estimatedServices} total={realizedRows.length} />
+                </div>
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-stone-100 bg-stone-50/60 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
                       <th className="px-3 py-2.5">Service</th>
                       <th className="px-3 py-2.5 text-right">CA HT</th>
-                      <th className="px-3 py-2.5 text-right">Coût FIFO HT</th>
+                      <th className="px-3 py-2.5 text-right">Coût matière HT</th>
                       <th className="px-3 py-2.5 text-right">Marge HT</th>
                       <th className="px-3 py-2.5 text-right">Taux</th>
                     </tr>
@@ -258,8 +268,15 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
                             {formatServiceDate(r.serviceDate)} — {formatServiceType(r.serviceType)}
                           </Link>
                           <p className="mt-1 text-xs text-stone-500">{r.revenueNote}</p>
-                          {r.fifoHasUnknownCost && (
-                            <p className="mt-1 text-xs text-amber-700">Coût FIFO partiel (sorties sans coût lot).</p>
+                          {r.costBasis === "estimated" && (
+                            <p className="mt-1 text-xs text-sky-700">
+                              Coût estimé d&apos;après les recettes (aucune facture rattachée).
+                            </p>
+                          )}
+                          {r.costBasis === "mixed" && (
+                            <p className="mt-1 text-xs text-amber-700">
+                              Coût réel {fmtEur(r.fifoCostHt)} complété par {fmtEur(r.estimatedCostHt)} estimés.
+                            </p>
                           )}
                           {!r.revenueComplete && (
                             <p className="mt-1 text-xs text-amber-700">Complétez les prix TTC (et TVA).</p>
@@ -269,8 +286,10 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
                           {fmtEur(r.revenueHt)}
                         </td>
                         <td className="px-3 py-2.5 text-right align-top tabular-nums text-stone-800">
-                          {fmtEur(r.fifoCostHt)}
-                          {r.fifoHasUnknownCost ? " *" : ""}
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span>{fmtEur(r.costHt)}</span>
+                            <CostBasisBadge basis={r.costBasis} />
+                          </div>
                         </td>
                         <td className="px-3 py-2.5 text-right align-top tabular-nums text-stone-800">
                           {fmtEur(r.marginHt)}
@@ -297,8 +316,8 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
                 </table>
               </div>
               <p className="border-t border-stone-100 px-4 py-2 text-xs text-stone-400">
-                * Coût FIFO minimal connu ; la marge n’est pas calculée tant qu’une fraction du coût est inconnue. Le
-                taux global ne porte que sur les services entièrement valorisés.
+                Le coût matière retenu est celui des lots réellement consommés lorsque les achats sont
+                valorisés ; à défaut, il est estimé d’après les recettes et signalé comme tel.
               </p>
             </details>
 
@@ -310,12 +329,15 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
                   <ChevronDown className="h-4 w-4 text-stone-400 transition group-open:rotate-180" aria-hidden />
                 </summary>
                 <div className="overflow-x-auto border-t border-stone-100">
+                  <div className="px-4 pt-3">
+                    <EstimatedCostNotice count={estimatedDishes} total={dishMarginRows.length} />
+                  </div>
                   <table className="w-full min-w-[720px] text-left text-sm">
                     <thead>
                       <tr className="border-b border-stone-100 bg-stone-50/60 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
                         <th className="px-3 py-2.5">Plat</th>
                         <th className="px-3 py-2.5 text-right">CA HT</th>
-                        <th className="px-3 py-2.5 text-right">Coût FIFO alloué</th>
+                        <th className="px-3 py-2.5 text-right">Coût matière HT</th>
                         <th className="px-3 py-2.5 text-right">Marge HT</th>
                         <th className="px-3 py-2.5 text-right">Taux</th>
                       </tr>
@@ -327,13 +349,24 @@ export default async function MarginsPage({ searchParams }: { searchParams: Prom
                             <Link href={`/dishes/${r.dishId}`} className={uiTableLink}>
                               {r.dishName}
                             </Link>
-                            {r.note && <p className="mt-1 text-xs text-amber-700">{r.note}</p>}
+                            {r.note && (
+                              <p
+                                className={`mt-1 text-xs ${
+                                  r.costBasis === "estimated" ? "text-sky-700" : "text-amber-700"
+                                }`}
+                              >
+                                {r.note}
+                              </p>
+                            )}
                           </td>
                           <td className="px-3 py-2.5 text-right align-top tabular-nums text-stone-800">
                             {fmtEur(r.revenueHt)}
                           </td>
                           <td className="px-3 py-2.5 text-right align-top tabular-nums text-stone-800">
-                            {fmtEur(r.allocatedFifoCostHt)}
+                            <div className="flex items-center justify-end gap-1.5">
+                              <span>{fmtEur(r.costHt)}</span>
+                              <CostBasisBadge basis={r.costBasis} />
+                            </div>
                           </td>
                           <td className="px-3 py-2.5 text-right align-top tabular-nums text-stone-800">
                             {fmtEur(r.marginHt)}

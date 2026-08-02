@@ -85,9 +85,14 @@ export type PocketReport = {
   /** Mois (YYYY-MM) dont le CA vient d'un relevé importé. */
   importedMonths: string[];
 
-  /** Consommation FIFO de la période (toujours calculée, pour le ratio). */
+  /** Consommation matière de la période (toujours calculée, pour le ratio). */
   fifoCostHt: number;
   foodCostHasUnknown: boolean;
+  /**
+   * Part du coût matière estimée d'après les recettes, faute de facture d'achat
+   * rattachée aux ventes. Un coût nul afficherait un résultat trop flatteur.
+   */
+  estimatedFoodCostHt: number;
 
   laborCost: number;
   laborLines: PocketStaffLine[];
@@ -429,15 +434,21 @@ export async function buildPocketReport(
   let revenueHt = 0;
   let revenueIncomplete = false;
   let fifoCostHt = 0;
+  let estimatedFoodCostHt = 0;
   let foodCostHasUnknown = false;
   for (const r of marginRows) {
     if (r.revenueHt != null) revenueHt += r.revenueHt;
     if (!r.revenueComplete || r.revenueHt == null) revenueIncomplete = true;
-    fifoCostHt += r.fifoCostHt;
+    // On retient le coût réellement constaté, complété par l'estimation issue des
+    // recettes quand aucune facture n'adosse la consommation : sinon les matières
+    // pèsent 0 € et le résultat affiché est très surévalué.
+    fifoCostHt += r.costHt;
+    estimatedFoodCostHt += r.estimatedCostHt;
     if (r.fifoHasUnknownCost) foodCostHasUnknown = true;
   }
   revenueHt = round2(revenueHt);
   fifoCostHt = round2(fifoCostHt);
+  estimatedFoodCostHt = round2(estimatedFoodCostHt);
 
   // ── CA importé (relevés mensuels analysés par IA) ─────────────────────────
   // Les mois de la période SANS services saisis dans l'app sont complétés par
@@ -652,6 +663,7 @@ export async function buildPocketReport(
     importedMonths,
     fifoCostHt,
     foodCostHasUnknown,
+    estimatedFoodCostHt,
     laborCost: labor.total,
     laborLines: labor.lines,
     staffMissingRate: labor.missing,

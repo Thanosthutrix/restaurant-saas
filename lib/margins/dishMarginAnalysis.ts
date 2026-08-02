@@ -5,7 +5,11 @@
 
 import { supabaseServer } from "@/lib/supabaseServer";
 import { explodeDishComponents, explodePrepComponents, type ExplodedItem } from "@/lib/recipes/explodeDishComponents";
-import { getLastKnownPurchaseUnitCostByItemIds, roundMoney } from "@/lib/stock/purchasePriceHistory";
+import {
+  getLastKnownPurchaseUnitCostByItemIds,
+  roundMoney,
+  roundReferenceUnitCostHt,
+} from "@/lib/stock/purchasePriceHistory";
 import { normalizeVatRatePct, sellingPriceHtFromTtc } from "@/lib/tax/frenchSellingVat";
 import { toNumber } from "@/lib/utils/safeNumeric";
 
@@ -26,7 +30,10 @@ async function getUnitCostsForMargin(restaurantId: string, itemIds: string[]): P
     const id = (row as { id: string }).id;
     const raw = (row as { reference_purchase_unit_cost_ht: unknown }).reference_purchase_unit_cost_ht;
     const n = raw == null ? NaN : Number(raw);
-    if (Number.isFinite(n) && n > 0) costMap.set(id, roundMoney(n));
+    // Prix de référence exprimé *par unité de stock* : on garde la précision au
+    // millionième, sinon les ingrédients suivis au gramme tombent à 0 € et la
+    // marge du plat affiche 100 %.
+    if (Number.isFinite(n) && n > 0) costMap.set(id, roundReferenceUnitCostHt(n));
   }
   return costMap;
 }
@@ -63,16 +70,18 @@ async function computeFoodCostFromExploded(
 
   for (const e of exploded) {
     const uc = costs.get(e.inventoryItemId) ?? null;
-    const lineCost = uc != null ? roundMoney(e.qty * uc) : null;
+    const exactLineCost = uc != null ? e.qty * uc : null;
     if (uc == null) complete = false;
-    else sum += lineCost!;
+    // On cumule la valeur exacte : arrondir chaque ligne au centime avant de
+    // sommer efface les composants qui coûtent moins d'un centime (sel, épices).
+    else sum += exactLineCost!;
     breakdown.push({
       inventoryItemId: e.inventoryItemId,
       name: e.name,
       unit: e.unit,
       qty: e.qty,
       unitCostHt: uc,
-      lineCostHt: lineCost,
+      lineCostHt: exactLineCost != null ? roundMoney(exactLineCost) : null,
     });
   }
 
@@ -158,16 +167,18 @@ function computeFoodCostFromExplodedWithCosts(
   const breakdown: DishFoodCostBreakdownLine[] = [];
   for (const e of exploded) {
     const uc = costs.get(e.inventoryItemId) ?? null;
-    const lineCost = uc != null ? roundMoney(e.qty * uc) : null;
+    const exactLineCost = uc != null ? e.qty * uc : null;
     if (uc == null) complete = false;
-    else sum += lineCost!;
+    // On cumule la valeur exacte : arrondir chaque ligne au centime avant de
+    // sommer efface les composants qui coûtent moins d'un centime (sel, épices).
+    else sum += exactLineCost!;
     breakdown.push({
       inventoryItemId: e.inventoryItemId,
       name: e.name,
       unit: e.unit,
       qty: e.qty,
       unitCostHt: uc,
-      lineCostHt: lineCost,
+      lineCostHt: exactLineCost != null ? roundMoney(exactLineCost) : null,
     });
   }
 

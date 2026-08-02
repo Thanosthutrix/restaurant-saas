@@ -51,7 +51,9 @@ export async function getLastKnownPurchaseUnitCostByItemIds(
     const id = (row as { inventory_item_id: string }).inventory_item_id;
     if (map.has(id)) continue;
     const c = Number((row as { unit_cost: unknown }).unit_cost);
-    if (Number.isFinite(c) && c > 0) map.set(id, roundMoney(c));
+    // Coût *par unité de stock* : arrondir au centime ramènerait à 0 € tout
+    // ingrédient suivi au gramme ou au millilitre (0,0011 €/g → 0,00 €).
+    if (Number.isFinite(c) && c > 0) map.set(id, roundReferenceUnitCostHt(c));
   }
   return map;
 }
@@ -89,7 +91,8 @@ export async function getLastKnownPurchaseUnitCost(
   if (error) return { unitCost: null, error: new Error(error.message) };
   if (!data) return { unitCost: null, error: null };
   const n = Number((data as { unit_cost: unknown }).unit_cost);
-  return { unitCost: Number.isFinite(n) && n > 0 ? roundMoney(n) : null, error: null };
+  // Idem : coût par unité de stock, conservé au millionième.
+  return { unitCost: Number.isFinite(n) && n > 0 ? roundReferenceUnitCostHt(n) : null, error: null };
 }
 
 export type PurchasePriceStats = {

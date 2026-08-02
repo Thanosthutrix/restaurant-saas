@@ -6,6 +6,21 @@ function formatEur(n: number) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
 }
 
+/**
+ * Coût d'une unité de stock : au gramme ou au millilitre, l'affichage au centime
+ * donnerait « 0,00 € » pour la plupart des ingrédients. On étend les décimales
+ * pour les très petits montants, sans alourdir l'affichage des articles à l'unité.
+ */
+function formatUnitCost(n: number) {
+  const decimals = n < 0.01 ? 5 : n < 1 ? 4 : 2;
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: decimals,
+  }).format(n);
+}
+
 export function RecipeFoodCostSection({
   title,
   footnote,
@@ -61,7 +76,7 @@ export function RecipeFoodCostSection({
                     {row.qty} {row.unit}
                   </td>
                   <td className="py-2 pr-2 tabular-nums text-stone-700">
-                    {row.unitCostHt != null ? formatEur(row.unitCostHt) : "—"}
+                    {row.unitCostHt != null ? formatUnitCost(row.unitCostHt) : "—"}
                   </td>
                   <td className="py-2 tabular-nums text-stone-900">
                     {row.lineCostHt != null ? formatEur(row.lineCostHt) : "—"}

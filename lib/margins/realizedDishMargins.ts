@@ -5,7 +5,7 @@
 
 import { supabaseServer } from "@/lib/supabaseServer";
 import { computeDishFoodCostHt } from "@/lib/margins/dishMarginAnalysis";
-import { fifoCostByServiceId } from "@/lib/margins/realizedServiceMargins";
+import { fifoCostByServiceId, type MarginCostBasis } from "@/lib/margins/realizedServiceMargins";
 import { roundMoney } from "@/lib/stock/purchasePriceHistory";
 
 const EPS = 1e-9;
@@ -19,6 +19,11 @@ export type RealizedDishMarginRow = {
   allocatedFifoCostHt: number;
   /** Au moins un service source avait du volume FIFO sans coût connu. */
   affectedByUnknownFifo: boolean;
+  /** Coût matière retenu pour la marge : réel, estimé, ou mélange des deux. */
+  costHt: number;
+  costBasis: MarginCostBasis;
+  /** Part du coût provenant du théorique faute de lot valorisé. */
+  estimatedCostHt: number;
   marginHt: number | null;
   marginPct: number | null;
   note: string | null;
@@ -97,6 +102,12 @@ export async function getRealizedMarginRowsByDish(
     fifoAllocated: number;
     unknownFifo: boolean;
     theoIncomplete: boolean;
+    /** Coût théorique des portions vendues sur des services SANS lot valorisé. */
+    theoCostWithoutFifo: number;
+    /** Le plat a été vendu sur au moins un service sans aucun lot valorisé. */
+    anyServiceWithoutFifo: boolean;
+    /** …et sur au moins un service avec un coût réel. */
+    anyServiceWithFifo: boolean;
   };
   const accByDish = new Map<string, Acc>();
 
@@ -110,6 +121,9 @@ export async function getRealizedMarginRowsByDish(
         fifoAllocated: 0,
         unknownFifo: false,
         theoIncomplete: false,
+        theoCostWithoutFifo: 0,
+        anyServiceWithoutFifo: false,
+        anyServiceWithFifo: false,
       };
       accByDish.set(dishId, a);
     }
@@ -132,6 +146,8 @@ export async function getRealizedMarginRowsByDish(
       /** Poids pour ventiler le FIFO (coût théorique portion × qté, sinon CA, sinon qté). */
       allocWeight: number;
       theoOk: boolean;
+      /** Coût théorique de la ligne (coût portion × quantité vendue). */
+      theoCost: number;
     };
 
     const metas: RowMeta[] = [];
@@ -164,18 +180,22 @@ export async function getRealizedMarginRowsByDish(
         revOk,
         allocWeight,
         theoOk,
+        theoCost: theoOk ? fc.unit * qty : 0,
       });
     }
 
     if (metas.length === 0) continue;
 
     if (fifoTotal <= EPS) {
+      // Aucun lot valorisé sur ce service : la marge s'appuiera sur le théorique.
       for (const m of metas) {
         const a = ensureAcc(m.dishId, m.dishName);
         a.dishName = m.dishName;
         if (m.revOk && m.rev != null) a.revenueSum = roundMoney(a.revenueSum + m.rev);
         if (!m.revOk) a.revenueComplete = false;
         if (!m.theoOk) a.theoIncomplete = true;
+        a.theoCostWithoutFifo = roundMoney(a.theoCostWithoutFifo + m.theoCost);
+        a.anyServiceWithoutFifo = true;
         if (fifo.hasUnknown) a.unknownFifo = true;
       }
       continue;
@@ -190,6 +210,7 @@ export async function getRealizedMarginRowsByDish(
         if (!m.revOk) a.revenueComplete = false;
         if (!m.theoOk) a.theoIncomplete = true;
         a.fifoAllocated = roundMoney(a.fifoAllocated + alloc);
+        a.anyServiceWithFifo = true;
         if (fifo.hasUnknown) a.unknownFifo = true;
       }
       continue;
@@ -205,6 +226,7 @@ export async function getRealizedMarginRowsByDish(
       if (!m.revOk) a.revenueComplete = false;
       a.theoIncomplete = true;
       a.fifoAllocated = roundMoney(a.fifoAllocated + per);
+      a.anyServiceWithFifo = true;
       if (fifo.hasUnknown) a.unknownFifo = true;
     }
   }
@@ -213,22 +235,41 @@ export async function getRealizedMarginRowsByDish(
 
   for (const [dishId, a] of accByDish) {
     const revenueHt = a.revenueSum > EPS ? a.revenueSum : null;
+
+    // Choix de la base de coût. Sans lot valorisé, le coût réel vaut 0 et la
+    // marge afficherait 100 % : on lui préfère le coût théorique, signalé comme
+    // une estimation tant que les factures d'achat ne sont pas saisies.
+    // Le coût de la période additionne le réel constaté (services valorisés) et
+    // l'estimation issue des recettes (services sans facture) : substituer l'un à
+    // l'autre fausserait le total dès qu'une partie seulement est facturée.
+    const estimatedCostHt = roundMoney(a.theoCostWithoutFifo);
+    const costHt = roundMoney(a.fifoAllocated + estimatedCostHt);
+
+    const costBasis: MarginCostBasis =
+      estimatedCostHt <= EPS
+        ? "invoiced"
+        : a.fifoAllocated <= EPS
+          ? "estimated"
+          : "mixed";
+
     const canMargin =
-      a.revenueComplete && revenueHt != null && revenueHt > EPS && !a.unknownFifo;
+      a.revenueComplete && revenueHt != null && revenueHt > EPS && costHt > EPS;
 
     let marginHt: number | null = null;
     let marginPct: number | null = null;
     if (canMargin && revenueHt != null) {
-      marginHt = roundMoney(revenueHt - a.fifoAllocated);
+      marginHt = roundMoney(revenueHt - costHt);
       marginPct = revenueHt > 0 ? roundPct((marginHt / revenueHt) * 100) : null;
     }
 
     const parts: string[] = [];
-    if (a.unknownFifo) {
-      parts.push("FIFO partiel sur au moins un service (coût lot inconnu) — marge non affichée");
+    if (costBasis === "estimated") {
+      parts.push("estimation d'après les recettes : aucune facture d'achat rattachée aux ventes");
+    } else if (costBasis === "mixed") {
+      parts.push("coût partiellement estimé : certaines sorties de stock n'ont pas de facture à l'appui");
     }
     if (a.theoIncomplete) {
-      parts.push("ventilation FIFO au prorata CA ou quantité faute de coût théorique complet");
+      parts.push("coût théorique incomplet sur au moins un plat (prix d'achat manquant)");
     }
     if (!a.revenueComplete) {
       parts.push("CA incomplet sur une ou plusieurs ventes");
@@ -241,6 +282,9 @@ export async function getRealizedMarginRowsByDish(
       revenueComplete: a.revenueComplete,
       allocatedFifoCostHt: roundMoney(a.fifoAllocated),
       affectedByUnknownFifo: a.unknownFifo,
+      costHt,
+      costBasis,
+      estimatedCostHt,
       marginHt,
       marginPct,
       note: parts.length ? parts.join(" · ") : null,

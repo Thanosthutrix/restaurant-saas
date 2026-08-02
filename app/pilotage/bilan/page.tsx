@@ -400,15 +400,27 @@ export default async function BilanPochePage({
             const invoiceRows = report.invoicesByCategory[poste.category] ?? [];
             const parts: string[] = [];
             if (poste.invoicesCount > 0) parts.push(`${poste.invoicesCount} facture${poste.invoicesCount > 1 ? "s" : ""}`);
-            if (poste.fifo > 0) parts.push("consommation FIFO");
+            if (poste.fifo > 0) {
+              // Le libellé doit dire d'où vient le chiffre : achats constatés ou recettes.
+              const fullyEstimated = report.estimatedFoodCostHt >= poste.fifo - 0.01;
+              parts.push(
+                report.estimatedFoodCostHt > 0
+                  ? fullyEstimated
+                    ? "consommation estimée (sans facture)"
+                    : "consommation partiellement estimée"
+                  : "consommation réelle (FIFO)"
+              );
+            }
             if (poste.labor > 0) parts.push("salaires calculés");
             if (poste.manualPortion > 0) parts.push("charges saisies");
             const missingRates =
               poste.category === "rh" && report.staffMissingRate.length > 0
                 ? `${report.staffMissingRate.length} employé(s) sans salaire`
-                : poste.category === "matieres" && poste.fifo > 0 && report.foodCostHasUnknown
-                  ? "certains lots sans coût connu"
-                  : null;
+                : poste.category === "matieres" && poste.fifo > 0 && report.estimatedFoodCostHt > 0
+                  ? "estimé d'après les recettes — enregistrez vos factures d'achat"
+                  : poste.category === "matieres" && poste.fifo > 0 && report.foodCostHasUnknown
+                    ? "certains lots sans coût connu"
+                    : null;
             return (
               <div key={poste.category} className="space-y-1">
                 <div className="flex items-baseline justify-between gap-3">
@@ -416,7 +428,15 @@ export default async function BilanPochePage({
                     {getExpenseCategoryLabel(poste.category)}
                     <span className="ml-2 text-xs font-normal text-stone-400">{parts.join(" + ")}</span>
                     {missingRates ? (
-                      <span className="ml-2 text-xs font-normal text-amber-700">{missingRates}</span>
+                      <span
+                        className={`ml-2 text-xs font-normal ${
+                          poste.category === "matieres" && report.estimatedFoodCostHt > 0
+                            ? "text-sky-700"
+                            : "text-amber-700"
+                        }`}
+                      >
+                        {missingRates}
+                      </span>
                     ) : null}
                   </p>
                   <p className="shrink-0 text-sm font-semibold tabular-nums text-stone-600">

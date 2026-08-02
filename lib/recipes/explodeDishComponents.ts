@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabaseServer";
+import { roundRecipeQty } from "@/lib/units/stockUnitConversion";
 import { toNumber } from "@/lib/utils/safeNumeric";
 
 export type ExplodedItem = {
@@ -88,7 +89,9 @@ async function explodeFromSeeds(
       name: item.name,
       unit: item.unit,
       itemType: item.item_type,
-      qty,
+      // Le dépliage enchaîne les multiplications : sans arrondi, 9,6 g s'affiche
+      // « 9.600000000000001 » à l'écran recette.
+      qty: roundRecipeQty(qty),
     };
   });
 }

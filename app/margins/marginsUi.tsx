@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { Trophy, TrendingDown } from "lucide-react";
+import { Trophy, TrendingDown, Info } from "lucide-react";
+import type { MarginCostBasis } from "@/lib/margins/realizedServiceMargins";
 
 /**
  * Palette « santé de marge » réutilisée partout sur la page Marges.
@@ -217,5 +218,53 @@ export function SplitBar({ revenue, cost }: { revenue: number; cost: number }) {
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * Pastille d'origine du coût matière. Une marge calculée sans facture d'achat
+ * reste utile, à condition de dire qu'elle repose sur les recettes et non sur
+ * des achats constatés.
+ */
+export function CostBasisBadge({
+  basis,
+  className = "",
+}: {
+  basis: MarginCostBasis;
+  className?: string;
+}) {
+  if (basis === "invoiced") return null;
+  const estimated = basis === "estimated";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+        estimated ? "bg-sky-100 text-sky-800" : "bg-amber-100 text-amber-900"
+      } ${className}`}
+      title={
+        estimated
+          ? "Coût matière estimé d'après les recettes : aucune facture d'achat n'est rattachée à ces ventes."
+          : "Une partie des sorties de stock n'a pas de facture à l'appui : le coût est complété par les recettes."
+      }
+    >
+      <Info className="h-3 w-3" aria-hidden />
+      {estimated ? "Estimé" : "Partiel"}
+    </span>
+  );
+}
+
+/** Bandeau d'explication affiché dès qu'une partie des coûts est estimée. */
+export function EstimatedCostNotice({ count, total }: { count: number; total: number }) {
+  if (count <= 0) return null;
+  const all = count >= total;
+  return (
+    <p className="mb-3 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span>
+        {all
+          ? "Marge estimée à partir des recettes : aucune facture d'achat n'est encore rattachée à ces ventes."
+          : `Marge partiellement estimée : ${count} ligne${count > 1 ? "s" : ""} sur ${total} n'${count > 1 ? "ont" : "a"} pas de facture d'achat à l'appui.`}{" "}
+        Enregistrez vos bons de livraison et factures fournisseurs pour obtenir le coût réellement payé.
+      </span>
+    </p>
   );
 }

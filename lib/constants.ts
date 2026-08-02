@@ -67,5 +67,8 @@ export const TRACEABILITY_ELEMENT_LABEL_FR: Record<TraceabilityElementType, stri
 /** Nom du bucket Storage pour les factures fournisseur. */
 export const SUPPLIER_INVOICES_BUCKET = "supplier-invoices";
 
+/** Bucket partagé : tickets de caisse, imports menu, imports planning (client + serveur). */
+export const MENU_IMPORT_STORAGE_BUCKET = "receipts";
+
 /** Preuves photo pour les tâches de nettoyage critiques (PND). */
 export const HYGIENE_PROOFS_BUCKET = "hygiene-proofs";

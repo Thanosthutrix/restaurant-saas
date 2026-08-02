@@ -8,8 +8,9 @@ import {
   MENU_ANALYSIS_TIMEOUT_USER_MESSAGE,
   withTimeout,
 } from "@/lib/async/withTimeout";
+import { MENU_IMPORT_STORAGE_BUCKET } from "@/lib/constants";
 
-export const MENU_IMPORT_STORAGE_BUCKET = "receipts";
+export { MENU_IMPORT_STORAGE_BUCKET };
 
 export async function uploadMenuImageForRestaurant(
   file: File,

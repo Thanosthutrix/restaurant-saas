@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   ClipboardList,
+  Droplets,
   FileClock,
   LayoutGrid,
   ListChecks,
@@ -18,6 +19,10 @@ import {
   listHygieneTasksUpcoming,
 } from "@/lib/hygiene/hygieneDb";
 import { cachedEnsureHygieneTasks } from "@/lib/cache";
+import {
+  countPendingFryerOilTasks,
+  ensureFryerOilTasksForRestaurant,
+} from "@/lib/fryerOil/fryerOilDb";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 import { ScoreGauge, scoreBand } from "./hygieneUi";
@@ -37,12 +42,16 @@ export default async function HygieneHubPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  await cachedEnsureHygieneTasks(restaurant.id);
-  const [score, dueTasks, dueCount, upcoming] = await Promise.all([
+  await Promise.all([
+    cachedEnsureHygieneTasks(restaurant.id),
+    ensureFryerOilTasksForRestaurant(restaurant.id, 14),
+  ]);
+  const [score, dueTasks, dueCount, upcoming, fryerOilPendingCount] = await Promise.all([
     getHygieneScoreForRestaurant(restaurant.id, 7),
     listHygieneTasksDue(restaurant.id, 200),
     countHygieneTasksDue(restaurant.id),
     listHygieneTasksUpcoming(restaurant.id, 8),
+    countPendingFryerOilTasks(restaurant.id),
   ]);
 
   const hasScoreData = score.max > 0;
@@ -53,6 +62,14 @@ export default async function HygieneHubPage() {
     { href: "/hygiene/elements", title: "Éléments à nettoyer", icon: SprayCan, tone: "bg-cyan-50 text-cyan-700", hover: "tile-cyan" },
     { href: "/hygiene/registre", title: "Registre nettoyage", icon: ClipboardList, tone: "bg-sky-50 text-sky-700", hover: "tile-sky" },
     { href: "/hygiene/haccp", title: "Températures HACCP", icon: Thermometer, tone: "bg-emerald-50 text-emerald-700", hover: "tile-emerald" },
+    {
+      href: "/hygiene/huile-friture",
+      title: "Huile de friteuse",
+      icon: Droplets,
+      tone: "bg-amber-50 text-amber-800",
+      hover: "tile-amber",
+      badge: fryerOilPendingCount,
+    },
     { href: "/hygiene/temperatures-ouverture", title: "Froid : ouverture / fermeture", icon: Snowflake, tone: "bg-violet-50 text-violet-700", hover: "tile-violet" },
     { href: "/hygiene/cuisine-plan", title: "Plan cuisine", icon: LayoutGrid, tone: "bg-indigo-50 text-indigo-700", hover: "tile-indigo" },
     { href: "/hygiene/registre-temperatures", title: "Registre froid", icon: FileClock, tone: "bg-copper-50 text-copper-700", hover: "tile-copper" },

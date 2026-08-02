@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, FileClock, ListChecks, ShieldCheck, SlidersHorizontal, Thermometer } from "lucide-react";
+import { AlertTriangle, Droplets, FileClock, ListChecks, ShieldCheck, SlidersHorizontal, Thermometer } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
   countPendingTemperatureTasks,
@@ -143,6 +143,23 @@ export default async function HaccpHubPage() {
           )}
         </section>
       ) : null}
+
+      <section className="rounded-2xl border border-amber-100 bg-amber-50/50 px-4 py-3">
+        <Link
+          href="/hygiene/huile-friture"
+          className="flex items-center gap-3 text-sm text-amber-950 transition hover:text-amber-900"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+            <Droplets className="h-4 w-4" aria-hidden />
+          </span>
+          <span>
+            <span className="font-semibold">Huile de friteuse HACCP</span>
+            <span className="mt-0.5 block text-xs text-amber-800/80">
+              Contrôles TPM, filtration et changements d&apos;huile — même logique que les températures.
+            </span>
+          </span>
+        </Link>
+      </section>
 
       <p className="text-xs leading-relaxed text-stone-400">
         Les seuils et la marge d’« alerte » (proche limite) sont configurables par point. Une action corrective est

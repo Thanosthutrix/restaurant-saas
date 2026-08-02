@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { ClipboardList, Clapperboard, Droplets, Package, Percent, UtensilsCrossed, Wine } from "lucide-react";
+import { ClipboardList, Clapperboard, Droplets, Package, Percent, Trash2, UtensilsCrossed, Wine } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import { getInventoryStockDashboardSummary } from "@/lib/db";
 import { loadKitchenPassQueue, loadBarPassQueue } from "@/lib/dining/kitchenPassData";
@@ -59,6 +59,14 @@ const actions: Action[] = [
     icon: Package,
     tone: "bg-sky-50 text-sky-700",
     hover: "tile-sky",
+  },
+  {
+    title: "Pertes",
+    description: "Enregistrez les gâchis en 2 clics (brute, prépa, assiette) pour alimenter les analyses.",
+    href: "/cuisine/pertes",
+    icon: Trash2,
+    tone: "bg-rose-50 text-rose-700",
+    hover: "tile-rose",
   },
   {
     title: "Stock cuisine",

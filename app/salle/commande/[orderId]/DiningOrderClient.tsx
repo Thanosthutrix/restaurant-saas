@@ -47,6 +47,7 @@ import {
   orderTotalFromLines,
 } from "@/lib/dining/optimisticTicketClient";
 import { resetTableToBaseLayout } from "@/lib/salle/floorPlanLayout";
+import { ShiftClosingModal } from "@/components/analysis/ShiftClosingModal";
 
 const DEFAULT_SERVICE = "lunch" as const;
 
@@ -150,6 +151,7 @@ export function DiningOrderClient({
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
   const [customizeLine, setCustomizeLine] = useState<DiningLineClient | null>(null);
   const [totalModalOpen, setTotalModalOpen] = useState(false);
+  const [shiftClosingServiceId, setShiftClosingServiceId] = useState<string | null>(null);
   const [memoOpen, setMemoOpen] = useState(false);
   const [localLines, setLocalLines] = useState(lines);
   const [localTotalTtc, setLocalTotalTtc] = useState(totalTtc);
@@ -318,6 +320,7 @@ export function DiningOrderClient({
         return;
       }
       setSuccess(`Encaissement enregistré (${fmtEur(res.data?.totalTtc ?? 0)}).`);
+      if (res.data?.serviceId) setShiftClosingServiceId(res.data.serviceId);
       if (res.data?.diningTableId) resetTableToBaseLayout(restaurantId, res.data.diningTableId);
       syncFromServer();
     });
@@ -670,6 +673,15 @@ export function DiningOrderClient({
           }
         }}
       />
+
+      {shiftClosingServiceId ? (
+        <ShiftClosingModal
+          open
+          restaurantId={restaurantId}
+          serviceId={shiftClosingServiceId}
+          onClose={() => setShiftClosingServiceId(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -34,6 +34,7 @@ import {
   orderTotalFromLines,
 } from "@/lib/dining/optimisticTicketClient";
 import { resetTableToBaseLayout } from "@/lib/salle/floorPlanLayout";
+import { ShiftClosingModal } from "@/components/analysis/ShiftClosingModal";
 
 const QUICK_DEFAULT_SERVICE = "lunch" as const;
 
@@ -75,6 +76,7 @@ export function CaisseQuickTicketPanel({
   const [discountLine, setDiscountLine] = useState<DiningLineClient | null>(null);
   const [customizeLine, setCustomizeLine] = useState<DiningLineClient | null>(null);
   const [totalModalOpen, setTotalModalOpen] = useState(false);
+  const [shiftClosingServiceId, setShiftClosingServiceId] = useState<string | null>(null);
 
   const prevOrderIdRef = useRef<string | null>(null);
 
@@ -198,6 +200,7 @@ export function CaisseQuickTicketPanel({
         return;
       }
       if (res.data?.diningTableId) resetTableToBaseLayout(restaurantId, res.data.diningTableId);
+      if (res.data?.serviceId) setShiftClosingServiceId(res.data.serviceId);
       const msg = `Encaissement enregistré (${fmtEur(res.data?.totalTtc ?? 0)}).`;
       onSettled?.(msg);
       try {
@@ -416,6 +419,15 @@ export function CaisseQuickTicketPanel({
           }
         }}
       />
+
+      {shiftClosingServiceId ? (
+        <ShiftClosingModal
+          open
+          restaurantId={restaurantId}
+          serviceId={shiftClosingServiceId}
+          onClose={() => setShiftClosingServiceId(null)}
+        />
+      ) : null}
     </>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, CalendarDays, ClipboardList, Percent, Users, Wallet } from "lucide-react";
+import { BarChart3, CalendarDays, ClipboardList, Percent, Sparkles, Users, Wallet } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { ALL_SHELL_NAV_KEYS, canAccessPage, type ShellNavKey } from "@/lib/auth/appRoles";
@@ -27,6 +27,15 @@ const tiles: {
     tone: "bg-copper-50 text-copper-700",
     tile: "tile-copper",
     ownerOnly: true,
+  },
+  {
+    title: "Analyse ultime",
+    description: "Matrice menu, food cost, pertes, ressenti terrain et coach IA — avec actions sur les recettes.",
+    href: "/pilotage/analyse",
+    icon: Sparkles,
+    navKey: "margins",
+    tone: "bg-violet-50 text-violet-700",
+    tile: "tile-violet",
   },
   {
     title: "Analyse des ventes",

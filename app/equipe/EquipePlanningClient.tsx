@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { StaffPlanningProfileForm } from "@/components/staff/StaffPlanningProfileForm";
 import { ManualWeekPlanner, PlanningHoursRecap } from "@/components/staff/ManualWeekPlanner";
 import { PlanningHydratedWizard } from "@/components/staff/PlanningHydratedWizard";
+import { PlanningDocumentImportModal, type PlanningImportResult } from "@/components/staff/PlanningDocumentImportModal";
 import { PlanningMatrixView } from "@/components/staff/PlanningMatrixView";
 import type { PlanningAlert } from "@/lib/staff/planningAlerts";
 import type { WizardData } from "@/lib/staff/wizard/wizardDataTypes";
@@ -271,9 +272,15 @@ export function EquipePlanningClient({
   /** Lien d'invitation généré, affiché dans la tuile pour copie manuelle. */
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [draftWizardOpen, setDraftWizardOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [showMatrix, setShowMatrix] = useState(false);
 
   const monday = useMemo(() => parseISODateLocal(weekMondayIso), [weekMondayIso]);
+
+  const weekLabelFr = useMemo(() => {
+    if (!monday) return weekMondayIso;
+    return `Du ${monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au ${addDays(monday, 6).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`;
+  }, [monday, weekMondayIso]);
 
   const resolvedWeekDaysForGrid = useMemo(() => {
     const m = parseISODateLocal(weekMondayIso);
@@ -474,6 +481,35 @@ export function EquipePlanningClient({
     refresh();
   }
 
+  function handlePlanningImported(result: PlanningImportResult) {
+    setOptimisticSimulationId(result.simulationId);
+    setPlanningMode("simulation");
+    setDraftWarning(result.summaryFr);
+    const unmatched =
+      result.unmatchedNames.length > 0 ?
+        ` Noms non reconnus : ${result.unmatchedNames.join(", ")}.`
+      : "";
+    const weeksLabel =
+      result.weeksCount > 1 ?
+        ` sur ${result.weeksCount} semaines`
+      : "";
+    setSuccessMsg(
+      `Import réussi : ${result.generatedCount} créneau${result.generatedCount === 1 ? "" : "x"}${weeksLabel} en brouillon.${unmatched} Naviguez entre les semaines pour vérifier, puis publiez.`
+    );
+    router.replace(`/equipe?week=${encodeURIComponent(result.focusWeekMonday)}&planning=sim`);
+    refresh();
+  }
+
+  function openPlanningImport() {
+    if (staff.length === 0) {
+      setError("Ajoutez au moins un collaborateur actif pour importer un planning.");
+      return;
+    }
+    setError(null);
+    setSuccessMsg(null);
+    setImportModalOpen(true);
+  }
+
   function addShift() {
     setError(null);
     if (!shiftStaffId || !shiftStart || !shiftEnd) {
@@ -566,6 +602,15 @@ export function EquipePlanningClient({
             >
               Brouillon
             </button>
+            <button
+              type="button"
+              disabled={pending || staff.length === 0}
+              className={uiBtnOutlineSm}
+              onClick={openPlanningImport}
+              title="Importer une photo ou un PDF de planning existant"
+            >
+              Importer
+            </button>
             {planningMode === "simulation" && effectiveSimulationId && (
               <>
                 <button type="button" disabled={pending} className={uiBtnPrimarySm} onClick={publishSimulation}>
@@ -622,9 +667,11 @@ export function EquipePlanningClient({
         {planningMode === "simulation" && (
           <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-4">
             <p className="w-full text-xs text-stone-500">
-              L’ébauche ouvre un questionnaire en 5 étapes : effectifs,{" "}
+              L&apos;ébauche ouvre un questionnaire en 5 étapes : effectifs,{" "}
               <strong className="font-medium text-stone-700">plages de pointe</strong> (midi / soir), absences et
-              options, puis génération automatique.
+              options, puis génération automatique. Vous pouvez aussi{" "}
+              <strong className="font-medium text-stone-700">importer un planning existant</strong> (photo ou PDF) lu
+              par l&apos;IA.
             </p>
             <button
               type="button"
@@ -633,6 +680,14 @@ export function EquipePlanningClient({
               onClick={openDraftWizard}
             >
               Ébauche de planning
+            </button>
+            <button
+              type="button"
+              disabled={pending || staff.length === 0}
+              className={uiBtnOutlineSm}
+              onClick={openPlanningImport}
+            >
+              Importer un planning
             </button>
             {!effectiveSimulationId && (
               <button type="button" disabled={pending} className={uiBtnOutlineSm} onClick={startWeekSimulation}>
@@ -690,15 +745,20 @@ export function EquipePlanningClient({
           open={draftWizardOpen}
           onClose={() => setDraftWizardOpen(false)}
           restaurantId={restaurantId}
-          weekLabel={
-            monday
-              ? `Du ${monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au ${addDays(monday, 6).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
-              : weekMondayIso
-          }
+          weekLabel={weekLabelFr}
           wizardData={wizardData}
           onGenerated={handleDraftGenerated}
         />
       ) : null}
+
+      <PlanningDocumentImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        restaurantId={restaurantId}
+        weekMondayIso={weekMondayIso}
+        disabled={pending}
+        onImported={handlePlanningImported}
+      />
 
       {/* ── Semaine affichée ──────────────────────────────────────────────── */}
       <section className={uiCard}>

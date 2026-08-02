@@ -6,6 +6,11 @@ import type { InventoryItem, Supplier } from "@/lib/db";
 import type { SupplierSuggestion } from "@/lib/orders/suggestions";
 import { generateOrderMessage, suggestedLinesToMessageLines } from "@/lib/orders/message";
 import { isOrderDayToday } from "@/lib/orders/suggestions";
+import { detectOrderAdjustmentAnomaly } from "@/lib/analysis/orderAnomalyTriggers";
+import {
+  OrderAdjustmentQcmModal,
+  type PendingOrderAnomaly,
+} from "@/components/analysis/OrderAdjustmentQcmModal";
 import { createPurchaseOrderFromSuggestion } from "../actions";
 import { OrderSendChannels } from "../OrderSendChannels";
 import { ManualOrderModal } from "../ManualOrderModal";
@@ -37,13 +42,14 @@ export function OrderSuggestionsClient({
   const [confirmSupplierId, setConfirmSupplierId] = useState<string | null>(null);
   const [modalBusy, setModalBusy] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [pendingAnomaly, setPendingAnomaly] = useState<PendingOrderAnomaly | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     for (const s of initialSuggestions) out[s.supplier.id] = getMessageForSupplier(s, restaurantName);
     return out;
   });
 
-  const setLineQuantity = useCallback(
+  const applyLineQuantity = useCallback(
     (supplierId: string, inventoryItemId: string, quantity: number) => {
       setSuggestions((prev) => {
         const next = prev.map((s) => {
@@ -61,6 +67,41 @@ export function OrderSuggestionsClient({
       });
     },
     [restaurantName]
+  );
+
+  const setLineQuantity = useCallback(
+    (supplierId: string, inventoryItemId: string, quantity: number) => {
+      const suggestion = suggestions.find((s) => s.supplier.id === supplierId);
+      const line = suggestion?.lines.find((l) => l.inventory_item_id === inventoryItemId);
+      if (!line) return;
+
+      const previousQty = line.suggested_quantity_purchase;
+      const newQty = Math.max(0, quantity);
+      if (newQty === previousQty) return;
+
+      const anomalyType = detectOrderAdjustmentAnomaly({
+        previousQty,
+        newQty,
+        theoreticalStockQty: line.current_stock_qty,
+      });
+
+      if (anomalyType) {
+        setPendingAnomaly({
+          supplierId,
+          inventoryItemId,
+          itemName: line.name,
+          suggestedQty: previousQty,
+          adjustedQty: newQty,
+          theoreticalStockQty: line.current_stock_qty,
+          anomalyType,
+          source: "suggestion",
+        });
+        return;
+      }
+
+      applyLineQuantity(supplierId, inventoryItemId, newQty);
+    },
+    [suggestions, applyLineQuantity]
   );
 
   const setMessageForSupplier = useCallback((supplierId: string, text: string) => {
@@ -328,6 +369,17 @@ export function OrderSuggestionsClient({
           onClose={() => setManualOpen(false)}
         />
       ) : null}
+
+      <OrderAdjustmentQcmModal
+        open={pendingAnomaly != null}
+        restaurantId={restaurantId}
+        anomaly={pendingAnomaly}
+        onClose={() => setPendingAnomaly(null)}
+        onConfirmed={(adjustedQty) => {
+          if (!pendingAnomaly) return;
+          applyLineQuantity(pendingAnomaly.supplierId, pendingAnomaly.inventoryItemId, adjustedQty);
+        }}
+      />
     </div>
   );
 }

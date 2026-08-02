@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:apply": "npx tsx scripts/apply-sql-migration.ts",
+    "db:seed-demo": "npx tsx scripts/seed-demo-restaurant.ts",
     "db:apply-peak-bands": "npx tsx scripts/apply-sql-migration.ts supabase/migrations/20260521130000_planning_peak_bands_weekly.sql",
     "cap:sync": "npx cap sync",
     "cap:sync:local": "CAPACITOR_SERVER_URL=http://127.0.0.1:3000 npx cap sync",

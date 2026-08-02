@@ -38,6 +38,9 @@ import {
   type TimeBand,
 } from "@/lib/staff/planningHoursTypes";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { MENU_IMPORT_STORAGE_BUCKET } from "@/lib/constants";
+import { analyzePlanningDocumentFromStorage } from "@/lib/planning-import-openai";
+import { applyPlanningImportJson } from "@/lib/staff/planningImportApply";
 
 async function assertRestaurantOwner(userId: string, restaurantId: string): Promise<boolean> {
   const { data } = await supabaseServer
@@ -895,6 +898,163 @@ export async function generateAiPlanningSimulationShiftsAction(
 
   revalidatePath("/equipe");
   return { ok: true, generatedCount: generated.length, narrativeFr: ai.narrativeFr, usedFallbackAuto: ai.usedFallbackAuto };
+}
+
+export async function importPlanningFromDocumentAction(params: {
+  restaurantId: string;
+  weekMondayYmd: string;
+  storagePath: string;
+  fileName: string;
+}): Promise<
+  | {
+      ok: true;
+      simulationId: string;
+      generatedCount: number;
+      weeksCount: number;
+      weekMondays: string[];
+      focusWeekMonday: string;
+      unmatchedNames: string[];
+      summaryFr: string | null;
+      notes: string | null;
+    }
+  | { ok: false; error: string }
+> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertRestaurantAction(user.id, params.restaurantId, "planning.mutate");
+  if (!gate.ok) return gate;
+
+  const ymd = params.weekMondayYmd.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return { ok: false, error: "Semaine invalide." };
+
+  const storagePath = params.storagePath.trim();
+  if (!storagePath.startsWith(`${params.restaurantId}/`)) {
+    return { ok: false, error: "Chemin de fichier invalide." };
+  }
+
+  const staff = await listStaffMembers(params.restaurantId, true);
+  const active = staff.filter((s) => s.active);
+  if (active.length === 0) return { ok: false, error: "Aucun collaborateur actif." };
+
+  const analysis = await analyzePlanningDocumentFromStorage({
+    bucket: MENU_IMPORT_STORAGE_BUCKET,
+    path: storagePath,
+    fileName: params.fileName.trim() || "planning.jpg",
+    weekMondayYmd: ymd,
+    staffNames: active.map((s) => (s.display_name ?? "").trim()).filter(Boolean),
+  });
+
+  if (analysis.kind === "skipped_no_key") {
+    return { ok: false, error: analysis.message };
+  }
+  if (analysis.kind === "error") {
+    return { ok: false, error: analysis.message };
+  }
+
+  const applied = applyPlanningImportJson({
+    parsed: analysis.json,
+    staff,
+  });
+
+  if (applied.totalShiftCount === 0) {
+    const hint =
+      applied.unmatchedNames.length > 0 ?
+        ` Noms non reconnus : ${applied.unmatchedNames.join(", ")}.`
+      : "";
+    return {
+      ok: false,
+      error: `Aucun créneau exploitable extrait du document.${hint} Vérifiez la qualité du fichier et les noms de l'équipe.`,
+    };
+  }
+
+  async function ensureSimulation(weekMonday: string): Promise<{ id: string } | { error: string }> {
+    let sim = await getPlanningWeekSimulation(params.restaurantId, weekMonday);
+    if (!sim) {
+      const { data, error } = await supabaseServer
+        .from("planning_week_simulations")
+        .insert({ restaurant_id: params.restaurantId, week_monday: weekMonday })
+        .select("id")
+        .single();
+      if (error?.code === "23505") {
+        sim = await getPlanningWeekSimulation(params.restaurantId, weekMonday);
+      } else if (error || !data) {
+        return { error: error?.message ?? "Impossible de créer le brouillon." };
+      } else {
+        sim = { id: String((data as { id: string }).id), week_monday: weekMonday };
+      }
+    }
+    if (!sim) return { error: "Brouillon introuvable." };
+    return { id: sim.id };
+  }
+
+  let focusSimulationId: string | null = null;
+  const weekDetails: { weekMonday: string; count: number }[] = [];
+
+  for (const weekMonday of applied.weekMondays) {
+    const weekShifts = applied.shiftsByWeek.get(weekMonday) ?? [];
+    if (weekShifts.length === 0) continue;
+
+    const simResult = await ensureSimulation(weekMonday);
+    if ("error" in simResult) return { ok: false, error: simResult.error };
+
+    const { error: delErr } = await supabaseServer
+      .from("planning_simulation_shifts")
+      .delete()
+      .eq("simulation_id", simResult.id);
+    if (delErr) return { ok: false, error: delErr.message };
+
+    const rows = weekShifts.map((g) => ({
+      simulation_id: simResult.id,
+      staff_member_id: g.staff_member_id,
+      starts_at: g.starts_at,
+      ends_at: g.ends_at,
+      break_minutes: g.break_minutes,
+      notes: g.notes,
+    }));
+
+    const { error: insErr } = await supabaseServer.from("planning_simulation_shifts").insert(rows);
+    if (insErr) return { ok: false, error: insErr.message };
+
+    weekDetails.push({ weekMonday, count: weekShifts.length });
+    if (weekMonday === ymd || focusSimulationId == null) {
+      focusSimulationId = simResult.id;
+    }
+  }
+
+  revalidatePath("/equipe");
+
+  const summaryParts: string[] = [];
+  if (applied.periodStart && applied.periodEnd) {
+    summaryParts.push(`Période : ${applied.periodStart} → ${applied.periodEnd}.`);
+  }
+  summaryParts.push(`${applied.weekMondays.length} semaine(s) remplie(s).`);
+  if (weekDetails.length > 0) {
+    summaryParts.push(
+      weekDetails.map((w) => `${w.weekMonday.slice(5)}: ${w.count} créneau${w.count === 1 ? "" : "x"}`).join(" · ")
+    );
+  }
+  if (applied.rationale) summaryParts.push(applied.rationale);
+  if (applied.unmatchedNames.length > 0) {
+    summaryParts.push(`Noms non reconnus : ${applied.unmatchedNames.join(", ")}.`);
+  }
+  if (applied.skippedCount > 0) {
+    summaryParts.push(`${applied.skippedCount} créneau(x) ignoré(s) (illisible ou chevauchement).`);
+  }
+
+  const focusWeekMonday =
+    applied.weekMondays.includes(ymd) ? ymd : (applied.weekMondays[0] ?? ymd);
+
+  return {
+    ok: true,
+    simulationId: focusSimulationId ?? "",
+    generatedCount: applied.totalShiftCount,
+    weeksCount: weekDetails.length,
+    weekMondays: applied.weekMondays,
+    focusWeekMonday,
+    unmatchedNames: applied.unmatchedNames,
+    summaryFr: summaryParts.length > 0 ? summaryParts.join(" ") : null,
+    notes: applied.notes,
+  };
 }
 
 export async function createSimulationShiftAction(

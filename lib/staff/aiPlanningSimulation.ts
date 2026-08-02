@@ -106,11 +106,11 @@ function stripAccents(s: string): string {
   return s.normalize("NFD").replace(/\p{M}/gu, "");
 }
 
-function normalizePlanningPersonName(s: string): string {
+export function normalizePlanningPersonName(s: string): string {
   return stripAccents(s.trim().replace(/\s+/g, " ").toLowerCase());
 }
 
-function findStaffIdByDisplayName(active: StaffMember[], displayName: string): string | null {
+export function findStaffIdByDisplayName(active: StaffMember[], displayName: string): string | null {
   const raw = (displayName ?? "").trim();
   if (!raw) return null;
   const key = normalizePlanningPersonName(raw);
@@ -127,7 +127,7 @@ function findStaffIdByDisplayName(active: StaffMember[], displayName: string): s
   return null;
 }
 
-function extractShiftsFromNestedPlanningJson(parsed: unknown, active: StaffMember[]): GeneratedSimulationShift[] {
+export function extractShiftsFromNestedPlanningJson(parsed: unknown, active: StaffMember[]): GeneratedSimulationShift[] {
   if (!parsed || typeof parsed !== "object") return [];
   const plan = (parsed as Record<string, unknown>).planning;
   if (!Array.isArray(plan)) return [];
@@ -181,7 +181,7 @@ function extractRationaleShort(parsed: unknown): string | null {
   return typeof r === "string" && r.trim() ? r.trim() : null;
 }
 
-function extractShiftsFromGenerativePayload(parsed: unknown): GeneratedSimulationShift[] {
+export function extractShiftsFromGenerativePayload(parsed: unknown): GeneratedSimulationShift[] {
   if (!parsed || typeof parsed !== "object") return [];
   const rec = parsed as { shifts?: unknown };
   if (!Array.isArray(rec.shifts)) return [];

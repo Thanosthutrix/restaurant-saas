@@ -122,6 +122,11 @@ export async function syncPaInvoicesForRestaurant(restaurantId: string): Promise
     for (;;) {
       const params = new URLSearchParams({ direction: "in", limit: "100" });
       if (cursor != null) params.set("starting_after_id", String(cursor));
+      // Sans expand[], l'API ne renvoie que id/company_id/created_at/direction : le détail
+      // (numéro, vendeur, lignes, cycle de vie) doit être demandé explicitement.
+      for (const field of ["en_invoice", "en_invoice.seller", "en_invoice.lines", "events"]) {
+        params.append("expand[]", field);
+      }
 
       const res = await paApiFetch(restaurantId, `/v1.beta/invoices?${params.toString()}`);
       if (!res.ok) throw new Error(`GET /invoices → ${res.status}`);

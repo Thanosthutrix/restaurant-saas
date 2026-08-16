@@ -1,11 +1,12 @@
 import "server-only";
 
 import { supabaseServer } from "@/lib/supabaseServer";
-import { createSupplierInvoice } from "@/lib/db";
+import { createSupplierInvoice, replaceSupplierInvoiceExtractedLines } from "@/lib/db";
 import { resolveOrCreateSupplierFromInvoiceVendor } from "@/lib/resolveSupplierFromInvoiceVendor";
+import type { SupplierInvoiceAnalysisLine } from "@/lib/supplier-invoice-analysis";
 import { PA_ACTIVE_PROVIDER } from "./config";
 import { paApiFetch } from "./apiClient";
-import { getPaConnection, upsertPaConnection } from "./paDb";
+import { getPaConnection, listActivePaConnections, upsertPaConnection } from "./paDb";
 
 /** Sous-ensemble de l'invoice_overview Super PDP (EN 16931) utile à l'ingestion. */
 type PaInvoiceOverview = {
@@ -25,6 +26,14 @@ type PaInvoiceOverview = {
       contact?: { email_address?: string };
     };
     totals?: { total_without_vat?: string; total_with_vat?: string };
+    lines?: {
+      identifier?: string;
+      net_amount?: string;
+      invoiced_quantity?: string;
+      invoiced_quantity_code?: string;
+      item_information?: { name?: string; description?: string };
+      price_details?: { item_net_price?: string };
+    }[];
   };
 };
 
@@ -42,6 +51,52 @@ function formatVendorAddress(addr: PaPostalAddress | undefined): string | null {
   if (!addr) return null;
   const parts = [addr.address_line1, addr.post_code, addr.city, addr.country_code].filter(Boolean);
   return parts.length ? parts.join(", ") : null;
+}
+
+/**
+ * Les lignes EN 16931 sont déjà structurées (pas d'OCR à faire) : on les reformate dans le
+ * même format que la lecture IA (`SupplierInvoiceAnalysisLine`) pour que l'écran de facture
+ * affiche les lignes exactement comme pour un import manuel.
+ */
+function mapPaLines(lines: NonNullable<PaInvoiceOverview["en_invoice"]>["lines"]): SupplierInvoiceAnalysisLine[] {
+  if (!lines?.length) return [];
+  return lines.map((l) => ({
+    label: l.item_information?.name || l.item_information?.description || "—",
+    quantity: toNumber(l.invoiced_quantity),
+    // Code unité UN/CEFACT brut (ex. "KGM", "C62") : affiché tel quel, pas de table de
+    // correspondance vers g/kg/unit à ce stade.
+    unit: l.invoiced_quantity_code ?? null,
+    unit_price: toNumber(l.price_details?.item_net_price),
+    line_total: toNumber(l.net_amount),
+  }));
+}
+
+/**
+ * Reconstruit un blob dans la forme attendue par `parseSupplierInvoiceAnalysis` (celle
+ * produite par l'analyse IA) pour que la section « Résultat de l'analyse » de l'écran
+ * facture affiche le même détail que pour un import manuel — alors qu'ici aucune IA n'a
+ * tourné, les données viennent directement de la facture structurée reçue.
+ */
+function buildAnalysisResultJson(
+  inv: PaInvoiceOverview,
+  amountHt: number | null,
+  amountTtc: number | null
+): Record<string, unknown> {
+  const en = inv.en_invoice;
+  return {
+    invoice_number: en?.number ?? null,
+    invoice_date: en?.issue_date ?? null,
+    amount_ht: amountHt,
+    amount_ttc: amountTtc,
+    vendor: {
+      legal_name: en?.seller?.name ?? null,
+      address: formatVendorAddress(en?.seller?.postal_address),
+      email: en?.seller?.contact?.email_address ?? null,
+      vat_number: en?.seller?.vat_identifier ?? null,
+      siret: en?.seller?.legal_registration_identifier?.value ?? null,
+    },
+    lines: mapPaLines(en?.lines),
+  };
 }
 
 export type SyncResult = { fetched: number; created: number; skipped: number; error?: string };
@@ -117,16 +172,20 @@ async function upsertOneInvoice(restaurantId: string, inv: PaInvoiceOverview): P
   const amountTtc = toNumber(en?.totals?.total_with_vat);
 
   if (existing) {
-    // Facture déjà connue : on rafraîchit juste le statut de cycle de vie et le brut.
+    const existingId = (existing as { id: string }).id;
+    // Facture déjà connue : on rafraîchit le statut de cycle de vie, le brut, et les lignes
+    // (Super PDP peut les compléter après coup, ex. validation asynchrone du fournisseur).
     await supabaseServer
       .from("supplier_invoices")
       .update({
         pa_lifecycle_status: lastEvent?.status_code ?? null,
         pa_raw_payload: inv,
+        analysis_result_json: buildAnalysisResultJson(inv, amountHt, amountTtc),
         ...(amountHt != null ? { amount_ht: amountHt } : {}),
         ...(amountTtc != null ? { amount_ttc: amountTtc } : {}),
       })
-      .eq("id", (existing as { id: string }).id);
+      .eq("id", existingId);
+    await replaceSupplierInvoiceExtractedLines(existingId, mapPaLines(en?.lines));
     return false;
   }
 
@@ -169,8 +228,28 @@ async function upsertOneInvoice(restaurantId: string, inv: PaInvoiceOverview): P
       pa_raw_payload: inv,
       amount_ht: amountHt,
       amount_ttc: amountTtc,
+      // Les lignes arrivent déjà structurées (EN 16931) : pas d'analyse IA à lancer, l'écran
+      // facture doit se comporter exactement comme après une analyse réussie sur un import manuel.
+      analysis_status: "done",
+      analysis_error: null,
+      analysis_result_json: buildAnalysisResultJson(inv, amountHt, amountTtc),
     })
     .eq("id", createdInvoice.data.id);
 
+  await replaceSupplierInvoiceExtractedLines(createdInvoice.data.id, mapPaLines(en?.lines));
+
   return true;
+}
+
+/** Sonde tous les restaurants connectés — appelé par le cron périodique. */
+export async function syncAllActivePaConnections(): Promise<
+  { restaurantId: string; result: SyncResult }[]
+> {
+  const connections = await listActivePaConnections();
+  const out: { restaurantId: string; result: SyncResult }[] = [];
+  for (const conn of connections) {
+    const result = await syncPaInvoicesForRestaurant(conn.restaurant_id);
+    out.push({ restaurantId: conn.restaurant_id, result });
+  }
+  return out;
 }

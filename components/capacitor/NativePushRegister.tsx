@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isNativeApp } from "@/lib/capacitor/platform";
 import {
   retryPendingPushRegistration,
+  reregisterPushTokenForCurrentRestaurant,
   sendPushTokenToServer,
 } from "@/lib/push/registerPushTokenClient";
 
@@ -20,6 +21,7 @@ export function NativePushRegister() {
 
     void ensureNativePushRegistration(listenersReadyRef);
     void retryPendingPushRegistration();
+    void reregisterPushTokenForCurrentRestaurant();
 
     const supabase = createClient();
     const {
@@ -27,6 +29,7 @@ export function NativePushRegister() {
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
         void retryPendingPushRegistration();
+        void reregisterPushTokenForCurrentRestaurant();
       }
     });
 
@@ -34,6 +37,7 @@ export function NativePushRegister() {
       if (document.visibilityState === "visible") {
         void ensureNativePushRegistration(listenersReadyRef);
         void retryPendingPushRegistration();
+        void reregisterPushTokenForCurrentRestaurant();
       }
     };
     document.addEventListener("visibilitychange", onVisible);

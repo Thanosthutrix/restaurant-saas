@@ -28,19 +28,15 @@ export type PushTokenRow = {
   userId: string;
 };
 
-/** Tokens push des utilisateurs liés au restaurant (équipe + propriétaire). */
-export async function listPushTokensForRestaurant(
-  restaurantId: string
-): Promise<PushTokenRow[]> {
-  const { data: restaurant, error: restErr } = await supabaseServer
+async function loadRestaurantMemberUserIds(restaurantId: string): Promise<Set<string>> {
+  const userIds = new Set<string>();
+
+  const { data: restaurant } = await supabaseServer
     .from("restaurants")
     .select("owner_id")
     .eq("id", restaurantId)
     .maybeSingle();
 
-  if (restErr) return [];
-
-  const userIds = new Set<string>();
   if (restaurant?.owner_id) userIds.add(restaurant.owner_id as string);
 
   const { data: staffRows } = await supabaseServer
@@ -53,23 +49,16 @@ export async function listPushTokensForRestaurant(
     if (row.user_id) userIds.add(row.user_id as string);
   }
 
-  const byRestaurant = await supabaseServer
-    .from("user_push_tokens")
-    .select("token, platform, user_id")
-    .eq("restaurant_id", restaurantId);
+  return userIds;
+}
 
-  const byUsers =
-    userIds.size > 0
-      ? await supabaseServer
-          .from("user_push_tokens")
-          .select("token, platform, user_id")
-          .in("user_id", [...userIds])
-      : { data: [] as { token: string; platform: string; user_id: string }[] };
-
+function dedupeTokenRows(
+  rows: { token: string; platform: string; user_id: string }[]
+): PushTokenRow[] {
   const seen = new Set<string>();
   const out: PushTokenRow[] = [];
 
-  for (const row of [...(byRestaurant.data ?? []), ...(byUsers.data ?? [])]) {
+  for (const row of rows) {
     const token = row.token as string;
     if (!token || seen.has(token)) continue;
     seen.add(token);
@@ -83,6 +72,36 @@ export async function listPushTokensForRestaurant(
   }
 
   return out;
+}
+
+/**
+ * Tokens push pour un établissement précis.
+ * N'inclut que les appareils enregistrés pour CE restaurant (cookie actif au moment du register).
+ * Ne notifie pas un autre établissement du même utilisateur multi-sites.
+ */
+export async function listPushTokensForRestaurant(
+  restaurantId: string
+): Promise<PushTokenRow[]> {
+  const { data: scopedRows, error: scopedErr } = await supabaseServer
+    .from("user_push_tokens")
+    .select("token, platform, user_id")
+    .eq("restaurant_id", restaurantId);
+
+  if (scopedErr) return [];
+
+  const memberIds = await loadRestaurantMemberUserIds(restaurantId);
+
+  let legacyRows: { token: string; platform: string; user_id: string }[] = [];
+  if (memberIds.size > 0) {
+    const { data } = await supabaseServer
+      .from("user_push_tokens")
+      .select("token, platform, user_id")
+      .is("restaurant_id", null)
+      .in("user_id", [...memberIds]);
+    legacyRows = data ?? [];
+  }
+
+  return dedupeTokenRows([...(scopedRows ?? []), ...legacyRows]);
 }
 
 export async function listPushTokensForUser(userId: string): Promise<PushTokenRow[]> {

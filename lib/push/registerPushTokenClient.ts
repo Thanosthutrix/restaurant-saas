@@ -4,11 +4,34 @@ import { createClient } from "@/lib/supabase/client";
 import { isNativeApp } from "@/lib/capacitor/platform";
 
 const STORAGE_KEY = "ubion_pending_push_token";
+const LAST_REGISTERED_KEY = "ubion_last_push_token";
 
 type PendingPushToken = {
   token: string;
   platform: "ios" | "android";
 };
+
+function readLastRegisteredToken(): PendingPushToken | null {
+  try {
+    const raw = localStorage.getItem(LAST_REGISTERED_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingPushToken;
+    if (
+      (parsed.platform === "ios" || parsed.platform === "android") &&
+      typeof parsed.token === "string" &&
+      parsed.token.length >= 8
+    ) {
+      return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writeLastRegisteredToken(token: PendingPushToken): void {
+  localStorage.setItem(LAST_REGISTERED_KEY, JSON.stringify(token));
+}
 
 function readPendingToken(): PendingPushToken | null {
   try {
@@ -69,6 +92,7 @@ export async function sendPushTokenToServer(
     const json = (await res.json()) as { ok?: boolean; error?: string };
     if (res.ok && json.ok) {
       clearPendingToken();
+      writeLastRegisteredToken({ token, platform });
       return true;
     }
     console.warn("[ubion push] register API:", json.error ?? res.status);
@@ -79,10 +103,21 @@ export async function sendPushTokenToServer(
   return false;
 }
 
+/** Ré-enregistre le token connu pour l'établissement actif (après changement de restaurant). */
+export async function reregisterPushTokenForCurrentRestaurant(): Promise<void> {
+  if (!isNativeApp()) return;
+  const last = readLastRegisteredToken();
+  if (!last) return;
+  await sendPushTokenToServer(last.token, last.platform);
+}
+
 /** Réessaie l'enregistrement si un token était en attente (ex. après connexion). */
 export async function retryPendingPushRegistration(): Promise<void> {
   if (!isNativeApp()) return;
   const pending = readPendingToken();
-  if (!pending) return;
-  await sendPushTokenToServer(pending.token, pending.platform);
+  if (pending) {
+    await sendPushTokenToServer(pending.token, pending.platform);
+    return;
+  }
+  await reregisterPushTokenForCurrentRestaurant();
 }

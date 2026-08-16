@@ -191,3 +191,27 @@ export async function deleteTableMergeGroupAction(
   revalidatePath("/settings");
   return { ok: true };
 }
+
+export async function updateReservationPushRecipientsAction(
+  userIds: string[]
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const restaurant = await getRestaurantForPage();
+  if (!restaurant) return { ok: false, error: "Restaurant introuvable." };
+
+  const gate = await assertRestaurantAction(user.id, restaurant.id, "reservations.mutate");
+  if (!gate.ok) return gate;
+
+  const unique = [...new Set(userIds.filter(Boolean))];
+
+  const { error } = await upsertReservationCapacitySettings(restaurant.id, {
+    reservation_push_user_ids: unique.length > 0 ? unique : [],
+  });
+
+  if (error) return { ok: false, error };
+
+  revalidatePath("/settings");
+  return { ok: true };
+}

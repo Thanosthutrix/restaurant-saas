@@ -49,6 +49,7 @@ export async function upsertReservationCapacitySettings(
       enforce_availability_online: merged.enforce_availability_online,
       enforce_availability_staff: merged.enforce_availability_staff,
       reservation_notify_email: merged.reservation_notify_email,
+      reservation_push_user_ids: merged.reservation_push_user_ids,
     },
     { onConflict: "restaurant_id" }
   );

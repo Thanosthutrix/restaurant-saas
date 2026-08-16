@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { ChevronLeft, LogOut } from "lucide-react";
-import { signOut } from "@/app/login/actions";
+import { SignOutButton } from "@/components/app/SignOutButton";
 import {
   SHELL_NAV_ITEMS,
   filterShellNavItems,
@@ -210,15 +210,12 @@ export function PremiumAppShell({
             onPrefetch={prefetchRoute}
           />
           <div className="mt-auto border-t border-white/5 p-3">
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-zinc-500 transition hover:bg-rose-500/10 hover:text-rose-300 active:scale-[0.99]"
-              >
-                <LogOut className="h-[1.125rem] w-[1.125rem]" aria-hidden />
-                Déconnexion
-              </button>
-            </form>
+            <SignOutButton
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-zinc-500 transition hover:bg-rose-500/10 hover:text-rose-300 active:scale-[0.99]"
+            >
+              <LogOut className="h-[1.125rem] w-[1.125rem]" aria-hidden />
+              Déconnexion
+            </SignOutButton>
           </div>
         </aside>
 
@@ -260,14 +257,9 @@ export function PremiumAppShell({
                     usedColorIndexes={headerBootstrap.userProfile.usedColorIndexes}
                   />
                 )}
-                <form action={signOut} className="hidden sm:block">
-                  <button
-                    type="submit"
-                    className="rounded-xl px-3 py-2 text-sm font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 active:scale-[0.98]"
-                  >
-                    Déconnexion
-                  </button>
-                </form>
+                <SignOutButton className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 active:scale-[0.98] sm:block">
+                  Déconnexion
+                </SignOutButton>
               </div>
             </div>
           </header>

@@ -13,6 +13,8 @@ export type ReservationCapacitySettings = {
   enforce_availability_online: boolean;
   enforce_availability_staff: boolean;
   reservation_notify_email: string | null;
+  /** NULL = propriétaire seul */
+  reservation_push_user_ids: string[] | null;
 };
 
 export const DEFAULT_CAPACITY_SETTINGS: Omit<ReservationCapacitySettings, "restaurant_id"> = {
@@ -29,6 +31,7 @@ export const DEFAULT_CAPACITY_SETTINGS: Omit<ReservationCapacitySettings, "resta
   enforce_availability_online: true,
   enforce_availability_staff: false,
   reservation_notify_email: null,
+  reservation_push_user_ids: null,
 };
 
 export function parseReservationCapacitySettings(
@@ -72,6 +75,9 @@ export function parseReservationCapacitySettings(
       typeof r.reservation_notify_email === "string" && r.reservation_notify_email.trim()
         ? r.reservation_notify_email.trim()
         : null,
+    reservation_push_user_ids: Array.isArray(r.reservation_push_user_ids)
+      ? (r.reservation_push_user_ids as unknown[]).map(String).filter(Boolean)
+      : null,
   };
 }
 

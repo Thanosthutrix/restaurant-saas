@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabaseServer";
+import { getReservationCapacitySettings } from "@/lib/reservations/capacitySettingsDb";
 
 export type PushPlatform = "ios" | "android" | "web";
 
@@ -8,6 +9,8 @@ export async function upsertUserPushToken(params: {
   token: string;
   platform: PushPlatform;
 }): Promise<{ error: Error | null }> {
+  await releasePushTokenFromOtherUsers(params.token, params.userId);
+
   const { error } = await supabaseServer.from("user_push_tokens").upsert(
     {
       user_id: params.userId,
@@ -22,35 +25,23 @@ export async function upsertUserPushToken(params: {
   return { error: error ? new Error(error.message) : null };
 }
 
+/** Retire le token de tout autre compte sur cet appareil (session précédente). */
+export async function releasePushTokenFromOtherUsers(
+  token: string,
+  keepUserId: string
+): Promise<void> {
+  await supabaseServer
+    .from("user_push_tokens")
+    .delete()
+    .eq("token", token)
+    .neq("user_id", keepUserId);
+}
+
 export type PushTokenRow = {
   token: string;
   platform: PushPlatform;
   userId: string;
 };
-
-async function loadRestaurantMemberUserIds(restaurantId: string): Promise<Set<string>> {
-  const userIds = new Set<string>();
-
-  const { data: restaurant } = await supabaseServer
-    .from("restaurants")
-    .select("owner_id")
-    .eq("id", restaurantId)
-    .maybeSingle();
-
-  if (restaurant?.owner_id) userIds.add(restaurant.owner_id as string);
-
-  const { data: staffRows } = await supabaseServer
-    .from("staff_members")
-    .select("user_id")
-    .eq("restaurant_id", restaurantId)
-    .not("user_id", "is", null);
-
-  for (const row of staffRows ?? []) {
-    if (row.user_id) userIds.add(row.user_id as string);
-  }
-
-  return userIds;
-}
 
 function dedupeTokenRows(
   rows: { token: string; platform: string; user_id: string }[]
@@ -74,34 +65,97 @@ function dedupeTokenRows(
   return out;
 }
 
-/**
- * Tokens push pour un établissement précis.
- * N'inclut que les appareils enregistrés pour CE restaurant (cookie actif au moment du register).
- * Ne notifie pas un autre établissement du même utilisateur multi-sites.
- */
+async function loadRestaurantMemberUserIds(restaurantId: string): Promise<Set<string>> {
+  const userIds = new Set<string>();
+
+  const { data: restaurant } = await supabaseServer
+    .from("restaurants")
+    .select("owner_id")
+    .eq("id", restaurantId)
+    .maybeSingle();
+
+  if (restaurant?.owner_id) userIds.add(restaurant.owner_id as string);
+
+  const { data: staffRows } = await supabaseServer
+    .from("staff_members")
+    .select("user_id")
+    .eq("restaurant_id", restaurantId)
+    .eq("active", true)
+    .not("user_id", "is", null);
+
+  for (const row of staffRows ?? []) {
+    if (row.user_id) userIds.add(row.user_id as string);
+  }
+
+  return userIds;
+}
+
+/** Tokens push pour notifications opérationnelles (salle, cuisine, Meta…). */
 export async function listPushTokensForRestaurant(
   restaurantId: string
 ): Promise<PushTokenRow[]> {
+  const memberIds = await loadRestaurantMemberUserIds(restaurantId);
+  if (memberIds.size === 0) return [];
+
   const { data: scopedRows, error: scopedErr } = await supabaseServer
     .from("user_push_tokens")
     .select("token, platform, user_id")
-    .eq("restaurant_id", restaurantId);
+    .eq("restaurant_id", restaurantId)
+    .in("user_id", [...memberIds]);
 
   if (scopedErr) return [];
+  return dedupeTokenRows(scopedRows ?? []);
+}
 
-  const memberIds = await loadRestaurantMemberUserIds(restaurantId);
-
-  let legacyRows: { token: string; platform: string; user_id: string }[] = [];
-  if (memberIds.size > 0) {
-    const { data } = await supabaseServer
-      .from("user_push_tokens")
-      .select("token, platform, user_id")
-      .is("restaurant_id", null)
-      .in("user_id", [...memberIds]);
-    legacyRows = data ?? [];
+/** Utilisateurs autorisés à recevoir les push réservation (paramétrable). */
+export async function getReservationPushRecipientUserIds(
+  restaurantId: string
+): Promise<string[]> {
+  const settings = await getReservationCapacitySettings(restaurantId);
+  const configured = settings.reservation_push_user_ids;
+  if (configured && configured.length > 0) {
+    const members = await loadRestaurantMemberUserIds(restaurantId);
+    return configured.filter((id) => members.has(id));
   }
 
-  return dedupeTokenRows([...(scopedRows ?? []), ...legacyRows]);
+  const { data: restaurant } = await supabaseServer
+    .from("restaurants")
+    .select("owner_id")
+    .eq("id", restaurantId)
+    .maybeSingle();
+
+  const ownerId = restaurant?.owner_id as string | undefined;
+  return ownerId ? [ownerId] : [];
+}
+
+/** Push réservation : établissement actif sur l'appareil + destinataires autorisés. */
+export async function listReservationPushTokensForRestaurant(
+  restaurantId: string
+): Promise<PushTokenRow[]> {
+  const recipientIds = await getReservationPushRecipientUserIds(restaurantId);
+  if (recipientIds.length === 0) return [];
+
+  const { data, error } = await supabaseServer
+    .from("user_push_tokens")
+    .select("token, platform, user_id")
+    .eq("restaurant_id", restaurantId)
+    .in("user_id", recipientIds);
+
+  if (error) return [];
+  return dedupeTokenRows(data ?? []);
+}
+
+export async function unregisterUserPushToken(
+  userId: string,
+  token: string
+): Promise<{ error: Error | null }> {
+  const { error } = await supabaseServer
+    .from("user_push_tokens")
+    .delete()
+    .eq("user_id", userId)
+    .eq("token", token);
+
+  return { error: error ? new Error(error.message) : null };
 }
 
 export async function listPushTokensForUser(userId: string): Promise<PushTokenRow[]> {

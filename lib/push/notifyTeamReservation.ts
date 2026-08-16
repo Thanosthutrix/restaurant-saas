@@ -1,7 +1,7 @@
 import "server-only";
 
 import { formatReservationReference } from "@/lib/meta/metaReservationService";
-import { listPushTokensForRestaurant } from "./pushTokenDb";
+import { listReservationPushTokensForRestaurant } from "./pushTokenDb";
 import { isPushSendConfigured } from "./pushConfig";
 import { sendPushToDevices } from "./pushSendService";
 import type { ReservationSource } from "@/lib/reservations/types";
@@ -51,7 +51,7 @@ export async function notifyTeamReservationCreated(params: {
     return { sent: 0, failed: 0, skipped: true };
   }
 
-  const tokens = await listPushTokensForRestaurant(params.restaurantId);
+  const tokens = await listReservationPushTokensForRestaurant(params.restaurantId);
   if (tokens.length === 0) {
     return { sent: 0, failed: 0, skipped: true };
   }
@@ -99,7 +99,7 @@ export async function notifyTeamReservationCancelled(params: {
     return { sent: 0, failed: 0, skipped: true };
   }
 
-  const tokens = await listPushTokensForRestaurant(params.restaurantId);
+  const tokens = await listReservationPushTokensForRestaurant(params.restaurantId);
   if (tokens.length === 0) {
     return { sent: 0, failed: 0, skipped: true };
   }

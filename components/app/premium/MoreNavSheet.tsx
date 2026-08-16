@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LogOut, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { signOut } from "@/app/login/actions";
+import { SignOutButton } from "@/components/app/SignOutButton";
 import {
   filterShellNavItems,
   type ShellNavItem,
@@ -175,18 +175,12 @@ export function MoreNavSheet({
             </div>
           ))}
         </nav>
-        <form
-          action={signOut}
-          className="shrink-0 border-t border-stone-100 pb-[max(0.35rem,env(safe-area-inset-bottom,0px))]"
-        >
-          <button
-            type="submit"
-            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-[0.99]"
-          >
+        <div className="shrink-0 border-t border-stone-100 pb-[max(0.35rem,env(safe-area-inset-bottom,0px))]">
+          <SignOutButton className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-[0.99]">
             <LogOut className="h-[1.125rem] w-[1.125rem]" aria-hidden />
             Déconnexion
-          </button>
-        </form>
+          </SignOutButton>
+        </div>
       </div>
     </div>,
     document.body

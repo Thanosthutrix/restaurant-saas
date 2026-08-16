@@ -121,3 +121,48 @@ export async function retryPendingPushRegistration(): Promise<void> {
   }
   await reregisterPushTokenForCurrentRestaurant();
 }
+
+function clearStoredPushToken(): void {
+  clearPendingToken();
+  try {
+    localStorage.removeItem(LAST_REGISTERED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Retire le token de l'appareil côté serveur (à appeler avant déconnexion). */
+export async function unregisterPushTokenFromServer(): Promise<void> {
+  const last = readLastRegisteredToken() ?? readPendingToken();
+  if (!last) {
+    clearStoredPushToken();
+    return;
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      headers.Authorization = `Bearer ${data.session.access_token}`;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    await fetch("/api/push/unregister", {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: JSON.stringify({ token: last.token }),
+    });
+  } catch (error) {
+    console.warn("[ubion push] unregister API failed", error);
+  }
+
+  clearStoredPushToken();
+}

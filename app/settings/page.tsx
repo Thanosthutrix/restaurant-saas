@@ -6,10 +6,15 @@ import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { ClosedDaysForm } from "./ClosedDaysForm";
 import { DiningWaitSettingsForm } from "./DiningWaitSettingsForm";
 import { ReservationCapacitySettingsForm } from "./ReservationCapacitySettingsForm";
+import { ReservationPushRecipientsForm } from "./ReservationPushRecipientsForm";
 import { TableMergeGroupsForm } from "./TableMergeGroupsForm";
 import { parseDiningWaitThresholds } from "@/lib/dining/diningWaitSettings";
 import { getReservationCapacitySummary } from "@/lib/reservations/availability";
 import { listDiningTableMergeGroups } from "@/lib/reservations/capacitySettingsDb";
+import {
+  listReservationPushRecipientOptions,
+  resolveActiveReservationPushRecipientIds,
+} from "@/lib/reservations/reservationPushRecipients";
 
 export default async function SettingsPage() {
   const restaurant = await getRestaurantForPage();
@@ -48,6 +53,11 @@ export default async function SettingsPage() {
     label: String(t.label),
   }));
 
+  const [pushRecipientOptions, activePushRecipientIds] = await Promise.all([
+    listReservationPushRecipientOptions(restaurant.id),
+    resolveActiveReservationPushRecipientIds(restaurant.id),
+  ]);
+
   return (
     <PageContainer width="narrow">
       <PageHeader
@@ -70,6 +80,14 @@ export default async function SettingsPage() {
         <ReservationCapacitySettingsForm
           initial={reservationSettings}
           limits={reservationLimits}
+        />
+      </section>
+
+      <section className={`${uiCard} space-y-4`}>
+        <h2 className="text-sm font-semibold text-stone-900">Notifications push — réservations</h2>
+        <ReservationPushRecipientsForm
+          options={pushRecipientOptions}
+          initialSelectedUserIds={activePushRecipientIds}
         />
       </section>
 

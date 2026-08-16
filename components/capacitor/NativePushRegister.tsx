@@ -7,6 +7,7 @@ import {
   retryPendingPushRegistration,
   reregisterPushTokenForCurrentRestaurant,
   sendPushTokenToServer,
+  unregisterPushTokenFromServer,
 } from "@/lib/push/registerPushTokenClient";
 
 /**
@@ -30,6 +31,9 @@ export function NativePushRegister() {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
         void retryPendingPushRegistration();
         void reregisterPushTokenForCurrentRestaurant();
+      }
+      if (event === "SIGNED_OUT") {
+        void unregisterPushTokenFromServer();
       }
     });
 

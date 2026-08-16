@@ -12,7 +12,11 @@ const SCROLL_DELTA = 8;
 /** Hauteur totale : barre + encoche / barre de statut iOS (0 sur desktop). */
 const headerTotalHeight = `calc(${HEADER_BAR_PX}px + env(safe-area-inset-top, 0px))`;
 
-export function PublicHeader() {
+type Props = {
+  mode?: "public" | "pro";
+};
+
+export function PublicHeader({ mode = "public" }: Props) {
   const [revealed, setRevealed] = useState(true);
   const [hovering, setHovering] = useState(false);
   const lastScrollY = useRef(0);
@@ -78,7 +82,7 @@ export function PublicHeader() {
 
           <nav className="flex items-center gap-2 sm:gap-3">
             <ConsumerAccountNav />
-            <PublicProToggle mode="public" />
+            <PublicProToggle mode={mode} />
           </nav>
         </div>
       </header>

@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, DoorOpen, Pencil, Plus, Users, X } from "lucide-react";
-import { setReservationStatusAction } from "./actions";
+import { CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, DoorOpen, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import { deleteReservationAction, setReservationStatusAction } from "./actions";
 import { ReservationArrivalModal } from "./ReservationArrivalModal";
 import { ReservationsDayPlanner } from "./ReservationsDayPlanner";
 import { NewReservationForm } from "./nouvelle/NewReservationForm";
 import type { CustomerLookupRow } from "@/lib/customers/customersDb";
 import type { DiningTableRow } from "@/lib/dining/diningDb";
 import type { RestaurantReservationRow, ReservationStatus } from "@/lib/reservations/types";
+import { isReservationDeletable } from "@/lib/reservations/types";
 import { uiBtnPrimary, uiError, uiInput, uiSuccess } from "@/components/ui/premium";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ModalOverlay } from "@/components/ui/ModalOverlay";
@@ -166,6 +167,21 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
     });
   }
 
+  function onDelete(id: string, guestLabel: string) {
+    if (!window.confirm(`Retirer « ${guestLabel} » du planning ? Cette action est définitive.`)) return;
+    setErr(null);
+    setOk(null);
+    start(async () => {
+      const r = await deleteReservationAction({ restaurantId, reservationId: id });
+      if (!r.ok) {
+        setErr(r.error);
+        return;
+      }
+      setOk("Réservation retirée du planning.");
+      router.refresh();
+    });
+  }
+
   const statusChips: { s: ReservationStatus; n: number }[] = (
     ["pending", "confirmed", "seated", "completed", "cancelled", "no_show"] as ReservationStatus[]
   )
@@ -301,6 +317,7 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
             onFocusActiveChange={setPlannerFocusActive}
             pending={pending}
             onStatus={onStatus}
+            onDelete={onDelete}
             onArrival={(r) => setArrivalReservation(r)}
           />
         </div>
@@ -308,6 +325,7 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
         <ul className="space-y-2">
           {rows.map((r) => {
             const contact = [r.contact_phone, r.contact_email].filter(Boolean).join(" · ");
+            const guestLabel = r.customerDisplayName ?? r.contact_name ?? "Client";
             return (
               <li
                 key={r.id}
@@ -375,6 +393,19 @@ export function ReservationsListClient({ restaurantId, ymd, rows, recentCustomer
                   >
                     <Pencil className="h-4 w-4" aria-hidden />
                   </Link>
+
+                  {isReservationDeletable(r.status) ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-stone-400 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                      disabled={pending}
+                      onClick={() => onDelete(r.id, guestLabel)}
+                      aria-label="Retirer du planning"
+                      title="Retirer du planning"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  ) : null}
                 </div>
               </li>
             );

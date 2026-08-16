@@ -42,9 +42,9 @@ export default async function ConsumerLoginPage({ searchParams }: Props) {
       </p>
 
       <p className="mt-4 text-center text-xs text-slate-500">
-        Vous êtes restaurateur ?{" "}
+        Si vous êtes pro ?{" "}
         <Link href="/login" className="font-semibold text-slate-700 hover:text-slate-900">
-          Espace pro
+          Accéder à l&apos;espace restaurateur
         </Link>
       </p>
     </div>

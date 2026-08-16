@@ -6,6 +6,11 @@ export type ReservationStatus =
   | "cancelled"
   | "no_show";
 
+/** Statuts pour lesquels la suppression du planning est autorisée. */
+export function isReservationDeletable(status: ReservationStatus): boolean {
+  return status === "cancelled" || status === "no_show";
+}
+
 export type ReservationSource =
   | "phone"
   | "walk_in"

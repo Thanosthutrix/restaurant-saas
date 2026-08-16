@@ -217,3 +217,17 @@ export async function reservationStartsUtc(
   if (data == null) return { data: null, error: new Error("Heure invalide.") };
   return { data: String(data), error: null };
 }
+
+export async function deleteReservation(
+  restaurantId: string,
+  id: string
+): Promise<{ error: Error | null }> {
+  const { error } = await supabaseServer
+    .from("restaurant_reservations")
+    .delete()
+    .eq("id", id)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { error: new Error(error.message) };
+  return { error: null };
+}

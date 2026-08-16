@@ -233,6 +233,7 @@ export function isBareShellPath(pathname: string | null): boolean {
   if (!pathname) return true;
   return (
     pathname === "/" ||
+    pathname.startsWith("/pro") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/restaurant/") ||

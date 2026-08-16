@@ -8,6 +8,7 @@ import type { CustomerSource } from "@/lib/customers/types";
 import { validateDurationMinutes } from "@/lib/reservations/parisTime";
 import {
   createReservation,
+  deleteReservation,
   getReservation,
   reservationStartsUtc,
   updateReservation,
@@ -24,6 +25,7 @@ import {
 import type { ActionResult } from "@/app/salle/actions";
 import { sendReservationRequestEmailToGuest } from "@/lib/messaging/reservationTransactionEmails";
 import type { ReservationSource, ReservationStatus } from "@/lib/reservations/types";
+import { isReservationDeletable } from "@/lib/reservations/types";
 
 async function assertReservationsWrite(userId: string, restaurantId: string) {
   return assertRestaurantAction(userId, restaurantId, "reservations.mutate");
@@ -228,6 +230,32 @@ export async function setReservationStatusAction(params: {
   );
   if (error) return { ok: false, error: error.message };
   revalidatePath("/reservations");
+  return { ok: true };
+}
+
+export async function deleteReservationAction(params: {
+  restaurantId: string;
+  reservationId: string;
+}): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  const gate = await assertReservationsWrite(user.id, params.restaurantId);
+  if (!gate.ok) return gate;
+
+  const { data: row } = await getReservation(params.reservationId, params.restaurantId);
+  if (!row) return { ok: false, error: "Réservation introuvable." };
+  if (!isReservationDeletable(row.status)) {
+    return {
+      ok: false,
+      error: "Seules les réservations annulées ou no-show peuvent être retirées du planning.",
+    };
+  }
+
+  const { error } = await deleteReservation(params.restaurantId, params.reservationId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/reservations");
+  revalidatePath("/compte");
   return { ok: true };
 }
 

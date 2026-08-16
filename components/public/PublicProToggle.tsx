@@ -1,13 +1,40 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { fetchHasProAccess } from "@/lib/public/proAccessClient";
 
 type Props = {
   mode?: "public" | "pro";
 };
 
 export function PublicProToggle({ mode = "public" }: Props) {
-  const router = useRouter();
+  const [isProUser, setIsProUser] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchHasProAccess().then((pro) => {
+      if (!cancelled) {
+        setIsProUser(pro);
+        setChecked(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const goPro = useCallback(async () => {
+    if (mode === "pro") return;
+    let target = "/pro";
+    if (!checked) {
+      target = (await fetchHasProAccess()) ? "/dashboard" : "/pro";
+    } else {
+      target = isProUser ? "/dashboard" : "/pro";
+    }
+    // Navigation complète : évite les 404 Turbopack quand le cache dev est stale.
+    window.location.assign(target);
+  }, [checked, isProUser, mode]);
 
   return (
     <div
@@ -19,7 +46,7 @@ export function PublicProToggle({ mode = "public" }: Props) {
         type="button"
         aria-pressed={mode === "public"}
         onClick={() => {
-          if (mode !== "public") router.push("/");
+          if (mode !== "public") window.location.assign("/");
         }}
         className={`rounded-full px-3 py-1.5 transition sm:px-4 ${
           mode === "public"
@@ -33,7 +60,7 @@ export function PublicProToggle({ mode = "public" }: Props) {
         type="button"
         aria-pressed={mode === "pro"}
         onClick={() => {
-          if (mode !== "pro") router.push("/dashboard");
+          void goPro();
         }}
         className={`rounded-full px-3 py-1.5 transition sm:px-4 ${
           mode === "pro"

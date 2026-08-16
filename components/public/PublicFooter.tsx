@@ -14,8 +14,11 @@ export function PublicFooter() {
           <Link href="/" className="transition hover:text-white">
             Annuaire
           </Link>
-          <Link href="/login" className="transition hover:text-white">
-            Connexion restaurateur
+          <Link href="/pro" className="transition hover:text-white">
+            Ubion Pro
+          </Link>
+          <Link href="/compte/connexion" className="transition hover:text-white">
+            Connexion
           </Link>
         </div>
       </div>

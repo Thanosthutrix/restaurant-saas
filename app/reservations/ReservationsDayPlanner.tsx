@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import type { RestaurantReservationRow, ReservationStatus } from "@/lib/reservations/types";
+import { isReservationDeletable } from "@/lib/reservations/types";
 import { minutesSinceMidnightParis } from "@/lib/reservations/parisTime";
 import { assignReservationLanes, clipInterval, type IntervalMin } from "@/lib/reservations/plannerLayout";
 import { uiInput } from "@/components/ui/premium";
@@ -62,6 +64,7 @@ type Props = {
   onFocusActiveChange: (v: boolean) => void;
   pending: boolean;
   onStatus: (id: string, s: ReservationStatus) => void;
+  onDelete?: (id: string, guestLabel: string) => void;
   /** Clic sur la carte : arrivée / ticket (sauf si statut terminal). */
   onArrival?: (r: Row) => void;
 };
@@ -146,6 +149,7 @@ export function ReservationsDayPlanner({
   onFocusActiveChange,
   pending,
   onStatus,
+  onDelete,
   onArrival,
 }: Props) {
   const visible = focusActive
@@ -354,7 +358,7 @@ export function ReservationsDayPlanner({
                       {!shortH && (
                         <div className="mt-0.5 flex items-center gap-0.5">
                           <select
-                            className={`${uiInput} w-full min-w-0 max-w-full py-0.5 text-[9px] leading-tight`}
+                            className={`${uiInput} min-w-0 flex-1 max-w-full py-0.5 text-[9px] leading-tight`}
                             value={r.status}
                             disabled={pending}
                             onChange={(e) => onStatus(r.id, e.target.value as ReservationStatus)}
@@ -366,6 +370,21 @@ export function ReservationsDayPlanner({
                               </option>
                             ))}
                           </select>
+                          {onDelete && isReservationDeletable(r.status) ? (
+                            <button
+                              type="button"
+                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-stone-400 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                              disabled={pending}
+                              title="Retirer du planning"
+                              aria-label="Retirer du planning"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(r.id, label);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                          ) : null}
                         </div>
                       )}
                       {shortH && (

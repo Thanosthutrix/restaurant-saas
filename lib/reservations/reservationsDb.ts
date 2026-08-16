@@ -121,6 +121,44 @@ export async function updateReservationStatus(
   return { error: null };
 }
 
+/** Réservation liée au compte consommateur (annulation B2C). */
+export async function getConsumerReservation(
+  reservationId: string,
+  consumerUserId: string
+): Promise<{ data: RestaurantReservationRow | null; error: Error | null }> {
+  const { data, error } = await supabaseServer
+    .from("restaurant_reservations")
+    .select("*")
+    .eq("id", reservationId)
+    .eq("consumer_user_id", consumerUserId)
+    .maybeSingle();
+
+  if (error) return { data: null, error: new Error(error.message) };
+  if (!data) return { data: null, error: null };
+  return { data: mapRow(data as Record<string, unknown>), error: null };
+}
+
+export async function cancelConsumerReservation(
+  reservationId: string,
+  consumerUserId: string
+): Promise<{ data: RestaurantReservationRow | null; error: Error | null }> {
+  const { data: existing, error: loadErr } = await getConsumerReservation(
+    reservationId,
+    consumerUserId
+  );
+  if (loadErr) return { data: null, error: loadErr };
+  if (!existing) return { data: null, error: new Error("Réservation introuvable.") };
+
+  const { error } = await supabaseServer
+    .from("restaurant_reservations")
+    .update({ status: "cancelled" })
+    .eq("id", reservationId)
+    .eq("consumer_user_id", consumerUserId);
+
+  if (error) return { data: null, error: new Error(error.message) };
+  return { data: { ...existing, status: "cancelled" }, error: null };
+}
+
 export type ReservationDiningSeatingPatch = {
   status: "seated";
   dining_table_id: string;

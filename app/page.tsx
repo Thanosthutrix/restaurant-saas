@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PublicDirectoryClient } from "@/components/public/PublicDirectoryClient";
 import { PublicLayoutShell } from "@/components/public/PublicLayoutShell";
+import { getCurrentUser } from "@/lib/auth";
+import { getConsumerSearchPreferences } from "@/lib/b2c/experience/consumerPreferencesDb";
 import { listPublicRestaurants } from "@/lib/public/data";
 import { buildOrganizationJsonLd } from "@/lib/seo/organizationJsonLd";
 import { absoluteUrl } from "@/lib/seo/siteUrl";
@@ -20,12 +22,20 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicHomePage() {
-  const restaurants = await listPublicRestaurants();
+  const user = await getCurrentUser();
+  const [restaurants, searchPrefs] = await Promise.all([
+    listPublicRestaurants(),
+    user ? getConsumerSearchPreferences(user.id) : Promise.resolve(null),
+  ]);
 
   return (
     <PublicLayoutShell>
       <JsonLd data={buildOrganizationJsonLd()} />
-      <PublicDirectoryClient restaurants={restaurants} />
+      <PublicDirectoryClient
+        restaurants={restaurants}
+        searchPrefs={searchPrefs}
+        isLoggedIn={Boolean(user)}
+      />
     </PublicLayoutShell>
   );
 }

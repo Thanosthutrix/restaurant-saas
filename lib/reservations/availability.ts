@@ -4,11 +4,15 @@ import { supabaseServer } from "@/lib/supabaseServer";
 import { buildOpeningHoursSchedule } from "@/lib/public/formatOpeningHours";
 import type { PlanningDayKey } from "@/lib/staff/planningHoursTypes";
 import { minutesFromMidnight, normalizeClockToHhMm } from "@/lib/staff/planningHoursTypes";
+import {
+  isOnlineReservationSource,
+  type ReservationCapacitySettings,
+} from "./capacitySettings";
+import { getReservationCapacitySettings } from "./capacitySettingsDb";
+import { resolveCapacityLimits } from "./tableCapacity";
 import { listReservationsForParisDay, reservationStartsUtc } from "./reservationsDb";
+import type { ReservationSource } from "./types";
 
-const DEFAULT_DURATION_MINUTES = 90;
-const DEFAULT_MAX_COVERS = 60;
-const SLOT_STEP_MINUTES = 15;
 const MAX_SLOTS_RETURNED = 8;
 
 const WEEKDAY_TO_KEY: Record<string, PlanningDayKey> = {
@@ -20,6 +24,8 @@ const WEEKDAY_TO_KEY: Record<string, PlanningDayKey> = {
   Sat: "sat",
   Sun: "sun",
 };
+
+export type ReservationChannel = "online" | "staff";
 
 export function parisTodayYmd(): string {
   return new Date().toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
@@ -103,13 +109,76 @@ async function loadRestaurantHours(restaurantId: string) {
   };
 }
 
+function countOverlappingCovers(
+  activeReservations: { party_size: number; starts_at: string; ends_at: string; source: ReservationSource }[],
+  slotStartMs: number,
+  slotEndMs: number,
+  extraPartySize: number,
+  channel: ReservationChannel
+): { total: number; online: number } {
+  let total = extraPartySize;
+  let online = channel === "online" ? extraPartySize : 0;
+
+  for (const res of activeReservations) {
+    const rStart = new Date(res.starts_at).getTime();
+    const rEnd = new Date(res.ends_at).getTime();
+    if (!overlaps(slotStartMs, slotEndMs, rStart, rEnd)) continue;
+    total += res.party_size;
+    if (isOnlineReservationSource(res.source)) {
+      online += res.party_size;
+    }
+  }
+
+  return { total, online };
+}
+
+function slotFitsLimits(
+  covers: { total: number; online: number },
+  limits: Awaited<ReturnType<typeof resolveCapacityLimits>>,
+  channel: ReservationChannel,
+  enforce: boolean
+): boolean {
+  if (!enforce) return true;
+  if (covers.total > limits.maxCoversPerSlot) return false;
+  if (channel === "online" && covers.online > limits.maxOnlineCoversPerSlot) return false;
+  return true;
+}
+
 /** Créneaux disponibles (heure Paris HH:mm) pour une date et un nombre de couverts. */
 async function computeAvailableSlots(params: {
   restaurantId: string;
   ymd: string;
   partySize: number;
   durationMinutes: number;
+  channel: ReservationChannel;
+  settings?: ReservationCapacitySettings;
+  limits?: Awaited<ReturnType<typeof resolveCapacityLimits>>;
 }): Promise<{ slots: string[]; error: string | null }> {
+  const settings = params.settings ?? (await getReservationCapacitySettings(params.restaurantId));
+  const limits = params.limits ?? (await resolveCapacityLimits(params.restaurantId, settings));
+
+  if (params.channel === "online") {
+    if (!settings.online_reservations_enabled) {
+      return { slots: [], error: "Les réservations en ligne sont désactivées." };
+    }
+    if (params.partySize > limits.maxPartySizeOnline) {
+      return {
+        slots: [],
+        error: `Maximum ${limits.maxPartySizeOnline} convives en ligne pour cet établissement.`,
+      };
+    }
+  } else if (params.partySize > limits.maxPartySizeStaff) {
+    return {
+      slots: [],
+      error: `Maximum ${limits.maxPartySizeStaff} convives par réservation.`,
+    };
+  }
+
+  const enforce =
+    params.channel === "online"
+      ? settings.enforce_availability_online
+      : settings.enforce_availability_staff;
+
   const { schedule, error: hoursError } = await loadRestaurantHours(params.restaurantId);
   if (hoursError) return { slots: [], error: hoursError };
 
@@ -130,6 +199,7 @@ async function computeAvailableSlots(params: {
   );
 
   const nowParisYmd = parisTodayYmd();
+  const minLead = settings.min_lead_minutes;
   const nowMinutes =
     params.ymd === nowParisYmd
       ? (() => {
@@ -141,10 +211,11 @@ async function computeAvailableSlots(params: {
           }).formatToParts(new Date());
           const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
           const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-          return h * 60 + m + 30;
+          return h * 60 + m + minLead;
         })()
       : 0;
 
+  const slotStep = settings.slot_step_minutes;
   const slots: string[] = [];
 
   for (const band of day.bands) {
@@ -152,7 +223,11 @@ async function computeAvailableSlots(params: {
     const bandEnd = minutesFromMidnight(band.end);
     if (bandStart == null || bandEnd == null) continue;
 
-    for (let startMin = bandStart; startMin + params.durationMinutes <= bandEnd; startMin += SLOT_STEP_MINUTES) {
+    for (
+      let startMin = bandStart;
+      startMin + params.durationMinutes <= bandEnd;
+      startMin += slotStep
+    ) {
       if (startMin < nowMinutes) continue;
 
       const h = Math.floor(startMin / 60);
@@ -165,16 +240,15 @@ async function computeAvailableSlots(params: {
       const slotStartMs = new Date(startsAt).getTime();
       const slotEndMs = slotStartMs + params.durationMinutes * 60_000;
 
-      let covers = params.partySize;
-      for (const res of activeReservations) {
-        const rStart = new Date(res.starts_at).getTime();
-        const rEnd = new Date(res.ends_at).getTime();
-        if (overlaps(slotStartMs, slotEndMs, rStart, rEnd)) {
-          covers += res.party_size;
-        }
-      }
+      const covers = countOverlappingCovers(
+        activeReservations,
+        slotStartMs,
+        slotEndMs,
+        params.partySize,
+        params.channel
+      );
 
-      if (covers <= DEFAULT_MAX_COVERS) {
+      if (slotFitsLimits(covers, limits, params.channel, enforce)) {
         slots.push(timeHm);
       }
     }
@@ -189,13 +263,17 @@ export async function listAvailableReservationSlots(params: {
   partySize: number;
   durationMinutes?: number;
   limit?: number;
+  channel?: ReservationChannel;
 }): Promise<{ slots: string[]; error: string | null }> {
-  const duration = params.durationMinutes ?? DEFAULT_DURATION_MINUTES;
+  const settings = await getReservationCapacitySettings(params.restaurantId);
+  const duration = params.durationMinutes ?? settings.default_duration_minutes;
   const result = await computeAvailableSlots({
     restaurantId: params.restaurantId,
     ymd: params.ymd,
     partySize: params.partySize,
     durationMinutes: duration,
+    channel: params.channel ?? "online",
+    settings,
   });
   if (result.error) return result;
 
@@ -203,26 +281,33 @@ export async function listAvailableReservationSlots(params: {
   return { slots: result.slots.slice(0, limit), error: null };
 }
 
-/** Vérifie un créneau précis (sans tronquer la liste affichée au bot). */
+/** Vérifie un créneau précis. */
 export async function checkReservationSlotAvailable(params: {
   restaurantId: string;
   ymd: string;
   timeHm: string;
   partySize: number;
   durationMinutes?: number;
-}): Promise<boolean> {
+  channel?: ReservationChannel;
+}): Promise<{ available: boolean; error: string | null }> {
   const normalized = parseTimeHmInput(params.timeHm) ?? params.timeHm;
-  if (!normalized) return false;
+  if (!normalized) return { available: false, error: "Heure invalide." };
 
-  const duration = params.durationMinutes ?? DEFAULT_DURATION_MINUTES;
+  const settings = await getReservationCapacitySettings(params.restaurantId);
+  const duration = params.durationMinutes ?? settings.default_duration_minutes;
+  const channel = params.channel ?? "online";
+
   const { slots, error } = await computeAvailableSlots({
     restaurantId: params.restaurantId,
     ymd: params.ymd,
     partySize: params.partySize,
     durationMinutes: duration,
+    channel,
+    settings,
   });
-  if (error) return false;
-  return slots.includes(normalized);
+
+  if (error) return { available: false, error };
+  return { available: slots.includes(normalized), error: null };
 }
 
 export async function isReservationSlotAvailable(params: {
@@ -231,6 +316,15 @@ export async function isReservationSlotAvailable(params: {
   timeHm: string;
   partySize: number;
   durationMinutes?: number;
+  channel?: ReservationChannel;
 }): Promise<boolean> {
-  return checkReservationSlotAvailable(params);
+  const result = await checkReservationSlotAvailable(params);
+  return result.available;
+}
+
+/** Infos capacité pour affichage B2B (settings). */
+export async function getReservationCapacitySummary(restaurantId: string) {
+  const settings = await getReservationCapacitySettings(restaurantId);
+  const limits = await resolveCapacityLimits(restaurantId, settings);
+  return { settings, limits };
 }

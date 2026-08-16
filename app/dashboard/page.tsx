@@ -27,6 +27,8 @@ import { cachedListTemperaturePoints } from "@/lib/cache";
 import { loadDashboardHygieneTileData } from "@/lib/dashboard/hygieneTileData";
 import { DashboardHygieneTile } from "@/components/dashboard/DashboardHygieneTile";
 import { DashboardFocusBand, type FocusItem } from "@/components/dashboard/DashboardFocusBand";
+import { ExperienceProfileTrigger } from "@/components/restaurant/ExperienceProfileTrigger";
+import { getExperienceProfile } from "@/lib/b2c/experience/experienceDb";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 
 function formatDate(iso: string) {
@@ -148,12 +150,14 @@ export default async function DashboardPage() {
   const monday = mondayOfWeekContaining(new Date());
   const weekEndExclusive = addDays(monday, 7);
 
-  const [{ data: recentServices }, { data: stockSummary }, staffForClock, shiftsWeek, accessContext] = await Promise.all([
+  const [{ data: recentServices }, { data: stockSummary }, staffForClock, shiftsWeek, accessContext, experienceProfile] =
+    await Promise.all([
     getServicesForRestaurant(restaurant.id, 10),
     getInventoryStockDashboardSummary(restaurant.id),
     getStaffMemberByUserAndRestaurant(user.id, restaurant.id),
     listWorkShiftsInRange(restaurant.id, monday.toISOString(), weekEndExclusive.toISOString()),
     getShellAccessContext(user.id),
+    getExperienceProfile(restaurant.id),
   ]);
 
   const allowed = accessContext?.allowedNavKeys ?? [...ALL_SHELL_NAV_KEYS];
@@ -222,6 +226,7 @@ export default async function DashboardPage() {
   }
   // L'état calme n'est montré qu'aux utilisateurs concernés par ces signaux.
   const showFocusBand = hasHygieneAccess || showStockAlert;
+  const experienceCompleted = Boolean(experienceProfile.data?.completed_at);
 
   const cardBase = "rounded-2xl border border-stone-200/70 bg-white shadow-sm";
 
@@ -242,6 +247,12 @@ export default async function DashboardPage() {
         />
 
         {showFocusBand ? <DashboardFocusBand items={focusItems} /> : null}
+
+        {isOwner ? (
+          <section aria-label="Profil expérience B2C">
+            <ExperienceProfileTrigger restaurantId={restaurant.id} completed={experienceCompleted} />
+          </section>
+        ) : null}
 
         <section aria-labelledby="quick-actions-heading">
           <h2 id="quick-actions-heading" className="mb-3 text-lg font-semibold text-stone-900">

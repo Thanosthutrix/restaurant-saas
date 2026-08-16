@@ -95,7 +95,10 @@ async function insertWasteStockMovement(params: {
   reason: WasteReason;
   createdBy: string | null;
 }): Promise<{ movementId: string | null; estimatedCostHt: number | null; error: Error | null }> {
-  const referenceLabel = `Perte ${params.wasteType} (${params.reason})`;
+  const referenceLabel =
+    params.wasteType === "supply"
+      ? `Casse (${params.reason})`
+      : `Perte ${params.wasteType} (${params.reason})`;
   const now = new Date().toISOString();
 
   const { data: mov, error } = await supabaseServer
@@ -137,14 +140,21 @@ async function insertWasteStockMovement(params: {
 
 export async function listRecentWasteLogs(
   restaurantId: string,
-  limit = 50
+  limit = 50,
+  options?: { wasteType?: WasteType }
 ): Promise<{ data: WasteLogRow[]; error: Error | null }> {
-  const { data, error } = await supabaseServer
+  let query = supabaseServer
     .from("waste_logs")
     .select("*")
     .eq("restaurant_id", restaurantId)
     .order("logged_at", { ascending: false })
     .limit(limit);
+
+  if (options?.wasteType) {
+    query = query.eq("waste_type", options.wasteType);
+  }
+
+  const { data, error } = await query;
 
   if (error) return { data: [], error: new Error(error.message) };
   return { data: (data ?? []) as WasteLogRow[], error: null };

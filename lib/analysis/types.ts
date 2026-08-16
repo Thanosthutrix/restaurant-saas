@@ -17,8 +17,8 @@ export type FeedbackResponseType =
   | "emoji_rating"
   | "text_short";
 
-export type WasteType = "raw" | "prep" | "plate";
-export type WasteReason = "dlc" | "cooking" | "dropped" | "quality" | "other";
+export type WasteType = "raw" | "prep" | "plate" | "supply";
+export type WasteReason = "dlc" | "cooking" | "dropped" | "quality" | "other" | "breakage";
 
 export type FeedbackQuestionTemplateRow = {
   id: string;

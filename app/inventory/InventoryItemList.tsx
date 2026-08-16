@@ -1,17 +1,11 @@
 import Link from "next/link";
-import { Package } from "lucide-react";
+import { Package, GlassWater } from "lucide-react";
 import type { InventoryItemWithCalculatedStock } from "@/lib/db";
+import { INVENTORY_ITEM_TYPE_DOT } from "@/lib/inventory/inventoryItemTypes";
 
 const QTY_EPS = 1e-5;
 
-const TYPE_DOT: Record<
-  string,
-  { dotClass: string; label: string }
-> = {
-  ingredient: { dotClass: "bg-amber-500", label: "Matière première" },
-  prep: { dotClass: "bg-copper-600", label: "Préparation" },
-  resale: { dotClass: "bg-emerald-500", label: "Revente" },
-};
+const TYPE_DOT = INVENTORY_ITEM_TYPE_DOT;
 
 function formatQty(n: number): string {
   if (!Number.isFinite(n)) return "—";
@@ -86,7 +80,13 @@ function StockLevelBar({ stock, minQty, targetQty }: BarProps) {
   );
 }
 
-export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedStock }) {
+export function InventoryItemRow({
+  item,
+  onBreakage,
+}: {
+  item: InventoryItemWithCalculatedStock;
+  onBreakage?: (itemId: string) => void;
+}) {
   const sheet = item.current_stock_qty ?? 0;
   const stock = item.stock_qty_from_movements ?? 0;
   const mismatch = Math.abs(sheet - stock) > QTY_EPS;
@@ -110,15 +110,21 @@ export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedSt
     ? `Stock (mouvements) : ${formatQty(stock)} — fiche : ${formatQty(sheet)} (écart)`
     : undefined;
 
+  const isSupply = item.item_type === "supply";
+  const Icon = isSupply ? GlassWater : Package;
+  const iconBg = isSupply ? "bg-sky-50 ring-sky-100/90" : "bg-copper-50 ring-copper-100/90";
+  const iconColor = isSupply ? "text-sky-700" : "text-copper-700";
+  const hoverBorder = isSupply ? "hover:border-sky-200" : "hover:border-copper-200";
+  const hoverText = isSupply ? "group-hover:text-sky-800" : "group-hover:text-copper-700";
+
   return (
     <li>
-      <Link
-        href={`/inventory/${item.id}`}
-        className="group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition hover:border-copper-200 hover:shadow-md"
+      <div
+        className={`group flex items-center gap-3 rounded-2xl border border-stone-200/70 bg-white px-3.5 py-3 shadow-sm transition ${hoverBorder} hover:shadow-md`}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-copper-50 ring-1 ring-copper-100/90">
-            <Package className="h-5 w-5 text-copper-700" aria-hidden />
+        <Link href={`/inventory/${item.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+          <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg} ring-1`}>
+            <Icon className={`h-5 w-5 ${iconColor}`} aria-hidden />
             <span
               className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white ${typeInfo.dotClass}`}
               title={typeInfo.label}
@@ -127,12 +133,12 @@ export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedSt
             />
           </span>
           <span className="min-w-0">
-            <span className="block truncate font-semibold text-stone-900 transition group-hover:text-copper-700">
+            <span className={`block truncate font-semibold text-stone-900 transition ${hoverText}`}>
               {item.name}
             </span>
             <span className="mt-0.5 block truncate text-xs text-stone-500">{typeInfo.label}</span>
           </span>
-        </div>
+        </Link>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
           <StockLevelBar stock={stock} minQty={minN} targetQty={targetN} />
@@ -141,10 +147,21 @@ export function InventoryItemRow({ item }: { item: InventoryItemWithCalculatedSt
             title={qtyTitle}
           >
             {formatQty(stock)}
-            <span className="ml-1 text-xs font-normal text-stone-500">{item.unit}</span>
+            <span className="ml-1 text-xs font-normal text-stone-500">
+              {isSupply ? "pièce(s)" : item.unit}
+            </span>
           </span>
+          {isSupply && onBreakage ? (
+            <button
+              type="button"
+              onClick={() => onBreakage(item.id)}
+              className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-50"
+            >
+              Casse
+            </button>
+          ) : null}
         </div>
-      </Link>
+      </div>
     </li>
   );
 }

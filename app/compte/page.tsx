@@ -1,30 +1,15 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, UserRound } from "lucide-react";
+import { CalendarDays, Compass, UserRound } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getConsumerProfileByUserId,
   listConsumerReservations,
 } from "@/lib/public/consumer/consumerDb";
+import { getConsumerSearchPreferences } from "@/lib/b2c/experience/consumerPreferencesDb";
 import { ConsumerProfileForm } from "@/components/public/consumer/ConsumerProfileForm";
+import { ConsumerSearchPreferencesForm } from "@/components/public/consumer/ConsumerSearchPreferencesForm";
+import { ConsumerReservationsList } from "@/components/public/consumer/ConsumerReservationsList";
 import type { ConsumerProfile } from "@/lib/public/consumer/types";
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: "En attente",
-  confirmed: "Confirmée",
-  seated: "À table",
-  completed: "Terminée",
-  cancelled: "Annulée",
-  no_show: "Absent",
-};
-
-function formatParis(iso: string) {
-  return new Date(iso).toLocaleString("fr-FR", {
-    timeZone: "Europe/Paris",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 export default async function ComptePage() {
   const user = await getCurrentUser();
@@ -46,6 +31,8 @@ export default async function ComptePage() {
   const reservations = profile.first_name
     ? await listConsumerReservations(user.id)
     : [];
+
+  const searchPrefs = await getConsumerSearchPreferences(user.id);
 
   const needsProfile = !profile.first_name || !profile.last_name;
 
@@ -77,46 +64,19 @@ export default async function ComptePage() {
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <div className="mb-4 flex items-center gap-2">
+          <Compass className="h-5 w-5 text-violet-600" aria-hidden />
+          <h2 className="text-lg font-bold text-slate-900">Mes envies & exclusions</h2>
+        </div>
+        <ConsumerSearchPreferencesForm initial={searchPrefs} />
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+        <div className="mb-4 flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-emerald-600" aria-hidden />
           <h2 className="text-lg font-bold text-slate-900">Mes réservations</h2>
         </div>
 
-        {reservations.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-            <p className="text-slate-600">Aucune réservation pour le moment.</p>
-            <Link
-              href="/"
-              className="mt-3 inline-flex text-sm font-semibold text-orange-600 hover:text-orange-700"
-            >
-              Découvrir les restaurants →
-            </Link>
-          </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {reservations.map((r) => (
-              <li key={r.id} className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold text-slate-900">{r.restaurant_name}</p>
-                  <p className="text-sm text-slate-600">
-                    {formatParis(r.starts_at)} · {r.party_size} convive{r.party_size > 1 ? "s" : ""}
-                  </p>
-                  {r.notes ? <p className="mt-1 text-sm text-slate-500">{r.notes}</p> : null}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {STATUS_LABELS[r.status] ?? r.status}
-                  </span>
-                  <Link
-                    href={`/restaurant/${r.restaurant_id}`}
-                    className="text-sm font-semibold text-orange-600 hover:text-orange-700"
-                  >
-                    Voir
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ConsumerReservationsList reservations={reservations} />
       </section>
     </div>
   );

@@ -19,7 +19,8 @@ import {
   formatReservationConfirmationMessage,
   formatReservationReference,
 } from "./metaReservationService";
-import { notifyTeamMetaReservationCreated } from "@/lib/push/notifyMetaReservation";
+import { notifyTeamReservationCreated } from "@/lib/push/notifyTeamReservation";
+import { sendReservationNotifyEmailToRestaurant } from "@/lib/messaging/reservationTransactionEmails";
 import {
   getMetaConversationContext,
   updateConversationBookingState,
@@ -312,13 +313,14 @@ export async function processInboundMetaBookingBot(params: {
 
     const pickedFromOfferedList = offered.includes(timeHm);
     if (!pickedFromOfferedList) {
-      const available = await checkReservationSlotAvailable({
+      const slotCheck = await checkReservationSlotAvailable({
         restaurantId: params.restaurantId,
         ymd: draft.ymd,
         timeHm,
         partySize: draft.partySize ?? 2,
+        channel: "online",
       });
-      if (!available) {
+      if (!slotCheck.available) {
         await replyAndMarkInbound(params, state, {
           text: "Ce créneau n'est pas disponible. Choisissez un numéro dans la liste ou une autre heure.",
         });
@@ -404,15 +406,29 @@ export async function processInboundMetaBookingBot(params: {
     revalidatePath("/reservations");
     revalidatePath("/communication");
 
-    void notifyTeamMetaReservationCreated({
+    void notifyTeamReservationCreated({
       restaurantId: params.restaurantId,
       reservationId: created.reservationId,
       partySize: draft.partySize,
       startsAtIso: created.startsAt,
       contactName: params.customerName ?? ctx.customerName,
-      platform: params.platform,
+      source: params.platform === "instagram_dm" ? "instagram_dm" : "facebook_messenger",
     }).catch((err) => {
       console.warn("[meta/bookingBot] push équipe:", err);
+    });
+
+    void sendReservationNotifyEmailToRestaurant({
+      restaurantId: params.restaurantId,
+      reservationId: created.reservationId,
+      contactName: params.customerName ?? ctx.customerName,
+      contactPhone: null,
+      contactEmail: null,
+      startsAtIso: created.startsAt,
+      partySize: draft.partySize,
+      notes: null,
+      source: params.platform === "instagram_dm" ? "instagram_dm" : "facebook_messenger",
+    }).catch((err) => {
+      console.warn("[meta/bookingBot] e-mail équipe:", err);
     });
 
     await reply({

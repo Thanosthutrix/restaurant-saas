@@ -152,6 +152,67 @@ export function collectDescendantIds(
   return out;
 }
 
+/** Vérifie qu’un déplacement (reparent) est autorisé. */
+export function canReparentCategory(
+  categoryId: string,
+  newParentId: string | null,
+  flat: RestaurantCategory[]
+): { ok: true } | { ok: false; reason: string } {
+  const byId = new Map(flat.map((c) => [c.id, c]));
+  const row = byId.get(categoryId);
+  if (!row) return { ok: false, reason: "Rubrique introuvable." };
+  if (newParentId === categoryId) {
+    return { ok: false, reason: "Impossible de déplacer une rubrique sur elle-même." };
+  }
+  if (newParentId === row.parent_id) {
+    return { ok: false, reason: "Déjà à cet emplacement." };
+  }
+  if (newParentId) {
+    if (!byId.has(newParentId)) return { ok: false, reason: "Rubrique cible introuvable." };
+    const descendants = collectDescendantIds(categoryId, flat);
+    if (descendants.has(newParentId)) {
+      return {
+        ok: false,
+        reason: "Impossible de déplacer une rubrique dans sa propre sous-arborescence.",
+      };
+    }
+  }
+  return { ok: true };
+}
+
+/** Garde uniquement les rubriques sélectionnées qui ne sont pas déjà sous une autre sélection. */
+export function filterTopLevelSelectedIds(
+  selectedIds: string[],
+  flat: RestaurantCategory[]
+): string[] {
+  const selected = new Set(selectedIds);
+  const byId = new Map(flat.map((c) => [c.id, c]));
+  return selectedIds.filter((id) => {
+    let cur = byId.get(id);
+    while (cur?.parent_id) {
+      if (selected.has(cur.parent_id)) return false;
+      cur = byId.get(cur.parent_id);
+    }
+    return true;
+  });
+}
+
+/** Portée la plus large couvrant toutes les rubriques regroupées. */
+export function inferGroupAppliesTo(categories: RestaurantCategory[]): CategoryAppliesTo {
+  const values = new Set(categories.map((c) => c.applies_to));
+  if (values.size > 1 || values.has("both")) return "both";
+  return categories[0]!.applies_to;
+}
+
+/** Si toutes les rubriques ont le même parent, la nouvelle rubrique prend sa place ; sinon racine. */
+export function inferGroupParentId(categories: RestaurantCategory[]): string | null {
+  const parents = new Set(categories.map((c) => c.parent_id));
+  if (parents.size === 1) {
+    return [...parents][0] ?? null;
+  }
+  return null;
+}
+
 export type CategoryGroup<T> = {
   categoryId: string | null;
   /** Titre de section (chemin complet ou « Sans rubrique »). */

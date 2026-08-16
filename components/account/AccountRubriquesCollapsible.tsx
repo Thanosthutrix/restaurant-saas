@@ -28,7 +28,9 @@ export function AccountRubriquesCollapsible({ rubriqueCount, children }: Props) 
         <div className="space-y-4">
           <p className={`text-sm ${uiLead}`}>
             Créez vos propres rubriques et sous-rubriques pour classer les plats (carte) et les composants
-            stock (ex. Vin → Bordeaux → Rouge). La portée indique si la rubrique apparaît pour la carte,
+            stock (ex. Vin → Bordeaux → Rouge). Regroupez plusieurs rubriques sous une nouvelle parente,
+            glissez-en une sur une autre pour la rattacher, ou utilisez Remonter pour qu’une sous-rubrique
+            redevienne une rubrique principale. La portée indique si la rubrique apparaît pour la carte,
             pour le stock, ou pour les deux.
           </p>
           {children}

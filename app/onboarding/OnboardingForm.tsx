@@ -49,8 +49,12 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
 
   const selectedTemplate = profile !== RESTAURANT_PROFILE_OTHER ? templates.find((t) => t.slug === profile) : null;
 
-  async function goDashboard() {
-    router.push("/dashboard");
+  async function goDashboard(restaurantId?: string) {
+    if (restaurantId) {
+      router.push(`/onboarding/experience?restaurantId=${restaurantId}`);
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   }
 
@@ -108,7 +112,7 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
           router.replace("/onboarding/review-recipes");
           return;
         }
-        await goDashboard();
+        await goDashboard(restaurantId);
         return;
       }
       const raw = result.menuSuggestions ?? [];

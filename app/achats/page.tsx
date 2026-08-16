@@ -1,33 +1,67 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Boxes, ClipboardCheck, FileText, PackageCheck, Sparkles, Truck } from "lucide-react";
+import { Boxes, ClipboardCheck, FileText, GlassWater, PackageCheck, Sparkles, Truck } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
 import {
-  getInventoryStockDashboardSummary,
+  getInventoryItemsWithCalculatedStock,
   getRecentDeliveryNotesForRestaurant,
   getSupplierInvoicesForRestaurant,
 } from "@/lib/db";
+import { isFoodInventoryItemType, isSupplyItemType } from "@/lib/inventory/inventoryItemTypes";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
+
+const QTY_EPS = 1e-5;
+
+function countBelowMin(
+  items: {
+    min_stock_qty?: unknown;
+    stock_qty_from_movements?: number;
+    current_stock_qty?: number;
+  }[]
+): number {
+  let n = 0;
+  for (const item of items) {
+    const min = item.min_stock_qty != null ? Number(item.min_stock_qty) : null;
+    if (min == null || !Number.isFinite(min)) continue;
+    const stock = item.stock_qty_from_movements ?? Number(item.current_stock_qty) ?? 0;
+    if (stock < min - QTY_EPS) n += 1;
+  }
+  return n;
+}
 
 export default async function AchatsPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [summaryRes, notesRes, invoicesRes] = await Promise.all([
-    getInventoryStockDashboardSummary(restaurant.id),
+  const [itemsRes, notesRes, invoicesRes] = await Promise.all([
+    getInventoryItemsWithCalculatedStock(restaurant.id),
     getRecentDeliveryNotesForRestaurant(restaurant.id, 200),
     getSupplierInvoicesForRestaurant(restaurant.id, { includeFileFields: false }),
   ]);
 
-  const belowMin = summaryRes.data?.belowMinStockCount ?? 0;
-  const inventoryCount = summaryRes.data?.inventoryCount ?? 0;
+  const allItems = itemsRes.data ?? [];
+  const foodItems = allItems.filter((i) => isFoodInventoryItemType(i.item_type));
+  const supplyItems = allItems.filter((i) => isSupplyItemType(i.item_type));
+  const belowMin = countBelowMin(foodItems);
+  const supplyBelowMin = countBelowMin(supplyItems);
+  const inventoryCount = foodItems.length;
+  const supplyCount = supplyItems.length;
+
   const blToPoint = (notesRes.data ?? []).filter((n) => n.status === "draft").length;
   const invoicesToProcess = (invoicesRes.data ?? []).filter((i) => i.status !== "reviewed").length;
 
   const shortcuts: { label: string; href: string; icon: LucideIcon; tone: string; tile: string; badge?: number }[] = [
     { label: "Stock", href: "/inventory", icon: Boxes, tone: "bg-emerald-50 text-emerald-700", tile: "tile-emerald", badge: belowMin },
+    {
+      label: "Vaisselle & matériel",
+      href: "/inventory/supplies",
+      icon: GlassWater,
+      tone: "bg-sky-50 text-sky-700",
+      tile: "tile-sky",
+      badge: supplyBelowMin,
+    },
     { label: "Fournisseurs", href: "/suppliers", icon: Truck, tone: "bg-sky-50 text-sky-700", tile: "tile-sky" },
     { label: "Suggestions d’achat", href: "/orders/suggestions", icon: Sparkles, tone: "bg-amber-50 text-amber-700", tile: "tile-amber" },
     { label: "Commandes", href: "/orders", icon: ClipboardCheck, tone: "bg-violet-50 text-violet-700", tile: "tile-violet" },
@@ -73,7 +107,10 @@ export default async function AchatsPage() {
         </div>
       </section>
 
-      <p className="text-xs text-stone-400">{inventoryCount} composant(s) suivis en stock.</p>
+      <p className="text-xs text-stone-400">
+        {inventoryCount} composant(s) alimentaire(s)
+        {supplyCount > 0 ? ` · ${supplyCount} article(s) vaisselle & matériel` : ""}
+      </p>
     </PageContainer>
   );
 }

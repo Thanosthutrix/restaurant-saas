@@ -8,7 +8,7 @@ import {
   type QuickBookingState,
 } from "@/components/public/BookingQuickWidget";
 import { ConsumerAuthPrompt } from "@/components/public/consumer/ConsumerAuthPrompt";
-import { createPublicReservationAction } from "@/app/compte/actions";
+import { createPublicReservationAction, checkPublicReservationSlotAction } from "@/app/compte/actions";
 import type { ConsumerProfile } from "@/lib/public/consumer/types";
 
 type Props = {
@@ -62,14 +62,30 @@ export function BookingForm({
     };
   }, [initialProfile]);
 
-  const checkAvailability = () => {
+  useEffect(() => {
+    setAvailable(null);
+  }, [booking.date, booking.time, booking.guests]);
+
+  const checkAvailability = async () => {
     if (!booking.date || !booking.time) return;
     setChecking(true);
     setAvailable(null);
-    window.setTimeout(() => {
-      setChecking(false);
-      setAvailable(true);
-    }, 900);
+    setError(null);
+
+    const result = await checkPublicReservationSlotAction({
+      restaurantId,
+      ymd: booking.date,
+      timeHm: booking.time,
+      partySize: booking.guests,
+    });
+
+    setChecking(false);
+    if (!result.ok) {
+      setError(result.error);
+      setAvailable(false);
+      return;
+    }
+    setAvailable(result.data?.available ?? false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,7 +174,7 @@ export function BookingForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
         Réservation au nom de{" "}
         <span className="font-semibold text-slate-900">
@@ -188,10 +204,14 @@ export function BookingForm({
             >
               {checking ? "Vérification…" : "Vérifier le créneau"}
             </button>
-            {available ? (
+            {available === true ? (
               <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
                 <CheckCircle2 className="h-4 w-4" aria-hidden />
                 Créneau disponible — vous pouvez confirmer ci-dessous.
+              </p>
+            ) : available === false ? (
+              <p className="mt-2 text-sm font-semibold text-rose-700">
+                Créneau indisponible — choisissez une autre date ou heure.
               </p>
             ) : null}
           </div>
@@ -213,13 +233,13 @@ export function BookingForm({
             rows={3}
             value={comments}
             onChange={(e) => setComments(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm [color-scheme:light] outline-none placeholder:text-slate-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
           />
         </label>
 
         <button
           type="submit"
-          disabled={submitting || !booking.date || !booking.time}
+          disabled={submitting || !booking.date || !booking.time || available !== true}
           className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-600/25 transition hover:from-emerald-700 hover:to-emerald-800 active:scale-[0.99] disabled:opacity-60"
         >
           {submitting ? "Envoi…" : "Confirmer ma réservation"}

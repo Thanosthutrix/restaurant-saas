@@ -15,6 +15,8 @@ import {
 } from "@/lib/public/geoDistance";
 import { hasMapCoordinates } from "@/lib/public/mapLinks";
 import { geocodePlaceClient } from "@/lib/public/geocodePlaceClient";
+import { ExperienceSearchPanel } from "@/components/public/ExperienceSearchPanel";
+import type { ConsumerSearchPreferences } from "@/lib/b2c/experience/consumerPreferencesDb";
 
 const PublicRestaurantsMap = dynamic(
   () =>
@@ -35,9 +37,11 @@ const PublicRestaurantsMap = dynamic(
 
 type Props = {
   restaurants: Restaurant[];
+  searchPrefs?: ConsumerSearchPreferences | null;
+  isLoggedIn?: boolean;
 };
 
-export function PublicDirectoryClient({ restaurants }: Props) {
+export function PublicDirectoryClient({ restaurants, searchPrefs, isLoggedIn }: Props) {
   const [locationQuery, setLocationQuery] = useState("");
   const [restaurantQuery, setRestaurantQuery] = useState("");
   const [searchTarget, setSearchTarget] = useState<GeocodedPlace | null>(null);
@@ -47,6 +51,8 @@ export function PublicDirectoryClient({ restaurants }: Props) {
     id: string;
     tab: RestaurantPreviewTab;
   } | null>(null);
+
+  const [highlightIds, setHighlightIds] = useState<string[]>([]);
 
   useEffect(() => {
     const q = locationQuery.trim();
@@ -92,8 +98,14 @@ export function PublicDirectoryClient({ restaurants }: Props) {
       });
     }
 
+    if (highlightIds.length > 0) {
+      const set = new Set(highlightIds);
+      list = list.filter((r) => set.has(r.id));
+      list.sort((a, b) => highlightIds.indexOf(a.id) - highlightIds.indexOf(b.id));
+    }
+
     return list;
-  }, [restaurantQuery, restaurants, searchTarget]);
+  }, [restaurantQuery, restaurants, searchTarget, highlightIds]);
 
   const openPreview = (id: string, tab: RestaurantPreviewTab = "photos") => {
     setPreview({ id, tab });
@@ -122,7 +134,16 @@ export function PublicDirectoryClient({ restaurants }: Props) {
         />
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <ExperienceSearchPanel
+          restaurants={restaurants}
+          onHighlightIds={setHighlightIds}
+          initialPrefs={searchPrefs}
+          isLoggedIn={isLoggedIn}
+        />
+      </div>
+
+      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
         <h2 className="mb-5 text-lg font-bold text-slate-900">
           Partenaires ubion
           {searchTarget ? ` près de ${searchTarget.label.split(",")[0]}` : ""}

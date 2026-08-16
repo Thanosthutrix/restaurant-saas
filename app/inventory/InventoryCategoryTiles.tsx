@@ -11,11 +11,11 @@ import { ModalOverlay } from "@/components/ui/ModalOverlay";
 
 type Item = InventoryItemWithCalculatedStock;
 
-function ItemList({ items }: { items: Item[] }) {
+function ItemList({ items, onBreakage }: { items: Item[]; onBreakage?: (id: string) => void }) {
   return (
     <ul className="space-y-2">
       {items.map((item) => (
-        <InventoryItemRow key={item.id} item={item} />
+        <InventoryItemRow key={item.id} item={item} onBreakage={onBreakage} />
       ))}
     </ul>
   );
@@ -26,10 +26,12 @@ function CategoryBranch({
   node,
   depth,
   directMap,
+  onBreakage,
 }: {
   node: CategoryTreeNode;
   depth: number;
   directMap: Map<string, Item[]>;
+  onBreakage?: (id: string) => void;
 }) {
   const direct = directMap.get(node.id) ?? [];
   const subtree = countInSubtree(node, directMap);
@@ -45,22 +47,30 @@ function CategoryBranch({
     >
       <div className="space-y-3">
         {node.children.map((ch) => (
-          <CategoryBranch key={ch.id} node={ch} depth={depth + 1} directMap={directMap} />
+          <CategoryBranch key={ch.id} node={ch} depth={depth + 1} directMap={directMap} onBreakage={onBreakage} />
         ))}
-        {direct.length > 0 ? <ItemList items={direct} /> : null}
+        {direct.length > 0 ? <ItemList items={direct} onBreakage={onBreakage} /> : null}
       </div>
     </CategoryTileShell>
   );
 }
 
-function RootContent({ node, directMap }: { node: CategoryTreeNode; directMap: Map<string, Item[]> }) {
+function RootContent({
+  node,
+  directMap,
+  onBreakage,
+}: {
+  node: CategoryTreeNode;
+  directMap: Map<string, Item[]>;
+  onBreakage?: (id: string) => void;
+}) {
   const direct = directMap.get(node.id) ?? [];
   return (
     <div className="space-y-3">
       {node.children.map((ch) => (
-        <CategoryBranch key={ch.id} node={ch} depth={1} directMap={directMap} />
+        <CategoryBranch key={ch.id} node={ch} depth={1} directMap={directMap} onBreakage={onBreakage} />
       ))}
-      {direct.length > 0 ? <ItemList items={direct} /> : null}
+      {direct.length > 0 ? <ItemList items={direct} onBreakage={onBreakage} /> : null}
     </div>
   );
 }
@@ -71,10 +81,14 @@ export function InventoryCategoryTiles({
   roots,
   directMap,
   uncategorized,
+  onBreakage,
+  itemLabel = "composant",
 }: {
   roots: CategoryTreeNode[];
   directMap: Map<string, Item[]>;
   uncategorized: Item[];
+  onBreakage?: (id: string) => void;
+  itemLabel?: string;
 }) {
   const cards: CardItem[] = [
     ...roots.map((node) => ({
@@ -115,7 +129,7 @@ export function InventoryCategoryTiles({
                 {card.name}
               </span>
               <span className="text-xs text-stone-500">
-                {card.count} {card.count === 1 ? "composant" : "composants"}
+                {card.count} {card.count === 1 ? itemLabel : `${itemLabel}s`}
               </span>
             </button>
           );
@@ -146,9 +160,9 @@ export function InventoryCategoryTiles({
             </div>
             <div className="max-h-[70vh] overflow-y-auto px-3 py-3 sm:px-4">
               {openCard.node ? (
-                <RootContent node={openCard.node} directMap={directMap} />
+                <RootContent node={openCard.node} directMap={directMap} onBreakage={onBreakage} />
               ) : (
-                <ItemList items={uncategorized} />
+                <ItemList items={uncategorized} onBreakage={onBreakage} />
               )}
             </div>
           </div>

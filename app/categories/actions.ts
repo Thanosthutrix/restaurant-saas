@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { getCategoryById, type CategoryAppliesTo } from "@/lib/catalog/restaurantCategories";
+import {
+  canReparentCategory,
+  filterTopLevelSelectedIds,
+  getCategoryById,
+  inferGroupAppliesTo,
+  inferGroupParentId,
+  listRestaurantCategories,
+  type CategoryAppliesTo,
+} from "@/lib/catalog/restaurantCategories";
 import { getCurrentUser } from "@/lib/auth";
 import { assertRestaurantAction } from "@/lib/auth/restaurantActionAccess";
 
@@ -117,6 +125,114 @@ export async function deleteRestaurantCategory(params: {
   const { error } = await supabaseServer
     .from("restaurant_categories")
     .delete()
+    .eq("id", categoryId)
+    .eq("restaurant_id", restaurantId);
+
+  if (error) return { ok: false, error: error.message };
+  revalidateCategories();
+  return { ok: true };
+}
+
+/** Crée une rubrique parente et y déplace les rubriques sélectionnées (sous-rubriques). */
+export async function groupRestaurantCategoriesUnderNewParent(params: {
+  restaurantId: string;
+  categoryIds: string[];
+  name: string;
+  appliesTo?: CategoryAppliesTo;
+}): Promise<ActionResult<{ id: string }>> {
+  const { restaurantId, categoryIds, name, appliesTo: appliesToParam } = params;
+  const authz = await gateCategories(restaurantId);
+  if (!authz.ok) return authz;
+
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: "Nom requis." };
+
+  const uniqueIds = [...new Set(categoryIds)];
+  if (uniqueIds.length < 2) {
+    return { ok: false, error: "Sélectionnez au moins deux rubriques à regrouper." };
+  }
+
+  const { data: flat, error: listError } = await listRestaurantCategories(restaurantId);
+  if (listError) return { ok: false, error: listError.message };
+
+  const byId = new Map(flat.map((c) => [c.id, c]));
+  const selected = uniqueIds.map((id) => byId.get(id)).filter(Boolean) as typeof flat;
+  if (selected.length !== uniqueIds.length) {
+    return { ok: false, error: "Une ou plusieurs rubriques sont introuvables." };
+  }
+
+  const toReparent = filterTopLevelSelectedIds(uniqueIds, flat);
+  if (toReparent.length < 2) {
+    return {
+      ok: false,
+      error: "Sélectionnez au moins deux rubriques distinctes (pas une rubrique et sa sous-rubrique).",
+    };
+  }
+
+  const reparentRows = toReparent.map((id) => byId.get(id)!);
+  const newParentId = inferGroupParentId(reparentRows);
+  const appliesTo = appliesToParam ?? inferGroupAppliesTo(reparentRows);
+  if (!isAppliesTo(appliesTo)) return { ok: false, error: "Portée invalide." };
+
+  if (newParentId) {
+    const parentRow = byId.get(newParentId);
+    if (!parentRow) return { ok: false, error: "Rubrique parente introuvable." };
+  }
+
+  const { data: created, error: createError } = await supabaseServer
+    .from("restaurant_categories")
+    .insert({
+      restaurant_id: restaurantId,
+      parent_id: newParentId,
+      name: trimmed,
+      applies_to: appliesTo,
+      sort_order: 0,
+    })
+    .select("id")
+    .single();
+
+  if (createError) return { ok: false, error: createError.message };
+  const groupId = (created as { id: string }).id;
+
+  const { error: updateError } = await supabaseServer
+    .from("restaurant_categories")
+    .update({ parent_id: groupId })
+    .in("id", toReparent)
+    .eq("restaurant_id", restaurantId);
+
+  if (updateError) {
+    await supabaseServer.from("restaurant_categories").delete().eq("id", groupId);
+    return { ok: false, error: updateError.message };
+  }
+
+  revalidateCategories();
+  return { ok: true, data: { id: groupId } };
+}
+
+/** Déplace une rubrique sous une autre (ou à la racine si parentId null). */
+export async function reparentRestaurantCategory(params: {
+  restaurantId: string;
+  categoryId: string;
+  newParentId: string | null;
+}): Promise<ActionResult> {
+  const { restaurantId, categoryId, newParentId } = params;
+  const authz = await gateCategories(restaurantId);
+  if (!authz.ok) return authz;
+
+  const { data: flat, error: listError } = await listRestaurantCategories(restaurantId);
+  if (listError) return { ok: false, error: listError.message };
+
+  const check = canReparentCategory(categoryId, newParentId, flat);
+  if (!check.ok) return { ok: false, error: check.reason };
+
+  if (newParentId) {
+    const parent = await getCategoryById(newParentId, restaurantId);
+    if (parent.error || !parent.data) return { ok: false, error: "Rubrique cible introuvable." };
+  }
+
+  const { error } = await supabaseServer
+    .from("restaurant_categories")
+    .update({ parent_id: newParentId })
     .eq("id", categoryId)
     .eq("restaurant_id", restaurantId);
 

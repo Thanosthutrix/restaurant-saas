@@ -33,6 +33,7 @@ const TYPE_LABELS: Record<string, string> = {
   ingredient: "Matière première",
   prep: "Préparation",
   resale: "Revente",
+  supply: "Petit matériel",
 };
 
 const RECIPE_STATUS_LABELS: Record<string, string> = {
@@ -68,6 +69,7 @@ export default async function InventoryItemDetailPage({ params }: Props) {
   const allItems = allItemsRes.data ?? [];
   const suppliers = suppliersRes.data ?? [];
   const isPrep = item.item_type === "prep";
+  const isSupply = item.item_type === "supply";
   const suggestion = isPrep ? findRecipeSuggestionForPrep(item.name) : null;
   const hasNoComponents = components.length === 0;
   const showSuggestionBlock = isPrep && hasNoComponents && suggestion != null;
@@ -91,15 +93,15 @@ export default async function InventoryItemDetailPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
       <div>
-        <Link href="/inventory" className={uiBackLink}>
-          ← Composants stockés
+        <Link href={isSupply ? "/inventory/supplies" : "/inventory"} className={uiBackLink}>
+          ← {isSupply ? "Vaisselle & matériel" : "Composants stockés"}
         </Link>
       </div>
 
       <div className={uiCard}>
         <h1 className="text-xl font-semibold tracking-tight text-stone-900">{item.name}</h1>
         <p className={`mt-1 ${uiLead}`}>
-          {TYPE_LABELS[item.item_type] ?? item.item_type} · {item.unit}
+          {TYPE_LABELS[item.item_type] ?? item.item_type} · {isSupply ? "pièce(s)" : item.unit}
           {" · Stock : "}
           {stockFromMovements != null ? (
             <>
@@ -140,7 +142,7 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         />
       )}
 
-      {canWrite && !isPrep && (
+      {canWrite && !isPrep && !isSupply && (
         <ApplyBenchmarkTariffButton
           restaurantId={restaurant.id}
           itemId={item.id}
@@ -210,9 +212,16 @@ export default async function InventoryItemDetailPage({ params }: Props) {
         <ValidatePrepRecipeButton inventoryItemId={item.id} restaurantId={restaurant.id} />
       )}
 
-      {canWrite && !isPrep && (
+      {canWrite && !isPrep && !isSupply && (
         <p className={uiLead}>
           Seules les préparations ont une liste de composants. Ce composant peut être utilisé dans une préparation ou dans un plat.
+        </p>
+      )}
+
+      {canWrite && isSupply && (
+        <p className={uiLead}>
+          Article non consommable — suivi en pièces. Déclarez les casses depuis la page Vaisselle & matériel ; le réappro
+          passe par les suggestions d&apos;achat si un fournisseur et des seuils sont renseignés ci-dessus.
         </p>
       )}
 

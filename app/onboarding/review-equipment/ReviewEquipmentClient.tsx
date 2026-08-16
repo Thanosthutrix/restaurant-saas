@@ -117,7 +117,7 @@ export function ReviewEquipmentClient() {
     } catch {
       /* ignore */
     }
-    router.push("/dashboard");
+    router.push("/onboarding/experience");
     router.refresh();
   }
 

@@ -5,7 +5,11 @@ import { uiCard } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { ClosedDaysForm } from "./ClosedDaysForm";
 import { DiningWaitSettingsForm } from "./DiningWaitSettingsForm";
+import { ReservationCapacitySettingsForm } from "./ReservationCapacitySettingsForm";
+import { TableMergeGroupsForm } from "./TableMergeGroupsForm";
 import { parseDiningWaitThresholds } from "@/lib/dining/diningWaitSettings";
+import { getReservationCapacitySummary } from "@/lib/reservations/availability";
+import { listDiningTableMergeGroups } from "@/lib/reservations/capacitySettingsDb";
 
 export default async function SettingsPage() {
   const restaurant = await getRestaurantForPage();
@@ -25,6 +29,25 @@ export default async function SettingsPage() {
       : [];
   const waitThresholds = parseDiningWaitThresholds(settingsRow);
 
+  const { settings: reservationSettings, limits: reservationLimits } =
+    await getReservationCapacitySummary(restaurant.id);
+
+  const [{ data: diningTables }, mergeGroups] = await Promise.all([
+    supabaseServer
+      .from("dining_tables")
+      .select("id, label")
+      .eq("restaurant_id", restaurant.id)
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("label"),
+    listDiningTableMergeGroups(restaurant.id),
+  ]);
+
+  const tableOptions = (diningTables ?? []).map((t) => ({
+    id: String(t.id),
+    label: String(t.label),
+  }));
+
   return (
     <PageContainer width="narrow">
       <PageHeader
@@ -40,6 +63,19 @@ export default async function SettingsPage() {
       <section className={`${uiCard} space-y-4`}>
         <h2 className="text-sm font-semibold text-stone-900">Temps d&apos;attente — plan de salle</h2>
         <DiningWaitSettingsForm initial={waitThresholds} />
+      </section>
+
+      <section className={`${uiCard} space-y-4`}>
+        <h2 className="text-sm font-semibold text-stone-900">Réservations en ligne — capacité</h2>
+        <ReservationCapacitySettingsForm
+          initial={reservationSettings}
+          limits={reservationLimits}
+        />
+      </section>
+
+      <section className={`${uiCard} space-y-4`}>
+        <h2 className="text-sm font-semibold text-stone-900">Tables fusionnables</h2>
+        <TableMergeGroupsForm initialGroups={mergeGroups} tables={tableOptions} />
       </section>
     </PageContainer>
   );

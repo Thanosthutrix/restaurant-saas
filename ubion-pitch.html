@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ubion — Présentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.34.0/iconfont/tabler-icons.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0D0B08}
+body{font-family:'Inter',system-ui,sans-serif}
+
+#deck{position:relative;width:100vw;height:100vh;overflow:hidden}
+
+/* PROGRESS */
+#prog-wrap{position:absolute;top:0;left:0;right:0;height:3px;z-index:300}
+#prog{height:100%;width:0;background:#C87E20;transition:width .12s linear}
+
+/* LOGO BAR */
+#logo-bar{
+  position:absolute;top:0;left:0;right:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.4rem 2.5rem;pointer-events:none
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:38px;height:38px;display:block;flex-shrink:0}
+.hero-mark{width:96px;height:96px;margin-bottom:1.75rem;flex-shrink:0;display:block}
+.cta-mark{width:84px;height:84px;margin-bottom:1.5rem;flex-shrink:0;display:block}
+/* Logo colour switching per theme */
+.dk .logo-lm-cop,.br .logo-lm-cop{display:none}
+.lt .logo-lm-wht{display:none}
+
+.logo-word{font-size:1.1rem;font-weight:800;letter-spacing:-0.04em;transition:color .4s;font-family:'Nunito',system-ui}
+.chapter-pill{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+  padding:5px 12px;border-radius:20px;transition:all .4s;opacity:0
+}
+
+/* DECK THEMING */
+.dk .logo-word{color:#fff}.dk .chapter-pill{color:rgba(255,255,255,.5);background:rgba(255,255,255,.08);opacity:1}
+.dk #slide-num{color:rgba(255,255,255,.25)}.dk .dot:not(.on){background:rgba(255,255,255,.18)}
+.dk .nav-btn{background:rgba(255,255,255,.09);color:rgba(255,255,255,.55)}
+.dk .nav-btn:hover{background:rgba(255,255,255,.18);color:#fff}
+.lt .logo-word{color:#1A1510}.lt .chapter-pill{color:rgba(26,21,16,.4);background:rgba(0,0,0,.07);opacity:1}
+.lt #slide-num{color:rgba(0,0,0,.2)}.lt .dot:not(.on){background:rgba(0,0,0,.15)}
+.lt .nav-btn{background:rgba(0,0,0,.06);color:rgba(0,0,0,.35)}.lt .nav-btn:hover{background:rgba(0,0,0,.12);color:#000}
+.br .logo-word{color:#fff}.br .chapter-pill{color:rgba(255,255,255,.7);background:rgba(255,255,255,.2);opacity:1}
+.br #slide-num{color:rgba(255,255,255,.4)}.br .dot:not(.on){background:rgba(255,255,255,.3)}
+.br .nav-btn{background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)}.br .nav-btn:hover{background:rgba(255,255,255,.25);color:#fff}
+
+/* SLIDES */
+#slides{position:relative;width:100%;height:100%}
+.slide{position:absolute;inset:0;display:flex;align-items:stretch;opacity:0;transform:translateX(40px);transition:opacity .5s ease,transform .5s ease;pointer-events:none}
+.slide.on{opacity:1;transform:none;pointer-events:auto}
+
+/* HERO */
+.slide-hero{background:#0D0B08;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+.hero-mark svg{width:100%;height:100%;display:block}
+.hero-brand{font-size:4.2rem;font-weight:800;color:#fff;letter-spacing:-.05em;margin-bottom:.75rem;font-family:'Nunito',system-ui}
+.hero-tagline{font-size:1.2rem;color:rgba(255,255,255,.55);font-weight:400;margin-bottom:.4rem;max-width:460px;line-height:1.5}
+.hero-sub{font-size:.85rem;color:rgba(255,255,255,.2);letter-spacing:.01em}
+.hero-hint{margin-top:3.5rem;font-size:.8rem;color:rgba(255,255,255,.18);display:flex;align-items:center;gap:7px}
+
+/* PROBLEM SLIDES */
+.slide-problem{background:#0D0B08}
+.p-left{flex:1;padding:5.5rem 3rem 4rem 7rem;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+.p-deco{position:absolute;right:-.1em;top:50%;transform:translateY(-50%);font-size:17rem;font-weight:700;color:#C87E20;opacity:.033;line-height:1;letter-spacing:-.06em;pointer-events:none;user-select:none}
+.p-label{font-size:11px;font-weight:600;color:#C87E20;text-transform:uppercase;letter-spacing:.1em;margin-bottom:1.4rem}
+.p-stat{font-size:7rem;font-weight:700;color:#fff;letter-spacing:-.04em;line-height:1;margin-bottom:.4rem}
+.p-stat-sub{font-size:.95rem;color:rgba(255,255,255,.38);margin-bottom:2rem;max-width:300px;line-height:1.55}
+.p-headline{font-size:1.75rem;font-weight:600;color:#fff;line-height:1.2;letter-spacing:-.02em;margin-bottom:.75rem}
+.p-desc{font-size:.9rem;color:rgba(255,255,255,.42);line-height:1.8;max-width:400px}
+.p-right{width:44%;flex-shrink:0;padding:5rem 4rem 4rem 2rem;display:flex;align-items:center;justify-content:center}
+
+/* CHARTS */
+.c-title{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.22);margin-bottom:20px}
+.c-timebars{width:100%}
+.tb-row{margin-bottom:18px}
+.tb-meta{display:flex;justify-content:space-between;margin-bottom:7px}
+.tb-meta span:first-child{font-size:12.5px;color:rgba(255,255,255,.38)}
+.tb-meta span:last-child{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.62)}
+.tb-track{height:10px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden}
+.tb-fill{height:100%;border-radius:5px;width:0}
+.c-donut-wrap{position:relative;width:210px;height:210px}
+.c-donut-wrap svg{width:100%;height:100%;overflow:visible}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut-num{font-size:2.8rem;font-weight:700;color:#fff;letter-spacing:-.04em;line-height:1}
+.donut-sub{font-size:.7rem;color:rgba(255,255,255,.33);margin-top:5px;text-align:center;max-width:88px;line-height:1.4}
+.donut-note{font-size:11px;color:rgba(255,255,255,.2);margin-top:1.2rem;text-align:center;max-width:200px;line-height:1.6}
+.c-waste{width:100%}
+.waste-track{height:52px;border-radius:10px;background:rgba(255,255,255,.05);position:relative;overflow:hidden;margin-bottom:13px}
+.waste-useful{position:absolute;left:0;top:0;bottom:0;width:0;background:#3B6D11;border-radius:10px 0 0 10px;display:flex;align-items:center;padding-left:14px;font-size:13px;font-weight:600;color:rgba(255,255,255,.7);white-space:nowrap;overflow:hidden}
+.waste-lost{position:absolute;right:0;top:0;bottom:0;width:0;background:rgba(196,60,44,.72);border-radius:0 10px 10px 0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.85)}
+.waste-legend{display:flex;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,.22)}
+.waste-insight{margin-top:18px;padding:12px 16px;border-radius:8px;background:rgba(196,60,44,.1);border:.5px solid rgba(196,60,44,.18)}
+.waste-insight p{font-size:12px;color:rgba(255,255,255,.42);line-height:1.6}
+.waste-insight strong{color:rgba(255,255,255,.62)}
+.c-compliance{width:100%}
+.cgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+.cg{height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.75)}
+.cg.ok{background:rgba(59,109,17,.22)}.cg.ok i{color:#5E8F2A;font-size:17px}
+.cg.nok{background:rgba(196,60,44,.25)}.cg.nok i{color:#D34B38;font-size:17px}
+.c-compliance p{font-size:11.5px;color:rgba(255,255,255,.28);line-height:1.6}
+.c-compliance strong{color:rgba(255,255,255,.48)}
+
+/* TRANSITION */
+.slide-transition{background:#C87E20;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+.trans-eye{font-size:12px;font-weight:500;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:1.5rem}
+.trans-title{font-size:4.8rem;font-weight:700;color:#fff;letter-spacing:-.05em;line-height:1;margin-bottom:1.5rem}
+.trans-desc{font-size:1.05rem;color:rgba(255,255,255,.75);max-width:500px;line-height:1.7;margin-bottom:2.5rem}
+.trans-pills{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center}
+.trans-pill{padding:8px 16px;border-radius:20px;font-size:12.5px;font-weight:500;border:1.5px solid rgba(255,255,255,.35);color:rgba(255,255,255,.75)}
+
+/* SOLUTION SLIDES */
+.slide-solution{background:#FAFAF8}
+.s-left{flex:1;padding:5.5rem 3rem 4rem 7rem;display:flex;flex-direction:column;justify-content:center}
+.s-right{width:40%;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5rem 3rem;gap:1.25rem}
+.sol-tag{display:inline-flex;align-items:center;gap:8px;padding:7px 16px;border-radius:24px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:1.1rem;width:fit-content}
+.sol-ref{font-size:11.5px;color:#AAA;margin-bottom:1.1rem;display:flex;align-items:center;gap:6px}
+.sol-title{font-size:2.2rem;font-weight:700;color:#1A1510;line-height:1.15;letter-spacing:-.03em;margin-bottom:.85rem}
+.sol-desc{font-size:.9rem;color:#666;line-height:1.8;margin-bottom:1.6rem;max-width:390px}
+.sol-feats{display:flex;flex-direction:column;gap:10px}
+.sol-feat{display:flex;align-items:center;gap:10px;font-size:13.5px;color:#333;font-weight:500}
+.feat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* Before/After card */
+.sol-ba{width:100%;border-radius:12px;overflow:hidden;border:.5px solid #E8E8E3}
+.ba-b{padding:12px 16px;border-bottom:.5px solid #E8E8E3;background:#FEF2F2}
+.ba-a{padding:12px 16px;background:#F0FDF4}
+.ba-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.ba-b .ba-lbl{color:#B94040}.ba-a .ba-lbl{color:#297A35}
+.ba-txt{font-size:12.5px;color:#444;line-height:1.5}
+
+/* APP MOCKUPS */
+.mock{background:white;border-radius:12px;width:100%;overflow:hidden;border:.5px solid rgba(0,0,0,.07)}
+.mock-header{padding:10px 14px;border-bottom:.5px solid #f0ede8;display:flex;align-items:center;justify-content:space-between}
+.mock-title{font-size:11.5px;font-weight:700;color:#1a1510}
+.mock-sub{font-size:10px;color:#999}
+.mock-body{padding:12px 14px}
+.mock-kpis{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+.mock-kpi{padding:9px 11px;border-radius:9px;background:#fafaf8}
+.mk-lbl{font-size:10px;color:#999;margin-bottom:2px}
+.mk-val{font-size:1.4rem;font-weight:700;line-height:1}
+.mock-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:.5px solid #f5f3f0}
+.mock-row:last-child{border-bottom:none}
+.mock-row-name{font-size:12.5px;font-weight:600;color:#1a1510}
+.mock-row-badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px}
+/* Floor plan */
+.fp-grid{display:grid;gap:6px;padding:12px 14px}
+.fp-table{border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px}
+.fp-num{font-size:10px;font-weight:700}
+.fp-pax{font-size:9px;opacity:.7}
+/* Recipe cost */
+.rc-table{width:100%;font-size:11.5px;border-collapse:collapse}
+.rc-table th{text-align:left;padding:5px 4px;color:#999;font-weight:700;text-transform:uppercase;font-size:9.5px;border-bottom:.5px solid #f0ede8}
+.rc-table td{padding:6px 4px;border-bottom:.5px solid #f8f6f3;color:#333}
+.rc-table tr:last-child td{border-bottom:none}
+.rc-total{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f8f6f3;border-radius:8px;margin-top:8px}
+.rc-margin{padding:7px 10px;background:#f0fdf4;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+/* Stock list */
+.stock-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:.5px solid #f5f3f0}
+.stock-item:last-child{border-bottom:none}
+.stock-bar-wrap{flex:1;height:5px;background:#f0ede8;border-radius:3px;overflow:hidden}
+.stock-bar{height:100%;border-radius:3px}
+
+/* CTA */
+.slide-cta{background:#0D0B08;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+.cta-mark svg{width:100%;height:100%;display:block}
+.cta-brand{font-size:3.2rem;font-weight:800;color:#fff;letter-spacing:-.05em;margin-bottom:.75rem;font-family:'Nunito',system-ui}
+.cta-tagline{font-size:1rem;color:rgba(255,255,255,.5);max-width:460px;line-height:1.7;margin-bottom:2rem}
+.cta-url{font-size:1.4rem;font-weight:700;color:#C87E20;letter-spacing:-.02em}
+.cta-sub{font-size:.8rem;color:rgba(255,255,255,.18);margin-top:.75rem;letter-spacing:.04em;text-transform:uppercase}
+
+/* NAV */
+#nav-dots{position:absolute;bottom:1.75rem;left:50%;transform:translateX(-50%);display:flex;gap:7px;z-index:100}
+.dot{height:6px;border-radius:3px;width:6px;cursor:pointer;transition:all .25s;border:none}
+.dot.on{background:#C87E20;width:18px}
+.nav-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:100;width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;border:none;transition:all .2s}
+#btn-p{left:1.5rem}#btn-n{right:1.5rem}
+#slide-num{position:absolute;bottom:1.85rem;right:2.5rem;font-size:11.5px;font-weight:500;z-index:100;transition:color .4s}
+
+/* ══════════════════════════════════
+   BRAND SLIDES
+══════════════════════════════════ */
+.slide-brand,.slide-brand-out{
+  background:#0D0B08;align-items:center;justify-content:center;
+  flex-direction:column;text-align:center;position:relative;overflow:hidden
+}
+
+/* Ambient copper glow */
+.b-glow{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:420px;height:420px;border-radius:50%;
+  background:radial-gradient(circle,rgba(200,126,32,.22) 0%,transparent 68%);
+  pointer-events:none
+}
+
+/* Expanding rings */
+@keyframes bRing{
+  0%{transform:translate(-50%,-50%) scale(.3);opacity:.75}
+  100%{transform:translate(-50%,-50%) scale(3.4);opacity:0}
+}
+.b-ring{
+  position:absolute;top:50%;left:50%;width:180px;height:180px;
+  border-radius:50%;border:1.5px solid rgba(200,126,32,.4);
+  pointer-events:none;transform:translate(-50%,-50%)
+}
+.b-ring:nth-child(1){animation:bRing 3.2s ease-out 0s infinite}
+.b-ring:nth-child(2){animation:bRing 3.2s ease-out 1.05s infinite}
+.b-ring:nth-child(3){animation:bRing 3.2s ease-out 2.1s infinite}
+
+/* Brand intro animations */
+@keyframes bMark{
+  0%{opacity:0;transform:scale(2.1);filter:blur(22px)}
+  55%{opacity:1;transform:scale(.96);filter:blur(0)}
+  75%{transform:scale(1.04)}
+  100%{opacity:1;transform:scale(1);filter:blur(0)}
+}
+@keyframes bWord{
+  0%{opacity:0;letter-spacing:.55em}
+  100%{opacity:1;letter-spacing:-.05em}
+}
+@keyframes bFade{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Brand animation container (full SVG logo) */
+.brand-anim-container{
+  width:460px;max-width:88vw;position:relative;z-index:2;flex-shrink:0
+}
+.brand-anim-svg{width:100%;height:auto;overflow:visible;display:block}
+
+.brand-mark{width:148px;height:148px;position:relative;z-index:2;flex-shrink:0}
+.brand-mark svg{width:100%;height:100%;display:block}
+.brand-mark.go{animation:bMark 1.3s cubic-bezier(.34,1.4,.64,1) .1s both}
+
+.brand-word{
+  font-size:5.5rem;font-weight:700;color:#fff;letter-spacing:-.05em;
+  position:relative;z-index:2;margin-top:1.3rem;line-height:1
+}
+.brand-word.go{animation:bWord 1s cubic-bezier(.4,0,.2,1) .85s both;opacity:0}
+
+.brand-tagline{
+  font-size:.98rem;color:rgba(255,255,255,.38);position:relative;
+  z-index:2;margin-top:.8rem;letter-spacing:.01em;max-width:380px;line-height:1.6
+}
+.brand-tagline.go{animation:bFade .9s ease 1.55s both;opacity:0}
+
+.brand-skip{
+  position:absolute;bottom:2.5rem;font-size:11px;color:rgba(255,255,255,.15);
+  letter-spacing:.08em;text-transform:uppercase;z-index:3
+}
+
+/* Brand outro */
+@keyframes bOutGlow{
+  0%,100%{opacity:.38;transform:translate(-50%,-50%) scale(1)}
+  50%{opacity:.72;transform:translate(-50%,-50%) scale(1.18)}
+}
+@keyframes bOutHalo{
+  from{transform:translate(-50%,-50%) rotate(0deg)}
+  to{transform:translate(-50%,-50%) rotate(360deg)}
+}
+@keyframes bOutMark{
+  0%{opacity:0;transform:scale(.65)}
+  60%{transform:scale(1.06)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes bOutCopper{
+  0%{opacity:0;transform:translateY(20px)}
+  100%{opacity:1;transform:translateY(0)}
+}
+
+.bout-glow{
+  position:absolute;top:50%;left:50%;width:440px;height:440px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(200,126,32,.32) 0%,rgba(155,80,30,.1) 40%,transparent 70%);
+  animation:bOutGlow 5s ease-in-out infinite;pointer-events:none
+}
+.bout-halo{
+  position:absolute;top:50%;left:50%;width:230px;height:230px;
+  border-radius:50%;
+  background:conic-gradient(
+    from 0deg,transparent 0%,
+    rgba(200,126,32,.6) 35%,rgba(224,133,80,.95) 50%,
+    rgba(200,126,32,.6) 65%,transparent 100%
+  );
+  animation:bOutHalo 7s linear infinite;pointer-events:none;
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),white calc(100% - 2px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 2px),white calc(100% - 2px))
+}
+.bout-mark{width:130px;height:130px;position:relative;z-index:2;flex-shrink:0}
+.bout-mark svg{width:100%;height:100%;display:block}
+.bout-mark.go{animation:bOutMark 1.1s cubic-bezier(.34,1.4,.64,1) .2s both}
+
+.bout-word{
+  font-size:5.2rem;font-weight:700;letter-spacing:-.05em;
+  position:relative;z-index:2;margin-top:1.1rem;line-height:1;
+  background:linear-gradient(140deg,#e8925a 0%,#c25a2c 45%,#e08550 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.bout-word.go{animation:bOutCopper 1s ease .8s both;opacity:0}
+
+.bout-url{
+  font-size:1rem;font-weight:600;color:rgba(255,255,255,.45);
+  position:relative;z-index:2;margin-top:.9rem;letter-spacing:.02em
+}
+.bout-url.go{animation:bOutCopper .8s ease 1.35s both;opacity:0}
+
+.bout-sub{
+  font-size:.7rem;text-transform:uppercase;letter-spacing:.18em;
+  color:rgba(255,255,255,.18);position:relative;z-index:2;margin-top:.8rem
+}
+.bout-sub.go{animation:bOutCopper .8s ease 1.7s both;opacity:0}
+
+@media(max-width:900px){
+  .p-right,.s-right{display:none}
+  .p-left,.s-left{padding:5rem 2rem 3rem 2.5rem!important}
+  .p-stat{font-size:5rem}.p-headline{font-size:1.4rem}
+  .sol-title{font-size:1.8rem}.hero-brand{font-size:3rem}
+  .trans-title{font-size:3rem}.p-deco{font-size:10rem;opacity:.022}
+}
+</style>
+</head>
+<body>
+<div id="deck" class="dk">
+
+  <div id="prog-wrap"><div id="prog"></div></div>
+
+  <div id="logo-bar">
+    <div class="logo">
+      <!-- Copper version (light slides) — Gemini mascot paths 1-6 -->
+      <svg class="logo-mark logo-lm-cop" viewBox="1000 185 840 760" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lc" x1="0" y1="12773" x2="0" y2="7452" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#e08550"/><stop offset="60%" stop-color="#c25a2c"/><stop offset="100%" stop-color="#9c431c"/></linearGradient></defs><g transform="translate(0,1536) scale(0.1,-0.1)" fill="url(#lc)" stroke="none"><path d="M13955 12773 c-262 -34 -459 -106 -665 -242 -47 -31 -139 -108 -205 -172 l-120 -116 -80 18 c-327 73 -627 24 -876 -143 -158 -105 -293 -264 -370 -434 -78 -172 -113 -411 -85 -591 37 -246 112 -379 376 -673 131 -145 336 -394 364 -442 l26 -45 -2 -266 -3 -266 -135 108 c-161 128 -223 194 -243 259 -9 28 -18 109 -21 197 -6 164 -21 236 -67 331 -56 114 -115 171 -556 540 -236 197 -524 438 -640 536 -200 167 -215 178 -254 178 -56 0 -99 -42 -99 -98 0 -64 -3 -61 651 -733 221 -228 338 -355 341 -372 14 -72 -49 -98 -119 -50 -22 15 -193 161 -379 324 -534 465 -638 555 -661 567 -37 20 -91 15 -118 -12 -38 -38 -41 -69 -11 -120 29 -49 74 -98 609 -653 316 -329 377 -397 377 -421 0 -15 -5 -33 -12 -40 -19 -19 -70 -14 -110 11 -43 26 -233 193 -563 492 -357 325 -472 424 -500 431 -57 14 -115 -38 -115 -105 0 -49 105 -177 649 -791 319 -360 466 -506 556 -552 126 -65 155 -70 425 -77 237 -6 247 -7 300 -32 30 -15 123 -82 205 -150 323 -266 516 -431 529 -452 9 -15 17 -91 25 -247 29 -551 51 -729 113 -914 106 -319 280 -539 592 -747 205 -138 414 -229 652 -285 112 -27 133 -28 349 -29 204 0 242 3 339 23 435 94 886 375 1094 684 108 160 178 328 217 521 27 136 36 233 65 682 l19 310 58 55 c103 97 384 328 432 354 33 17 76 29 141 37 113 13 197 38 265 78 85 50 767 616 1050 872 443 400 591 640 670 1084 23 132 36 347 25 408 -15 81 -62 106 -134 72 -40 -19 -89 -59 -502 -405 -181 -152 -545 -453 -809 -670 -592 -486 -715 -588 -1138 -949 -18 -15 -19 -11 -15 135 l3 151 36 54 c43 64 205 264 332 408 245 277 318 390 374 576 24 81 27 106 27 255 0 138 -3 179 -21 252 -50 197 -130 349 -253 481 -156 167 -342 268 -585 318 -100 20 -302 14 -438 -14 l-119 -24 -81 85 c-239 248 -506 386 -842 437 -91 14 -266 18 -340 8z m318 -278 c372 -56 717 -321 857 -657 57 -137 141 -189 230 -143 67 35 79 112 33 227 -14 38 -24 70 -21 73 2 3 50 12 106 20 170 26 360 -9 502 -92 129 -76 263 -227 326 -368 86 -195 85 -437 -2 -621 -44 -93 -86 -148 -289 -384 -92 -107 -204 -241 -248 -298 -87 -112 -82 -109 -159 -71 l-38 19 22 58 c12 31 77 194 145 362 67 168 123 314 123 326 0 30 -28 39 -53 17 -10 -10 -120 -148 -243 -308 -123 -159 -236 -305 -252 -324 l-29 -35 -41 17 c-22 9 -91 30 -153 46 -61 17 -113 32 -115 33 -3 3 64 438 105 683 19 118 25 172 22 208 -1 20 -43 24 -59 5 -5 -7 -71 -155 -147 -328 -181 -416 -221 -499 -239 -506 -8 -3 -46 -1 -83 5 -37 6 -123 13 -191 17 -67 4 -125 10 -127 15 -3 4 -30 211 -60 461 -30 249 -59 470 -65 491 -9 30 -16 37 -36 37 -41 0 -33 47 -129 -745 -34 -282 -25 -255 -91 -255 -31 0 -121 -7 -200 -16 -92 -11 -149 -13 -155 -7 -8 8 -258 568 -331 742 -38 91 -60 116 -88 101 -26 -14 -26 -22 14 -266 53 -320 96 -601 96 -628 0 -19 -7 -25 -35 -30 -19 -4 -83 -22 -142 -41 -59 -19 -115 -34 -123 -34 -17 0 -9 -9 -316 388 -120 156 -225 286 -232 288 -21 9 -44 -18 -37 -44 3 -13 68 -179 145 -368 77 -189 140 -351 140 -359 0 -13 -77 -56 -100 -56 -4 0 -64 69 -133 153 -69 83 -182 217 -252 297 -152 175 -232 291 -267 387 -126 340 30 756 353 941 133 76 321 112 482 92 50 -6 102 -13 114 -16 l21 -6 -28 -66 c-37 -89 -44 -125 -30 -165 14 -45 49 -77 93 -84 87 -14 130 23 201 171 138 287 375 496 676 597 169 56 352 71 533 44z m217 -2289 c263 -32 520 -91 770 -176 193 -65 318 -118 330 -140 15 -28 0 -760 -15 -760 -7 0 -44 12 -81 26 -129 49 -383 133 -496 163 -334 90 -575 123 -888 123 -419 1 -749 -59 -1247 -227 -138 -47 -256 -85 -261 -85 -14 0 -22 202 -8 216 20 21 357 145 542 199 150 44 329 88 532 130 72 15 95 123 37 172 -37 32 -76 30 -306 -17 -266 -54 -504 -127 -802 -245 -16 -7 -17 3 -15 151 l3 159 45 21 c86 41 322 125 473 169 240 69 511 116 792 139 97 8 481 -4 595 -18z m-21 -1041 c316 -40 669 -140 997 -281 l84 -36 0 -65 0 -64 -42 -19 c-24 -10 -75 -23 -114 -30 -64 -10 -76 -9 -125 9 -187 70 -231 83 -313 97 -71 13 -136 15 -301 11 -175 -4 -215 -2 -240 11 -16 8 -150 96 -297 195 -183 124 -264 184 -255 190 19 13 468 0 606 -18z m-806 -143 c89 -60 261 -175 382 -256 121 -81 230 -158 243 -172 19 -21 22 -36 22 -102 0 -266 128 -505 321 -597 94 -45 163 -58 273 -53 69 3 107 11 158 32 l68 27 102 -64 c57 -35 126 -77 153 -92 86 -49 86 -49 65 -108 -81 -231 -239 -437 -456 -593 -100 -72 -329 -190 -447 -229 -165 -55 -258 -69 -452 -70 -250 0 -395 33 -625 141 -467 222 -713 526 -785 969 -15 92 -39 472 -51 806 l-7 186 97 42 c182 80 449 167 660 216 56 13 105 24 109 24 5 1 81 -48 170 -107z m1862 -801 c-7 -140 -18 -258 -24 -264 -7 -7 -33 5 -83 37 -117 74 -110 58 -76 161 16 50 34 125 40 168 6 44 19 88 27 99 13 16 120 62 128 55 1 -2 -4 -117 -12 -256z"/><path d="M13140 8854 c-77 -20 -195 -80 -220 -111 -25 -32 -26 -64 -2 -91 29 -34 54 -35 117 -1 172 92 306 96 471 14 40 -19 83 -35 97 -35 28 0 67 41 67 70 0 48 -114 122 -237 154 -75 20 -219 20 -293 0z"/><path d="M13212 8545 c-91 -25 -167 -87 -210 -170 -37 -72 -42 -188 -12 -268 26 -69 94 -143 165 -177 42 -21 65 -25 145 -25 84 0 101 3 145 27 111 58 177 160 183 283 12 221 -201 390 -416 330z m32 -135 c58 -22 69 -110 19 -150 -60 -47 -143 -8 -143 67 1 71 57 109 124 83z"/><path d="M13968 7960 c-32 -5 -71 -16 -88 -25 -32 -16 -60 -61 -60 -95 0 -57 66 -147 146 -197 40 -25 44 -32 44 -66 0 -121 -121 -195 -249 -152 -37 12 -69 34 -112 76 -33 32 -71 62 -84 65 -33 8 -77 -16 -94 -51 -13 -26 -12 -33 9 -72 33 -62 119 -137 188 -164 71 -27 195 -36 268 -20 30 7 78 28 106 48 42 27 56 32 68 24 91 -67 154 -85 271 -79 134 8 243 66 308 165 44 67 41 112 -10 138 -46 25 -66 18 -133 -44 -74 -69 -109 -89 -170 -97 -105 -15 -206 66 -206 165 0 22 8 35 33 52 173 118 207 261 76 313 -49 20 -228 29 -311 16z"/><path d="M11780 7452 c-262 -174 -651 -433 -866 -574 -402 -266 -487 -330 -529 -402 -41 -70 -59 -158 -46 -229 23 -131 94 -226 209 -280 60 -29 76 -32 157 -31 97 1 175 25 260 81 55 36 1329 989 1437 1075 l88 69 -42 82 c-70 140 -139 334 -168 470 -6 31 -14 57 -18 56 -4 0 -221 -143 -482 -317z"/><path d="M15895 7663 c-33 -128 -76 -243 -143 -387 l-50 -105 56 -49 c147 -126 1468 -1111 1527 -1138 80 -37 173 -57 235 -51 174 16 298 133 331 309 10 57 10 76 -5 135 -35 142 -71 175 -498 458 -623 412 -1418 935 -1421 935 -2 0 -17 -48 -32 -107z"/></g></svg>
+      <!-- White version (dark/brand slides) — Gemini mascot paths 1-6 -->
+      <svg class="logo-mark logo-lm-wht" viewBox="1000 185 840 760" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0,1536) scale(0.1,-0.1)" fill="white" stroke="none"><path d="M13955 12773 c-262 -34 -459 -106 -665 -242 -47 -31 -139 -108 -205 -172 l-120 -116 -80 18 c-327 73 -627 24 -876 -143 -158 -105 -293 -264 -370 -434 -78 -172 -113 -411 -85 -591 37 -246 112 -379 376 -673 131 -145 336 -394 364 -442 l26 -45 -2 -266 -3 -266 -135 108 c-161 128 -223 194 -243 259 -9 28 -18 109 -21 197 -6 164 -21 236 -67 331 -56 114 -115 171 -556 540 -236 197 -524 438 -640 536 -200 167 -215 178 -254 178 -56 0 -99 -42 -99 -98 0 -64 -3 -61 651 -733 221 -228 338 -355 341 -372 14 -72 -49 -98 -119 -50 -22 15 -193 161 -379 324 -534 465 -638 555 -661 567 -37 20 -91 15 -118 -12 -38 -38 -41 -69 -11 -120 29 -49 74 -98 609 -653 316 -329 377 -397 377 -421 0 -15 -5 -33 -12 -40 -19 -19 -70 -14 -110 11 -43 26 -233 193 -563 492 -357 325 -472 424 -500 431 -57 14 -115 -38 -115 -105 0 -49 105 -177 649 -791 319 -360 466 -506 556 -552 126 -65 155 -70 425 -77 237 -6 247 -7 300 -32 30 -15 123 -82 205 -150 323 -266 516 -431 529 -452 9 -15 17 -91 25 -247 29 -551 51 -729 113 -914 106 -319 280 -539 592 -747 205 -138 414 -229 652 -285 112 -27 133 -28 349 -29 204 0 242 3 339 23 435 94 886 375 1094 684 108 160 178 328 217 521 27 136 36 233 65 682 l19 310 58 55 c103 97 384 328 432 354 33 17 76 29 141 37 113 13 197 38 265 78 85 50 767 616 1050 872 443 400 591 640 670 1084 23 132 36 347 25 408 -15 81 -62 106 -134 72 -40 -19 -89 -59 -502 -405 -181 -152 -545 -453 -809 -670 -592 -486 -715 -588 -1138 -949 -18 -15 -19 -11 -15 135 l3 151 36 54 c43 64 205 264 332 408 245 277 318 390 374 576 24 81 27 106 27 255 0 138 -3 179 -21 252 -50 197 -130 349 -253 481 -156 167 -342 268 -585 318 -100 20 -302 14 -438 -14 l-119 -24 -81 85 c-239 248 -506 386 -842 437 -91 14 -266 18 -340 8z m318 -278 c372 -56 717 -321 857 -657 57 -137 141 -189 230 -143 67 35 79 112 33 227 -14 38 -24 70 -21 73 2 3 50 12 106 20 170 26 360 -9 502 -92 129 -76 263 -227 326 -368 86 -195 85 -437 -2 -621 -44 -93 -86 -148 -289 -384 -92 -107 -204 -241 -248 -298 -87 -112 -82 -109 -159 -71 l-38 19 22 58 c12 31 77 194 145 362 67 168 123 314 123 326 0 30 -28 39 -53 17 -10 -10 -120 -148 -243 -308 -123 -159 -236 -305 -252 -324 l-29 -35 -41 17 c-22 9 -91 30 -153 46 -61 17 -113 32 -115 33 -3 3 64 438 105 683 19 118 25 172 22 208 -1 20 -43 24 -59 5 -5 -7 -71 -155 -147 -328 -181 -416 -221 -499 -239 -506 -8 -3 -46 -1 -83 5 -37 6 -123 13 -191 17 -67 4 -125 10 -127 15 -3 4 -30 211 -60 461 -30 249 -59 470 -65 491 -9 30 -16 37 -36 37 -41 0 -33 47 -129 -745 -34 -282 -25 -255 -91 -255 -31 0 -121 -7 -200 -16 -92 -11 -149 -13 -155 -7 -8 8 -258 568 -331 742 -38 91 -60 116 -88 101 -26 -14 -26 -22 14 -266 53 -320 96 -601 96 -628 0 -19 -7 -25 -35 -30 -19 -4 -83 -22 -142 -41 -59 -19 -115 -34 -123 -34 -17 0 -9 -9 -316 388 -120 156 -225 286 -232 288 -21 9 -44 -18 -37 -44 3 -13 68 -179 145 -368 77 -189 140 -351 140 -359 0 -13 -77 -56 -100 -56 -4 0 -64 69 -133 153 -69 83 -182 217 -252 297 -152 175 -232 291 -267 387 -126 340 30 756 353 941 133 76 321 112 482 92 50 -6 102 -13 114 -16 l21 -6 -28 -66 c-37 -89 -44 -125 -30 -165 14 -45 49 -77 93 -84 87 -14 130 23 201 171 138 287 375 496 676 597 169 56 352 71 533 44z m217 -2289 c263 -32 520 -91 770 -176 193 -65 318 -118 330 -140 15 -28 0 -760 -15 -760 -7 0 -44 12 -81 26 -129 49 -383 133 -496 163 -334 90 -575 123 -888 123 -419 1 -749 -59 -1247 -227 -138 -47 -256 -85 -261 -85 -14 0 -22 202 -8 216 20 21 357 145 542 199 150 44 329 88 532 130 72 15 95 123 37 172 -37 32 -76 30 -306 -17 -266 -54 -504 -127 -802 -245 -16 -7 -17 3 -15 151 l3 159 45 21 c86 41 322 125 473 169 240 69 511 116 792 139 97 8 481 -4 595 -18z m-21 -1041 c316 -40 669 -140 997 -281 l84 -36 0 -65 0 -64 -42 -19 c-24 -10 -75 -23 -114 -30 -64 -10 -76 -9 -125 9 -187 70 -231 83 -313 97 -71 13 -136 15 -301 11 -175 -4 -215 -2 -240 11 -16 8 -150 96 -297 195 -183 124 -264 184 -255 190 19 13 468 0 606 -18z m-806 -143 c89 -60 261 -175 382 -256 121 -81 230 -158 243 -172 19 -21 22 -36 22 -102 0 -266 128 -505 321 -597 94 -45 163 -58 273 -53 69 3 107 11 158 32 l68 27 102 -64 c57 -35 126 -77 153 -92 86 -49 86 -49 65 -108 -81 -231 -239 -437 -456 -593 -100 -72 -329 -190 -447 -229 -165 -55 -258 -69 -452 -70 -250 0 -395 33 -625 141 -467 222 -713 526 -785 969 -15 92 -39 472 -51 806 l-7 186 97 42 c182 80 449 167 660 216 56 13 105 24 109 24 5 1 81 -48 170 -107z m1862 -801 c-7 -140 -18 -258 -24 -264 -7 -7 -33 5 -83 37 -117 74 -110 58 -76 161 16 50 34 125 40 168 6 44 19 88 27 99 13 16 120 62 128 55 1 -2 -4 -117 -12 -256z"/><path d="M13140 8854 c-77 -20 -195 -80 -220 -111 -25 -32 -26 -64 -2 -91 29 -34 54 -35 117 -1 172 92 306 96 471 14 40 -19 83 -35 97 -35 28 0 67 41 67 70 0 48 -114 122 -237 154 -75 20 -219 20 -293 0z"/><path d="M13212 8545 c-91 -25 -167 -87 -210 -170 -37 -72 -42 -188 -12 -268 26 -69 94 -143 165 -177 42 -21 65 -25 145 -25 84 0 101 3 145 27 111 58 177 160 183 283 12 221 -201 390 -416 330z m32 -135 c58 -22 69 -110 19 -150 -60 -47 -143 -8 -143 67 1 71 57 109 124 83z"/><path d="M13968 7960 c-32 -5 -71 -16 -88 -25 -32 -16 -60 -61 -60 -95 0 -57 66 -147 146 -197 40 -25 44 -32 44 -66 0 -121 -121 -195 -249 -152 -37 12 -69 34 -112 76 -33 32 -71 62 -84 65 -33 8 -77 -16 -94 -51 -13 -26 -12 -33 9 -72 33 -62 119 -137 188 -164 71 -27 195 -36 268 -20 30 7 78 28 106 48 42 27 56 32 68 24 91 -67 154 -85 271 -79 134 8 243 66 308 165 44 67 41 112 -10 138 -46 25 -66 18 -133 -44 -74 -69 -109 -89 -170 -97 -105 -15 -206 66 -206 165 0 22 8 35 33 52 173 118 207 261 76 313 -49 20 -228 29 -311 16z"/><path d="M11780 7452 c-262 -174 -651 -433 -866 -574 -402 -266 -487 -330 -529 -402 -41 -70 -59 -158 -46 -229 23 -131 94 -226 209 -280 60 -29 76 -32 157 -31 97 1 175 25 260 81 55 36 1329 989 1437 1075 l88 69 -42 82 c-70 140 -139 334 -168 470 -6 31 -14 57 -18 56 -4 0 -221 -143 -482 -317z"/><path d="M15895 7663 c-33 -128 -76 -243 -143 -387 l-50 -105 56 -49 c147 -126 1468 -1111 1527 -1138 80 -37 173 -57 235 -51 174 16 298 133 331 309 10 57 10 76 -5 135 -35 142 -71 175 -498 458 -623 412 -1418 935 -1421 935 -2 0 -17 -48 -32 -107z"/></g></svg>
+      <span class="logo-word">ubion</span>
+    </div>
+    <span class="chapter-pill" id="chap"></span>
+  </div>
+
+  <div id="slides"></div>
+
+  <div id="nav-dots"></div>
+  <button class="nav-btn" id="btn-p" onclick="_p()" aria-label="Précédent"><i class="ti ti-chevron-left" style="font-size:19px"></i></button>
+  <button class="nav-btn" id="btn-n" onclick="_n()" aria-label="Suivant"><i class="ti ti-chevron-right" style="font-size:19px"></i></button>
+  <div id="slide-num"></div>
+
+</div>
+<script>
+const CIRC=+(2*Math.PI*72).toFixed(2);
+
+/* ─── SLIDES DATA ─── */
+const S=[
+  {t:'brand-in',chap:'',mode:'dk'},
+  {t:'hero',chap:'',mode:'dk'},
+  {t:'prob',chap:'Les défis',mode:'dk',n:1,
+    stat:'12h',anim:{v:12,s:'h'},deco:'12',
+    sub:"par semaine perdues en gestion administrative",
+    h:"Le temps, la ressource la plus gaspillée",
+    desc:"Entre bons de livraison, plannings, comptabilité et commandes, les restaurateurs passent plus de temps sur leur bureau qu'en cuisine.",
+    chart:'bars',
+    data:[
+      {l:'Commandes & bons de livraison',pct:33,v:'4h',c:'#C87E20'},
+      {l:'Stock & inventaire',pct:25,v:'3h',c:'#D85A30'},
+      {l:'Comptabilité & factures',pct:25,v:'3h',c:'#534AB7'},
+      {l:'Planning & RH',pct:17,v:'2h',c:'#185FA5'},
+    ]},
+  {t:'prob',chap:'Les défis',mode:'dk',n:2,
+    stat:'60%',anim:{v:60,s:'%'},deco:'60',
+    sub:"des restaurateurs pilotent leurs marges à l'aveugle",
+    h:"Impossible de gérer ce qu'on ne mesure pas",
+    desc:"Sans visibilité sur les coûts et marges en temps réel, impossible de savoir quels plats sont rentables ou quand revoir les prix.",
+    chart:'donut',data:{v:60,c:'#D85A30',l:"À l'aveugle"}},
+  {t:'prob',chap:'Les défis',mode:'dk',n:3,
+    stat:'28%',anim:{v:28,s:'%'},deco:'28',
+    sub:"des achats alimentaires finissent à la poubelle",
+    h:"1 euro sur 4 part à la poubelle",
+    desc:"Le gaspillage est l'une des plus grandes pertes de rentabilité. Stocks mal gérés, rotations ignorées, commandes approximatives.",
+    chart:'waste',data:{}},
+  {t:'prob',chap:'Les défis',mode:'dk',n:4,
+    stat:'1/3',anim:null,deco:'⅓',
+    sub:"des restaurants reçoivent une non-conformité hygiénique chaque année",
+    h:"La conformité : un risque permanent",
+    desc:"Les contrôles sanitaires sont de plus en plus fréquents. Une fermeture administrative peut coûter des dizaines de milliers d'euros.",
+    chart:'compliance',data:{}},
+  {t:'trans',chap:'La solution',mode:'br'},
+  {t:'sol',chap:'La solution',mode:'lt',
+    mc:'#D85A30',mb:'#FAECE7',mt:'#4A1B0C',mi:'ti-bowl',tag:'Cuisine',
+    title:'Marges & fiches techniques en temps réel',
+    desc:"Calculez le coût exact de chaque plat, gérez vos recettes et laissez l'IA analyser votre menu pour identifier vos plats les plus rentables.",
+    ref:'Répond à : Marges invisibles · Gaspillage',
+    feats:['Coûts et marges calculés automatiquement','Analyse IA de votre carte & suggestions','Fiches de préparation et recettes détaillées'],
+    demo:'cuisine'},
+  {t:'sol',chap:'La solution',mode:'lt',
+    mc:'#0F6E56',mb:'#E1F5EE',mt:'#04342C',mi:'ti-receipt',tag:'Salle',
+    title:'Plan de salle, commandes & caisse',
+    desc:"Gérez le service complet depuis un seul écran — plan de salle interactif, tickets, paiements, bar et livraison.",
+    ref:'Répond à : Temps perdu',
+    feats:['Plan de salle interactif en temps réel','Caisse & paiements multi-modes intégrés','Bar, room service & livraison unifiés'],
+    demo:'salle'},
+  {t:'sol',chap:'La solution',mode:'lt',
+    mc:'#185FA5',mb:'#E6F1FB',mt:'#042C53',mi:'ti-package',tag:'Stock',
+    title:'Inventaire & achats automatisés',
+    desc:"Bons de livraison extraits et analysés par IA. Factures réconciliées. Stocks en temps réel avec alertes de rupture.",
+    ref:'Répond à : Gaspillage · Temps perdu',
+    feats:['OCR & extraction IA des bons de livraison','Commandes fournisseurs automatiques','Alertes stock & prévention des ruptures'],
+    demo:'stock'},
+  {t:'sol',chap:'La solution',mode:'lt',
+    mc:'#3B6D11',mb:'#EAF3DE',mt:'#173404',mi:'ti-shield-check',tag:'Hygiène',
+    title:'Conformité HACCP sans paperasse',
+    desc:"Registres de températures, protocoles et documents réglementaires gérés dans l'app. Plus de papier, plus de stress.",
+    ref:'Répond à : Non-conformité',
+    feats:['Registres HACCP automatisés & datés','Suivi continu des températures','Score hygiène & alertes en temps réel'],
+    before:'Registres papier éparpillés, oublis fréquents',
+    after:'Conformité documentée, accessible en un clic'},
+  {t:'sol',chap:'La solution',mode:'lt',
+    mc:'#534AB7',mb:'#EEEDFE',mt:'#26215C',mi:'ti-users',tag:'Équipe',
+    title:'Planning & RH simplifiés',
+    desc:"Planifiez vos équipes, gérez les contrats HCR, suivez les présences et maîtrisez votre masse salariale en toute conformité.",
+    ref:'Répond à : Temps perdu',
+    feats:['Planning hebdomadaire en glissant','Contrats HCR générés automatiquement','Suivi des heures, présences & absences'],
+    before:'Plannings papier, contrats mal archivés',
+    after:'Planning en ligne, contrats générés en un clic'},
+  {t:'sol',chap:'La solution',mode:'lt',
+    mc:'#C87E20',mb:'#FEF3E2',mt:'#633806',mi:'ti-chart-bar',tag:'Pilotage',
+    title:'Dashboard & insights en temps réel',
+    desc:"Ventes, marges et compte de résultat en direct. Prenez les bonnes décisions avec des données fiables et des recommandations IA.",
+    ref:'Répond à : Marges invisibles · Temps perdu',
+    feats:['Compte de résultat actualisé en direct','Marges par plat & par service','Insights & recommandations générés par IA'],
+    demo:'pilotage'},
+  {t:'cta',chap:'',mode:'dk'},
+  {t:'brand-out',chap:'',mode:'dk'},
+];
+
+/* ─── CHART HTML ─── */
+function buildChart(s){
+  if(s.chart==='bars') return`<div class="c-timebars">
+    <div class="c-title">Répartition des 12h / semaine</div>
+    ${s.data.map(r=>`<div class="tb-row">
+      <div class="tb-meta"><span>${r.l}</span><span>${r.v}</span></div>
+      <div class="tb-track"><div class="tb-fill" data-pct="${r.pct}" style="background:${r.c}"></div></div>
+    </div>`).join('')}
+  </div>`;
+  if(s.chart==='donut') return`<div style="display:flex;flex-direction:column;align-items:center">
+    <div class="c-donut-wrap">
+      <svg viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="72" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="20"/>
+        <circle class="donut-arc" cx="100" cy="100" r="72" fill="none" stroke="${s.data.c}" stroke-width="20" stroke-linecap="round" stroke-dasharray="0 ${CIRC}" transform="rotate(-90 100 100)"/>
+        <circle cx="100" cy="100" r="56" fill="rgba(255,255,255,.025)"/>
+      </svg>
+      <div class="donut-center">
+        <span class="donut-num" data-v="${s.data.v}">0%</span>
+        <span class="donut-sub">${s.data.l}</span>
+      </div>
+    </div>
+    <p class="donut-note">6 restaurateurs sur 10 sans visibilité temps réel sur la rentabilité de leurs plats</p>
+  </div>`;
+  if(s.chart==='waste') return`<div class="c-waste">
+    <div class="c-title">Utilisation des achats alimentaires</div>
+    <div class="waste-track">
+      <div class="waste-useful">Utilisés · 72%</div>
+      <div class="waste-lost">28%</div>
+    </div>
+    <div class="waste-legend"><span>Utilisés en cuisine</span><span style="color:rgba(196,60,44,.65)">Gaspillés</span></div>
+    <div class="waste-insight"><p>Pour un restaurant à <strong>500 000 € de CA</strong>, cela représente <strong>~28 000 € de pertes alimentaires par an</strong></p></div>
+  </div>`;
+  if(s.chart==='compliance'){
+    let cells='';for(let i=0;i<24;i++){const nok=i<8;cells+=`<div class="cg ${nok?'nok':'ok'}" data-d="${i*38}"><i class="ti ${nok?'ti-x':'ti-check'}"></i></div>`;}
+    return`<div class="c-compliance">
+      <div class="c-title" style="margin-bottom:14px">Sur 24 restaurants contrôlés cette année</div>
+      <div class="cgrid">${cells}</div>
+      <p><strong>8 restaurants sur 24</strong> reçoivent une mise en demeure — risque de fermeture administrative, amende et réputation détruite</p>
+    </div>`;
+  }
+  return'';
+}
+
+/* ─── APP MOCKUPS ─── */
+function buildDemo(type,s){
+  if(type==='cuisine') return`
+    <div class="mock">
+      <div class="mock-header">
+        <span class="mock-title">Bœuf bourguignon</span>
+        <span class="mock-sub">Fiche technique</span>
+      </div>
+      <div class="mock-body">
+        <table class="rc-table">
+          <thead><tr><th>Ingrédient</th><th>Qté</th><th>Coût HT</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600;color:#1a1510">Bœuf paleron</td><td style="color:#888">250 g</td><td style="font-weight:600;color:#1a1510">3,12 €</td></tr>
+            <tr><td style="font-weight:600;color:#1a1510">Carottes</td><td style="color:#888">80 g</td><td style="font-weight:600;color:#1a1510">0,24 €</td></tr>
+            <tr><td style="font-weight:600;color:#1a1510">Vin rouge</td><td style="color:#888">15 cl</td><td style="font-weight:600;color:#1a1510">0,48 €</td></tr>
+            <tr><td style="font-weight:600;color:#1a1510">Champignons</td><td style="color:#888">60 g</td><td style="font-weight:600;color:#1a1510">0,36 €</td></tr>
+          </tbody>
+        </table>
+        <div class="rc-total"><span style="font-size:12px;font-weight:600;color:#555">Total matière HT</span><span style="font-size:14px;font-weight:700;color:#1a1510">4,20 €</span></div>
+        <div class="rc-margin" style="margin-top:6px"><span style="font-size:11.5px;font-weight:600;color:#297A35">Prix de vente · 13,20 €</span><span style="font-size:15px;font-weight:700;color:#297A35">Marge 68 %</span></div>
+      </div>
+    </div>`;
+
+  if(type==='salle'){
+    const tables=[
+      {n:'T1',p:2,st:'free'},{n:'T2',p:4,st:'occupied'},{n:'T3',p:2,st:'free'},
+      {n:'T4',p:4,st:'bill'},{n:'T5',p:6,st:'occupied'},{n:'T6',p:2,st:'free'},
+      {n:'T7',p:4,st:'occupied'},{n:'T8',p:2,st:'free'},{n:'T9',p:4,st:'occupied'},
+    ];
+    const colors={free:{bg:'#f0fdf4',border:'#86efac',num:'#166534',lbl:'Libre'},occupied:{bg:'#fef3e2',border:'#fbbf24',num:'#92400e',lbl:'Occupée'},bill:{bg:'#fef2f2',border:'#fca5a5',num:'#991b1b',lbl:'Addition'}};
+    return`<div class="mock">
+      <div class="mock-header"><span class="mock-title">Plan de salle — Service du midi</span><span class="mock-sub" style="display:flex;gap:8px">
+        <span style="display:flex;align-items:center;gap:3px;font-size:10px;color:#166534"><span style="width:8px;height:8px;background:#86efac;border-radius:2px;display:inline-block"></span>Libre</span>
+        <span style="display:flex;align-items:center;gap:3px;font-size:10px;color:#92400e"><span style="width:8px;height:8px;background:#fbbf24;border-radius:2px;display:inline-block"></span>Occupée</span>
+        <span style="display:flex;align-items:center;gap:3px;font-size:10px;color:#991b1b"><span style="width:8px;height:8px;background:#fca5a5;border-radius:2px;display:inline-block"></span>Addition</span>
+      </span></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:12px 14px">
+        ${tables.map(t=>`<div style="background:${colors[t.st].bg};border:1.5px solid ${colors[t.st].border};border-radius:9px;padding:10px 8px;text-align:center">
+          <div style="font-size:13px;font-weight:700;color:${colors[t.st].num}">${t.n}</div>
+          <div style="font-size:10px;color:${colors[t.st].num};opacity:.7">${t.p} cvts</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  if(type==='stock') return`
+    <div class="mock">
+      <div class="mock-header"><span class="mock-title">Stocks — Alertes</span><span class="mock-sub" style="color:#D34B38;font-weight:600">3 produits critiques</span></div>
+      <div class="mock-body">
+        ${[
+          {n:'Bœuf paleron',u:'kg',qty:1.2,max:10,c:'#D34B38',pct:12},
+          {n:'Crème fraîche',u:'L',qty:2.0,max:10,c:'#C87E20',pct:20},
+          {n:'Vin rouge',u:'btl',qty:3,max:12,c:'#C87E20',pct:25},
+          {n:'Pommes de terre',u:'kg',qty:8.5,max:20,c:'#3B6D11',pct:42},
+          {n:'Beurre AOP',u:'kg',qty:5.2,max:10,c:'#3B6D11',pct:52},
+        ].map(i=>`<div class="stock-item">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12.5px;font-weight:600;color:#1a1510;margin-bottom:4px;display:flex;justify-content:space-between">
+              <span>${i.n}</span><span style="color:${i.c};font-weight:700">${i.qty} ${i.u}</span>
+            </div>
+            <div class="stock-bar-wrap"><div class="stock-bar" style="width:${i.pct}%;background:${i.c}"></div></div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+
+  if(type==='pilotage') return`
+    <div class="mock">
+      <div class="mock-header"><span class="mock-title">Dashboard</span><span class="mock-sub">Aujourd'hui · en direct</span></div>
+      <div class="mock-body">
+        <div class="mock-kpis">
+          <div class="mock-kpi"><div class="mk-lbl">CA du jour</div><div class="mk-val" style="color:#C87E20">2 840 €</div></div>
+          <div class="mock-kpi"><div class="mk-lbl">Couverts</div><div class="mk-val" style="color:#1a1510">47</div></div>
+          <div class="mock-kpi" style="background:#f0fdf4"><div class="mk-lbl">Marge brute</div><div class="mk-val" style="color:#3B6D11">72 %</div></div>
+          <div class="mock-kpi"><div class="mk-lbl">Ticket moyen</div><div class="mk-val" style="color:#1a1510">60 €</div></div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px">Best-sellers du jour</div>
+        <div class="mock-row"><span class="mock-row-name">Bœuf bourguignon</span><span class="mock-row-badge" style="background:#fef3e2;color:#C87E20">18×</span></div>
+        <div class="mock-row"><span class="mock-row-name">Magret de canard</span><span class="mock-row-badge" style="background:#fafaf8;color:#888">12×</span></div>
+        <div class="mock-row"><span class="mock-row-name">Tarte tatin</span><span class="mock-row-badge" style="background:#fafaf8;color:#888">9×</span></div>
+      </div>
+    </div>`;
+
+  return'';
+}
+
+/* ─── LOGO SVGs (Gemini mascot — paths 1-6 only) ─── */
+const MASCOT_PATHS=`<path d="M13955 12773 c-262 -34 -459 -106 -665 -242 -47 -31 -139 -108 -205 -172 l-120 -116 -80 18 c-327 73 -627 24 -876 -143 -158 -105 -293 -264 -370 -434 -78 -172 -113 -411 -85 -591 37 -246 112 -379 376 -673 131 -145 336 -394 364 -442 l26 -45 -2 -266 -3 -266 -135 108 c-161 128 -223 194 -243 259 -9 28 -18 109 -21 197 -6 164 -21 236 -67 331 -56 114 -115 171 -556 540 -236 197 -524 438 -640 536 -200 167 -215 178 -254 178 -56 0 -99 -42 -99 -98 0 -64 -3 -61 651 -733 221 -228 338 -355 341 -372 14 -72 -49 -98 -119 -50 -22 15 -193 161 -379 324 -534 465 -638 555 -661 567 -37 20 -91 15 -118 -12 -38 -38 -41 -69 -11 -120 29 -49 74 -98 609 -653 316 -329 377 -397 377 -421 0 -15 -5 -33 -12 -40 -19 -19 -70 -14 -110 11 -43 26 -233 193 -563 492 -357 325 -472 424 -500 431 -57 14 -115 -38 -115 -105 0 -49 105 -177 649 -791 319 -360 466 -506 556 -552 126 -65 155 -70 425 -77 237 -6 247 -7 300 -32 30 -15 123 -82 205 -150 323 -266 516 -431 529 -452 9 -15 17 -91 25 -247 29 -551 51 -729 113 -914 106 -319 280 -539 592 -747 205 -138 414 -229 652 -285 112 -27 133 -28 349 -29 204 0 242 3 339 23 435 94 886 375 1094 684 108 160 178 328 217 521 27 136 36 233 65 682 l19 310 58 55 c103 97 384 328 432 354 33 17 76 29 141 37 113 13 197 38 265 78 85 50 767 616 1050 872 443 400 591 640 670 1084 23 132 36 347 25 408 -15 81 -62 106 -134 72 -40 -19 -89 -59 -502 -405 -181 -152 -545 -453 -809 -670 -592 -486 -715 -588 -1138 -949 -18 -15 -19 -11 -15 135 l3 151 36 54 c43 64 205 264 332 408 245 277 318 390 374 576 24 81 27 106 27 255 0 138 -3 179 -21 252 -50 197 -130 349 -253 481 -156 167 -342 268 -585 318 -100 20 -302 14 -438 -14 l-119 -24 -81 85 c-239 248 -506 386 -842 437 -91 14 -266 18 -340 8z m318 -278 c372 -56 717 -321 857 -657 57 -137 141 -189 230 -143 67 35 79 112 33 227 -14 38 -24 70 -21 73 2 3 50 12 106 20 170 26 360 -9 502 -92 129 -76 263 -227 326 -368 86 -195 85 -437 -2 -621 -44 -93 -86 -148 -289 -384 -92 -107 -204 -241 -248 -298 -87 -112 -82 -109 -159 -71 l-38 19 22 58 c12 31 77 194 145 362 67 168 123 314 123 326 0 30 -28 39 -53 17 -10 -10 -120 -148 -243 -308 -123 -159 -236 -305 -252 -324 l-29 -35 -41 17 c-22 9 -91 30 -153 46 -61 17 -113 32 -115 33 -3 3 64 438 105 683 19 118 25 172 22 208 -1 20 -43 24 -59 5 -5 -7 -71 -155 -147 -328 -181 -416 -221 -499 -239 -506 -8 -3 -46 -1 -83 5 -37 6 -123 13 -191 17 -67 4 -125 10 -127 15 -3 4 -30 211 -60 461 -30 249 -59 470 -65 491 -9 30 -16 37 -36 37 -41 0 -33 47 -129 -745 -34 -282 -25 -255 -91 -255 -31 0 -121 -7 -200 -16 -92 -11 -149 -13 -155 -7 -8 8 -258 568 -331 742 -38 91 -60 116 -88 101 -26 -14 -26 -22 14 -266 53 -320 96 -601 96 -628 0 -19 -7 -25 -35 -30 -19 -4 -83 -22 -142 -41 -59 -19 -115 -34 -123 -34 -17 0 -9 -9 -316 388 -120 156 -225 286 -232 288 -21 9 -44 -18 -37 -44 3 -13 68 -179 145 -368 77 -189 140 -351 140 -359 0 -13 -77 -56 -100 -56 -4 0 -64 69 -133 153 -69 83 -182 217 -252 297 -152 175 -232 291 -267 387 -126 340 30 756 353 941 133 76 321 112 482 92 50 -6 102 -13 114 -16 l21 -6 -28 -66 c-37 -89 -44 -125 -30 -165 14 -45 49 -77 93 -84 87 -14 130 23 201 171 138 287 375 496 676 597 169 56 352 71 533 44z m217 -2289 c263 -32 520 -91 770 -176 193 -65 318 -118 330 -140 15 -28 0 -760 -15 -760 -7 0 -44 12 -81 26 -129 49 -383 133 -496 163 -334 90 -575 123 -888 123 -419 1 -749 -59 -1247 -227 -138 -47 -256 -85 -261 -85 -14 0 -22 202 -8 216 20 21 357 145 542 199 150 44 329 88 532 130 72 15 95 123 37 172 -37 32 -76 30 -306 -17 -266 -54 -504 -127 -802 -245 -16 -7 -17 3 -15 151 l3 159 45 21 c86 41 322 125 473 169 240 69 511 116 792 139 97 8 481 -4 595 -18z m-21 -1041 c316 -40 669 -140 997 -281 l84 -36 0 -65 0 -64 -42 -19 c-24 -10 -75 -23 -114 -30 -64 -10 -76 -9 -125 9 -187 70 -231 83 -313 97 -71 13 -136 15 -301 11 -175 -4 -215 -2 -240 11 -16 8 -150 96 -297 195 -183 124 -264 184 -255 190 19 13 468 0 606 -18z m-806 -143 c89 -60 261 -175 382 -256 121 -81 230 -158 243 -172 19 -21 22 -36 22 -102 0 -266 128 -505 321 -597 94 -45 163 -58 273 -53 69 3 107 11 158 32 l68 27 102 -64 c57 -35 126 -77 153 -92 86 -49 86 -49 65 -108 -81 -231 -239 -437 -456 -593 -100 -72 -329 -190 -447 -229 -165 -55 -258 -69 -452 -70 -250 0 -395 33 -625 141 -467 222 -713 526 -785 969 -15 92 -39 472 -51 806 l-7 186 97 42 c182 80 449 167 660 216 56 13 105 24 109 24 5 1 81 -48 170 -107z m1862 -801 c-7 -140 -18 -258 -24 -264 -7 -7 -33 5 -83 37 -117 74 -110 58 -76 161 16 50 34 125 40 168 6 44 19 88 27 99 13 16 120 62 128 55 1 -2 -4 -117 -12 -256z"/><path d="M13140 8854 c-77 -20 -195 -80 -220 -111 -25 -32 -26 -64 -2 -91 29 -34 54 -35 117 -1 172 92 306 96 471 14 40 -19 83 -35 97 -35 28 0 67 41 67 70 0 48 -114 122 -237 154 -75 20 -219 20 -293 0z"/><path d="M13212 8545 c-91 -25 -167 -87 -210 -170 -37 -72 -42 -188 -12 -268 26 -69 94 -143 165 -177 42 -21 65 -25 145 -25 84 0 101 3 145 27 111 58 177 160 183 283 12 221 -201 390 -416 330z m32 -135 c58 -22 69 -110 19 -150 -60 -47 -143 -8 -143 67 1 71 57 109 124 83z"/><path d="M13968 7960 c-32 -5 -71 -16 -88 -25 -32 -16 -60 -61 -60 -95 0 -57 66 -147 146 -197 40 -25 44 -32 44 -66 0 -121 -121 -195 -249 -152 -37 12 -69 34 -112 76 -33 32 -71 62 -84 65 -33 8 -77 -16 -94 -51 -13 -26 -12 -33 9 -72 33 -62 119 -137 188 -164 71 -27 195 -36 268 -20 30 7 78 28 106 48 42 27 56 32 68 24 91 -67 154 -85 271 -79 134 8 243 66 308 165 44 67 41 112 -10 138 -46 25 -66 18 -133 -44 -74 -69 -109 -89 -170 -97 -105 -15 -206 66 -206 165 0 22 8 35 33 52 173 118 207 261 76 313 -49 20 -228 29 -311 16z"/><path d="M11780 7452 c-262 -174 -651 -433 -866 -574 -402 -266 -487 -330 -529 -402 -41 -70 -59 -158 -46 -229 23 -131 94 -226 209 -280 60 -29 76 -32 157 -31 97 1 175 25 260 81 55 36 1329 989 1437 1075 l88 69 -42 82 c-70 140 -139 334 -168 470 -6 31 -14 57 -18 56 -4 0 -221 -143 -482 -317z"/><path d="M15895 7663 c-33 -128 -76 -243 -143 -387 l-50 -105 56 -49 c147 -126 1468 -1111 1527 -1138 80 -37 173 -57 235 -51 174 16 298 133 331 309 10 57 10 76 -5 135 -35 142 -71 175 -498 458 -623 412 -1418 935 -1421 935 -2 0 -17 -48 -32 -107z"/>`;
+
+const TEXT_PATHS=`<path d="M11802 6279 c-29 -15 -49 -34 -62 -60 -19 -37 -20 -64 -20 -872 0 -720 2 -846 16 -918 63 -332 296 -585 631 -685 74 -22 113 -27 246 -32 187 -5 272 6 405 53 118 42 228 111 312 195 113 111 174 216 227 389 24 79 27 101 27 271 1 216 -14 291 -89 446 -108 224 -311 389 -560 456 -109 29 -357 32 -455 5 -89 -24 -193 -75 -265 -130 l-60 -45 -6 226 c-4 125 -7 338 -8 475 l-1 247 -147 0 c-131 0 -153 -3 -191 -21z m949 -1109 c123 -23 245 -107 315 -217 78 -120 109 -298 80 -448 -51 -259 -242 -425 -489 -425 -245 0 -440 162 -492 408 -39 181 3 378 107 509 107 136 303 206 479 173z"/><path d="M14017 6276 c-65 -18 -116 -61 -150 -127 -25 -48 -28 -62 -24 -125 9 -154 125 -255 276 -241 145 13 240 125 229 270 -6 71 -23 111 -69 156 -67 67 -169 93 -262 67z"/><path d="M15343 5536 c-342 -65 -598 -279 -704 -589 -77 -226 -60 -534 41 -742 50 -103 156 -235 245 -303 88 -67 226 -135 330 -163 100 -26 352 -37 465 -20 296 46 534 218 661 476 72 149 93 245 93 435 -1 135 -4 168 -27 253 -73 275 -244 475 -504 590 -117 52 -205 69 -373 73 -103 2 -179 -1 -227 -10z m283 -367 c242 -44 414 -270 414 -544 0 -314 -214 -545 -505 -545 -237 0 -429 153 -492 393 -26 98 -21 244 11 342 81 253 319 400 572 354z"/><path d="M17425 5539 c-33 -5 -100 -20 -150 -34 -249 -71 -419 -244 -502 -510 l-28 -90 -3 -582 -3 -583 221 0 220 0 0 518 c0 571 3 604 61 712 40 75 92 123 178 164 63 29 72 31 186 31 115 0 123 -1 186 -32 78 -38 140 -102 175 -177 46 -101 54 -208 54 -733 l0 -483 221 0 220 0 -4 558 c-4 618 -6 642 -76 816 -97 243 -290 383 -586 426 -83 11 -286 11 -370 -1z"/><path d="M9801 5492 c-19 -9 -44 -30 -55 -45 -20 -28 -21 -41 -24 -485 -3 -495 4 -588 53 -733 82 -244 279 -425 535 -491 74 -20 110 -23 280 -22 170 0 205 3 274 22 306 85 480 294 541 646 12 72 15 188 15 608 l0 519 -169 -3 c-189 -3 -204 -8 -246 -79 -19 -32 -20 -58 -26 -514 -6 -511 -7 -524 -58 -623 -33 -66 -96 -128 -160 -159 -52 -26 -65 -28 -176 -28 -111 0 -125 2 -182 29 -77 35 -144 104 -184 190 -56 119 -59 154 -59 694 l0 492 -162 0 c-135 0 -169 -3 -197 -18z"/><path d="M13962 5490 c-33 -15 -47 -29 -62 -62 -19 -41 -20 -72 -20 -865 l0 -823 215 0 215 0 0 885 0 885 -152 0 c-130 0 -159 -3 -196 -20z"/>`;
+
+function mkSVG(vb,gradId,paths){
+  return `<svg class="brand-anim-svg" viewBox="${vb}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="${gradId}" x1="0" y1="12773" x2="0" y2="5490" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#e8925a"/><stop offset="50%" stop-color="#c25a2c"/><stop offset="100%" stop-color="#9c431c"/></linearGradient></defs><g transform="translate(0,1536) scale(0.1,-0.1)" fill="url(#${gradId})" stroke="none">${paths}</g></svg>`;
+}
+const BRAND_SVG_IN=mkSVG('870 185 1050 850','cop-bi',MASCOT_PATHS+TEXT_PATHS);
+const BRAND_SVG_OUT=mkSVG('870 185 1050 850','cop-bo',MASCOT_PATHS+TEXT_PATHS);
+
+const LOGO_C=`<svg viewBox="1000 185 840 760" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="cop-b" x1="0" y1="12773" x2="0" y2="7452" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#e08550"/><stop offset="60%" stop-color="#c25a2c"/><stop offset="100%" stop-color="#9c431c"/></linearGradient></defs><g transform="translate(0,1536) scale(0.1,-0.1)" fill="url(#cop-b)" stroke="none">${MASCOT_PATHS}</g></svg>`;
+
+const LOGO_W=`<svg viewBox="1000 185 840 760" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0,1536) scale(0.1,-0.1)" fill="white" stroke="none">${MASCOT_PATHS}</g></svg>`;
+
+/* ─── RENDER SLIDES ─── */
+const slideEls=S.map((s,i)=>{
+  const el=document.createElement('div');
+  el.className='slide';
+
+  if(s.t==='brand-in'){
+    el.classList.add('slide-brand');
+    el.innerHTML=`
+      <div class="b-glow"></div>
+      <div class="b-ring"></div><div class="b-ring"></div><div class="b-ring"></div>
+      <div class="brand-anim-container">${BRAND_SVG_IN}</div>
+      <span class="brand-skip">→ Appuyez pour continuer</span>`;
+  }
+  else if(s.t==='brand-out'){
+    el.classList.add('slide-brand-out');
+    el.innerHTML=`
+      <div class="bout-glow"></div>
+      <div class="bout-halo"></div>
+      <div class="brand-anim-container">${BRAND_SVG_OUT}</div>`;
+  }
+  else if(s.t==='hero'){
+    el.classList.add('slide-hero');
+    el.innerHTML=`
+      <div class="hero-mark">${LOGO_W}</div>
+      <h1 class="hero-brand">ubion</h1>
+      <p class="hero-tagline">L'application tout-en-un pour les restaurateurs</p>
+      <p class="hero-sub">De la cuisine au bilan — une seule application pour tout gérer</p>
+      <div class="hero-hint"><i class="ti ti-arrow-right" style="font-size:13px"></i>Appuyez sur → pour commencer</div>`;
+  }
+  else if(s.t==='prob'){
+    el.classList.add('slide-problem');
+    el.innerHTML=`
+      <div class="p-left">
+        <div class="p-deco">${s.deco}</div>
+        <div class="p-label">Défi n°${s.n}</div>
+        <div class="p-stat" ${s.anim?`data-v="${s.anim.v}" data-s="${s.anim.s}"`:''}>${s.stat}</div>
+        <div class="p-stat-sub">${s.sub}</div>
+        <div class="p-headline">${s.h}</div>
+        <p class="p-desc">${s.desc}</p>
+      </div>
+      <div class="p-right">${buildChart(s)}</div>`;
+  }
+  else if(s.t==='trans'){
+    el.classList.add('slide-transition');
+    el.innerHTML=`
+      <p class="trans-eye">Et si tout ça avait une solution ?</p>
+      <h2 class="trans-title">Voici Ubion.</h2>
+      <p class="trans-desc">Une application conçue pour répondre exactement aux défis du quotidien des restaurateurs — de la cuisine à la comptabilité.</p>
+      <div class="trans-pills">
+        <span class="trans-pill">⏱ Temps perdu</span>
+        <span class="trans-pill">📊 Marges invisibles</span>
+        <span class="trans-pill">🗑 Gaspillage</span>
+        <span class="trans-pill">⚠️ Non-conformité</span>
+      </div>`;
+  }
+  else if(s.t==='sol'){
+    el.classList.add('slide-solution');
+    const rightContent=s.demo
+      ? buildDemo(s.demo,s)
+      : `<div class="sol-ba">
+          <div class="ba-b"><div class="ba-lbl">Avant Ubion</div><div class="ba-txt">${s.before}</div></div>
+          <div class="ba-a"><div class="ba-lbl">Avec Ubion</div><div class="ba-txt">${s.after}</div></div>
+        </div>`;
+    el.innerHTML=`
+      <div class="s-left">
+        <div class="sol-tag" style="background:${s.mb};color:${s.mt}">
+          <i class="ti ${s.mi}" style="font-size:13px"></i>${s.tag}
+        </div>
+        <div class="sol-ref"><i class="ti ti-arrow-up-right" style="font-size:13px;color:#CCC"></i>${s.ref}</div>
+        <h2 class="sol-title">${s.title}</h2>
+        <p class="sol-desc">${s.desc}</p>
+        <div class="sol-feats">
+          ${s.feats.map(f=>`<div class="sol-feat"><div class="feat-dot" style="background:${s.mc}"></div>${f}</div>`).join('')}
+        </div>
+      </div>
+      <div class="s-right" style="background:${s.mb}">${rightContent}</div>`;
+  }
+  else if(s.t==='cta'){
+    el.classList.add('slide-cta');
+    el.innerHTML=`
+      <div class="cta-mark">${LOGO_W}</div>
+      <h2 class="cta-brand">ubion</h2>
+      <p class="cta-tagline">L'application qui fait travailler votre restaurant pour vous.<br>Cuisine, salle, stock, hygiène, équipe, pilotage — tout en un.</p>
+      <a class="cta-url" href="https://www.ubion.fr">www.ubion.fr</a>
+      <p class="cta-sub">Pilotez · Servez · Prospérez</p>`;
+  }
+
+  document.getElementById('slides').appendChild(el);
+  return el;
+});
+
+/* ─── DOTS ─── */
+const dotEls=S.map((_,i)=>{
+  const d=document.createElement('button');
+  d.className='dot';d.setAttribute('aria-label',`Slide ${i+1}`);
+  d.onclick=()=>go(i,i>cur?1:-1);
+  document.getElementById('nav-dots').appendChild(d);
+  return d;
+});
+
+/* ─── ANIMATIONS ─── */
+function animCount(el,target,suffix,dur){
+  const t0=performance.now();
+  const tick=now=>{const p=Math.min((now-t0)/dur,1),ease=1-Math.pow(1-p,3);el.textContent=Math.round(ease*target)+suffix;if(p<1)requestAnimationFrame(tick);};
+  requestAnimationFrame(tick);
+}
+
+/* Dessin progressif — stroke-drawing animation for brand slides */
+function animateBrandDraw(el){
+  const svg=el.querySelector('.brand-anim-svg');
+  if(!svg)return;
+  const grp=svg.querySelector('g');
+  if(!grp)return;
+  const gradId=svg.querySelector('linearGradient')?.id||'cop-bi';
+  // Remove any leftover stroke clone from a previous visit
+  const all=svg.querySelectorAll('g');
+  if(all.length>1)all[1].remove();
+  // Reset fill group
+  grp.style.transition='none';
+  grp.style.opacity='0';
+  grp.setAttribute('fill',`url(#${gradId})`);
+  // Clone for stroke layer
+  const sg=grp.cloneNode(true);
+  grp.parentNode.insertBefore(sg,grp.nextSibling);
+  sg.setAttribute('fill','none');
+  const paths=[...sg.querySelectorAll('path')];
+  paths.forEach(p=>{
+    try{
+      const len=p.getTotalLength();
+      p.setAttribute('stroke','rgba(200,126,32,0.9)');
+      p.setAttribute('stroke-width','90');
+      p.setAttribute('stroke-linejoin','round');
+      p.setAttribute('stroke-linecap','round');
+      p.style.strokeDasharray=`${len} ${len}`;
+      p.style.strokeDashoffset=`${len}`;
+    }catch(e){}
+  });
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    paths.forEach((p,i)=>{
+      p.style.transition=`stroke-dashoffset 1.4s ease ${i*0.055}s`;
+      p.style.strokeDashoffset='0';
+    });
+  }));
+  // Fade in fill, fade out stroke
+  setTimeout(()=>{
+    grp.style.transition='opacity 0.65s ease';
+    grp.style.opacity='1';
+    sg.style.transition='opacity 0.65s ease';
+    sg.style.opacity='0';
+  },1750);
+  setTimeout(()=>sg.remove(),2500);
+}
+
+function animateIn(idx){
+  const s=S[idx],el=slideEls[idx];if(!el)return;
+  if(s.t==='brand-in'||s.t==='brand-out'){
+    animateBrandDraw(el);
+    return;
+  }
+  if(s.t!=='prob')return;
+  if(s.anim){const e=el.querySelector('.p-stat');if(e)animCount(e,s.anim.v,s.anim.s,1600);}
+  if(s.chart==='bars') el.querySelectorAll('.tb-fill').forEach(f=>{f.style.transition='none';f.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transition='width 1.3s cubic-bezier(.4,0,.2,1)';f.style.width=f.dataset.pct+'%';}));});
+  if(s.chart==='donut'){
+    const arc=el.querySelector('.donut-arc'),num=el.querySelector('.donut-num');
+    if(arc){arc.style.transition='none';arc.style.strokeDasharray=`0 ${CIRC}`;requestAnimationFrame(()=>requestAnimationFrame(()=>{arc.style.transition='stroke-dasharray 1.6s cubic-bezier(.4,0,.2,1)';const f=(s.data.v/100*CIRC).toFixed(2);arc.style.strokeDasharray=`${f} ${(CIRC-f).toFixed(2)}`;}));}
+    if(num)animCount(num,s.data.v,'%',1700);
+  }
+  if(s.chart==='waste'){
+    const u=el.querySelector('.waste-useful'),lo=el.querySelector('.waste-lost');
+    if(u){u.style.transition='none';u.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>{u.style.transition='width 1.5s cubic-bezier(.4,0,.2,1)';u.style.width='72%';}));}
+    if(lo){lo.style.transition='none';lo.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>{lo.style.transition='width 1.5s .25s cubic-bezier(.4,0,.2,1)';lo.style.width='28%';}));}
+  }
+  if(s.chart==='compliance') el.querySelectorAll('.cg').forEach(c=>{c.style.opacity='0';c.style.transform='scale(.75)';setTimeout(()=>{c.style.transition='opacity .3s,transform .3s';c.style.opacity='1';c.style.transform='none';},+c.dataset.d);});
+}
+
+/* ─── GO ─── */
+let cur=0,tmr=null;const DELAY=6500;
+function go(idx,dir){
+  const n=((idx%S.length)+S.length)%S.length;if(n===cur)return;
+  const p=cur;cur=n;const s=S[cur];
+  slideEls[p].style.opacity='0';slideEls[p].style.transform=`translateX(${dir<0?40:-40}px)`;slideEls[p].style.pointerEvents='none';
+  const c=slideEls[cur];c.style.transition='none';c.style.opacity='0';c.style.transform=`translateX(${dir>0?40:-40}px)`;c.style.pointerEvents='auto';c.offsetHeight;
+  c.style.transition='opacity .5s ease,transform .5s ease';c.style.opacity='1';c.style.transform='none';
+  document.getElementById('deck').className=s.mode;
+  dotEls.forEach((d,i)=>{d.classList.toggle('on',i===cur);d.style.width=i===cur?'18px':'6px';});
+  document.getElementById('chap').textContent=s.chap||'';
+  document.getElementById('slide-num').textContent=`${cur+1} / ${S.length}`;
+  setTimeout(()=>animateIn(cur),120);
+  rst();
+}
+
+function rst(){
+  clearTimeout(tmr);const p=document.getElementById('prog');
+  const t=S[cur].t;
+  // Brand slides: 5s for intro (let animation play), no auto-advance for outro
+  const d=t==='brand-in'?5000:t==='brand-out'?0:DELAY;
+  p.style.transition='none';p.style.width='0%';p.offsetHeight;
+  if(d>0){p.style.transition=`width ${d}ms linear`;p.style.width='100%';tmr=setTimeout(()=>go(cur+1,1),d);}
+  else{p.style.width='0%';}
+}
+
+const deck=document.getElementById('deck');
+deck.addEventListener('mouseenter',()=>{clearTimeout(tmr);const p=document.getElementById('prog');const w=p.offsetWidth/deck.offsetWidth*100;p.style.transition='none';p.style.width=w+'%';});
+deck.addEventListener('mouseleave',rst);
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1,1);}if(e.key==='ArrowLeft'){e.preventDefault();go(cur-1,-1);}});
+let tx=null;deck.addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});
+deck.addEventListener('touchend',e=>{if(tx===null)return;const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){dx<0?go(cur+1,1):go(cur-1,-1);}tx=null;});
+window._n=()=>go(cur+1,1);window._p=()=>go(cur-1,-1);
+
+/* INIT */
+slideEls[0].style.transition='none';slideEls[0].style.opacity='1';slideEls[0].style.transform='none';slideEls[0].style.pointerEvents='auto';
+dotEls[0].classList.add('on');dotEls[0].style.width='18px';
+document.getElementById('slide-num').textContent=`1 / ${S.length}`;
+rst();
+</script>
+</body>
+</html>

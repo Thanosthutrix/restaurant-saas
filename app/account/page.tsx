@@ -31,7 +31,7 @@ export default async function AccountPage() {
       const count = flat.length;
       categoriesSection = (
         <AccountRubriquesCollapsible rubriqueCount={count}>
-          <CategoriesTreeClient restaurantId={restaurant.id} tree={tree} />
+          <CategoriesTreeClient restaurantId={restaurant.id} tree={tree} flat={flat} />
         </AccountRubriquesCollapsible>
       );
     }

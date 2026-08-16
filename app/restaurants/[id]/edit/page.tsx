@@ -23,6 +23,8 @@ import { GoogleBusinessSection } from "./GoogleBusinessSection";
 import { getRestaurantPublicProfileFromDb } from "@/lib/public/publicDb";
 import { getRestaurantGoogleState } from "@/lib/google/googleDb";
 import { getPublicListingPreview } from "@/lib/public/publicListingPreview";
+import { getExperienceProfile } from "@/lib/b2c/experience/experienceDb";
+import { ExperienceProfileTrigger } from "@/components/restaurant/ExperienceProfileTrigger";
 import { uiWarn, uiCard, uiLead, uiBtnSecondary } from "@/components/ui/premium";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ google?: string }> };
@@ -48,6 +50,7 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
     peakBandsWeekly,
     overrides,
     bandPresets,
+    experienceRes,
   ] = await Promise.all([
     getTemplateSuggestions(restaurant.id),
     getRestaurantPublicProfileFromDb(restaurant.id),
@@ -58,6 +61,7 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
     getRestaurantPlanningPeakBandsWeekly(restaurant.id),
     listPlanningDayOverridesInRange(restaurant.id, "2020-01-01", "2040-01-01"),
     getRestaurantPlanningBandPresets(restaurant.id),
+    getExperienceProfile(restaurant.id),
   ]);
 
   const calendarYears = [2024, 2025, 2026, 2027, 2028, 2029, 2030] as const;
@@ -91,6 +95,13 @@ export default async function EditRestaurantPage({ params, searchParams }: Props
             initial={publicProfile}
             preview={publicPreview}
           />
+          <div className="flex justify-end">
+            <ExperienceProfileTrigger
+              restaurantId={restaurant.id}
+              completed={Boolean(experienceRes.data?.completed_at)}
+              variant="edit"
+            />
+          </div>
           <GoogleBusinessSection
             restaurantId={restaurant.id}
             initialState={googleState}

@@ -18,6 +18,7 @@ import { uiBtnSecondary, uiError, uiInfoBanner, uiSectionTitle } from "@/compone
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { SECTION_ACCENT } from "@/lib/ui/sectionAccents";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { isFoodInventoryItemType } from "@/lib/inventory/inventoryItemTypes";
 
 export default async function InventoryPage() {
   const restaurant = await getRestaurantForPage();
@@ -31,7 +32,7 @@ export default async function InventoryPage() {
   ]);
 
   const flatCats = catRes.data ?? [];
-  const list = items ?? [];
+  const list = (items ?? []).filter((i) => isFoodInventoryItemType(i.item_type));
   const directMap = buildDirectItemsByCategoryId(list);
   const assignedIds = [...new Set(list.map((i) => i.category_id).filter(Boolean) as string[])];
   const visible = visibleCategoryIdsWithAncestors(flatCats, assignedIds);

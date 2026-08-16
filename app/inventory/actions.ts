@@ -33,7 +33,7 @@ async function requireInventoryMutate(userId: string, restaurantId: string): Pro
   return { ok: true };
 }
 
-const ITEM_TYPES = ["ingredient", "prep", "resale"] as const;
+const ITEM_TYPES = ["ingredient", "prep", "resale", "supply"] as const;
 
 /** Produit de la base indicative proposé pour association manuelle. */
 export type BenchmarkTariffChoice = {
@@ -93,8 +93,9 @@ export async function createInventoryItem(params: {
   itemType: (typeof ITEM_TYPES)[number];
   currentStockQty?: number;
   minStockQty?: number | null;
+  targetStockQty?: number | null;
 }): Promise<ActionResult<{ id: string; appliedBenchmark?: boolean }>> {
-  const { restaurantId, name, unit, itemType, currentStockQty = 0, minStockQty } = params;
+  const { restaurantId, name, unit, itemType, currentStockQty = 0, minStockQty, targetStockQty } = params;
   const trimmedName = name.trim();
   if (!trimmedName) return { ok: false, error: "Nom requis." };
   if (!unit.trim()) return { ok: false, error: "Unité requise." };
@@ -102,11 +103,15 @@ export async function createInventoryItem(params: {
   if (!canonicalUnit) {
     return { ok: false, error: `Unité non autorisée. Utilisez : ${ALLOWED_STOCK_UNITS_HELP_FR}.` };
   }
-  if (!ITEM_TYPES.includes(itemType)) return { ok: false, error: "Type invalide (ingredient, prep, resale)." };
+  if (!ITEM_TYPES.includes(itemType)) return { ok: false, error: "Type invalide (ingredient, prep, resale, supply)." };
   const qty = Number(currentStockQty);
   if (!Number.isFinite(qty) || qty < 0) return { ok: false, error: "Stock actuel invalide (nombre ≥ 0)." };
   const minQty = minStockQty == null ? null : Number(minStockQty);
   if (minQty !== null && (!Number.isFinite(minQty) || minQty < 0)) return { ok: false, error: "Seuil minimum invalide (nombre ≥ 0 ou vide)." };
+  const targetQty = targetStockQty == null ? null : Number(targetStockQty);
+  if (targetQty !== null && (!Number.isFinite(targetQty) || targetQty < 0)) {
+    return { ok: false, error: "Stock cible invalide (nombre ≥ 0 ou vide)." };
+  }
 
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Non connecté." };
@@ -122,6 +127,7 @@ export async function createInventoryItem(params: {
       item_type: itemType,
       current_stock_qty: qty,
       min_stock_qty: minQty,
+      target_stock_qty: targetQty,
     })
     .select("id")
     .single();
@@ -148,7 +154,7 @@ export async function createInventoryItem(params: {
   }
 
   let appliedBenchmark = false;
-  if (itemType !== "prep") {
+  if (itemType !== "prep" && itemType !== "supply") {
     const bench = findBenchmarkTariffMatch(trimmedName, itemType, canonicalUnit);
     if (bench) {
       const { error: benchErr } = await supabaseServer
@@ -164,6 +170,7 @@ export async function createInventoryItem(params: {
   }
 
   revalidatePath("/inventory");
+  revalidatePath("/inventory/supplies", "page");
   revalidatePath("/inventory/[id]", "page");
   revalidatePath("/orders/suggestions", "page");
   revalidatePath("/dashboard", "page");

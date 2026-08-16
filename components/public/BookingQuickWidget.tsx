@@ -13,6 +13,10 @@ type Props = {
   onChange: (value: QuickBookingState) => void;
 };
 
+/** Champs lisibles en mode clair (évite texte blanc sur fond blanc si prefers-color-scheme: dark). */
+const fieldClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm [color-scheme:light] outline-none placeholder:text-slate-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20";
+
 export function BookingQuickWidget({ value, onChange }: Props) {
   return (
     <div className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-4 shadow-lg shadow-orange-500/10 sm:p-5">
@@ -29,7 +33,7 @@ export function BookingQuickWidget({ value, onChange }: Props) {
             type="date"
             value={value.date}
             onChange={(e) => onChange({ ...value, date: e.target.value })}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+            className={fieldClass}
           />
         </label>
         <label className="block">
@@ -41,7 +45,7 @@ export function BookingQuickWidget({ value, onChange }: Props) {
             type="time"
             value={value.time}
             onChange={(e) => onChange({ ...value, time: e.target.value })}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+            className={fieldClass}
           />
         </label>
         <label className="block">
@@ -52,7 +56,7 @@ export function BookingQuickWidget({ value, onChange }: Props) {
           <select
             value={value.guests}
             onChange={(e) => onChange({ ...value, guests: Number(e.target.value) })}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+            className={fieldClass}
           >
             {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>

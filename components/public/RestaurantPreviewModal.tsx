@@ -162,7 +162,7 @@ export function RestaurantPreviewModal({ restaurantId, initialTab = "photos", on
       backdropClassName="bg-slate-900/50 backdrop-blur-sm"
       onClose={onClose}
     >
-      <div className="flex max-h-[min(90vh,720px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div className="flex max-h-[min(90vh,720px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
         <div className="shrink-0 border-b border-slate-100 px-4 py-4 sm:px-6">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">

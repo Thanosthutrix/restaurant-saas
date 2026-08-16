@@ -145,6 +145,7 @@ export async function logWasteAction(params: {
 
   revalidatePath("/cuisine/pertes");
   revalidatePath("/inventory");
+  revalidatePath("/inventory/supplies");
   revalidatePath("/dashboard");
   return { ok: true, data: { wasteLogId: data.id } };
 }

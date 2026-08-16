@@ -10,6 +10,7 @@ const TYPE_OPTIONS = [
   { value: "ingredient", label: "Matière première" },
   { value: "prep", label: "Préparation" },
   { value: "resale", label: "Revente" },
+  { value: "supply", label: "Petit matériel" },
 ] as const;
 
 type Item = {
@@ -36,9 +37,12 @@ export function EditInventoryItemBlock({
   const router = useRouter();
   const [name, setName] = useState(item.name);
   const [unit, setUnit] = useState<AllowedUnit>(() => parseAllowedStockUnit(item.unit) ?? "unit");
-  const [itemType, setItemType] = useState<"ingredient" | "prep" | "resale">(
-    item.item_type === "prep" || item.item_type === "resale" ? item.item_type : "ingredient"
-  );
+  const [itemType, setItemType] = useState<"ingredient" | "prep" | "resale" | "supply">(() => {
+    if (item.item_type === "prep" || item.item_type === "resale" || item.item_type === "supply") {
+      return item.item_type;
+    }
+    return "ingredient";
+  });
   const [currentStockQty, setCurrentStockQty] = useState(String(initialStockQty));
   const [minStockQty, setMinStockQty] = useState(
     item.min_stock_qty != null ? String(item.min_stock_qty) : ""

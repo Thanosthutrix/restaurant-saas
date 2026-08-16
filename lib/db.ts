@@ -274,13 +274,13 @@ export type SupplierInvoice = {
   analysis_version?: string | null;
 };
 
-/** Composant stockable (matière première, préparation, revente). */
+/** Composant stockable (matière première, préparation, revente, petit matériel). */
 export type InventoryItem = {
   id: string;
   restaurant_id: string;
   name: string;
   unit: string;
-  item_type: "ingredient" | "prep" | "resale";
+  item_type: "ingredient" | "prep" | "resale" | "supply";
   /** Rubrique stock (arborescence restaurant_categories). */
   category_id?: string | null;
   current_stock_qty: number;
@@ -1838,7 +1838,8 @@ export async function createSupplierInvoice(params: {
   supplierId: string;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
-  filePath: string;
+  /** null pour une facture reçue par une Plateforme Agréée (pas de fichier déposé). */
+  filePath: string | null;
   fileName: string;
   expenseCategory?: string | null;
 }): Promise<{ data: SupplierInvoice | null; error: Error | null }> {

@@ -11,6 +11,8 @@ import { uiBadgeAmber, uiBadgeEmerald, uiBadgeSlate, uiCard, uiSectionTitleSm } 
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SupplierInvoiceUpload } from "./SupplierInvoiceUpload";
+import { PaConnectionCard } from "./PaConnectionCard";
+import { getPaConnection } from "@/lib/pa/paDb";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "À traiter",
@@ -28,10 +30,11 @@ export default async function SupplierInvoicesPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  const [invoicesRes, suppliersRes, awaitingRes] = await Promise.all([
+  const [invoicesRes, suppliersRes, awaitingRes, paConnection] = await Promise.all([
     getSupplierInvoicesForRestaurant(restaurant.id, { includeFileFields: false }),
     getSuppliers(restaurant.id, true),
     getValidatedDeliveryNotesAwaitingInvoice(restaurant.id),
+    getPaConnection(restaurant.id),
   ]);
 
   const invoices = invoicesRes.data ?? [];
@@ -69,6 +72,20 @@ export default async function SupplierInvoicesPage() {
           <p className="mt-1 text-2xl font-semibold text-copper-800">{awaitingDeliveryNotes.length}</p>
         </div>
       </div>
+
+      <PaConnectionCard
+        restaurantId={restaurant.id}
+        connection={
+          paConnection
+            ? {
+                enrollmentStatus: paConnection.enrollment_status,
+                companyVerificationStatus: paConnection.company_verification_status,
+                lastInvoiceReceivedAt: paConnection.last_invoice_received_at,
+                lastError: paConnection.last_error,
+              }
+            : null
+        }
+      />
 
       <section className={`${uiCard} space-y-4`}>
         <h2 className={uiSectionTitleSm}>Importer une facture</h2>

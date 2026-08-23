@@ -6,6 +6,7 @@ import {
   type Restaurant,
 } from "@/lib/auth";
 import { ALL_SHELL_NAV_KEYS, type ShellNavKey, resolveNavKeys } from "@/lib/auth/appRoles";
+import { isCurrentUserAdmin } from "@/lib/admin";
 import { getStaffMembershipForAccess } from "@/lib/staff/staffDb";
 
 export type ShellAccessContext = {
@@ -44,11 +45,13 @@ export const getShellAccessContext = cache(async function getShellAccessContext(
   const sm = await getStaffMembershipForAccess(userId);
   if (!sm) return null;
 
+  const isPlatformAdmin = await isCurrentUserAdmin();
+
   return {
     restaurants: [{ id: sm.restaurant_id, name: sm.restaurant_name }],
     currentRestaurant: sm.restaurant,
     currentRestaurantId: sm.restaurant_id,
-    allowedNavKeys: resolveNavKeys(sm.app_nav_keys, sm.app_role),
-    isOwner: false,
+    allowedNavKeys: isPlatformAdmin ? [...ALL_SHELL_NAV_KEYS] : resolveNavKeys(sm.app_nav_keys, sm.app_role),
+    isOwner: isPlatformAdmin,
   };
 });

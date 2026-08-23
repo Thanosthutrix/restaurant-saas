@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { gateOwnerModule } from "@/lib/auth/ownerModuleAccess";
 import {
   deleteHcrContract,
   insertHcrContract,
@@ -16,18 +15,8 @@ export type HcrContractActionResult<T = void> = { ok: true; data?: T } | { ok: f
 
 const CONTRACTS_PATH = "/pilotage/rh/contrats";
 
-async function gateOwner(restaurantId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "Non connecté." };
-  const { data } = await supabaseServer
-    .from("restaurants")
-    .select("owner_id")
-    .eq("id", restaurantId)
-    .maybeSingle();
-  if (!data || (data as { owner_id: string }).owner_id !== user.id) {
-    return { ok: false, error: "Réservé au propriétaire de l'établissement." };
-  }
-  return { ok: true };
+async function gateOwner(restaurantId: string) {
+  return gateOwnerModule(restaurantId);
 }
 
 function revalidateContracts() {

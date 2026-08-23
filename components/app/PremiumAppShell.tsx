@@ -11,6 +11,8 @@ import {
   isBareShellPath,
 } from "@/components/app/premium/shell-nav";
 import { BottomTabBar } from "@/components/app/premium/BottomTabBar";
+import { AdminBottomTabBar } from "@/components/admin/AdminBottomTabBar";
+import { isAdminToolPath, isAdminOnlyPath } from "@/lib/admin/adminNav";
 import { HeaderRestaurantSelect } from "@/components/app/premium/HeaderRestaurantSelect";
 import { HeaderWeatherWidget } from "@/components/app/premium/HeaderWeatherWidget";
 import { HeaderUserAvatar } from "@/components/app/HeaderUserAvatar";
@@ -117,6 +119,9 @@ export function PremiumAppShell({
   const pathname = usePathname();
   const router = useRouter();
   const bare = isBareShellPath(pathname);
+  const isPlatformAdmin = headerBootstrap?.isPlatformAdmin ?? false;
+  const adminToolMode =
+    isPlatformAdmin && isAdminToolPath(pathname) && !isAdminOnlyPath(pathname);
   const [moreNavOpen, setMoreNavOpen] = useState(false);
   const [clientBootstrap, setClientBootstrap] = useState<ShellClientPayload | null>(null);
   const prefetchedRef = useRef(false);
@@ -126,9 +131,9 @@ export function PremiumAppShell({
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
-      router.push("/dashboard");
+      router.push(adminToolMode ? "/admin" : "/dashboard");
     }
-  }, [router]);
+  }, [router, adminToolMode]);
 
   useEffect(() => {
     if (bare || headerBootstrap) return;
@@ -185,6 +190,12 @@ export function PremiumAppShell({
     };
   }, [bare, router, pathname]);
 
+  useEffect(() => {
+    if (!adminToolMode) return;
+    document.documentElement.classList.add("admin-shell");
+    return () => document.documentElement.classList.remove("admin-shell");
+  }, [adminToolMode]);
+
   if (bare) {
     return <>{children}</>;
   }
@@ -192,7 +203,8 @@ export function PremiumAppShell({
   return (
     <OfflineSyncProvider>
       <div className="min-h-screen bg-[#E9EDF2] text-stone-900">
-        {/* Sidebar desktop */}
+        {/* Sidebar desktop — masquée en mode admin outils (Ma poche, RH, Équipe). */}
+        {!adminToolMode ? (
         <aside className="app-sidebar-w sidebar-graphite fixed left-0 top-0 z-40 hidden h-full flex-col lg:flex">
           <div className="flex items-center justify-center border-b border-white/5 px-4 py-5">
             <Link
@@ -219,8 +231,9 @@ export function PremiumAppShell({
             </SignOutButton>
           </div>
         </aside>
+        ) : null}
 
-        <div className="app-content-offset min-w-0">
+        <div className={`min-w-0 ${adminToolMode ? "" : "app-content-offset"}`}>
           {headerBootstrap?.trialBanner ? (
             <TrialPeriodBanner trial={headerBootstrap.trialBanner} />
           ) : null}
@@ -279,14 +292,24 @@ export function PremiumAppShell({
           {/* Réserve la hauteur du bandeau bas sur toutes les pages (mobile / app). */}
           <div className="app-bottom-tabbar-spacer" aria-hidden />
 
-          <BottomTabBar
-            pathname={pathname}
-            allowedNavKeys={shellPayload?.allowedNavKeys}
-            hygieneBadge={headerBootstrap?.hygienePendingCount}
-            cuisineBadge={headerBootstrap?.preparationsBadge}
-            onMoreOpenChange={setMoreNavOpen}
-            onPrefetch={prefetchRoute}
-          />
+          {adminToolMode ? (
+            <AdminBottomTabBar
+              pathname={pathname}
+              pendingTrialCount={headerBootstrap?.pendingTrialCount ?? 0}
+              onMoreOpenChange={setMoreNavOpen}
+              onPrefetch={prefetchRoute}
+              alwaysVisible
+            />
+          ) : (
+            <BottomTabBar
+              pathname={pathname}
+              allowedNavKeys={shellPayload?.allowedNavKeys}
+              hygieneBadge={headerBootstrap?.hygienePendingCount}
+              cuisineBadge={headerBootstrap?.preparationsBadge}
+              onMoreOpenChange={setMoreNavOpen}
+              onPrefetch={prefetchRoute}
+            />
+          )}
           <MetaMessagingBackgroundSync restaurantId={shellPayload?.currentRestaurantId ?? null} />
         </div>
       </div>

@@ -1,16 +1,20 @@
 import { getAccessibleRestaurantsForUser, getCurrentUser } from "@/lib/auth";
-import { decodePaOAuthState } from "./oauthState";
+import { decodePaOAuthState, isPlatformPaOAuthState } from "./oauthState";
 import { exchangePaAuthorizationCode } from "./oauthClient";
 import { fetchPaCompanyMe, fetchPaOAuthSession } from "./apiClient";
 import { upsertPaConnection } from "./paDb";
 
-export type CompletePaOAuthResult = { ok: true; restaurantId: string } | { ok: false; error: string };
+export type CompletePaOAuthResult =
+  | { ok: true; restaurantId: string; redirectPath: string }
+  | { ok: false; error: string };
 
 async function assertOAuthStateAccess(
   stateRaw: string
 ): Promise<{ ok: true; restaurantId: string; userId: string } | { ok: false; error: string }> {
   const decoded = stateRaw ? decodePaOAuthState(stateRaw) : null;
-  if (!decoded) return { ok: false, error: "Session OAuth invalide ou expirée." };
+  if (!decoded || isPlatformPaOAuthState(decoded)) {
+    return { ok: false, error: "Session OAuth invalide ou expirée." };
+  }
 
   const sessionUser = await getCurrentUser();
   if (sessionUser && sessionUser.id !== decoded.userId) {
@@ -62,7 +66,7 @@ export async function completePaOAuthFromCode(params: {
       last_error: session.company_verification_status === "failed" ? "Vérification KYB refusée par Super PDP." : null,
     });
 
-    return { ok: true, restaurantId: access.restaurantId };
+    return { ok: true, restaurantId: access.restaurantId, redirectPath: "/supplier-invoices?pa=connected" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await upsertPaConnection(access.restaurantId, { enrollment_status: "error", last_error: message });

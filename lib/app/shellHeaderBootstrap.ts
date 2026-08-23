@@ -1,9 +1,11 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
+import { isCurrentUserAdmin } from "@/lib/admin";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
 import type { DailyWeatherPoint } from "@/lib/calendar/openMeteo";
 import type { TrialBannerInfo } from "@/lib/pro/trialStatus";
 import { getRestaurantTrialBanner, getUserSignupTrialBanner } from "@/lib/pro/trialStatus";
+import { countPendingTrialRequests } from "@/lib/pro/trialRequestDb";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
 
 export type AppShellHeaderBootstrap = {
@@ -29,6 +31,10 @@ export type AppShellHeaderBootstrap = {
   preparationsBadge?: { count: number; tone: "red" | "blue" } | null;
   /** Bandeau période d'essai (propriétaire / pré-inscription). */
   trialBanner?: TrialBannerInfo | null;
+  /** Compte admin plateforme (navigation admin sur les modules pro). */
+  isPlatformAdmin?: boolean;
+  /** Nombre de demandes d'essai en attente (badge barre admin). */
+  pendingTrialCount?: number;
   /** Profil de l'utilisateur connecté tel qu'affiché dans l'avatar du header. */
   /**
    * `staffMemberId` + `colorIndex` uniquement pour les collaborateurs (null pour les propriétaires).
@@ -50,7 +56,11 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const access = await getShellAccessContext(user.id);
+  const isPlatformAdmin = await isCurrentUserAdmin();
+  const [access, pendingTrialCount] = await Promise.all([
+    getShellAccessContext(user.id),
+    isPlatformAdmin ? countPendingTrialRequests() : Promise.resolve(0),
+  ]);
   if (!access) {
     const signupTrial = await getUserSignupTrialBanner(user.id);
     return {
@@ -61,6 +71,8 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
       weatherHint: null,
       allowedNavKeys: [],
       trialBanner: signupTrial,
+      isPlatformAdmin,
+      pendingTrialCount: isPlatformAdmin ? pendingTrialCount : 0,
       userProfile: {
         displayName: user.email?.split("@")[0] ?? "Utilisateur",
         colorIndex: null,
@@ -159,6 +171,8 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     hygienePendingCount,
     preparationsBadge,
     trialBanner,
+    isPlatformAdmin,
+    pendingTrialCount: isPlatformAdmin ? pendingTrialCount : 0,
     userProfile,
   };
 }

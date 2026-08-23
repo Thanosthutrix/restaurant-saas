@@ -21,11 +21,15 @@ export type PaTokenResponse = {
  * `superpdp_send_and_receive=receive` force l'inscription à l'annuaire (réception) dans
  * l'écran de consentement — on n'a pas besoin d'appeler POST /directory_entries nous-mêmes.
  */
+export type PaSendAndReceiveMode = "receive" | "send" | "both";
+
 export function buildPaAuthorizeUrl(params: {
   state: string;
   companyNumber?: string;
   companyNumberScheme?: "sandbox" | "fr_siren";
   loginHint?: string;
+  /** Inscription annuaire PA : réception, émission, ou les deux. */
+  sendAndReceive?: PaSendAndReceiveMode;
 }): string {
   const clientId = getPaClientId();
   if (!clientId) throw new Error("SUPER_PDP_CLIENT_ID manquant.");
@@ -35,7 +39,7 @@ export function buildPaAuthorizeUrl(params: {
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", getPaOAuthRedirectUri());
   url.searchParams.set("state", params.state);
-  url.searchParams.set("superpdp_send_and_receive", "receive");
+  url.searchParams.set("superpdp_send_and_receive", params.sendAndReceive ?? "receive");
   if (params.companyNumber && params.companyNumberScheme) {
     url.searchParams.set("superpdp_company_number", params.companyNumber);
     url.searchParams.set("superpdp_company_number_scheme", params.companyNumberScheme);

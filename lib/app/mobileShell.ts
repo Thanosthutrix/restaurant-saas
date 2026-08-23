@@ -6,5 +6,6 @@ export const MOBILE_SHELL_MQ = "(max-width: 1023px)";
 /** Navigation type app (barre du bas, feuille Plus, swipe retour). */
 export function usesMobileShellChrome(): boolean {
   if (typeof window === "undefined") return false;
+  if (document.documentElement.classList.contains("admin-shell")) return true;
   return isNativeApp() || window.matchMedia(MOBILE_SHELL_MQ).matches;
 }

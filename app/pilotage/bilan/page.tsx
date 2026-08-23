@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Wallet } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
+import { hasOwnerModuleAccess } from "@/lib/auth/ownerModuleAccess";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { buildPocketReport, listFixedCharges, type PocketMode } from "@/lib/pocket/pocketReport";
 import { getExpenseCategoryLabel } from "@/lib/pocket/expenseCategories";
@@ -91,8 +92,8 @@ export default async function BilanPochePage({
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
 
-  // Finances de l'établissement : réservé au propriétaire.
-  if (restaurant.owner_id !== user.id) {
+  // Finances de l'établissement : réservé au propriétaire (ou admin plateforme).
+  if (!(await hasOwnerModuleAccess(user.id, restaurant.owner_id))) {
     return (
       <PageContainer width="narrow">
         <div className={uiCard}>

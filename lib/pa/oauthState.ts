@@ -8,11 +8,10 @@ function getStateSecret(): string {
   );
 }
 
-export type PaOAuthState = {
-  restaurantId: string;
-  userId: string;
-  ts: number;
-};
+/** Restaurant (legacy) ou société Ubion (platform). */
+export type PaOAuthState =
+  | { scope?: "restaurant"; restaurantId: string; userId: string; ts: number }
+  | { scope: "platform"; companyId: string; userId: string; ts: number };
 
 export function encodePaOAuthState(payload: PaOAuthState): string {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -31,10 +30,16 @@ export function decodePaOAuthState(raw: string): PaOAuthState | null {
 
   try {
     const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as PaOAuthState;
-    if (!parsed.restaurantId || !parsed.userId || !parsed.ts) return null;
+    if (!parsed.userId || !parsed.ts) return null;
     if (Date.now() - parsed.ts > 15 * 60 * 1000) return null;
-    return parsed;
+    if ("companyId" in parsed && parsed.scope === "platform" && parsed.companyId) return parsed;
+    if ("restaurantId" in parsed && parsed.restaurantId) return parsed;
+    return null;
   } catch {
     return null;
   }
+}
+
+export function isPlatformPaOAuthState(state: PaOAuthState): state is Extract<PaOAuthState, { scope: "platform" }> {
+  return state.scope === "platform" && "companyId" in state;
 }

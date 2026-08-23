@@ -77,14 +77,30 @@
 }
 
 @media (min-width: 1024px) {
-  html:not(.capacitor-native) .app-bottom-tabbar-spacer {
+  html:not(.capacitor-native):not(.admin-shell) .app-bottom-tabbar-spacer {
     display: none;
     height: 0;
     min-height: 0;
   }
 
-  html:not(.capacitor-native) {
+  html:not(.capacitor-native):not(.admin-shell) {
     --app-bottom-tabbar-height: 0px;
+  }
+}
+
+html.admin-shell {
+  --app-bottom-tabbar-height: calc(3.75rem + max(0.35rem, env(safe-area-inset-bottom, 0px)));
+}
+
+html.admin-shell .app-bottom-tabbar-spacer {
+  display: block;
+  height: var(--app-bottom-tabbar-height);
+  min-height: var(--app-bottom-tabbar-height);
+}
+
+@media (min-width: 1024px) {
+  html.admin-shell .app-bottom-tabbar {
+    display: block;
   }
 }
 

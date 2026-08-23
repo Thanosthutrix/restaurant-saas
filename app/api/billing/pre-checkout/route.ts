@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getAccessibleRestaurantsForUser } from "@/lib/auth";
+import { isNativeAppRequest, NATIVE_BILLING_BLOCKED_MESSAGE } from "@/lib/capacitor/nativeRequest";
 import { isStripeConfigured } from "@/lib/billing/config";
 import { createPreSignupCheckoutSession } from "@/lib/billing/checkoutService";
 
 export async function POST() {
   if (!isStripeConfigured()) {
     return NextResponse.json({ error: "Stripe n'est pas configuré." }, { status: 503 });
+  }
+
+  if (await isNativeAppRequest()) {
+    return NextResponse.json({ error: NATIVE_BILLING_BLOCKED_MESSAGE }, { status: 403 });
   }
 
   const user = await getCurrentUser();

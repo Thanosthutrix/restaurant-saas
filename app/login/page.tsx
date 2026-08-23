@@ -64,6 +64,15 @@ export default async function LoginPage({ searchParams }: Props) {
             Découvrir les restaurants →
           </Link>
         </p>
+        <p className="text-center text-xs text-stone-400">
+          <Link href="/legal/privacy" className="hover:text-stone-600">
+            Confidentialité
+          </Link>
+          {" · "}
+          <Link href="/legal/terms" className="hover:text-stone-600">
+            CGV / CGU
+          </Link>
+        </p>
       </div>
     </div>
   );

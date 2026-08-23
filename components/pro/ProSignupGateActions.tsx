@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Loader2, Send } from "lucide-react";
+import { NativeBillingNotice } from "@/components/billing/NativeBillingNotice";
+import { isNativeApp } from "@/lib/capacitor/platform";
 import { uiBtnPrimary, uiBtnSecondary } from "@/components/ui/premium";
 import { formatBillingOfferDetail, formatBillingOfferShort } from "@/lib/billing/config";
 
@@ -10,9 +12,16 @@ type Props = {
   mode: "checkout" | "trial-request";
   defaultRestaurantName?: string;
   stripeReady: boolean;
+  /** Masque le paiement (App Store — abonnement via le web uniquement). */
+  hideCheckout?: boolean;
 };
 
-export function ProSignupGateActions({ mode, defaultRestaurantName, stripeReady }: Props) {
+export function ProSignupGateActions({
+  mode,
+  defaultRestaurantName,
+  stripeReady,
+  hideCheckout = false,
+}: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +69,9 @@ export function ProSignupGateActions({ mode, defaultRestaurantName, stripeReady 
   }
 
   if (mode === "checkout") {
+    if (hideCheckout || isNativeApp()) {
+      return <NativeBillingNotice context="signup" forceShow={hideCheckout} />;
+    }
     if (!stripeReady) {
       return (
         <p className="text-sm text-amber-700">

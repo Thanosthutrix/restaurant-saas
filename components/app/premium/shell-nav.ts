@@ -249,6 +249,7 @@ export function isBareShellPath(pathname: string | null): boolean {
     pathname.startsWith("/compte") ||
     pathname.startsWith("/meta/oauth") ||
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/legal") ||
     pathname.startsWith("/access-blocked")
   );
 }

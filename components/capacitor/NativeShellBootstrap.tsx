@@ -20,6 +20,7 @@ function applyNativeViewportFix() {
   document.documentElement.style.backgroundColor = "#E9EDF2";
   document.body.style.backgroundColor = "#E9EDF2";
   document.body.style.overscrollBehavior = "none";
+  document.cookie = "ubion_native=1; path=/; max-age=31536000; SameSite=Lax";
 
   let meta = document.querySelector('meta[name="viewport"]');
   if (!meta) {

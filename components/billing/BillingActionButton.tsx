@@ -2,17 +2,31 @@
 
 import { useState } from "react";
 import { CreditCard, Loader2 } from "lucide-react";
+import { NativeBillingNotice } from "@/components/billing/NativeBillingNotice";
+import { isNativeApp } from "@/lib/capacitor/platform";
 import { uiBtnPrimary, uiBtnSecondary } from "@/components/ui/premium";
 
 type Props = {
   mode: "checkout" | "portal";
   label?: string;
   className?: string;
+  /** Masque Stripe in-app (App Store). */
+  hideInNative?: boolean;
 };
 
-export function BillingActionButton({ mode, label, className }: Props) {
+export function BillingActionButton({ mode, label, className, hideInNative = false }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (hideInNative || isNativeApp()) {
+    return (
+      <NativeBillingNotice
+        context={mode === "checkout" ? "blocked" : "manage"}
+        forceShow={hideInNative}
+        className={className}
+      />
+    );
+  }
 
   async function handleClick() {
     setLoading(true);

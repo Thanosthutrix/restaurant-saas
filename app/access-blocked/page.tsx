@@ -3,6 +3,7 @@ import { ShieldOff, Clock, Mail, CreditCard } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { getRestaurantAccessStatus } from "@/lib/platform/restaurantAccess";
+import { isNativeAppRequest } from "@/lib/capacitor/nativeRequest";
 import {
   formatBillingOfferShort,
   isStripeConfigured,
@@ -15,7 +16,10 @@ type Props = { searchParams: Promise<{ reason?: string }> };
 export default async function AccessBlockedPage({ searchParams }: Props) {
   const { reason } = await searchParams;
   const user = await getCurrentUser();
-  const ctx = user ? await getShellAccessContext(user.id) : null;
+  const [ctx, isNativeApp] = await Promise.all([
+    user ? getShellAccessContext(user.id) : Promise.resolve(null),
+    isNativeAppRequest(),
+  ]);
   const status = ctx?.currentRestaurantId
     ? await getRestaurantAccessStatus(ctx.currentRestaurantId)
     : null;
@@ -32,6 +36,7 @@ export default async function AccessBlockedPage({ searchParams }: Props) {
   const isSubscriptionInactive = blockReason === "subscription_inactive";
   const isNoEntitlement = blockReason === "no_entitlement";
   const showCheckout =
+    !isNativeApp &&
     isStripeConfigured() &&
     ctx?.isOwner &&
     (isTrialExpired || isSubscriptionInactive || isNoEntitlement);
@@ -112,6 +117,11 @@ export default async function AccessBlockedPage({ searchParams }: Props) {
         </p>
 
         <div className="mt-8 flex flex-col gap-2">
+          {isNativeApp &&
+            (isTrialExpired || isSubscriptionInactive || isNoEntitlement) &&
+            ctx?.isOwner && (
+              <BillingActionButton mode="checkout" hideInNative />
+            )}
           {showCheckout && (
             <BillingActionButton
               mode="checkout"

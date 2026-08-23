@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { getRestaurantForPage } from "@/lib/auth";
+import { isNativeAppRequest } from "@/lib/capacitor/nativeRequest";
 import { getSubscriptionByRestaurantId } from "@/lib/billing/subscriptionDb";
 import {
   formatBillingOfferDetail,
@@ -47,7 +48,10 @@ export default async function BillingSettingsPage({ searchParams }: Props) {
   if (!restaurant) redirect("/onboarding");
 
   const { checkout } = await searchParams;
-  const subscription = await getSubscriptionByRestaurantId(restaurant.id);
+  const [subscription, isNativeApp] = await Promise.all([
+    getSubscriptionByRestaurantId(restaurant.id),
+    isNativeAppRequest(),
+  ]);
   const stripeReady = isStripeConfigured();
   const hasActiveSub = isActiveSubscriptionStatus(subscription?.status ?? null);
 
@@ -102,12 +106,16 @@ export default async function BillingSettingsPage({ searchParams }: Props) {
         )}
 
         {stripeReady && !hasActiveSub && (
-          <BillingActionButton mode="checkout" label={`S'abonner — ${formatBillingOfferShort()}`} />
+          <BillingActionButton
+            mode="checkout"
+            label={`S'abonner — ${formatBillingOfferShort()}`}
+            hideInNative={isNativeApp}
+          />
         )}
 
         {stripeReady && subscription?.stripe_customer_id && (
           <div className="space-y-2">
-            <BillingActionButton mode="portal" />
+            <BillingActionButton mode="portal" hideInNative={isNativeApp} />
             <p className="text-center text-xs text-stone-500">
               Carte bancaire, factures et résiliation — portail sécurisé Stripe.
             </p>

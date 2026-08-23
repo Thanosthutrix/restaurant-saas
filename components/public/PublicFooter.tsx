@@ -20,6 +20,12 @@ export function PublicFooter() {
           <Link href="/compte/connexion" className="transition hover:text-white">
             Connexion
           </Link>
+          <Link href="/legal/privacy" className="transition hover:text-white">
+            Confidentialité
+          </Link>
+          <Link href="/legal/terms" className="transition hover:text-white">
+            CGV / CGU
+          </Link>
         </div>
       </div>
     </footer>

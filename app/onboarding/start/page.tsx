@@ -4,6 +4,7 @@ import { CheckCircle2, CreditCard, FlaskConical } from "lucide-react";
 import { getAccessibleRestaurantsForUser, getCurrentUser } from "@/lib/auth";
 import { isCurrentUserAdmin } from "@/lib/admin";
 import { getProspectInvitePublic } from "@/lib/admin/prospectInviteDb";
+import { isNativeAppRequest } from "@/lib/capacitor/nativeRequest";
 import { formatBillingOfferShort, isStripeConfigured } from "@/lib/billing/config";
 import { getActiveSignupEntitlement } from "@/lib/pro/signupEntitlementDb";
 import {
@@ -36,7 +37,10 @@ export default async function OnboardingStartPage({ searchParams }: Props) {
 
   if (entitlement) redirect("/onboarding");
 
-  const stripeReady = isStripeConfigured();
+  const [stripeReady, isNativeApp] = await Promise.all([
+    Promise.resolve(isStripeConfigured()),
+    isNativeAppRequest(),
+  ]);
   const inviteInfo = null;
 
   return (
@@ -46,12 +50,13 @@ export default async function OnboardingStartPage({ searchParams }: Props) {
           <p className="text-xs font-semibold uppercase tracking-wider text-orange-600">Ubion Pro</p>
           <h1 className="mt-2 text-2xl font-bold text-stone-900">Accédez à Ubion Pro</h1>
           <p className={`mt-2 ${uiLead}`}>
-            Avant de créer votre établissement, abonnez-vous ou demandez un essai. L&apos;équipe Ubion
-            valide les demandes d&apos;essai sous 24–48 h.
+            {isNativeApp
+              ? "Demandez un essai gratuit pour créer votre établissement. L\u2019équipe Ubion valide les demandes sous 24–48 h. Pour vous abonner directement, utilisez ubion.fr dans un navigateur."
+              : "Avant de créer votre établissement, abonnez-vous ou demandez un essai. L\u2019équipe Ubion valide les demandes d\u2019essai sous 24–48 h."}
           </p>
         </div>
 
-        {checkout === "success" && (
+        {checkout === "success" && !isNativeApp && (
           <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
             <p>
@@ -86,18 +91,20 @@ export default async function OnboardingStartPage({ searchParams }: Props) {
           </div>
         )}
 
-        <section className={`${uiCard} space-y-4`}>
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700">
-              <CreditCard className="h-5 w-5" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-stone-900">S&apos;abonner</h2>
-              <p className="mt-1 text-sm text-stone-600">{formatBillingOfferShort()} — accès immédiat.</p>
+        {!isNativeApp && (
+          <section className={`${uiCard} space-y-4`}>
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700">
+                <CreditCard className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-stone-900">S&apos;abonner</h2>
+                <p className="mt-1 text-sm text-stone-600">{formatBillingOfferShort()} — accès immédiat.</p>
+              </div>
             </div>
-          </div>
-          <ProSignupGateActions mode="checkout" stripeReady={stripeReady} />
-        </section>
+            <ProSignupGateActions mode="checkout" stripeReady={stripeReady} />
+          </section>
+        )}
 
         <section className={`${uiCard} space-y-4`}>
           <div className="flex items-start gap-3">
@@ -121,6 +128,14 @@ export default async function OnboardingStartPage({ searchParams }: Props) {
         </section>
 
         <p className="text-center text-xs text-stone-400">
+          <Link href="/legal/privacy" className="hover:text-stone-600">
+            Confidentialité
+          </Link>
+          {" · "}
+          <Link href="/legal/terms" className="hover:text-stone-600">
+            CGV / CGU
+          </Link>
+          {" · "}
           <Link href="/api/auth/signout" className="hover:text-stone-600">
             Se déconnecter
           </Link>

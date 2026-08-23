@@ -14,7 +14,7 @@ import {
   updatePlatformInvoiceAction,
   rerunPlatformInvoiceAnalysisAction,
   exportPlatformInvoiceToDropboxAction,
-} from "./actions";
+} from "../actions";
 
 type Props = {
   invoice: PlatformInvoice;

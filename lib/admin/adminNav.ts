@@ -9,15 +9,18 @@ import {
   FileText,
   Headphones,
   Building2,
+  CalendarDays,
 } from "lucide-react";
 
 export type AdminNavKey =
   | "home"
   | "clients"
   | "company"
+  | "company_pocket"
   | "company_invoices"
   | "company_emitted"
   | "company_contracts"
+  | "company_team"
   | "prospects"
   | "trial_requests"
   | "invoices"
@@ -41,7 +44,7 @@ export const ADMIN_BOTTOM_TAB_KEYS: AdminNavKey[] = [
   "home",
   "clients",
   "company",
-  "company_invoices",
+  "company_pocket",
 ];
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
@@ -69,11 +72,26 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     match: (p) => p === "/admin/company",
   },
   {
+    href: "/admin/company/pocket",
+    label: "Ma poche",
+    shortLabel: "Poche",
+    icon: Wallet,
+    navKey: "company_pocket",
+    match: (p) => p.startsWith("/admin/company/pocket"),
+  },
+  {
     href: "/admin/company/invoices",
-    label: "Factures",
+    label: "Mes factures",
     icon: FileText,
     navKey: "company_invoices",
     match: (p) => p.startsWith("/admin/company/invoices"),
+  },
+  {
+    href: "/admin/company/team",
+    label: "Équipe & planning",
+    icon: CalendarDays,
+    navKey: "company_team",
+    match: (p) => p.startsWith("/admin/company/team"),
   },
   {
     href: "/admin/company/emitted",
@@ -106,7 +124,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   },
   {
     href: "/admin/invoices",
-    label: "Factures clients",
+    label: "Factures clients (support)",
     icon: FileText,
     navKey: "invoices",
     match: (p) => p === "/admin/invoices" || p.startsWith("/admin/invoices/"),

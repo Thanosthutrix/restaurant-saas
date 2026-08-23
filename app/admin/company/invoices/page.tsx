@@ -45,10 +45,10 @@ export default async function AdminCompanyInvoicesPage() {
         </Link>
         <h1 className="mt-2 flex items-center gap-2 text-2xl font-bold text-gray-900">
           <FileText size={22} className="text-amber-600" />
-          Factures
+          Mes factures fournisseurs
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          {company.legal_name} — import, contrôle et préparation comptable.
+          {company.legal_name} — vos dépenses (loyer, assurances, outils…) importées et contrôlées.
         </p>
       </div>
 

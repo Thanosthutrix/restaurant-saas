@@ -7,6 +7,8 @@ export const PLATFORM_EXPENSE_CATEGORIES = [
   { value: "rh_personnel", label: "Personnel & RH" },
   { value: "prestataires", label: "Prestataires (comptable, juridique…)" },
   { value: "bureaux", label: "Bureaux, déplacements & frais généraux" },
+  { value: "loyer", label: "Loyer & charges locatives" },
+  { value: "assurances", label: "Assurances" },
   { value: "impots_taxes", label: "Impôts, taxes & cotisations" },
   { value: "financier", label: "Charges financières" },
   { value: "divers", label: "Divers" },
@@ -49,8 +51,16 @@ const KEYWORD_RULES: { category: PlatformExpenseCategory; patterns: RegExp }[] =
     patterns: /\b(comptab|expert[-\s]?comptable|avocat|juridique|cabinet|conseil)\b/i,
   },
   {
+    category: "loyer",
+    patterns: /\b(loyer|bail|locatif|charges?\s*locatives?|syndic)\b/i,
+  },
+  {
+    category: "assurances",
+    patterns: /\b(assurance|mutuelle|pr[eé]voyance|rc\s*pro|multirisque)\b/i,
+  },
+  {
     category: "bureaux",
-    patterns: /\b(loyer|bail|bureau|cowork|d[eé]placement|transport|restaurant|repas)\b/i,
+    patterns: /\b(bureau|cowork|d[eé]placement|transport|repas|frais\s+g[eé]n[eé]raux)\b/i,
   },
   {
     category: "impots_taxes",

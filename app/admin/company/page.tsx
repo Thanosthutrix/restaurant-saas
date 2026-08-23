@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, FileText, FileOutput, FileSignature } from "lucide-react";
+import {
+  Building2,
+  FileText,
+  FileOutput,
+  FileSignature,
+  Wallet,
+  Users,
+} from "lucide-react";
 import { getPlatformCompany, listPlatformSuppliers } from "@/lib/platform/companyDb";
 import { CompanyProfileForm } from "./CompanyProfileForm";
 import { CompanySuppliersSection } from "./CompanySuppliersSection";
@@ -17,7 +24,7 @@ export default async function AdminCompanyPage() {
           Ma société
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Compta interne Ubion — sans lien avec les restaurants clients.
+          Compta interne Ubion — vos dépenses, votre équipe, votre bilan.
         </p>
       </div>
 
@@ -25,29 +32,41 @@ export default async function AdminCompanyPage() {
 
       {company ? (
         <>
-          <div className="my-6">
-            <CompanySuppliersSection suppliers={suppliers} />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="my-6 grid gap-3 sm:grid-cols-2">
+            <HubLink
+              href="/admin/company/pocket"
+              icon={Wallet}
+              title="Ma poche"
+              desc="Bilan, charges fixes, loyer, assurances, résultat"
+            />
             <HubLink
               href="/admin/company/invoices"
               icon={FileText}
-              title="Factures reçues"
-              desc="Import, PA, contrôle, export comptable"
+              title="Mes factures fournisseurs"
+              desc="Import, PA, loyer, assurances, contrôle comptable"
+            />
+            <HubLink
+              href="/admin/company/team"
+              icon={Users}
+              title="Équipe & planning"
+              desc="Grille hebdo, drag & drop, vue matrice"
             />
             <HubLink
               href="/admin/company/emitted"
               icon={FileOutput}
               title="Factures émises"
-              desc="Clients Ubion — émission et suivi (bientôt PA)"
+              desc="Clients Ubion — émission PA"
             />
             <HubLink
               href="/admin/company/contracts"
               icon={FileSignature}
-              title="Contrats"
-              desc="RH interne — CDI, CDD, freelances"
+              title="Contrats RH"
+              desc="CDI, CDD, freelances internes"
             />
+          </div>
+
+          <div className="my-6">
+            <CompanySuppliersSection suppliers={suppliers} />
           </div>
         </>
       ) : null}

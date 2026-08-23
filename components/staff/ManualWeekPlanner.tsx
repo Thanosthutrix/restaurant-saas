@@ -10,6 +10,7 @@ import {
   updateSimulationShiftTimesAction,
   updateWorkShiftTimesAction,
 } from "@/app/equipe/actions";
+import type { WeekPlannerActions } from "@/lib/staff/weekPlannerActions";
 import { computePlanningWeekTimeRange } from "@/lib/staff/planningGridRange";
 import { PLANNING_DAY_KEYS, PLANNING_DAY_LABELS_FR } from "@/lib/staff/planningHoursTypes";
 import type { WeekResolvedDay } from "@/lib/staff/planningResolve";
@@ -193,6 +194,8 @@ type Props = {
   simulationId: string | null;
   pending: boolean;
   onUpdated: () => void;
+  /** Actions custom (ex. société Ubion) — ignoré en mode simulation. */
+  actions?: WeekPlannerActions;
 };
 
 export function ManualWeekPlanner({
@@ -205,6 +208,7 @@ export function ManualWeekPlanner({
   simulationId,
   pending,
   onUpdated,
+  actions,
 }: Props) {
   const monday = useMemo(() => parseISODateLocal(weekMondayIso), [weekMondayIso]);
   const weekDays = useMemo(() => {
@@ -337,6 +341,8 @@ export function ManualWeekPlanner({
           startsAtLocal: sLocal,
           endsAtLocal: eLocal,
         });
+      } else if (actions) {
+        r = await actions.updateShiftTimes(shift.id, { startsAtLocal: sLocal, endsAtLocal: eLocal });
       } else {
         r = await updateWorkShiftTimesAction(restaurantId, shift.id, {
           startsAtLocal: sLocal,
@@ -521,6 +527,12 @@ export function ManualWeekPlanner({
           startsAtLocal: formStart,
           endsAtLocal: formEnd,
         });
+      } else if (actions) {
+        r = (await actions.createShift({
+          staffMemberId: sheet.staffId,
+          startsAtLocal: formStart,
+          endsAtLocal: formEnd,
+        })) as { ok: true; id: string } | { ok: false; error: string };
       } else {
         r = await createWorkShiftAction(restaurantId, {
           staffMemberId: sheet.staffId,
@@ -565,6 +577,8 @@ export function ManualWeekPlanner({
     if (isSimulation) {
       if (!simulationId) return;
       r = await createSimulationShiftAction(restaurantId, simulationId, payload);
+    } else if (actions) {
+      r = (await actions.createShift(payload)) as { ok: true; id: string } | { ok: false; error: string };
     } else {
       r = await createWorkShiftAction(restaurantId, payload);
     }
@@ -579,9 +593,14 @@ export function ManualWeekPlanner({
     if (disabled) return;
     if (!confirm("Supprimer ce créneau ?")) return;
     setErr(null);
-    const r = s.isSimulationDraft
-      ? await deleteSimulationShiftAction(restaurantId, s.id)
-      : await deleteWorkShiftAction(restaurantId, s.id);
+    let r: { ok: true } | { ok: false; error: string };
+    if (s.isSimulationDraft) {
+      r = await deleteSimulationShiftAction(restaurantId, s.id);
+    } else if (actions) {
+      r = await actions.deleteShift(s.id);
+    } else {
+      r = await deleteWorkShiftAction(restaurantId, s.id);
+    }
     if (!r.ok) setErr(r.error);
     else {
       setShiftActionsMenu(null);
@@ -942,6 +961,7 @@ export function PlanningHoursRecap({
   pending,
   onUpdated,
   showCarryoverActions,
+  applyWeekDelta,
 }: {
   staff: StaffMember[];
   shifts: WorkShiftWithDetails[];
@@ -950,6 +970,7 @@ export function PlanningHoursRecap({
   pending: boolean;
   onUpdated: () => void;
   showCarryoverActions: boolean;
+  applyWeekDelta?: (weekMondayIso: string) => Promise<{ ok: true; updated?: number } | { ok: false; error: string }>;
 }) {
   const monday = useMemo(() => parseISODateLocal(weekMondayIso), [weekMondayIso]);
   const weekEnd = useMemo(() => (monday ? addDays(monday, 7) : null), [monday]);
@@ -972,12 +993,14 @@ export function PlanningHoursRecap({
 
   async function applyDelta() {
     setMsg(null);
-    const r = await applyWeekDeltaToCarryoverAction(restaurantId, weekMondayIso);
+    const r = applyWeekDelta
+      ? await applyWeekDelta(weekMondayIso)
+      : await applyWeekDeltaToCarryoverAction(restaurantId, weekMondayIso);
     if (!r.ok) {
       setMsg(r.error);
       return;
     }
-    setMsg(`Solde mis à jour pour ${r.updated} collaborateur(s) avec objectif horaire.`);
+    setMsg(`Solde mis à jour pour ${r.updated ?? 0} collaborateur(s) avec objectif horaire.`);
     onUpdated();
   }
 

@@ -20,13 +20,15 @@ function emptyBands(): TimeBand[] {
 }
 
 type Props = {
-  restaurantId: string;
   initial: OpeningHoursMap;
   /** Plages travail sans service client (établissement). */
-  variant?: "opening" | "staffExtra";
+  variant?: "opening" | "staffExtra" | "office";
+  restaurantId?: string;
+  /** Sauvegarde custom (ex. société Ubion) — prioritaire sur restaurantId. */
+  onSave?: (map: OpeningHoursMap) => Promise<{ ok: boolean; error?: string }>;
 };
 
-export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" }: Props) {
+export function OpeningHoursEditor({ restaurantId, initial, variant = "opening", onSave }: Props) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -72,18 +74,28 @@ export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" 
     setError(null);
     setOk(null);
     start(async () => {
-      const r =
-        variant === "staffExtra"
-          ? await updateRestaurantStaffExtraBandsAction(restaurantId, map)
-          : await updateRestaurantOpeningHoursAction(restaurantId, map);
+      let r: { ok: boolean; error?: string };
+      if (onSave) {
+        r = await onSave(map);
+      } else if (restaurantId) {
+        r =
+          variant === "staffExtra"
+            ? await updateRestaurantStaffExtraBandsAction(restaurantId, map)
+            : await updateRestaurantOpeningHoursAction(restaurantId, map);
+      } else {
+        setError("Configuration de sauvegarde manquante.");
+        return;
+      }
       if (!r.ok) {
-        setError(r.error);
+        setError(r.error ?? "Erreur");
         return;
       }
       setOk(
         variant === "staffExtra"
           ? "Plages travail (hors service client) enregistrées."
-          : "Horaires d’ouverture enregistrés."
+          : variant === "office"
+            ? "Horaires bureau enregistrés."
+            : "Horaires d’ouverture enregistrés."
       );
     });
   }
@@ -95,6 +107,11 @@ export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" 
         (préparation, réception marchandises, nettoyage, etc.). Elles s’affichent en ambre sur la grille et s’ajoutent aux
         plages « service » pour les alertes et la génération automatique. Les plages par collaborateur (fiche équipe)
         restent possibles en complément.
+      </p>
+    ) : variant === "office" ? (
+      <p className="text-xs text-stone-500">
+        Plages où l&apos;équipe peut être planifiée (bureau, télétravail sur site, etc.). Elles cadrent la grille
+        hebdomadaire et la vue matrice — comme les horaires d&apos;ouverture chez les restaurateurs.
       </p>
     ) : (
       <p className="text-xs text-stone-500">
@@ -163,7 +180,9 @@ export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" 
             ? "Enregistrement…"
             : variant === "staffExtra"
               ? "Enregistrer les plages travail (hors client)"
-              : "Enregistrer les horaires d’ouverture"}
+              : variant === "office"
+                ? "Enregistrer les horaires bureau"
+                : "Enregistrer les horaires d’ouverture"}
         </button>
         <button
           type="button"
@@ -195,6 +214,21 @@ export function OpeningHoursEditor({ restaurantId, initial, variant = "opening" 
             }}
           >
             Remplir lun–ven (ex. 11:30–14:30)
+          </button>
+        ) : null}
+        {!hasAnyBand && variant === "office" ? (
+          <button
+            type="button"
+            className={uiBtnOutlineSm}
+            onClick={() => {
+              const o = { ...map };
+              for (const k of ["mon", "tue", "wed", "thu", "fri"] as PlanningDayKey[]) {
+                o[k] = [{ start: "09:00", end: "18:00" }];
+              }
+              setMap(o);
+            }}
+          >
+            Remplir lun–ven 9h–18h
           </button>
         ) : null}
         {!hasAnyBand && variant === "staffExtra" ? (

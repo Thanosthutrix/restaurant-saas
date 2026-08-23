@@ -20,6 +20,7 @@ import { OfflineStatusBar } from "@/components/offline/OfflineStatusBar";
 import { OfflineSyncProvider } from "@/components/offline/OfflineSyncProvider";
 import { SwipeBackNavigator } from "@/components/capacitor/SwipeBackNavigator";
 import { MetaMessagingBackgroundSync } from "@/components/meta/MetaMessagingBackgroundSync";
+import { TrialPeriodBanner } from "@/components/app/TrialPeriodBanner";
 import type { AppShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { type ShellNavKey } from "@/lib/auth/appRoles";
 import { prefetchRoutesWhenIdle } from "@/lib/ui/deferIdle";
@@ -220,6 +221,9 @@ export function PremiumAppShell({
         </aside>
 
         <div className="app-content-offset min-w-0">
+          {headerBootstrap?.trialBanner ? (
+            <TrialPeriodBanner trial={headerBootstrap.trialBanner} />
+          ) : null}
           <header className="sticky top-0 z-[45] border-b border-slate-300/50 bg-[#E9EDF2]/95 pt-[env(safe-area-inset-top,0px)] supports-[backdrop-filter]:bg-[#E9EDF2]/80 supports-[backdrop-filter]:backdrop-blur-sm">
             <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">

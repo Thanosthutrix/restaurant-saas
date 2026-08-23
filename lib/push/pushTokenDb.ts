@@ -178,3 +178,26 @@ export async function listPushTokensForUser(userId: string): Promise<PushTokenRo
 export async function deletePushToken(token: string): Promise<void> {
   await supabaseServer.from("user_push_tokens").delete().eq("token", token);
 }
+
+/** Tokens push des superadmins plateforme (notifications CRM admin). */
+export async function listPushTokensForPlatformAdmins(): Promise<PushTokenRow[]> {
+  const { data: admins } = await supabaseServer.from("platform_admins").select("user_id");
+  const adminIds = (admins ?? []).map((a) => a.user_id as string).filter(Boolean);
+
+  const fallbackEmail = process.env.ADMIN_EMAIL ?? "medhi.thuleau@gmail.com";
+  if (adminIds.length === 0) {
+    const { data: userData } = await supabaseServer.auth.admin.listUsers({ perPage: 200 });
+    const fallbackUser = userData?.users?.find((u) => u.email === fallbackEmail);
+    if (fallbackUser?.id) adminIds.push(fallbackUser.id);
+  }
+
+  if (adminIds.length === 0) return [];
+
+  const { data, error } = await supabaseServer
+    .from("user_push_tokens")
+    .select("token, platform, user_id")
+    .in("user_id", adminIds);
+
+  if (error) return [];
+  return dedupeTokenRows(data ?? []);
+}

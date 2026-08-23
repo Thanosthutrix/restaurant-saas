@@ -15,6 +15,7 @@ import {
   BarChart3,
   Truck,
   Megaphone,
+  Settings,
 } from "lucide-react";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
 import { canAccessPage } from "@/lib/auth/appRoles";
@@ -195,6 +196,14 @@ export const SHELL_NAV_ITEMS: ShellNavItem[] = [
     match: (p) => p === "/communication" || p.startsWith("/communication/"),
   },
   {
+    href: "/settings",
+    label: "Réglages",
+    icon: Settings,
+    navKey: "settings",
+    group: "Gestion",
+    match: (p) => p === "/settings" || p.startsWith("/settings/"),
+  },
+  {
     href: "/account",
     label: "Compte",
     icon: UserRound,
@@ -238,6 +247,8 @@ export function isBareShellPath(pathname: string | null): boolean {
     pathname.startsWith("/signup") ||
     pathname.startsWith("/restaurant/") ||
     pathname.startsWith("/compte") ||
-    pathname.startsWith("/meta/oauth")
+    pathname.startsWith("/meta/oauth") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/access-blocked")
   );
 }

@@ -95,6 +95,9 @@ export function ProLandingPage({ isProUser }: Props) {
           <h1 className="mt-4 text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
             {PRO_HOOK.title}
           </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-lg font-medium leading-relaxed text-white/70 sm:text-xl">
+            {PRO_HOOK.tagline}
+          </p>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/55 sm:text-lg">{PRO_HOOK.lead}</p>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-white/40">{PRO_HOOK.sub}</p>
           <p className="mt-8 text-lg font-semibold text-copper-300">{PRO_HOOK.punchline}</p>

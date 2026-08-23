@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
+import { requireRestaurantPlatformAccess } from "@/lib/platform/restaurantAccess";
 import {
   type ShellNavKey,
   type PageAccessLevel,
@@ -13,6 +14,7 @@ export async function requireNavAccess(navKey: ShellNavKey): Promise<void> {
   if (!user) redirect("/login");
   const ctx = await getShellAccessContext(user.id);
   if (!ctx) redirect("/onboarding");
+  await requireRestaurantPlatformAccess(ctx.currentRestaurantId);
   if (!ctx.allowedNavKeys.includes(navKey)) {
     redirect("/dashboard");
   }
@@ -23,6 +25,7 @@ export async function requireAnyNavAccess(keys: ShellNavKey[]): Promise<void> {
   if (!user) redirect("/login");
   const ctx = await getShellAccessContext(user.id);
   if (!ctx) redirect("/onboarding");
+  await requireRestaurantPlatformAccess(ctx.currentRestaurantId);
   if (!keys.some((k) => ctx.allowedNavKeys.includes(k))) {
     redirect("/dashboard");
   }
@@ -40,6 +43,7 @@ export async function requireNavAccessOrReadonly(
   if (!user) redirect("/login");
   const ctx = await getShellAccessContext(user.id);
   if (!ctx) redirect("/onboarding");
+  await requireRestaurantPlatformAccess(ctx.currentRestaurantId);
   if (ctx.isOwner) return "full";
   const level = getPageAccessLevel(navKey, ctx.allowedNavKeys);
   if (level === "none") redirect("/dashboard");

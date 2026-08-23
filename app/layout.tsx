@@ -3,7 +3,6 @@ import { Geist } from "next/font/google";
 import { MobileShellBootstrap } from "@/components/app/MobileShellBootstrap";
 import { PremiumAppShell } from "@/components/app/PremiumAppShell";
 import { NativeShellBootstrap } from "@/components/capacitor/NativeShellBootstrap";
-import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { buildShellHeaderBootstrap } from "@/lib/app/shellHeaderBootstrap";
 import { getSiteBaseUrl } from "@/lib/seo/siteUrl";
 import "./globals.css";
@@ -58,7 +57,6 @@ export default async function RootLayout({
         className={`${geistSans.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
-        <ServiceWorkerRegister />
         <MobileShellBootstrap />
         <NativeShellBootstrap />
         <PremiumAppShell headerBootstrap={headerBootstrap}>{children}</PremiumAppShell>

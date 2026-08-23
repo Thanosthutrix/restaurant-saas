@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { resolvePostLoginPath } from "@/lib/auth/postLoginPath";
 import { isSupabaseAuthReachable } from "@/lib/supabase/authErrors";
 import { LoginForm } from "./LoginForm";
 import { uiAuthCard, uiInfoBanner, uiLead, uiPageTitle, uiTextLink, uiLinkSubtle } from "@/components/ui/premium";
@@ -16,10 +17,10 @@ const LOGIN_ERROR_MESSAGES: Record<string, string> = {
 type Props = { searchParams: Promise<{ next?: string; error?: string; deleted?: string }> };
 
 export default async function LoginPage({ searchParams }: Props) {
-  const user = await getCurrentUser();
-  if (user) redirect("/dashboard");
-
   const { next, error, deleted } = await searchParams;
+  const user = await getCurrentUser();
+  if (user) redirect(await resolvePostLoginPath(next));
+
   const nextUrl = next && next.startsWith("/") ? next : "/dashboard";
   const supabaseReachable = await isSupabaseAuthReachable();
   const bannerError =

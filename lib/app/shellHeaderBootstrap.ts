@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import type { ShellNavKey } from "@/lib/auth/appRoles";
 import type { DailyWeatherPoint } from "@/lib/calendar/openMeteo";
+import type { TrialBannerInfo } from "@/lib/pro/trialStatus";
+import { getRestaurantTrialBanner, getUserSignupTrialBanner } from "@/lib/pro/trialStatus";
 import { getEstablishmentLabels } from "@/lib/restaurant/establishmentLabels";
 
 export type AppShellHeaderBootstrap = {
@@ -25,8 +27,10 @@ export type AppShellHeaderBootstrap = {
   hygienePendingCount?: number | null;
   /** Badge Cuisine : préparations dont le contrôle +2 h est imminent (bleu) ou en retard (rouge). */
   preparationsBadge?: { count: number; tone: "red" | "blue" } | null;
+  /** Bandeau période d'essai (propriétaire / pré-inscription). */
+  trialBanner?: TrialBannerInfo | null;
+  /** Profil de l'utilisateur connecté tel qu'affiché dans l'avatar du header. */
   /**
-   * Profil de l'utilisateur connecté tel qu'affiché dans l'avatar du header.
    * `staffMemberId` + `colorIndex` uniquement pour les collaborateurs (null pour les propriétaires).
    */
   userProfile: {
@@ -48,6 +52,7 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
 
   const access = await getShellAccessContext(user.id);
   if (!access) {
+    const signupTrial = await getUserSignupTrialBanner(user.id);
     return {
       restaurants: [],
       currentRestaurantId: null,
@@ -55,6 +60,7 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
       weather: null,
       weatherHint: null,
       allowedNavKeys: [],
+      trialBanner: signupTrial,
       userProfile: {
         displayName: user.email?.split("@")[0] ?? "Utilisateur",
         colorIndex: null,
@@ -135,6 +141,14 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     }
   }
 
+  let trialBanner: TrialBannerInfo | null = null;
+  if (access.currentRestaurantId) {
+    trialBanner = await getRestaurantTrialBanner(access.currentRestaurantId);
+  }
+  if (!trialBanner && access.isOwner) {
+    trialBanner = await getUserSignupTrialBanner(user.id);
+  }
+
   return {
     restaurants: rows,
     currentRestaurantId: access.currentRestaurantId,
@@ -144,6 +158,7 @@ export async function buildShellHeaderBootstrap(): Promise<AppShellHeaderBootstr
     allowedNavKeys: access.allowedNavKeys,
     hygienePendingCount,
     preparationsBadge,
+    trialBanner,
     userProfile,
   };
 }

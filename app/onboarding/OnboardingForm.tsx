@@ -35,9 +35,17 @@ const SERVICE_TYPES = [
   { value: "both", label: "Déjeuner et dîner" },
 ];
 
-export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] }) {
+export function OnboardingForm({
+  templates,
+  inviteToken,
+  defaultRestaurantName,
+}: {
+  templates: RestaurantTemplate[];
+  inviteToken?: string;
+  defaultRestaurantName?: string;
+}) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultRestaurantName ?? "");
   const defaultProfile = templates[0]?.slug ?? RESTAURANT_PROFILE_OTHER;
   const [profile, setProfile] = useState<string>(defaultProfile);
   const [serviceType, setServiceType] = useState("both");
@@ -80,6 +88,9 @@ export function OnboardingForm({ templates }: { templates: RestaurantTemplate[] 
     }
     for (const f of recipeFiles) {
       fd.append("recipe_image", f);
+    }
+    if (inviteToken) {
+      fd.append("prospect_invite_token", inviteToken);
     }
     try {
       const result = await withTimeout(

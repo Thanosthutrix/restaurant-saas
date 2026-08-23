@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
+import { isCurrentUserAdmin } from "@/lib/admin";
 import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { getServicesForRestaurant, getServiceSalesAggregate, getInventoryStockDashboardSummary } from "@/lib/db";
 import { DayClockShell } from "@/components/staff/DayClockShell";
@@ -143,6 +144,7 @@ const quickActions: {
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (await isCurrentUserAdmin()) redirect("/admin");
 
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");

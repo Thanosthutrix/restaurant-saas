@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getRestaurantForPage } from "@/lib/auth";
+import { CreditCard } from "lucide-react";
+import { getCurrentUser, getRestaurantForPage } from "@/lib/auth";
+import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { uiCard } from "@/components/ui/premium";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
@@ -19,6 +22,10 @@ import {
 export default async function SettingsPage() {
   const restaurant = await getRestaurantForPage();
   if (!restaurant) redirect("/onboarding");
+
+  const user = await getCurrentUser();
+  const ctx = user ? await getShellAccessContext(user.id) : null;
+  const isOwner = ctx?.isOwner ?? false;
 
   const { data: settingsRow } = await supabaseServer
     .from("restaurants")
@@ -64,6 +71,28 @@ export default async function SettingsPage() {
         breadcrumbs={[{ label: "Tableau de bord", href: "/dashboard" }, { label: "Réglages" }]}
         title="Réglages du restaurant"
       />
+
+      {isOwner && (
+        <section className={`${uiCard} space-y-4`}>
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700">
+              <CreditCard className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-stone-900">Abonnement Ubion Pro</h2>
+              <p className="mt-1 text-sm text-stone-600">
+                Souscrire, gérer votre abonnement, vos factures et votre moyen de paiement.
+              </p>
+              <Link
+                href="/settings/billing"
+                className="mt-3 inline-flex text-sm font-medium text-orange-700 hover:text-orange-800"
+              >
+                Gérer l&apos;abonnement →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className={`${uiCard} space-y-4`}>
         <h2 className="text-sm font-semibold text-stone-900">Jours de fermeture hebdomadaires</h2>

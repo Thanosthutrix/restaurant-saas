@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { CreditCard, Settings } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { redirect } from "next/navigation";
 import { getAccessibleRestaurantsForUser, getRestaurantForPage, getCurrentUser } from "@/lib/auth";
+import { getShellAccessContext } from "@/lib/auth/accessContext";
 import { buildCategoryTree, listRestaurantCategories } from "@/lib/catalog/restaurantCategories";
 import { CategoriesTreeClient } from "@/app/categories/CategoriesTreeClient";
 import { AccountRubriquesCollapsible } from "@/components/account/AccountRubriquesCollapsible";
@@ -14,6 +17,8 @@ export default async function AccountPage() {
 
   const restaurants = await getAccessibleRestaurantsForUser(user.id);
   const restaurant = await getRestaurantForPage();
+  const ctx = await getShellAccessContext(user.id);
+  const isOwner = ctx?.isOwner ?? false;
 
   let categoriesSection: ReactNode = null;
   if (restaurant) {
@@ -48,6 +53,28 @@ export default async function AccountPage() {
           </>
         }
       />
+
+      {isOwner && (
+        <section className={`${uiAuthCard} space-y-3`}>
+          <h2 className="text-sm font-semibold text-stone-900">Propriétaire</h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Link
+              href="/settings/billing"
+              className="flex items-center gap-3 rounded-xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 text-sm font-medium text-stone-800 transition hover:border-orange-200 hover:bg-orange-50/60"
+            >
+              <CreditCard className="h-5 w-5 shrink-0 text-orange-600" aria-hidden />
+              Abonnement & facturation
+            </Link>
+            <Link
+              href="/settings"
+              className="flex items-center gap-3 rounded-xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 text-sm font-medium text-stone-800 transition hover:border-stone-300 hover:bg-stone-100"
+            >
+              <Settings className="h-5 w-5 shrink-0 text-stone-600" aria-hidden />
+              Réglages du restaurant
+            </Link>
+          </div>
+        </section>
+      )}
 
       {categoriesSection}
 

@@ -21,10 +21,11 @@ export type ProSolution = {
 
 export const PRO_HOOK = {
   eyebrow: "Pour les restaurateurs exigeants",
-  title: "Ouvrir un restaurant, c'est l'un des projets les plus exigeants qui soit.",
+  title: "Ouvrir un restaurant, c'est un acte de passion rare.",
+  tagline: "Le gérer ne devrait pas vous en coûter votre énergie.",
   lead:
-    "10 fermetures par jour en France. Une marge nette moyenne de 5 à 10 %. Et pourtant, des milliers de passionnés se lancent chaque année.",
-  sub: "Le problème, ce n'est pas la passion. C'est que gérer un restaurant en 2025, c'est gérer une dizaine de métiers à la fois — sans les outils pour le faire.",
+    "Chaque année, des milliers de passionnés se lancent — avec tout ce qu'il faut de courage, mais rarement les bons outils. Résultat : 10 fermetures par jour en France, une marge nette moyenne de 5 à 10 %.",
+  sub: "Ce n'est pas un manque de talent. C'est un secteur qui gère une dizaine de métiers à la fois, sans les outils pour le faire.",
   punchline: "Ubion a été conçu pour changer ça.",
 };
 

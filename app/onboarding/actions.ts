@@ -13,6 +13,9 @@ import { getImageBuffersFromFormData, getMenuImageBuffersFromFormData } from "@/
 import { mergeMenuSuggestionsByNormalizedLabel } from "@/lib/mergeMenuSuggestions";
 import type { MenuSuggestionItem } from "@/lib/menuSuggestionTypes";
 import { analyzeRecipeImageFromBuffer, type RecipePhotoSuggestion } from "@/lib/recipe-photo-analysis";
+import { consumeProspectInvite } from "@/lib/admin/prospectInviteDb";
+import { userCanCreateRestaurant } from "@/lib/pro/signupEntitlementDb";
+import { applySignupEntitlementToRestaurant } from "@/lib/pro/applySignupEntitlement";
 
 export type SubmitOnboardingFormResult = {
   error: string | null;
@@ -57,6 +60,19 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
   } = await supabase.auth.getUser();
   if (!user) return { error: "Non connecté." };
 
+  const inviteToken = String(formData.get("prospect_invite_token") ?? "").trim();
+  const hasProspectInvite = inviteToken.length > 10;
+  const canCreate = await userCanCreateRestaurant({
+    userId: user.id,
+    hasProspectInvite,
+  });
+  if (!canCreate) {
+    return {
+      error:
+        "Un abonnement actif ou un essai approuvé est requis. Retournez à la page de démarrage Pro.",
+    };
+  }
+
   const { template_slug, activity_type, template } = resolveRestaurantProfile(profile ?? "");
 
   const geo = await resolveAddressForRestaurantInsert(address_raw);
@@ -76,12 +92,29 @@ export async function submitOnboardingFormData(formData: FormData): Promise<Subm
       longitude: geo.longitude,
       school_zone: geo.school_zone,
       school_zone_is_manual: false,
+      access_policy: "require_entitlement",
     })
     .select("id")
     .single();
 
   if (error) return { error: error.message };
   const restaurantId = (inserted as { id: string }).id;
+
+  if (inviteToken) {
+    const consumed = await consumeProspectInvite({
+      token: inviteToken,
+      restaurantId,
+      userId: user.id,
+    });
+    if (!consumed.ok) {
+      console.warn("[onboarding] prospect invite consume failed:", consumed.error);
+    }
+  } else {
+    await applySignupEntitlementToRestaurant({
+      userId: user.id,
+      restaurantId,
+    });
+  }
 
   if (template && !skip_template_seed) {
     const seed = await seedRestaurantTemplateContent(restaurantId, template);

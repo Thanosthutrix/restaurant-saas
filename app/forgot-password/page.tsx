@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { resolvePostLoginPath } from "@/lib/auth/postLoginPath";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import { uiAuthCard, uiLead, uiLinkSubtle, uiPageTitle } from "@/components/ui/premium";
 
 export default async function ForgotPasswordPage() {
   const user = await getCurrentUser();
-  if (user) redirect("/dashboard");
+  if (user) redirect(await resolvePostLoginPath());
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4 py-12">

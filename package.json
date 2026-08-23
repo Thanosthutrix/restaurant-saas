@@ -17,6 +17,8 @@
     "brand:import-logo-png": "npx tsx scripts/import-brand-logo-from-png.ts",
     "brand:import-logo-svg": "npx tsx scripts/import-brand-logo-from-svg.ts",
     "db:apply-peak-bands": "npx tsx scripts/apply-sql-migration.ts supabase/migrations/20260521130000_planning_peak_bands_weekly.sql",
+    "stripe:setup": "npx tsx scripts/setup-stripe-billing.ts",
+    "stripe:portal-setup": "npx tsx scripts/setup-stripe-portal.ts",
     "cap:sync": "npx cap sync",
     "cap:sync:local": "CAPACITOR_SERVER_URL=http://127.0.0.1:3000 npx cap sync",
     "cap:sync:device": "CAPACITOR_SERVER_URL=$(node scripts/cap-device-url.mjs) npx cap sync",
@@ -53,7 +55,8 @@
     "react-dom": "19.2.3",
     "resend": "^4.8.0",
     "server-only": "^0.0.1",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

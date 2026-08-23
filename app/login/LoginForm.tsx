@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthClientError } from "@/lib/supabase/authErrors";
 import { retryPendingPushRegistration } from "@/lib/push/registerPushTokenClient";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock, uiTextLink } from "@/components/ui/premium";
 
 export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerError?: string | null }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +25,7 @@ export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerErr
       return;
     }
     await retryPendingPushRegistration();
-    router.push(nextUrl);
-    router.refresh();
+    window.location.assign(`/api/auth/post-login?next=${encodeURIComponent(nextUrl)}`);
   }
 
   return (

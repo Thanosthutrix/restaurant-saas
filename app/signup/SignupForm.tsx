@@ -6,9 +6,15 @@ import { createClient } from "@/lib/supabase/client";
 import { formatAuthClientError } from "@/lib/supabase/authErrors";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock } from "@/components/ui/premium";
 
-export function SignupForm({ nextUrl }: { nextUrl?: string }) {
+export function SignupForm({
+  nextUrl,
+  defaultEmail,
+}: {
+  nextUrl?: string;
+  defaultEmail?: string;
+}) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(defaultEmail ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

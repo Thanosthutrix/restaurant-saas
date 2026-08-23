@@ -56,7 +56,7 @@ function formatVendorAddress(
 }
 
 function mapPaLines(
-  lines: NonNullable<NonNullable<PaInvoiceOverview["en_invoice"]>["lines"]>
+  lines: NonNullable<NonNullable<PaInvoiceOverview["en_invoice"]>["lines"]> | undefined
 ): SupplierInvoiceAnalysisLine[] {
   if (!lines?.length) return [];
   return lines.map((l) => ({

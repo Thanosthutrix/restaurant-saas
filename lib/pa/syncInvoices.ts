@@ -58,7 +58,9 @@ function formatVendorAddress(addr: PaPostalAddress | undefined): string | null {
  * même format que la lecture IA (`SupplierInvoiceAnalysisLine`) pour que l'écran de facture
  * affiche les lignes exactement comme pour un import manuel.
  */
-function mapPaLines(lines: NonNullable<PaInvoiceOverview["en_invoice"]>["lines"]): SupplierInvoiceAnalysisLine[] {
+function mapPaLines(
+  lines: NonNullable<PaInvoiceOverview["en_invoice"]>["lines"] | undefined
+): SupplierInvoiceAnalysisLine[] {
   if (!lines?.length) return [];
   return lines.map((l) => ({
     label: l.item_information?.name || l.item_information?.description || "—",

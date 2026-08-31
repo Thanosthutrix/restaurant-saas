@@ -153,11 +153,11 @@ export async function proxy(request: NextRequest) {
     !isMfaExemptPath(pathname) &&
     (isProtected(pathname) || isConsumerAccountPath(pathname));
 
-  if (needsMfaGate && !isAdmin) {
+  if (needsMfaGate && !isAdmin && userId) {
     isAdmin = await isPlatformAdminUser(userId, userEmail);
   }
 
-  if (needsMfaGate) {
+  if (needsMfaGate && url && anonKey) {
     const supabase = createServerClient(url, anonKey, {
       cookies: {
         getAll() {

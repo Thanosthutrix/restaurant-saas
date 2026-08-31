@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthClientError } from "@/lib/supabase/authErrors";
 import { retryPendingPushRegistration } from "@/lib/push/registerPushTokenClient";
+import { SocialAuthButtons } from "@/components/auth/SocialAuthButtons";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock, uiTextLink } from "@/components/ui/premium";
 
 export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerError?: string | null }) {
@@ -29,7 +30,9 @@ export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerErr
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      <SocialAuthButtons flow="pro" nextUrl={nextUrl} variant="pro" />
+      <form onSubmit={handleSubmit} className="space-y-4">
       {bannerError ? <p className={uiError}>{bannerError}</p> : null}
       {error && <p className={uiError}>{error}</p>}
       <div>
@@ -68,6 +71,7 @@ export function LoginForm({ nextUrl, bannerError }: { nextUrl: string; bannerErr
       <button type="submit" disabled={loading} className={uiBtnPrimaryBlock}>
         {loading ? "Connexion…" : "Se connecter"}
       </button>
-    </form>
+      </form>
+    </div>
   );
 }

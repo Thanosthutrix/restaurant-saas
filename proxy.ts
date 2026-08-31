@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { isStaleAuthSessionError } from "@/lib/supabase/authErrors";
 import { isProSpacePathForAdminRedirect } from "@/lib/auth/postLoginPath";
+import { isMfaExemptPath, mfaEnrollUrl, mfaVerifyUrl } from "@/lib/auth/mfaPaths";
 
 const protectedPaths = [
   "/dashboard",
@@ -142,6 +143,53 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL("/compte/connexion", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const needsMfaGate =
+    authenticated &&
+    userId &&
+    url &&
+    anonKey &&
+    !isMfaExemptPath(pathname) &&
+    (isProtected(pathname) || isConsumerAccountPath(pathname));
+
+  if (needsMfaGate && !isAdmin) {
+    isAdmin = await isPlatformAdminUser(userId, userEmail);
+  }
+
+  if (needsMfaGate) {
+    const supabase = createServerClient(url, anonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    });
+
+    const [{ data: aal }, { data: factors }] = await Promise.all([
+      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      supabase.auth.mfa.listFactors(),
+    ]);
+
+    const verifiedTotp = (factors?.totp ?? []).filter((f) => f.status === "verified");
+    const hasVerifiedTotp = verifiedTotp.length > 0;
+    const needsVerify =
+      hasVerifiedTotp && aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2";
+
+    if (needsVerify) {
+      return NextResponse.redirect(new URL(mfaVerifyUrl(pathname), request.url));
+    }
+
+    if (isAdmin && !hasVerifiedTotp) {
+      return NextResponse.redirect(new URL(mfaEnrollUrl(pathname, true), request.url));
+    }
   }
 
   return response;

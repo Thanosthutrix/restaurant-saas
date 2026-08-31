@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthClientError } from "@/lib/supabase/authErrors";
 import { saveConsumerProfileAction } from "@/app/compte/actions";
+import { SocialAuthButtons } from "@/components/auth/SocialAuthButtons";
 
 export function ConsumerSignupForm({ nextUrl }: { nextUrl: string }) {
   const router = useRouter();
@@ -69,7 +70,9 @@ export function ConsumerSignupForm({ nextUrl }: { nextUrl: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      <SocialAuthButtons flow="consumer" nextUrl={nextUrl} variant="consumer" />
+      <form onSubmit={handleSubmit} className="space-y-4">
       {error ? (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {error}
@@ -150,6 +153,7 @@ export function ConsumerSignupForm({ nextUrl }: { nextUrl: string }) {
       >
         {loading ? "Création…" : "Créer mon compte"}
       </button>
-    </form>
+      </form>
+    </div>
   );
 }

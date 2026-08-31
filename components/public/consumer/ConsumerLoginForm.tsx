@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthClientError } from "@/lib/supabase/authErrors";
+import { mfaVerifyUrl } from "@/lib/auth/mfaPaths";
+import { SocialAuthButtons } from "@/components/auth/SocialAuthButtons";
 
 export function ConsumerLoginForm({ nextUrl }: { nextUrl: string }) {
   const router = useRouter();
@@ -27,12 +30,20 @@ export function ConsumerLoginForm({ nextUrl }: { nextUrl: string }) {
       return;
     }
 
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === "aal2" && aal?.currentLevel === "aal1") {
+      router.push(mfaVerifyUrl(nextUrl));
+      return;
+    }
+
     router.push(nextUrl);
     router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      <SocialAuthButtons flow="consumer" nextUrl={nextUrl} variant="consumer" />
+      <form onSubmit={handleSubmit} className="space-y-4">
       {error ? (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {error}
@@ -61,6 +72,14 @@ export function ConsumerLoginForm({ nextUrl }: { nextUrl: string }) {
           onChange={(e) => setPassword(e.target.value)}
           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
         />
+        <p className="mt-1.5 text-right">
+          <Link
+            href="/forgot-password?from=consumer"
+            className="text-xs font-medium text-orange-600 hover:text-orange-700"
+          >
+            Mot de passe oublié ?
+          </Link>
+        </p>
       </label>
 
       <button
@@ -70,6 +89,7 @@ export function ConsumerLoginForm({ nextUrl }: { nextUrl: string }) {
       >
         {loading ? "Connexion…" : "Se connecter"}
       </button>
-    </form>
+      </form>
+    </div>
   );
 }

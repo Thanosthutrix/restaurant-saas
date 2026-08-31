@@ -12,6 +12,8 @@ const LOGIN_ERROR_MESSAGES: Record<string, string> = {
   session_requise: "Ouvrez le lien reçu par e-mail, ou connectez-vous si vous avez déjà un mot de passe.",
   session_expiree:
     "Votre session a expiré ou n’est plus valide. Reconnectez-vous avec votre e-mail et mot de passe.",
+  oauth_echec:
+    "La connexion Google ou Apple a échoué. Réessayez ou utilisez votre e-mail et mot de passe.",
 };
 
 type Props = { searchParams: Promise<{ next?: string; error?: string; deleted?: string }> };

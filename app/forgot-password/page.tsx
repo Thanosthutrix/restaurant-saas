@@ -5,9 +5,16 @@ import { resolvePostLoginPath } from "@/lib/auth/postLoginPath";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import { uiAuthCard, uiLead, uiLinkSubtle, uiPageTitle } from "@/components/ui/premium";
 
-export default async function ForgotPasswordPage() {
+type Props = { searchParams: Promise<{ from?: string }> };
+
+export default async function ForgotPasswordPage({ searchParams }: Props) {
   const user = await getCurrentUser();
   if (user) redirect(await resolvePostLoginPath());
+
+  const sp = await searchParams;
+  const fromConsumer = sp.from === "consumer";
+  const returnToLogin = fromConsumer ? "/compte/connexion" : "/login";
+  const returnLabel = fromConsumer ? "Retour à la connexion consommateur" : "Retour à la connexion";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4 py-12">
@@ -22,7 +29,7 @@ export default async function ForgotPasswordPage() {
           </p>
         </div>
         <div className={uiAuthCard}>
-          <ForgotPasswordForm />
+          <ForgotPasswordForm returnToLogin={returnToLogin} returnLabel={returnLabel} />
         </div>
       </div>
     </div>

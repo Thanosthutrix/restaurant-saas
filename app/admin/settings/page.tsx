@@ -23,6 +23,17 @@ export default async function AdminSettingsPage() {
       <p className="mt-1 text-sm text-gray-500">Configuration de l&apos;espace admin Ubion.</p>
 
       <div className="mt-8 space-y-4">
+        <Link
+          href="/admin/settings/security"
+          className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/50 px-5 py-4 text-sm font-medium text-amber-950 transition hover:border-amber-200 hover:bg-amber-50"
+        >
+          <span className="flex items-center gap-2">
+            <Shield size={18} className="text-amber-700" />
+            Sécurité & double authentification
+          </span>
+          <span className="text-xs text-amber-800">Obligatoire admin →</span>
+        </Link>
+
         <SettingsCard
           icon={<Shield size={18} />}
           title="Accès administrateur"

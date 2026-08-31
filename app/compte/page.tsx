@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { CalendarDays, Compass, UserRound } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { extractOAuthNameParts } from "@/lib/auth/oauthProfile";
 import {
   getConsumerProfileByUserId,
   listConsumerReservations,
@@ -28,13 +29,20 @@ export default async function ComptePage() {
       updated_at: new Date().toISOString(),
     };
 
-  const reservations = profile.first_name
+  const oauthNames = extractOAuthNameParts(user.user_metadata as Record<string, unknown>);
+  const displayProfile: ConsumerProfile = {
+    ...profile,
+    first_name: profile.first_name || oauthNames.firstName,
+    last_name: profile.last_name || oauthNames.lastName,
+  };
+
+  const reservations = displayProfile.first_name
     ? await listConsumerReservations(user.id)
     : [];
 
   const searchPrefs = await getConsumerSearchPreferences(user.id);
 
-  const needsProfile = !profile.first_name || !profile.last_name;
+  const needsProfile = !displayProfile.first_name || !displayProfile.last_name;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -59,7 +67,7 @@ export default async function ComptePage() {
           <UserRound className="h-5 w-5 text-orange-600" aria-hidden />
           <h2 className="text-lg font-bold text-slate-900">Profil</h2>
         </div>
-        <ConsumerProfileForm profile={profile} />
+        <ConsumerProfileForm profile={displayProfile} />
       </section>
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">

@@ -5,7 +5,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock, uiTextLink } from "@/components/ui/premium";
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({
+  returnToLogin = "/login",
+  returnLabel = "Retour à la connexion",
+}: {
+  returnToLogin?: string;
+  returnLabel?: string;
+}) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,8 +43,8 @@ export function ForgotPasswordForm() {
           Si un compte existe pour cette adresse, vous recevrez un e-mail avec un lien pour choisir un nouveau mot de
           passe. Pensez à vérifier les courriers indésirables.
         </p>
-        <Link href="/login" className={uiTextLink}>
-          Retour à la connexion
+        <Link href={returnToLogin} className={uiTextLink}>
+          {returnLabel}
         </Link>
       </div>
     );
@@ -65,8 +71,8 @@ export function ForgotPasswordForm() {
         {loading ? "Envoi…" : "Envoyer le lien"}
       </button>
       <p className="text-center text-sm">
-        <Link href="/login" className={uiTextLink}>
-          Retour à la connexion
+        <Link href={returnToLogin} className={uiTextLink}>
+          {returnLabel}
         </Link>
       </p>
     </form>

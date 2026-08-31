@@ -28,7 +28,8 @@
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "cap:run:ios": "npx cap run ios",
-    "cap:run:android": "npx cap run android"
+    "cap:run:android": "npx cap run android",
+    "apple:secret": "node scripts/generate-apple-secret.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1079.0",
@@ -66,6 +67,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.21.0",
     "svg-path-bbox": "^2.1.0",
     "tailwindcss": "^4",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthClientError } from "@/lib/supabase/authErrors";
+import { SocialAuthButtons } from "@/components/auth/SocialAuthButtons";
 import { uiBtnPrimaryBlock, uiError, uiFormLabel, uiInputBlock } from "@/components/ui/premium";
 
 export function SignupForm({
@@ -35,7 +36,9 @@ export function SignupForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
+      <SocialAuthButtons flow="pro" nextUrl={nextUrl ?? "/onboarding/start"} variant="pro" />
+      <form onSubmit={handleSubmit} className="space-y-4">
       {error && <p className={uiError}>{error}</p>}
       <div>
         <label htmlFor="email" className={uiFormLabel}>
@@ -69,6 +72,7 @@ export function SignupForm({
       <button type="submit" disabled={loading} className={uiBtnPrimaryBlock}>
         {loading ? "Création…" : "Créer mon compte"}
       </button>
-    </form>
+      </form>
+    </div>
   );
 }

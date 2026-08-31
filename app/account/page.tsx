@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CreditCard, Settings } from "lucide-react";
+import { CreditCard, Settings, Shield } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { redirect } from "next/navigation";
 import { getAccessibleRestaurantsForUser, getRestaurantForPage, getCurrentUser } from "@/lib/auth";
@@ -53,6 +53,17 @@ export default async function AccountPage() {
           </>
         }
       />
+
+      <section className={`${uiAuthCard} space-y-3`}>
+        <h2 className="text-sm font-semibold text-stone-900">Sécurité</h2>
+        <Link
+          href="/account/security"
+          className="flex items-center gap-3 rounded-xl border border-stone-200/80 bg-stone-50/80 px-4 py-3 text-sm font-medium text-stone-800 transition hover:border-emerald-200 hover:bg-emerald-50/60"
+        >
+          <Shield className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+          Mot de passe & double authentification
+        </Link>
+      </section>
 
       {isOwner && (
         <section className={`${uiAuthCard} space-y-3`}>

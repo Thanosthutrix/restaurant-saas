@@ -257,6 +257,19 @@ export function AdminActionButtons({
           {loading === "impersonate" ? <Loader2 size={15} className="animate-spin" /> : <Eye size={15} />}
           Voir en tant que client
         </button>
+
+        {/* Supprimer compte restaurateur */}
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteConfirmEmail("");
+            setShowDeleteDialog(true);
+          }}
+          className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+        >
+          <Trash2 size={15} />
+          Supprimer le compte restaurateur
+        </button>
       </div>
 
       {/* Lien de reset MDP */}
@@ -307,10 +320,10 @@ export function AdminActionButtons({
 
       {/* ── Zone danger ───────────────────────────────────────── */}
       <section className="mt-8 rounded-xl border border-red-200 bg-red-50/40 p-5">
-        <h3 className="text-sm font-semibold text-red-900">Zone danger</h3>
+        <h3 className="text-sm font-semibold text-red-900">Supprimer le compte restaurateur</h3>
         <p className="mt-1 text-sm text-red-800/90">
-          Supprime définitivement le compte utilisateur, ses restaurants et toutes les données associées.
-          Action irréversible.
+          Supprime le compte Ubion du propriétaire, tous ses établissements et leurs données (factures,
+          équipe, stock…). Irréversible.
         </p>
         <button
           type="button"
@@ -321,18 +334,18 @@ export function AdminActionButtons({
           className="mt-4 flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
         >
           <Trash2 size={15} />
-          Supprimer le compte définitivement
+          Supprimer le compte restaurateur
         </button>
       </section>
 
       {/* ── Dialog suppression compte ─────────────────────────── */}
       {showDeleteDialog && (
-        <Dialog title="Supprimer le compte définitivement" onClose={() => setShowDeleteDialog(false)}>
+        <Dialog title="Supprimer le compte restaurateur" onClose={() => setShowDeleteDialog(false)}>
           <form onSubmit={handleDeleteAccount} className="space-y-4">
             <p className="text-sm text-gray-600">
-              Vous allez supprimer le compte{" "}
-              <strong className="text-gray-900">{ownerEmail ?? "sans e-mail"}</strong> et{" "}
-              <strong>tous ses restaurants</strong>. Cette action est irréversible.
+              Le compte restaurateur{" "}
+              <strong className="text-gray-900">{ownerEmail ?? "sans e-mail"}</strong> sera effacé
+              avec <strong>tous ses restaurants</strong> et leurs données. Cette action est irréversible.
             </p>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">

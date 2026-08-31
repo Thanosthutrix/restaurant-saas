@@ -13,7 +13,8 @@ export type AdminSupportAction =
   | "prospect_created"
   | "invoice_viewed"
   | "trial_request_approved"
-  | "trial_request_rejected";
+  | "trial_request_rejected"
+  | "user_deleted";
 
 export function getAdminSupportActionLabel(action: AdminSupportAction): {
   label: string;
@@ -46,6 +47,8 @@ export function getAdminSupportActionLabel(action: AdminSupportAction): {
       return { label: "Essai approuvé", color: "bg-green-50 text-green-700" };
     case "trial_request_rejected":
       return { label: "Essai refusé", color: "bg-red-50 text-red-600" };
+    case "user_deleted":
+      return { label: "Compte supprimé", color: "bg-red-100 text-red-800" };
     default:
       return { label: action, color: "bg-gray-100 text-gray-600" };
   }

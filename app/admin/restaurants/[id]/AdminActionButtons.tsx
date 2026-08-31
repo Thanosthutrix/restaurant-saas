@@ -15,6 +15,7 @@ import {
   KeyRound,
   Eye,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 
 type Props = {
@@ -37,6 +38,8 @@ export function AdminActionButtons({
   const [loading, setLoading] = useState<string | null>(null);
   const [showTrialDialog, setShowTrialDialog] = useState(false);
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
   const [impersonateLink, setImpersonateLink] = useState<string | null>(null);
   const [resetLink, setResetLink] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -133,6 +136,39 @@ export function AdminActionButtons({
       setImpersonateLink(data.link);
     } catch {
       setMessage({ type: "error", text: "Impossible de générer le lien d'accès." });
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleDeleteAccount(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading("delete");
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: ownerId,
+          confirmation: deleteConfirmEmail,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erreur serveur");
+      setShowDeleteDialog(false);
+      setMessage({
+        type: "success",
+        text: `Compte ${data.email ?? ownerEmail ?? ""} supprimé définitivement.`,
+      });
+      setTimeout(() => {
+        window.location.href = "/admin/restaurants";
+      }, 1200);
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Suppression impossible.",
+      });
     } finally {
       setLoading(null);
     }
@@ -267,6 +303,69 @@ export function AdminActionButtons({
             ⚠️ Ce lien te connecte en tant que ce client — déconnecte-toi de ton compte admin avant de l&apos;ouvrir dans le même navigateur.
           </p>
         </div>
+      )}
+
+      {/* ── Zone danger ───────────────────────────────────────── */}
+      <section className="mt-8 rounded-xl border border-red-200 bg-red-50/40 p-5">
+        <h3 className="text-sm font-semibold text-red-900">Zone danger</h3>
+        <p className="mt-1 text-sm text-red-800/90">
+          Supprime définitivement le compte utilisateur, ses restaurants et toutes les données associées.
+          Action irréversible.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteConfirmEmail("");
+            setShowDeleteDialog(true);
+          }}
+          className="mt-4 flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
+        >
+          <Trash2 size={15} />
+          Supprimer le compte définitivement
+        </button>
+      </section>
+
+      {/* ── Dialog suppression compte ─────────────────────────── */}
+      {showDeleteDialog && (
+        <Dialog title="Supprimer le compte définitivement" onClose={() => setShowDeleteDialog(false)}>
+          <form onSubmit={handleDeleteAccount} className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Vous allez supprimer le compte{" "}
+              <strong className="text-gray-900">{ownerEmail ?? "sans e-mail"}</strong> et{" "}
+              <strong>tous ses restaurants</strong>. Cette action est irréversible.
+            </p>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Saisissez l&apos;e-mail du compte pour confirmer
+              </label>
+              <input
+                type="email"
+                value={deleteConfirmEmail}
+                onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                placeholder={ownerEmail ?? "email@exemple.com"}
+                required
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={loading === "delete" || !ownerEmail}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
+              >
+                {loading === "delete" ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Supprimer définitivement
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteDialog(false)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 transition hover:text-gray-700"
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        </Dialog>
       )}
 
       {/* ── Dialog essai ─────────────────────────────────────── */}

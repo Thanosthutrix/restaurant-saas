@@ -2,8 +2,9 @@
  * Tableau de bord admin — vue d'ensemble de la plateforme Ubion.
  */
 
-import { Users, TrendingUp, FlaskConical, Wallet, ArrowUpRight, Clock, AlertTriangle, UserPlus } from "lucide-react";
+import { Users, TrendingUp, FlaskConical, Wallet, ArrowUpRight, Clock, AlertTriangle, UserPlus, Globe } from "lucide-react";
 import { getAdminStatsWithInactive, getLatestSignups, getInactiveRestaurants, getProspectsToFollowUp } from "@/lib/admin";
+import { getSiteAnalyticsSummary } from "@/lib/admin/siteAnalytics";
 import { getBillingStats } from "@/lib/billing/subscriptionDb";
 import { getAdminProspectStatusLabel } from "@/lib/admin/types";
 import { isStripeConfigured } from "@/lib/billing/config";
@@ -37,7 +38,7 @@ function isTrialActive(expiresAt: string) {
 }
 
 export default async function AdminDashboardPage() {
-  const [stats, latestSignups, inactiveRestaurants, prospectsToFollowUp, billing, pendingTrialCount, pendingTrials] =
+  const [stats, latestSignups, inactiveRestaurants, prospectsToFollowUp, billing, pendingTrialCount, pendingTrials, siteAnalytics] =
     await Promise.all([
     getAdminStatsWithInactive(),
     getLatestSignups(8),
@@ -46,6 +47,7 @@ export default async function AdminDashboardPage() {
     getBillingStats(),
     countPendingTrialRequests(),
     listPendingTrialRequests(5),
+    getSiteAnalyticsSummary(),
   ]);
 
   const stripeReady = isStripeConfigured();
@@ -120,6 +122,39 @@ export default async function AdminDashboardPage() {
           hint={stripeReady ? `${billing.activeCount + billing.pastDueCount} abonnements` : "Configurer Stripe"}
         />
       </div>
+
+      {/* Trafic site public */}
+      <section className="mb-8 rounded-xl border border-violet-100 bg-violet-50/40 p-5">
+        <h2 className="mb-4 flex items-center gap-2 font-semibold text-violet-950">
+          <Globe size={16} className="text-violet-600" />
+          Visiteurs site public (ubion.fr)
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <VisitStat label="Aujourd'hui" value={siteAnalytics.uniqueToday} sub={`${siteAnalytics.pageViewsToday} pages vues`} />
+          <VisitStat label="7 jours" value={siteAnalytics.unique7d} sub={`${siteAnalytics.pageViews7d} pages vues`} />
+          <VisitStat label="30 jours" value={siteAnalytics.unique30d} sub="visiteurs uniques" />
+        </div>
+        {siteAnalytics.topPaths7d.length > 0 ? (
+          <div className="mt-4 border-t border-violet-100 pt-4">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-violet-800/80">
+              Pages les plus vues (7 j)
+            </p>
+            <ul className="space-y-1.5">
+              {siteAnalytics.topPaths7d.map((row) => (
+                <li key={row.path} className="flex items-center justify-between gap-3 text-sm">
+                  <code className="truncate text-violet-900">{row.path}</code>
+                  <span className="shrink-0 font-semibold text-violet-800">{row.views}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-violet-800/70">
+            Les statistiques apparaîtront dès les premières visites sur l&apos;annuaire, les fiches restaurant et
+            ubion.fr/pro.
+          </p>
+        )}
+      </section>
 
       {prospectsToFollowUp.length > 0 && (
         <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50/60 p-5">
@@ -316,4 +351,14 @@ function KpiCard({
   }
 
   return content;
+}
+
+function VisitStat({ label, value, sub }: { label: string; value: number; sub: string }) {
+  return (
+    <div className="rounded-lg border border-violet-100 bg-white/80 px-3 py-3">
+      <p className="text-2xl font-bold text-violet-950">{value.toLocaleString("fr-FR")}</p>
+      <p className="text-sm font-medium text-violet-900">{label}</p>
+      <p className="mt-0.5 text-xs text-violet-700/80">{sub}</p>
+    </div>
+  );
 }

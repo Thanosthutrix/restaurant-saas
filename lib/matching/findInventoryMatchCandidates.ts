@@ -17,9 +17,9 @@ const SCORE_PER_COMMON_WORD = 15;
 const SCORE_FUZZY_MAX = 90;
 
 /** En dessous : pas d’auto-liaison côté import BL. */
-export const INVENTORY_BL_AUTO_LINK_MIN = 62;
+export const INVENTORY_BL_AUTO_LINK_MIN = 55;
 /** Si le 2ᵉ candidat est trop proche du 1ᵉʳ, on n’auto-lie pas (évite les homonymes). */
-const AMBIGUITY_GAP = 3;
+const AMBIGUITY_GAP = 8;
 
 /** Mots courts FR peu utiles pour le score par intersection. */
 const STOP_WORDS = new Set([
@@ -63,9 +63,10 @@ function scoreLabelAgainstStock(
   stockNorm: string
 ): { score: number; reason: string } {
   const label = stripTrailingPackagingNoise(stripLeadingNoise(normalizedLabel));
-  const stock = stockNorm;
+  const stock = stripTrailingPackagingNoise(stripLeadingNoise(stockNorm));
 
   if (stock === label) return { score: SCORE_EXACT, reason: "exact" };
+  if (stockNorm === normalizedLabel) return { score: SCORE_EXACT, reason: "exact raw" };
 
   const labelWords = meaningfulWords(label);
   const stockWords = meaningfulWords(stock);

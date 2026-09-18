@@ -1,23 +1,19 @@
 import { supabaseServer } from "@/lib/supabaseServer";
-import { analyzeBlDocument } from "@/lib/bl-openai";
-import { BL_ANALYSIS_VERSION } from "@/lib/ticket-analysis";
+import {
+  analyzeDeliveryNoteDocument,
+  DELIVERY_NOTE_ANALYSIS_VERSION,
+} from "@/lib/delivery-note-openai";
 import { getDeliveryNoteFileUrl } from "@/lib/db";
-import { normalizeInventoryItemName } from "@/lib/recipes/normalizeInventoryItemName";
-import { matchInventoryItemForLabel } from "@/lib/matching/findInventoryMatchCandidates";
 import { fetchDeliveryLabelAliasMap, fetchDeliveryLabelConversionHintsMap } from "@/lib/inventoryDeliveryLabelAliases";
 import {
-  computeDeliveryLineQtyReceived,
-  type BlConversionInventoryHint,
-} from "@/lib/receiving/blStockConversion";
-
-type ParsedLine = {
-  label: string;
-  quantity: number;
-  unit: string | null;
-  packagingHint: string | null;
-  blLineTotalHt: number | null;
-  blUnitPriceStockHt: number | null;
-};
+  buildDeliveryNoteLineRows,
+  coherenceNoteForLines,
+  looksLikeRepeatedLabelHallucination,
+  parseExtractionConfidence,
+  parseLinesFromDeliveryNoteJson,
+} from "@/lib/delivery-note-parse";
+import { matchInventoryItemForLabel } from "@/lib/matching/findInventoryMatchCandidates";
+import type { BlConversionInventoryHint } from "@/lib/receiving/blStockConversion";
 
 function asString(v: unknown): string | null {
   if (v == null) return null;
@@ -25,186 +21,46 @@ function asString(v: unknown): string | null {
   return s.length ? s : null;
 }
 
-export function parseNumericField(v: unknown): number | null {
-  if (v == null || v === "") return null;
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  let s = String(v).trim();
-  if (!s) return null;
-  s = s.replace(/\u202f|\u00a0/g, " ").replace(/\s/g, "");
-  const lastComma = s.lastIndexOf(",");
-  const lastDot = s.lastIndexOf(".");
-  if (lastComma !== -1 && lastComma > lastDot) {
-    const intPart = s.slice(0, lastComma).replace(/\./g, "");
-    const decPart = s.slice(lastComma + 1);
-    const n = Number(`${intPart}.${decPart}`);
-    return Number.isFinite(n) ? n : null;
-  }
-  const n = Number(s.replace(/,/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function looksLikeNonProductLine(label: string): boolean {
-  const n = normalizeInventoryItemName(label);
-  if (!n || n.length < 2) return true;
-  if (
-    /^(total|sous-total|sous total|total ht|total ttc|montant total|tva|t\.v\.a)(\s|$)/i.test(n)
-  ) {
-    return true;
-  }
-  return false;
-}
-
-/** Le modèle ne respecte pas toujours les noms de clés du prompt (designation vs label, etc.). */
-function pickString(o: Record<string, unknown>, keys: string[]): string | null {
-  for (const k of keys) {
-    const v = asString(o[k]);
-    if (v) return v;
-  }
-  return null;
-}
-
-function pickNumber(o: Record<string, unknown>, keys: string[]): number | null {
-  for (const k of keys) {
-    const v = parseNumericField(o[k]);
-    if (v != null && Number.isFinite(v)) return v;
-  }
-  return null;
-}
-
-/** Tableau de lignes : clés possibles selon les sorties du modèle. */
-function linesArrayFromJson(json: Record<string, unknown>): unknown[] {
-  const direct = [
-    json.lines,
-    json.Lines,
-    json.lignes,
-    json.items,
-    json.products,
-    json.articles,
-    json.article_lines,
-  ];
-  for (const v of direct) {
-    if (Array.isArray(v)) return v;
-  }
-  const data = json.data;
-  if (data && typeof data === "object") {
-    const d = data as Record<string, unknown>;
-    const nested = d.lines ?? d.items ?? d.lignes;
-    if (Array.isArray(nested)) return nested;
-  }
-  return [];
-}
-
-/**
- * Si le modèle utilise des clés inconnues : préfère une chaîne contenant des lettres (libellé) aux seuls montants.
- */
-function longestStringValueInRow(o: Record<string, unknown>): string | null {
-  const candidates: string[] = [];
-  for (const v of Object.values(o)) {
-    if (typeof v !== "string") continue;
-    const t = v.trim();
-    if (t.length >= 2) candidates.push(t);
-  }
-  const withLetters = candidates.filter((s) => /[\p{L}]/u.test(s));
-  const pool = withLetters.length > 0 ? withLetters : candidates;
-  let best = "";
-  for (const t of pool) {
-    if (t.length > best.length) best = t;
-  }
-  return best.length >= 2 ? best : null;
-}
-
-function parseLinesFromJson(json: Record<string, unknown>): ParsedLine[] {
-  const raw = linesArrayFromJson(json);
-  const out: ParsedLine[] = [];
-  for (const row of raw) {
-    if (!row || typeof row !== "object") continue;
-    const o = row as Record<string, unknown>;
-    let label = pickString(o, [
-      "label",
-      "designation",
-      "libelle",
-      "libellé",
-      "name",
-      "description",
-      "article",
-      "produit",
-      "libelle_article",
-      "Désignation",
-      "DESIGNATION",
-    ]);
-    if (!label) {
-      label = longestStringValueInRow(o);
-    }
-    if (!label || looksLikeNonProductLine(label)) continue;
-    const qty =
-      pickNumber(o, [
-        "quantity",
-        "qty",
-        "quantite",
-        "quantité",
-        "qte",
-        "qté",
-      ]) ?? 0;
-    const unit = pickString(o, ["unit", "unite", "unité", "unite_commande"]);
-    const packagingHint = pickString(o, [
-      "packaging_hint",
-      "packagingHint",
-      "conditionnement",
-      "conditionnement_hint",
-    ]);
-    const unitPrice = pickNumber(o, [
-      "unit_price_ht",
-      "prix_unitaire_ht",
-      "pu_ht",
-      "prix_u_ht",
-      "unit_price",
-      "prix_ht",
-    ]);
-    const lineTotal = pickNumber(o, [
-      "line_total_ht",
-      "montant_ht",
-      "montant_ligne_ht",
-      "total_ht",
-      "total_ligne",
-      "montant",
-    ]);
-    out.push({
-      label,
-      quantity: qty >= 0 ? qty : 0,
-      unit,
-      packagingHint,
-      blLineTotalHt: lineTotal != null && lineTotal > 0 ? lineTotal : null,
-      blUnitPriceStockHt: unitPrice != null && unitPrice > 0 ? unitPrice : null,
-    });
-  }
-  return out;
-}
-
 export type BlExtractionResult =
-  | { ok: true; insertedCount: number; rawLineCount: number; userMessage: string }
+  | { ok: true; insertedCount: number; rawLineCount: number; linkedCount: number; userMessage: string }
   | { ok: false; error: string };
 
 function buildUserMessage(
   inserted: number,
+  linkedCount: number,
   rawFromModel: number,
-  sampleRowJson: string | null
+  confidence: "high" | "low" | "unreadable",
+  repeatedHallucination: boolean,
+  extractionNotes: string | null
 ): string {
-  if (inserted > 0) {
-    return `${inserted} ligne${inserted > 1 ? "s" : ""} ajoutée${inserted > 1 ? "s" : ""} à partir du BL. Vérifiez les quantités et prix avant validation.`;
+  if (repeatedHallucination) {
+    return "Lecture rejetée : tous les libellés extraits sont identiques (erreur fréquente du modèle). Photographiez le tableau des articles de plus près, ou saisissez les lignes à la main.";
   }
-  if (rawFromModel === 0) {
-    return `Aucune ligne renvoyée par l’IA (tableau vide ou illisible). Utilisez une photo nette, bien éclairée, avec le tableau des articles entier, ou saisissez les lignes à la main.`;
+  if (confidence === "unreadable") {
+    return `Document illisible ou trop flou.${extractionNotes ? ` ${extractionNotes}` : ""} Utilisez une photo nette du tableau des articles, ou saisissez les lignes manuellement.`;
   }
-  let msg = `L’IA a renvoyé ${rawFromModel} ligne(s), mais aucune n’a pu être importée (libellés vides ou filtrés comme totaux).`;
-  if (sampleRowJson) {
-    msg += ` Exemple de ligne reçue : ${sampleRowJson}`;
+  if (inserted === 0) {
+    if (rawFromModel === 0) {
+      return "Aucune ligne détectée dans le tableau. Cadrez la photo sur les lignes articles (désignation, quantité, prix).";
+    }
+    return "Des lignes ont été lues mais filtrées (totaux ou libellés vides). Vérifiez la photo ou saisissez à la main.";
   }
-  msg += " Essayez une autre photo ou la saisie manuelle.";
-  return msg;
+  const linkPart =
+    linkedCount === inserted
+      ? "Toutes les lignes sont liées à un produit stock."
+      : linkedCount > 0
+        ? `${linkedCount} ligne${linkedCount > 1 ? "s" : ""} liée${linkedCount > 1 ? "s" : ""} au stock — choisissez le produit pour les autres via le menu déroulant.`
+        : "Aucune liaison stock automatique — associez chaque ligne au produit correspondant (le système mémorise pour ce fournisseur).";
+  const confPart =
+    confidence === "low"
+      ? " Confiance partielle : vérifiez chaque libellé et quantité."
+      : "";
+  return `${inserted} ligne${inserted > 1 ? "s" : ""} importée${inserted > 1 ? "s" : ""}. ${linkPart}${confPart}`;
 }
 
 /**
- * Lit le BL (image) via OpenAI, remplace les lignes brouillon et tente de lier chaque ligne à un produit stock (nom identique normalisé).
+ * Lit le BL (photo) via OpenAI (pipeline structuré v7), remplace les lignes brouillon
+ * et tente de lier chaque ligne à un produit stock.
  */
 export async function runDeliveryNoteBlExtraction(
   deliveryNoteId: string,
@@ -240,7 +96,7 @@ export async function runDeliveryNoteBlExtraction(
   }
 
   const fileName = row.file_name ?? "bl.jpg";
-  const outcome = await analyzeBlDocument(publicUrl, fileName);
+  const outcome = await analyzeDeliveryNoteDocument(publicUrl, fileName);
   const now = new Date().toISOString();
 
   if (outcome.kind === "skipped_no_key") {
@@ -273,24 +129,17 @@ export async function runDeliveryNoteBlExtraction(
     return { ok: false, error: outcome.message };
   }
 
-  const json = outcome.json;
-  const rawLineCount = linesArrayFromJson(json).length;
-  const rawRows = linesArrayFromJson(json);
-  let sampleRowJson: string | null = null;
-  if (rawRows.length > 0 && rawRows[0] && typeof rawRows[0] === "object") {
-    try {
-      sampleRowJson = JSON.stringify(rawRows[0]).slice(0, 280);
-    } catch {
-      sampleRowJson = null;
-    }
-  }
-
-  const supplier = asString(json.supplier_name_on_document);
-  const docNum = asString(json.document_number);
+  const json = outcome.result.json;
+  const confidence = parseExtractionConfidence(json.extraction_confidence);
+  const extractionNotes = asString(json.extraction_notes);
+  const supplierNameOnDoc = asString(json.supplier_name_on_document);
+  const blNumber = asString(json.bl_number);
   const deliveryDate = asString(json.delivery_date);
-  const parsedLines = parseLinesFromJson(json);
-
-  const userMessage = buildUserMessage(parsedLines.length, rawLineCount, sampleRowJson);
+  const rawText = asString(json.raw_text);
+  const parsedLines = parseLinesFromDeliveryNoteJson(json);
+  const rawLineCount = Array.isArray(json.lines) ? json.lines.length : 0;
+  const repeatedHallucination = looksLikeRepeatedLabelHallucination(parsedLines);
+  const coherence = coherenceNoteForLines(parsedLines);
 
   const { data: invRows } = await supabaseServer
     .from("inventory_items")
@@ -301,8 +150,8 @@ export async function runDeliveryNoteBlExtraction(
 
   const invById = new Map<string, BlConversionInventoryHint>(
     (invRows ?? []).map((r) => {
-      const row = r as BlConversionInventoryHint;
-      return [row.id, row];
+      const invRow = r as BlConversionInventoryHint;
+      return [invRow.id, invRow];
     })
   );
 
@@ -311,14 +160,30 @@ export async function runDeliveryNoteBlExtraction(
     fetchDeliveryLabelConversionHintsMap(restaurantId, row.supplier_id),
   ]);
 
+  const shouldInsert =
+    parsedLines.length > 0 &&
+    !repeatedHallucination &&
+    (confidence === "high" || confidence === "low");
+
+  const linkedCount = shouldInsert
+    ? parsedLines.filter((l) => matchInventoryItemForLabel(l.label, invItems, { aliasMap }) != null).length
+    : 0;
+
+  const userMessage = buildUserMessage(
+    shouldInsert ? parsedLines.length : 0,
+    linkedCount,
+    rawLineCount,
+    repeatedHallucination ? "unreadable" : confidence,
+    repeatedHallucination,
+    extractionNotes
+  );
+
   const noteText = [
-    supplier ? `Fournisseur (document) : ${supplier}.` : null,
-    `Lecture BL (même pipeline que relevé v${BL_ANALYSIS_VERSION}).`,
-    `Import : ${parsedLines.length} ligne(s) enregistrée(s).`,
-    rawLineCount !== parsedLines.length
-      ? `Côté modèle : ${rawLineCount} ligne(s) dans le JSON.`
-      : null,
+    supplierNameOnDoc ? `Fournisseur (document) : ${supplierNameOnDoc}.` : null,
+    `Lecture BL v${DELIVERY_NOTE_ANALYSIS_VERSION}.`,
     userMessage,
+    coherence,
+    extractionNotes && confidence !== "high" ? extractionNotes : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -326,8 +191,9 @@ export async function runDeliveryNoteBlExtraction(
   const patch: Record<string, unknown> = {
     updated_at: now,
     notes: noteText,
+    raw_text: rawText,
   };
-  if (docNum) patch.number = docNum;
+  if (blNumber) patch.number = blNumber;
   if (deliveryDate) patch.delivery_date = deliveryDate;
 
   await supabaseServer
@@ -341,43 +207,24 @@ export async function runDeliveryNoteBlExtraction(
     .delete()
     .eq("delivery_note_id", deliveryNoteId);
 
-  if (parsedLines.length === 0) {
+  if (!shouldInsert) {
     return {
       ok: true,
       insertedCount: 0,
       rawLineCount,
+      linkedCount: 0,
       userMessage,
     };
   }
 
-  const rows = parsedLines.map((l, index) => {
-    const inventoryItemId = matchInventoryItemForLabel(l.label, invItems, { aliasMap });
-    const qtyDelivered = l.quantity;
-    const qtyReceived = computeDeliveryLineQtyReceived({
-      qtyDelivered,
-      inventoryItemId,
-      label: l.label,
-      unit: l.unit,
-      packagingHint: l.packagingHint,
-      invById,
-      hintMap,
-    });
-    return {
-      delivery_note_id: deliveryNoteId,
-      purchase_order_line_id: null,
-      inventory_item_id: inventoryItemId,
-      label: l.label,
-      qty_ordered: 0,
-      qty_delivered: qtyDelivered,
-      qty_received: qtyReceived,
-      unit: l.unit,
-      sort_order: index,
-      bl_line_total_ht: l.blLineTotalHt,
-      bl_unit_price_stock_ht: l.blUnitPriceStockHt,
-      manual_unit_price_stock_ht: null,
-      supplier_invoice_extracted_line_id: null,
-    };
-  });
+  const rows = buildDeliveryNoteLineRows(
+    deliveryNoteId,
+    parsedLines,
+    invItems,
+    invById,
+    aliasMap,
+    hintMap
+  );
 
   const { error: insErr } = await supabaseServer.from("delivery_note_lines").insert(rows);
   if (insErr) {
@@ -388,6 +235,10 @@ export async function runDeliveryNoteBlExtraction(
     ok: true,
     insertedCount: parsedLines.length,
     rawLineCount,
+    linkedCount,
     userMessage,
   };
 }
+
+/** @deprecated Utiliser parseNumericField depuis delivery-note-parse */
+export { parseNumericField } from "@/lib/delivery-note-parse";

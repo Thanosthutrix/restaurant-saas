@@ -41,14 +41,14 @@ export function BlAnalyzeButton({ deliveryNoteId, restaurantId, status, fileName
   return (
     <div className="mb-4 rounded-lg border border-copper-100 bg-copper-50/50 px-3 py-3">
       <p className="text-sm text-stone-800">
-        <span className="font-medium text-copper-950">Lecture du BL (OpenAI)</span> — même principe que le relevé de
-        caisse (photo → JSON) : libellé, quantité, prix HT ; rattachement au <strong>produit stock</strong> si le nom
-        correspond exactement (après normalisation). Peut prendre jusqu’à une minute ; ne fermez pas l’onglet.
+        <span className="font-medium text-copper-950">Lecture du BL (OpenAI)</span> — extrait libellé, quantité et
+        prix HT depuis une <strong>photo nette</strong> du tableau articles, puis propose un rattachement au{" "}
+        <strong>produit stock</strong> (nom proche ou alias mémorisé pour ce fournisseur). Peut prendre jusqu’à une
+        minute ; ne fermez pas l’onglet.
       </p>
       <p className="mt-2 text-xs text-stone-500">
-        Le résultat s’affiche <strong>ici</strong> après la lecture ; les détails sont aussi copiés dans les notes de la
-        réception (en bas de page après actualisation). En pratique : photo zoomée sur le tableau (JPEG habituel en
-        cuisine) ; si la lecture échoue, tester un PNG ou un cadrage plus serré.
+        Cadrez le tableau (désignation + quantités visibles). Si une ligne n’est pas reconnue, choisissez le produit dans
+        la liste — le lien sera mémorisé pour les prochains BL de ce fournisseur.
       </p>
       <button
         type="button"

@@ -11,6 +11,47 @@ import {
 } from "@/lib/supplier-invoice-openai";
 import { SUPPLIER_INVOICES_BUCKET } from "@/lib/constants";
 import { guessExpenseCategory, isExpenseCategory } from "@/lib/pocket/expenseCategories";
+import {
+  looksLikeRepeatedLabelHallucination,
+  parseExtractionConfidence,
+  type ParsedDeliveryLine,
+} from "@/lib/delivery-note-parse";
+
+function sanitizeInvoiceAnalysisJson(json: Record<string, unknown>): Record<string, unknown> {
+  const confidence = parseExtractionConfidence(json.extraction_confidence);
+  const rawLines = Array.isArray(json.lines) ? json.lines : [];
+
+  if (confidence === "unreadable") {
+    return { ...json, lines: [] };
+  }
+
+  const forHallucination: ParsedDeliveryLine[] = rawLines
+    .filter((l) => l && typeof l === "object")
+    .map((l) => {
+      const o = l as Record<string, unknown>;
+      const label = String(o.label ?? o.libelle ?? o.description ?? "").trim();
+      return {
+        label,
+        quantity: 0,
+        unit: null,
+        packagingHint: null,
+        blLineTotalHt: null,
+        blUnitPriceStockHt: null,
+      };
+    })
+    .filter((l) => l.label.length > 0);
+
+  if (looksLikeRepeatedLabelHallucination(forHallucination)) {
+    return {
+      ...json,
+      lines: [],
+      extraction_notes:
+        "Lignes rejetées : libellés identiques sur toutes les lignes (erreur fréquente du modèle). Saisie manuelle recommandée.",
+    };
+  }
+
+  return json;
+}
 
 const INVOICE_ANALYSIS_SELECT =
   "id, restaurant_id, supplier_id, invoice_number, invoice_date, file_path, file_name, file_url, amount_ht, amount_ttc, analysis_result_json, analysis_status, analysis_error, analysis_version, expense_category";
@@ -26,8 +67,9 @@ function filePublicUrl(filePath: string | null, fileUrl: string | null): string 
 export async function applySupplierInvoiceAnalysisResult(
   invoiceId: string,
   restaurantId: string,
-  analysisJson: Record<string, unknown>
+  analysisJsonRaw: Record<string, unknown>
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const analysisJson = sanitizeInvoiceAnalysisJson(analysisJsonRaw);
   const { data: inv, error: fetchErr } = await supabaseServer
     .from("supplier_invoices")
     .select(INVOICE_ANALYSIS_SELECT)

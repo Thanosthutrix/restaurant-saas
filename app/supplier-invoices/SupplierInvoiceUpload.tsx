@@ -77,6 +77,9 @@ export function SupplierInvoiceUpload({ restaurantId, suppliers }: Props) {
     return <p className="text-sm text-stone-500">Créez d’abord un fournisseur pour importer une facture.</p>;
   }
 
+  const isPhotoUpload =
+    file != null && !file.name.toLowerCase().endsWith(".pdf") && file.type.startsWith("image/");
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -106,6 +109,13 @@ export function SupplierInvoiceUpload({ restaurantId, suppliers }: Props) {
           />
         </label>
       </div>
+      {isPhotoUpload ? (
+        <p className="rounded-lg border border-amber-100 bg-amber-50/80 px-3 py-2 text-xs text-amber-950">
+          <strong>Photo de facture :</strong> cadrez le tableau des lignes (désignation, quantités, montants HT si
+          visibles), lumière uniforme, texte net. Une page à la fois si la facture est longue. Vous pourrez corriger les
+          lignes après l’analyse.
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-stone-500">N° facture (optionnel)</span>
